@@ -190,10 +190,16 @@ function SectionalLeadershipNode({
 
 // ----------------------------------------------------------------------
 
-export function SectionalLeadershipView() {
+/**
+ * `historico` pinta la directiva de un cuatrienio guardado con este mismo
+ * organigrama (desde /dashboard/level/national → Directivas por cuatrienio):
+ * `{ idEntidad, nombreEntidad, cuatrienio, obtenerOcupante(nodeId) }`. Es de
+ * solo lectura: la historia se corrige en su pantalla, no aqui.
+ */
+export function SectionalLeadershipView({ historico = null } = {}) {
   const params = useParams();
   const { user } = useAuthContext();
-  const sectionalId = params?.id;
+  const sectionalId = historico ? historico.idEntidad : params?.id;
   // LA REGION DE LA SECCION, no la del usuario. El Coordinador Regional y su
   // Sub-Director proponen sobre las secciones de su region, y su alcance no trae
   // ids de seccion: sin esto el guarda no tiene con que compararlo y el
@@ -206,10 +212,12 @@ export function SectionalLeadershipView() {
   // Todos los cargos seccionales pueden proponer en SU seccion. El Consejo
   // Ejecutivo puede hacerlo en cualquiera. Solo el Administrador Global aplica
   // directamente y conserva la edicion visual del diagrama.
-  const canManageLeadership = canManageSectionLeadership(user, sectionalId, {
-    regionId: sectionalRegionId,
-  });
-  const canManageLayout = canManageDirectiva(user);
+  const canManageLeadership =
+    !historico &&
+    canManageSectionLeadership(user, sectionalId, {
+      regionId: sectionalRegionId,
+    });
+  const canManageLayout = !historico && canManageDirectiva(user);
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
@@ -225,7 +233,9 @@ export function SectionalLeadershipView() {
     idEntidad: sectionalId,
     nombreEntidad: sectionalName,
     canManage: canManageLeadership,
+    conDatosDeHoy: !historico,
   });
+  const obtenerOcupante = historico?.obtenerOcupante ?? leadership.getAssignedMember;
   // El diseno del diagrama se guarda en Firestore: antes vivia en memoria y cada
   // recolocacion se perdia al recargar.
   const layoutStorage = useLeadershipLayoutStorage({
@@ -243,8 +253,10 @@ export function SectionalLeadershipView() {
   const structureTitle = useMemo(() => {
     const normalizedSectionalName = String(sectionalName || '').trim();
 
-    return normalizedSectionalName ? `Sección ${normalizedSectionalName}` : 'Sección';
-  }, [sectionalName]);
+    const titulo = normalizedSectionalName ? `Sección ${normalizedSectionalName}` : 'Sección';
+
+    return historico?.cuatrienio ? `${titulo} · ${historico.cuatrienio}` : titulo;
+  }, [sectionalName, historico?.cuatrienio]);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
   const connections = useMemo(() => getLeadershipConnections(SECTIONAL_LEADERSHIP_DATA), []);
   const connectorLayerActive = hasLeadershipLayoutOffsets(layoutEditor);
@@ -256,6 +268,13 @@ export function SectionalLeadershipView() {
 
   useEffect(() => {
     let isMounted = true;
+
+    // La historia trae el nombre de ENTONCES: si la seccion cambio de nombre o ya
+    // no existe, el organigrama del cuatrienio sigue diciendo el que tenia.
+    if (historico) {
+      setSectionalName(historico.nombreEntidad || '');
+      return undefined;
+    }
 
     const loadSectionalName = async () => {
       const sectional = await getSectionalById(sectionalId);
@@ -275,7 +294,7 @@ export function SectionalLeadershipView() {
     return () => {
       isMounted = false;
     };
-  }, [sectionalId]);
+  }, [sectionalId, historico]);
 
   useEffect(() => {
     const handleClickAwayPopover = (event) => {
@@ -617,7 +636,7 @@ export function SectionalLeadershipView() {
                 {...props}
                 layoutEditor={layoutEditor}
                 canManage={canManageLeadership}
-                miembroAsignado={leadership.getAssignedMember(props.id)}
+                miembroAsignado={obtenerOcupante(props.id)}
                 onAsignarMiembro={leadership.openAssign}
                 onRemoverMiembro={leadership.pedirRemoverMiembro}
               />

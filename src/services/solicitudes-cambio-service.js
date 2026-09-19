@@ -100,6 +100,10 @@ export const AMBITOS_CAMBIO = {
   // El estatus de un miembro cambiado A MANO (el automatico lo registra la
   // propia regla de asistencia como "Sistema", sin pasar por aqui).
   estatusMiembro: 'estatus_miembro',
+  // La Directiva Nacional guardada por cuatrienio (memoria). La editan el
+  // Administrador Global y la Oficina Nacional: se aplica en el acto, queda en
+  // Historial y avisa al otro.
+  directivaHistorica: 'directiva_historica',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.

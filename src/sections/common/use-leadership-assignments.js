@@ -85,6 +85,10 @@ export function useLeadershipAssignments({
   idEntidad,
   nombreEntidad = '',
   canManage = true,
+  // Apagado cuando el organigrama pinta un cuatrienio guardado: sus ocupantes
+  // vienen de la historia, y leer el padron y la directiva de hoy solo gastaba
+  // una API lenta para pintar lo que no se va a usar.
+  conDatosDeHoy = true,
 }) {
   // Quien actua. Sin esto, la puerta de cambios no sabia que quien remueve es el
   // Administrador Global, dejaba el cambio PENDIENTE de aprobacion y la casilla
@@ -108,6 +112,8 @@ export function useLeadershipAssignments({
 
   useEffect(() => {
     let cancelled = false;
+
+    if (!conDatosDeHoy) return undefined;
 
     const load = async () => {
       const [memberRows, dests, churches, sectionals, regionals, fotos] = await Promise.all([
@@ -137,9 +143,10 @@ export function useLeadershipAssignments({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [conDatosDeHoy]);
 
   const loadAssignments = useCallback(async () => {
+    if (!conDatosDeHoy) return;
     if (!idEntidad && nivel !== 'nacional') return;
 
     const rows = await obtenerAsignacionesDirectiva({ nivel, idEntidad }).catch(() => []);
@@ -166,7 +173,7 @@ export function useLeadershipAssignments({
           )
       )
     );
-  }, [nivel, idEntidad]);
+  }, [nivel, idEntidad, conDatosDeHoy]);
 
   useEffect(() => {
     loadAssignments();

@@ -12,6 +12,8 @@ const destreza = (color) => ({
     'Los líderes pueden llevar en su uniforme la cinta del color de los premios de destrezas que han enseñado. Los exploradores pueden llevar las cintas del color de los premios de destreza que han ganado. Un número puede ser colocado en la cinta para indicar el número de premios de destreza enseñados o ganados.',
 });
 
+const PENDIENTE = 'Descripción pendiente del manual.';
+
 const YA_NO_DISPONIBLES =
   'no están disponibles en la actualidad. Los líderes que lo ganaron previamente lo pueden utilizar en su uniforme en cualquier momento, de acuerdo con los lineamientos del uniforme 2.0.';
 
@@ -182,4 +184,16 @@ export const TEXTOS_CINTAS_PERFIL = Object.freeze({
   38: destreza('celeste'),
   39: destreza('naranja'),
   40: destreza('marrón'),
+  // Llegaron como imagen, sin su texto del manual: el nombre sale de la imagen y
+  // la descripción dice que falta, en vez de inventarla.
+  a5: {
+    nombre: 'Histórica cinta de Oro al Logro (MOL) con estrella',
+    descripcion: PENDIENTE,
+  },
+  z1: { nombre: 'Premio Nacional al Liderazgo Ejecutivo', descripcion: PENDIENTE },
+  z2: { nombre: 'Cinta Nacional de Servicio Ejecutivo', descripcion: PENDIENTE },
+  z3: { nombre: 'Premio Nacional al Servicio Destacado', descripcion: PENDIENTE },
+  z4: { nombre: 'Cinta Ready', descripcion: PENDIENTE },
+  z5: { nombre: 'Cinta de Servicio Especial', descripcion: PENDIENTE },
+  z6: { nombre: 'Cinta CAL', descripcion: PENDIENTE },
 });

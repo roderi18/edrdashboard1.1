@@ -31,7 +31,13 @@ test('cada cinta del catálogo tiene su imagen en la carpeta pública', () => {
   const carpeta = path.join(process.cwd(), 'public/parches/Cintas y medallas/cintas-perfil');
   // Solo las cintas (.webp): la carpeta tiene además `pendientes/`, con
   // imágenes que todavía no son del catálogo, y contarla hacía fallar la prueba.
-  const archivos = new Set(fs.readdirSync(carpeta).filter((nombre) => nombre.endsWith('.webp')));
+  // Tampoco las copias que deja Windows ("8-cinta-a-la-excelencia copia.webp"):
+  // son el mismo archivo duplicado, no otra cinta.
+  const archivos = new Set(
+    fs
+      .readdirSync(carpeta)
+      .filter((nombre) => nombre.endsWith('.webp') && !/\scopia(\s\(\d+\))?\.webp$/i.test(nombre))
+  );
 
   assert.equal(CATALOGO_CINTAS_PERFIL.length, archivos.size);
   CATALOGO_CINTAS_PERFIL.forEach((cinta) => {
@@ -175,4 +181,16 @@ test('cada dígito tiene su imagen', () => {
   for (let digito = 0; digito <= 9; digito += 1) {
     assert.ok(fs.existsSync(path.join(carpeta, `numero-${digito}-dorado.webp`)), String(digito));
   }
+});
+
+// Las cintas con una letra DELANTE del número ("a5", "z1") no entraban en el
+// catálogo: el nombre del archivo no casaba con el patrón y la cinta no salía
+// aunque estuviera en la carpeta. Ahora van detrás de las numeradas, agrupadas
+// por esa letra.
+test('las cintas con letra delante del número van al final, por letra y número', () => {
+  const ids = CATALOGO_CINTAS_PERFIL.map((cinta) => cinta.id);
+
+  assert.deepEqual(ids.slice(-7), ['a5', 'z1', 'z2', 'z3', 'z4', 'z5', 'z6']);
+  assert.ok(ids.indexOf('40') < ids.indexOf('a5'));
+  assert.ok(ids.indexOf('12a') < ids.indexOf('12b'));
 });

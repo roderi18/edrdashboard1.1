@@ -225,12 +225,16 @@ function NationalLeadershipNode({
 
 // ----------------------------------------------------------------------
 
-export function NationalLeadershipView() {
+/**
+ * `historico`: la Directiva Nacional de un cuatrienio guardado, de solo lectura.
+ * Ver `SectionalLeadershipView`.
+ */
+export function NationalLeadershipView({ historico = null } = {}) {
   const { user } = useAuthContext();
   // Los cargos del Consejo Ejecutivo proponen; Oficina Nacional o Administrador
   // Global resuelven. Solo el Administrador Global modifica el diseño visual.
-  const canManageLeadership = canManageNationalLeadership(user);
-  const canManageLayout = canManageDirectiva(user);
+  const canManageLeadership = !historico && canManageNationalLeadership(user);
+  const canManageLayout = !historico && canManageDirectiva(user);
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
@@ -247,7 +251,9 @@ export function NationalLeadershipView() {
     idEntidad: 'nacional',
     nombreEntidad: 'Directiva Nacional',
     canManage: canManageLeadership,
+    conDatosDeHoy: !historico,
   });
+  const obtenerOcupante = historico?.obtenerOcupante ?? leadership.getAssignedMember;
   const layoutStorage = useLeadershipLayoutStorage({
     editor: layoutEditor,
     nivel: 'nacional',
@@ -592,7 +598,9 @@ export function NationalLeadershipView() {
               ...getLeadershipEditableNodeSx(titleEditProps),
             }}
           >
-            Directiva Nacional
+            {historico?.cuatrienio
+              ? `Directiva Nacional · ${historico.cuatrienio}`
+              : 'Directiva Nacional'}
           </Typography>
 
           <OrganizationalChart
@@ -606,7 +614,7 @@ export function NationalLeadershipView() {
                 {...props}
                 layoutEditor={layoutEditor}
                 canManage={canManageLeadership}
-                miembroAsignado={leadership.getAssignedMember(props.id)}
+                miembroAsignado={obtenerOcupante(props.id)}
                 onAsignarMiembro={leadership.openAssign}
                 onRemoverMiembro={leadership.pedirRemoverMiembro}
               />

@@ -75,6 +75,21 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    Tests: `tests/member/cintas-perfil-orden.test.mjs`, `tests/member/cintas-orden-global.test.mjs`,
    `tests/member/medallas-perfil.test.mjs`.
 
+12. **La Directiva Nacional se guarda por cuatrienio** (2022-2026 cerrado, del
+   20/08/2022 al 22/08/2026; 2026-2030 vigente; el 22/08/2026 ya es el nuevo).
+   Pestaña "Por cuatrienio" de `/dashboard/level/national`. Es memoria: foto fija
+   (la foto se COPIA a `directiva-historica/`, nunca se enlaza la de perfil) y
+   **no da permisos**; mandan los cargos actuales. Única excepción: quien es o fue
+   Director Nacional —o Comandante Nacional, su nombre antiguo— conserva los
+   permisos de Director Nacional (lo suma el servidor en `leerAsignacionesDe`), y
+   el ex comandante sale siempre en el Consejo Ejecutivo. Una persona, un cargo
+   por cuatrienio. Editan Administrador Global y Oficina Nacional, avisándose;
+   crear en el padrón (carga del listado) solo el Administrador Global. Los
+   organigramas históricos son los de siempre con `historico`. Reglas en
+   `src/utils/directiva-cuatrienios.mjs`, detalle en `docs/directiva-por-cuatrienio.md`.
+   Tests: `tests/directivas/directiva-cuatrienios.test.mjs`,
+   `tests/acceso/director-nacional-permanente.test.mjs`.
+
 Corazón del alcance: `src/utils/member-access.js` y `src/utils/org-level-access.js`.
 Suite que lo cubre: `npm run test:acceso`.
 

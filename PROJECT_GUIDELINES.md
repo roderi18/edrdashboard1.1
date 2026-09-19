@@ -366,6 +366,7 @@ combinar dos cargos.
 | **`contadores_comercio`**                          | Cae bajo el comodín de `firestore.rules`: escribible por cualquier sesión válida. El contador de órdenes debería tener su propio bloque.                                                            |
 | **Numeración de órdenes**                          | Conviven tres formatos: `ORD-26-0001` (nuevo), `REC-26-0001` (transitorio) y `ORD-1777776824429` (antiguo). El chat reconoce los tres.                                                              |
 | **Buscar por número de recibo**                    | La búsqueda de `/order` consulta `numeroOrden`; pegar el número del recibo no encuentra la orden.                                                                                                   |
+| **Directiva Nacional por cuatrienio** | Hecho: pestaña "Por cuatrienio" en `/level/national`, organigramas históricos, edición (Administrador Global y Oficina Nacional), Director Nacional permanente y ex comandantes en el Consejo Ejecutivo. Falta correr la carga del listado 2022-2026 (la lanza el Administrador Global) y trasladar a su destacamento a quienes queden en "Provisional". Ver `docs/directiva-por-cuatrienio.md`. |
 | **EXPLORA Designer** | Fases 0 a 8 hechas: lector de la portada, pantalla con vista previa, editores de contenido y de diseño (colores, tamaños, textos, iconos, qué se muestra), versiones, lápices, campañas con audiencia, analíticas, biblioteca de medios y aviso de comunicados. Ver abajo. |
 
 #### EXPLORA Designer ✅ — editar la portada desde la aplicación
@@ -686,7 +687,9 @@ personas podían compartir número.
 
 **Directivas** — `posicionesDirectiva`, `directivasOrganizacionales`,
 `asignacionesDirectiva`, `disenosDirectiva`,
-`organigramaDirectivaDestacamentos`, `cargosDirectiva` _(obsoleta)_
+`organigramaDirectivaDestacamentos`, `cargosDirectiva` _(obsoleta)_,
+`directiva_cuatrienios_integrantes` y `directiva_nacional_permanentes` (la
+Directiva Nacional por cuatrienio; ver `docs/directiva-por-cuatrienio.md`)
 
 **Miembro** — `informacion_medica_basica_miembros`, `medicamentos_miembros`,
 `alergias_miembros`, `condiciones_medicas_miembros`,
@@ -738,7 +741,8 @@ solo los contadores; la lee el Administrador Global). Las cuatro, fuera del como
 `miembros/`, `destacamentos/`, `documentos/`, `certificados/`, `chat/`,
 `principal/`, `propuestas/`, `principal-tarjetas/` (fondos de la portada de hoy),
 `everest/` (medios subidos desde EXPLORA Designer; mismas condiciones que
-`principal-tarjetas/`, sin borrado)
+`principal-tarjetas/`, sin borrado), `directiva-historica/` (fotos copiadas de la
+Directiva por cuatrienio; Administrador Global y Oficina Nacional, sin borrado)
 
 ### 5.4 Modelos y esquemas ✅ — `src/models/`
 

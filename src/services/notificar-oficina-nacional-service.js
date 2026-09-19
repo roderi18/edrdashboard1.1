@@ -328,3 +328,34 @@ export async function notificarFotoEntidadPropuesta({
     idsDestinatariosPrecalculados: destinatarios,
   });
 }
+
+/**
+ * La Directiva Nacional por cuatrienio la editan dos: el Administrador Global y
+ * la Oficina Nacional. Lo que cambia uno se lo cuenta al otro —a todos los que
+ * tengan esos roles, menos a quien lo hizo—, porque es la memoria de la
+ * organizacion y nadie deberia enterarse por casualidad de que se reescribio.
+ */
+export async function notificarCambioDirectivaHistorica({ mensaje = '', cuatrienio = '', usuario = {} } = {}) {
+  const idActor = String(usuario?.uid || usuario?.id || '').trim();
+  const destinatarios = await obtenerDestinatarios({ excluirIds: [idActor] });
+
+  if (!destinatarios.length) return null;
+
+  return crearNotificacionUsuario({
+    tipoNotificacion: 'directiva_historica_cambiada',
+    modulo: 'directivas',
+    titulo: `Directiva ${cuatrienio}`.trim(),
+    mensaje,
+    prioridad: 'informativa',
+    actorId: idActor || 'sistema',
+    actorTipo: 'usuario',
+    actorNombre: usuario?.displayName || usuario?.name || 'Alguien',
+    entidadTipo: 'directiva_cuatrienio',
+    entidadId: String(cuatrienio),
+    ruta: '/dashboard/level/national?vista=cuatrienios',
+    etiquetaAccion: 'Ver directiva',
+    metadatos: { cuatrienio },
+    usuario,
+    idsDestinatarios: destinatarios,
+  });
+}

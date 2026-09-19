@@ -113,19 +113,32 @@ const ARCHIVOS = [
   '38-cinta-celeste',
   '39-cinta-naranja',
   '40-cinta-marron',
+  // Las que llevan una letra DELANTE del número van detrás de todas las
+  // numeradas, agrupadas por esa letra: la "a5" (la MOL con estrella) y las "z"
+  // de los premios nacionales. Sin admitir este prefijo, el catálogo reventaba al
+  // leer su nombre y la cinta no salía aunque estuviera en la carpeta.
+  'a5-cinta-historica-de-oro-al-logro-mol',
+  'z1-nationalExecutiveLeadershipAward',
+  'z2-national-executive-service-ribbon',
+  'z3-nationalOutstandingServiceAward',
+  'z4-ready',
+  'z5-special-service',
+  'z6-cinta-CAL',
 ];
 
-// '12a' → [12, 'a']. Número primero y letra después: la 12a va antes que la 12b
-// y las dos entre la 11 y la 13.
+// '12a' → ['', 12, 'a']. Número primero y letra después: la 12a va antes que la
+// 12b y las dos entre la 11 y la 13. Una letra DELANTE ('a5', 'z1') manda al
+// final, agrupada por esa letra y luego por número: z1, z2… detrás de la 40.
 const claveDeOrden = (id) => {
-  const [, numero = '', letra = ''] = /^(\d+)([a-z]*)$/i.exec(String(id ?? '').trim()) ?? [];
-  return [Number(numero), letra.toLowerCase()];
+  const [, prefijo = '', numero = '', letra = ''] =
+    /^([a-z]?)(\d+)([a-z]*)$/i.exec(String(id ?? '').trim()) ?? [];
+  return [prefijo.toLowerCase(), Number(numero), letra.toLowerCase()];
 };
 
 export const compararCintas = (a, b) => {
-  const [numeroA, letraA] = claveDeOrden(a);
-  const [numeroB, letraB] = claveDeOrden(b);
-  return numeroA - numeroB || letraA.localeCompare(letraB);
+  const [prefijoA, numeroA, letraA] = claveDeOrden(a);
+  const [prefijoB, numeroB, letraB] = claveDeOrden(b);
+  return prefijoA.localeCompare(prefijoB) || numeroA - numeroB || letraA.localeCompare(letraB);
 };
 
 const nombreDesdeArchivo = (resto) => {
@@ -135,9 +148,9 @@ const nombreDesdeArchivo = (resto) => {
 
 export const CATALOGO_CINTAS_PERFIL = Object.freeze(
   ARCHIVOS.map((archivo) => {
-    const [, id, resto] = /^(\d+[a-z]?)-(.+)$/i.exec(archivo);
+    const [, id, resto] = /^([a-z]?\d+[a-z]?)-(.+)$/i.exec(archivo);
     return Object.freeze({
-      id,
+      id: id.toLowerCase(),
       nombre: TEXTOS_CINTAS_PERFIL[id]?.nombre ?? nombreDesdeArchivo(resto),
       descripcion: TEXTOS_CINTAS_PERFIL[id]?.descripcion ?? '',
       src: `${RUTA_CINTAS_PERFIL}/${archivo}.webp`,

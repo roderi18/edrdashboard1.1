@@ -217,14 +217,18 @@ function RegionalLeadershipNode({
 
 // ----------------------------------------------------------------------
 
-export function RegionalLeadershipView() {
+/**
+ * `historico`: la directiva de un cuatrienio guardado, de solo lectura. Ver
+ * `SectionalLeadershipView`.
+ */
+export function RegionalLeadershipView({ historico = null } = {}) {
   const params = useParams();
   const { user } = useAuthContext();
   // Todos los cargos regionales pueden proponer en SU region y el Consejo
   // Ejecutivo en cualquiera. Ningun cargo regional aplica directamente.
-  const canManageLeadership = canManageRegionLeadership(user, params?.id);
-  const canManageLayout = canManageDirectiva(user);
-  const regionalId = params?.id;
+  const regionalId = historico ? historico.idEntidad : params?.id;
+  const canManageLeadership = !historico && canManageRegionLeadership(user, params?.id);
+  const canManageLayout = !historico && canManageDirectiva(user);
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
@@ -239,7 +243,9 @@ export function RegionalLeadershipView() {
     idEntidad: regionalId,
     nombreEntidad: regionalName,
     canManage: canManageLeadership,
+    conDatosDeHoy: !historico,
   });
+  const obtenerOcupante = historico?.obtenerOcupante ?? leadership.getAssignedMember;
   // El diseno del diagrama se guarda en Firestore: antes vivia en memoria y cada
   // recolocacion se perdia al recargar.
   const layoutStorage = useLeadershipLayoutStorage({
@@ -256,8 +262,15 @@ export function RegionalLeadershipView() {
   const structureTitle = useMemo(() => {
     const normalizedRegionalName = String(regionalName || '').trim();
 
-    return normalizedRegionalName ? `Región ${normalizedRegionalName}` : 'Región';
-  }, [regionalName]);
+    // Los nombres de region ya suelen traer la palabra ("Región Este").
+    const titulo = !normalizedRegionalName
+      ? 'Región'
+      : /^regi[oó]n(\s|$)/i.test(normalizedRegionalName)
+        ? normalizedRegionalName
+        : `Región ${normalizedRegionalName}`;
+
+    return historico?.cuatrienio ? `${titulo} · ${historico.cuatrienio}` : titulo;
+  }, [regionalName, historico?.cuatrienio]);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
   const connections = useMemo(() => getLeadershipConnections(REGIONAL_LEADERSHIP_DATA), []);
   const connectorLayerActive = hasLeadershipLayoutOffsets(layoutEditor);
@@ -269,6 +282,11 @@ export function RegionalLeadershipView() {
 
   useEffect(() => {
     let isMounted = true;
+
+    if (historico) {
+      setRegionalName(historico.nombreEntidad || '');
+      return undefined;
+    }
 
     const loadRegionalName = async () => {
       const regionals = await getRegionals();
@@ -290,7 +308,7 @@ export function RegionalLeadershipView() {
     return () => {
       isMounted = false;
     };
-  }, [regionalId]);
+  }, [regionalId, historico]);
 
   useEffect(() => {
     const handleClickAwayPopover = (event) => {
@@ -632,7 +650,7 @@ export function RegionalLeadershipView() {
                 {...props}
                 layoutEditor={layoutEditor}
                 canManage={canManageLeadership}
-                miembroAsignado={leadership.getAssignedMember(props.id)}
+                miembroAsignado={obtenerOcupante(props.id)}
                 onAsignarMiembro={leadership.openAssign}
                 onRemoverMiembro={leadership.pedirRemoverMiembro}
               />

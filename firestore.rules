@@ -1247,6 +1247,29 @@ service cloud.firestore {
       allow write: if esAdministradorGlobal();
     }
 
+    // LA DIRECTIVA NACIONAL POR CUATRIENIO: la memoria de quien ocupo cada cargo
+    // (nacional, regiones y secciones) en 2022-2026, 2026-2030... La lee
+    // cualquiera con cuenta; la escriben solo el Administrador Global y la
+    // Oficina Nacional, que es a quien se le encargo guardarla. Se pregunta por
+    // TODOS sus cargos (`ejerceRol`): la Oficina Nacional es un rol a mano que
+    // puede no ser el principal.
+    match /directiva_cuatrienios_integrantes/{idIntegrante} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal()
+        || esOficinaNacional()
+        || ejerceRol('oficina_nacional');
+    }
+
+    // Lo que alguien conserva para siempre por esa historia: Director Nacional
+    // y ex comandante. El servidor lo lee al calcular el rol (permisos de
+    // Director Nacional), asi que escribirlo es dar permisos: mismas dos manos.
+    match /directiva_nacional_permanentes/{idMiembros} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal()
+        || esOficinaNacional()
+        || ejerceRol('oficina_nacional');
+    }
+
     match /everest_publicado/{pantalla} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();
@@ -1560,6 +1583,8 @@ service cloud.firestore {
         // que solo pone el Administrador Global, las podia cambiar cualquiera.
         && coleccion != 'cintas_miembros'
         && coleccion != 'configuracion_cintas'
+        && coleccion != 'directiva_cuatrienios_integrantes'
+        && coleccion != 'directiva_nacional_permanentes'
         && coleccion != 'medallas_miembros'
         && coleccion != 'estatus_miembros'
         && coleccion != 'licenciasAsistencia'

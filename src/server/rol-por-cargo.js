@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { listaDeRolesQueEjerce } from 'src/utils/lista-roles-que-ejerce.mjs';
+import { conCargosPermanentes, COLECCION_PERMANENTES } from 'src/utils/directiva-cuatrienios.mjs';
 
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
 
@@ -114,14 +115,32 @@ export const escribirAccesoPorCargo = async ({ db, auth, uid, idMiembros, acceso
     });
 };
 
-/** Las asignaciones activas de una persona. */
+/**
+ * Las asignaciones activas de una persona, mas la de Director Nacional si la
+ * conserva por la historia.
+ *
+ * Quien es o fue Director Nacional —o Comandante Nacional, su nombre antiguo—
+ * sigue teniendo sus permisos aunque ya no ocupe la casilla. Se decide aqui,
+ * donde se calcula el rol de todos, para que valga igual en el inicio de sesion
+ * y en la sincronizacion masiva. Ningun otro cargo de la historia da permisos.
+ */
 export const leerAsignacionesDe = async (db, idMiembros) => {
-  const snapshot = await db
-    .collection(COLECCION_ASIGNACIONES)
-    .where('idMiembro', '==', String(idMiembros))
-    .where('activo', '==', true)
-    .get()
-    .catch(() => null);
+  const [snapshot, permanente] = await Promise.all([
+    db
+      .collection(COLECCION_ASIGNACIONES)
+      .where('idMiembro', '==', String(idMiembros))
+      .where('activo', '==', true)
+      .get()
+      .catch(() => null),
+    db
+      .collection(COLECCION_PERMANENTES)
+      .doc(String(idMiembros))
+      .get()
+      .catch(() => null),
+  ]);
 
-  return (snapshot?.docs ?? []).map((documento) => documento.data());
+  return conCargosPermanentes(
+    (snapshot?.docs ?? []).map((documento) => documento.data()),
+    permanente?.exists ? permanente.data() : null
+  );
 };

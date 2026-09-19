@@ -125,6 +125,31 @@ service firebase.storage {
         );
     }
 
+    // La Oficina Nacional, sea o no su cargo principal (`rolesQueEjerce`).
+    function esOficinaNacional() {
+      return estaAutenticado()
+        && (
+          (
+            'rol' in request.auth.token
+            && request.auth.token.rol == 'oficina_nacional'
+          )
+          || (
+            tieneDocumento('usuarios_roles')
+            && (
+              (
+                'rolId' in documentoUsuario('usuarios_roles').data
+                && documentoUsuario('usuarios_roles').data.rolId == 'oficina_nacional'
+              )
+              || (
+                'rolesQueEjerce' in documentoUsuario('usuarios_roles').data
+                && documentoUsuario('usuarios_roles').data.rolesQueEjerce is list
+                && documentoUsuario('usuarios_roles').data.rolesQueEjerce.hasAny(['oficina_nacional'])
+              )
+            )
+          )
+        );
+    }
+
     function tienePermisoDirecto(codigoPermiso) {
       return tieneDocumento('usuarios_roles')
         && 'permisos' in documentoUsuario('usuarios_roles').data
@@ -506,6 +531,18 @@ service firebase.storage {
             && archivo.matches('.*-video\\.(mp4|webm)')
           )
         );
+      allow delete: if false;
+    }
+
+    // LAS CARAS DE LA DIRECTIVA POR CUATRIENIO. Copias, no enlaces: la foto de
+    // perfil se reemplaza al cambiarla y la historia tiene que quedarse con la de
+    // entonces. Las guardan el Administrador Global y la Oficina Nacional (la
+    // copia desde el perfil la hace el servidor con el token de quien la pide, y
+    // pasa por aqui igual). Sin borrado: una foto de la historia no se pierde.
+    match /directiva-historica/{cuatrienio}/{archivo} {
+      allow read: if estaAutenticado();
+      allow create, update: if (esAdministradorGlobal() || esOficinaNacional())
+        && esImagenPermitida();
       allow delete: if false;
     }
 

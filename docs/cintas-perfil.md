@@ -9,12 +9,18 @@ correspondiente, que se muestra en su perfil igual que hoy en el de EDR-10002.
 
 ## Imágenes
 
-`public/parches/Cintas y medallas/cintas-perfil/` — 40 archivos `.webp`.
+`public/parches/Cintas y medallas/cintas-perfil/` — 47 archivos `.webp`.
 El prefijo numérico del nombre **es el orden oficial** (`1-cinta-al-valor.webp` …
 `40-cinta-marron.webp`).
 
 - Ordenar por el **número**, no alfabéticamente (si no, `10` queda antes que `2`).
 - `12a` y `12b` van entre la 11 y la 13, `12a` primero.
+- Una letra **delante** del número (`a5`, `z1`…) manda al final, agrupada por esa
+  letra y luego por número: `40` → `a5` → `z1` … `z6`.
+- **Dejar la imagen en la carpeta no basta**: hay que añadir su nombre a `ARCHIVOS`
+  en `src/utils/cintas-perfil.mjs` y su texto en `cintas-perfil-textos.mjs`. El
+  test `cintas-perfil-orden` falla si hay una imagen sin catálogo. Las copias de
+  Windows (`… copia.webp`) no cuentan como cinta.
 
 ## Disposición (referencia: manual de líderes, pág. 21)
 

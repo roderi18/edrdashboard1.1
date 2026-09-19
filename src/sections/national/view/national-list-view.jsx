@@ -14,6 +14,7 @@ import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 
 import { paths } from 'src/routes/paths';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { claveNodo } from 'src/utils/leadership-assignments';
@@ -27,6 +28,7 @@ import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
+import { obtenerPermanentes } from 'src/services/directiva-cuatrienios-service';
 import {
   NATIONAL_LEADERSHIP_DATA,
   REGIONAL_LEADERSHIP_DATA,
@@ -53,6 +55,7 @@ import {
 
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
+import { DirectivaCuatrieniosView } from 'src/sections/national/cuatrienios/directiva-cuatrienios-view';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -212,10 +215,21 @@ const construirAmbito = ({ nivel, idEntidad, seccionesPorId, regionesPorId }) =>
   return '';
 };
 
+// El ex comandante nacional no ocupa ninguna casilla de hoy, pero sigue siendo
+// del Consejo Ejecutivo para siempre ("Comandante Nacional" es el nombre antiguo
+// de Director Nacional). Sale en esta lista y en su filtro de posicion aunque no
+// tenga cargo, sin poder darse de baja desde aqui: es historia, no asignacion.
+const POSICION_EX_COMANDANTE = 'ex-comandante-nacional';
+const RUTA_CUATRIENIOS = `${paths.dashboard.level.national.root}?vista=cuatrienios`;
+
 // ----------------------------------------------------------------------
 
 export function NationalListView() {
   const [hydrated, setHydrated] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // "Directiva actual" (las casillas de hoy) o "Por cuatrienio" (la memoria).
+  const vista = searchParams.get('vista') === 'cuatrienios' ? 'cuatrienios' : 'actual';
 
   const { user } = useAuthContext();
   const canManage = canManageOrgLevels(user);
@@ -242,19 +256,23 @@ export function NationalListView() {
   // Las fotos viven en su propia coleccion, no en el miembro: sin esta carga la
   // lista pintaba siempre el avatar por defecto.
   const [fotosPorMiembro, setFotosPorMiembro] = useState(() => ({}));
+  const [exComandantes, setExComandantes] = useState([]);
 
   useEffect(() => {
     let cancelado = false;
 
     const cargar = async () => {
-      const [miembros, asignaciones, secciones, regiones] = await Promise.all([
+      const [miembros, asignaciones, secciones, regiones, permanentes] = await Promise.all([
         getMembers().catch(() => []),
         obtenerAsignacionesDirectivaMiembros().catch(() => []),
         getSectionals({ includePhotos: false }).catch(() => []),
         getRegionals().catch(() => []),
+        obtenerPermanentes().catch(() => []),
       ]);
 
       if (cancelado) return;
+
+      setExComandantes(permanentes.filter((permanente) => permanente?.exComandante));
 
       setAllMembers(Array.isArray(miembros) ? miembros : []);
       setNationalAssignments(
@@ -389,6 +407,42 @@ export function NationalListView() {
     };
   });
 
+  exComandantes.forEach((permanente) => {
+    const member = allMembers.find((m) => String(m.id) === String(permanente.idMiembros));
+
+    tableData.push({
+      id: `${POSICION_EX_COMANDANTE}-${permanente.idMiembros}`,
+      soloLectura: true,
+      entityId: 'nacional',
+      memberId: member?.id ?? permanente.idMiembros,
+      level: 'nacional',
+      nationalXname:
+        `${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim() ||
+        `${permanente.nombres ?? ''} ${permanente.apellidos ?? ''}`.trim() ||
+        'Desconocido',
+      email: member?.email,
+      phoneNumber: member?.phoneNumber,
+      // La foto de la historia antes que la de perfil: es la de cuando fue
+      // comandante, y la de perfil puede no existir.
+      avatarUrl:
+        permanente.fotoUrl ||
+        fotosPorMiembro[String(permanente.idMiembros)] ||
+        member?.avatarUrl ||
+        '',
+      nationalXMemberPosition: POSICION_EX_COMANDANTE,
+      nationalXMemberPositionLabel: 'Ex Comandante Nacional',
+      nationalXMemberPositionScope: 'Consejo Ejecutivo',
+      nationalXMemberPositionHref: RUTA_CUATRIENIOS,
+      nationalEstructure: 'consejo_ejecutivo',
+      nationalEstructureLabel: NATIONAL_STRUCTURES.consejo_ejecutivo,
+      nationalOrganizationalLevel: 'Consejo Ejecutivo',
+      hierarchyStructureOrder: ORDEN_ESTRUCTURA.consejo_ejecutivo,
+      // Detras de los cargos de hoy del Consejo Ejecutivo.
+      hierarchyRoleOrder: 900,
+      nationalXAssignedRegional: 'Consejo Ejecutivo',
+    });
+  });
+
   const { state: currentFilters } = filters;
   const distinctPositions = getAvailableOptionsFromData({
     inputData: tableData,
@@ -516,138 +570,171 @@ export function NationalListView() {
             { name: 'Nacional', href: paths.dashboard.level.national.root },
             { name: 'Lista' },
           ]}
-          sx={{ mb: { xs: 3, md: 5 } }}
+          sx={{ mb: 3 }}
         />
 
-        <Card>
-          <Tabs
-            value={currentFilters.status}
-            sx={[
-              (themeItem) => ({
-                px: { md: 2.5 },
-                boxShadow: `inset 0 -2px 0 0 ${varAlpha(themeItem.vars.palette.grey['500Channel'], 0.08)}`,
-              }),
-            ]}
-          >
-            <Tab
-              value="all"
-              label="Todos"
-              iconPosition="end"
-              icon={<Label variant="filled">{tableData.length}</Label>}
-            />
-          </Tabs>
-
-          <NationalTableToolbar
-            filters={filters}
-            onResetPage={table.onResetPage}
-            displayMode={displayMode}
-            setDisplayMode={setDisplayMode}
-            options={{
-              nationalXMemberPosition: distinctPositions,
-              nationalOrganizationalLevel: distinctOrganizationalLevels,
-              nationalEstructure: distinctEstructures,
-            }}
+        <Tabs
+          value={vista}
+          onChange={(event, valor) =>
+            router.replace(
+              valor === 'cuatrienios' ? RUTA_CUATRIENIOS : paths.dashboard.level.national.root
+            )
+          }
+          sx={{ mb: { xs: 3, md: 4 } }}
+        >
+          <Tab
+            value="actual"
+            label="Directiva actual"
+            icon={<Iconify width={22} icon="solar:users-group-rounded-bold" />}
+            iconPosition="start"
           />
+          <Tab
+            value="cuatrienios"
+            label="Por cuatrienio"
+            icon={<Iconify width={22} icon="solar:medal-ribbon-bold" />}
+            iconPosition="start"
+          />
+        </Tabs>
 
-          {canReset && (
-            <NationalTableFiltersResult
-              filters={filters}
-              options={{
-                nationalOrganizationalLevel: distinctOrganizationalLevels,
-                nationalEstructure: distinctEstructures,
-                nationalXMemberPosition: distinctPositions,
-              }}
-              totalResults={dataFiltered.length}
-              onResetPage={table.onResetPage}
-              sx={{ p: 2.5, pt: 0 }}
-            />
-          )}
+        {vista === 'cuatrienios' && <DirectivaCuatrieniosView />}
 
-          {displayMode === 'panel' && (
-            <Box sx={{ position: 'relative' }}>
-              {canDelete && (
-                <TableSelectedAction
-                  dense={table.dense}
-                  numSelected={table.selected.length}
-                  rowCount={dataFiltered.length}
-                  onSelectAllRows={(checked) =>
-                    table.onSelectAllRows(
-                      checked,
-                      dataFiltered.map((row) => row.id)
-                    )
-                  }
-                  action={
-                    <Tooltip title="Eliminar">
-                      <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                        <Iconify icon="solar:trash-bin-trash-bold" />
-                      </IconButton>
-                    </Tooltip>
-                  }
+        {vista === 'actual' && (
+          <>
+            <Card>
+              <Tabs
+                value={currentFilters.status}
+                sx={[
+                  (themeItem) => ({
+                    px: { md: 2.5 },
+                    boxShadow: `inset 0 -2px 0 0 ${varAlpha(themeItem.vars.palette.grey['500Channel'], 0.08)}`,
+                  }),
+                ]}
+              >
+                <Tab
+                  value="all"
+                  label="Todos"
+                  iconPosition="end"
+                  icon={<Label variant="filled">{tableData.length}</Label>}
+                />
+              </Tabs>
+
+              <NationalTableToolbar
+                filters={filters}
+                onResetPage={table.onResetPage}
+                displayMode={displayMode}
+                setDisplayMode={setDisplayMode}
+                options={{
+                  nationalXMemberPosition: distinctPositions,
+                  nationalOrganizationalLevel: distinctOrganizationalLevels,
+                  nationalEstructure: distinctEstructures,
+                }}
+              />
+
+              {canReset && (
+                <NationalTableFiltersResult
+                  filters={filters}
+                  options={{
+                    nationalOrganizationalLevel: distinctOrganizationalLevels,
+                    nationalEstructure: distinctEstructures,
+                    nationalXMemberPosition: distinctPositions,
+                  }}
+                  totalResults={dataFiltered.length}
+                  onResetPage={table.onResetPage}
+                  sx={{ p: 2.5, pt: 0 }}
                 />
               )}
 
-              <Scrollbar>
-                <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-                  <TableHeadCustom
-                    order={table.order}
-                    orderBy={table.orderBy}
-                    headCells={TABLE_HEAD}
-                    rowCount={dataFiltered.length}
-                    numSelected={table.selected.length}
-                    onSort={table.onSort}
-                    onSelectAllRows={(checked) =>
-                      table.onSelectAllRows(
-                        checked,
-                        dataFiltered.map((row) => row.id)
-                      )
-                    }
-                  />
+              {displayMode === 'panel' && (
+                <Box sx={{ position: 'relative' }}>
+                  {canDelete && (
+                    <TableSelectedAction
+                      dense={table.dense}
+                      numSelected={table.selected.length}
+                      rowCount={dataFiltered.length}
+                      onSelectAllRows={(checked) =>
+                        table.onSelectAllRows(
+                          checked,
+                          dataFiltered.map((row) => row.id)
+                        )
+                      }
+                      action={
+                        <Tooltip title="Eliminar">
+                          <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                            <Iconify icon="solar:trash-bin-trash-bold" />
+                          </IconButton>
+                        </Tooltip>
+                      }
+                    />
+                  )}
 
-                  <CompactEntityListView
-                    loading={false}
-                    rows={dataFiltered.slice(
-                      table.page * table.rowsPerPage,
-                      table.page * table.rowsPerPage + table.rowsPerPage
-                    )}
-                    renderRow={(row) => (
-                      <NationalTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.dashboard.level.national.edit(row.id)}
-                        canManage={canManage}
-                        canDelete={canDelete}
-                        allMembers={allMembers}
+                  <Scrollbar>
+                    <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+                      <TableHeadCustom
+                        order={table.order}
+                        orderBy={table.orderBy}
+                        headCells={TABLE_HEAD}
+                        rowCount={dataFiltered.length}
+                        numSelected={table.selected.length}
+                        onSort={table.onSort}
+                        onSelectAllRows={(checked) =>
+                          table.onSelectAllRows(
+                            checked,
+                            dataFiltered.map((row) => row.id)
+                          )
+                        }
                       />
-                    )}
-                    notFound={notFound}
-                    skeletonRows={table.rowsPerPage}
-                    skeletonCellCount={TABLE_HEAD.length + 1}
-                    emptyRowsHeight={table.dense ? 56 : 56 + 20}
-                    emptyRowsCount={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                  />
-                </Table>
-              </Scrollbar>
-            </Box>
-          )}
 
-          {displayMode === 'panel' && (
-            <TablePaginationCustom
-              page={table.page}
-              dense={table.dense}
-              count={dataFiltered.length}
-              rowsPerPage={table.rowsPerPage}
-              onPageChange={table.onChangePage}
-              onChangeDense={table.onChangeDense}
-              onRowsPerPageChange={table.onChangeRowsPerPage}
-            />
-          )}
-        </Card>
+                      <CompactEntityListView
+                        loading={false}
+                        rows={dataFiltered.slice(
+                          table.page * table.rowsPerPage,
+                          table.page * table.rowsPerPage + table.rowsPerPage
+                        )}
+                        renderRow={(row) => (
+                          <NationalTableRow
+                            key={row.id}
+                            row={row}
+                            selected={table.selected.includes(row.id)}
+                            onSelectRow={() => table.onSelectRow(row.id)}
+                            onDeleteRow={() => handleDeleteRow(row.id)}
+                            editHref={paths.dashboard.level.national.edit(row.id)}
+                            canManage={canManage && !row.soloLectura}
+                            canDelete={canDelete && !row.soloLectura}
+                            allMembers={allMembers}
+                          />
+                        )}
+                        notFound={notFound}
+                        skeletonRows={table.rowsPerPage}
+                        skeletonCellCount={TABLE_HEAD.length + 1}
+                        emptyRowsHeight={table.dense ? 56 : 56 + 20}
+                        emptyRowsCount={emptyRows(
+                          table.page,
+                          table.rowsPerPage,
+                          dataFiltered.length
+                        )}
+                      />
+                    </Table>
+                  </Scrollbar>
+                </Box>
+              )}
 
-        {displayMode !== 'panel' && (
-          <NationalCardList nationals={dataFiltered} canManage={canManage} />
+              {displayMode === 'panel' && (
+                <TablePaginationCustom
+                  page={table.page}
+                  dense={table.dense}
+                  count={dataFiltered.length}
+                  rowsPerPage={table.rowsPerPage}
+                  onPageChange={table.onChangePage}
+                  onChangeDense={table.onChangeDense}
+                  onRowsPerPageChange={table.onChangeRowsPerPage}
+                />
+              )}
+            </Card>
+
+            {displayMode !== 'panel' && (
+              <NationalCardList nationals={dataFiltered} canManage={canManage} />
+            )}
+          </>
         )}
       </DashboardContent>
 

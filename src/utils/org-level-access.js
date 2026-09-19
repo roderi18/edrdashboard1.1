@@ -982,6 +982,13 @@ export const requiereRevisionDeAdministradorGlobal = (user = {}, ambito = '') =>
   AMBITOS_LOCALES_QUE_ESCALAN_AL_GLOBAL.includes(String(ambito || '').trim()) &&
   rolesQueEjerce(user).some((codigo) => CARGOS_LOCALES_QUE_ESCALAN_AL_GLOBAL.includes(codigo));
 
+// La Directiva Nacional por cuatrienio (la memoria): la cargan, corrigen y
+// cierran el Administrador Global y la Oficina Nacional, y nadie mas. Se
+// pregunta por TODOS sus cargos: la Oficina Nacional es un rol a mano que puede
+// no ser el principal de quien lo tiene.
+export const puedeEditarDirectivaHistorica = (user = {}) =>
+  ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
+
 export const puedeAplicarDirectamenteCambioDeOrganizacion = (user = {}, ambito = '') =>
   puedeAprobarCambiosDeOrganizacion(user) && !requiereRevisionDeAdministradorGlobal(user, ambito);
 
