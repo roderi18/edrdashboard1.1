@@ -5,6 +5,7 @@ import {
   getDocs,
   deleteDoc,
   collection,
+  runTransaction,
 } from 'firebase/firestore';
 
 import { COLECCIONES_COMERCIO } from 'src/utils/firestore-commerce';
@@ -18,6 +19,11 @@ import {
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
+import {
+  formatearCodigoProducto,
+  prefijoDeCategoriaProducto,
+  siguienteNumeroCodigoProducto,
+} from 'src/utils/producto-codigo.mjs';
 
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
 import { guardarProductoEnIndice } from './buscador-indice-service';
@@ -31,6 +37,89 @@ import {
 
 const isStoredImageValue = (image) =>
   typeof image === 'string' && /^(https?:|data:|blob:)/i.test(image);
+
+const COLECCION_RESERVAS_CODIGOS = 'reservas_codigos_productos';
+
+const normalizarCodigoProducto = (codigo) => String(codigo || '').trim().toUpperCase();
+
+/**
+ * Reserva el codigo que propone el formulario o, si ya lo tomo otra ventana,
+ * el siguiente codigo libre. La reserva es una transaccion separada porque dos
+ * formularios abiertos pueden leer exactamente la misma lista antes de guardar.
+ */
+const reservarCodigoProducto = async ({
+  productId,
+  codigoSolicitado,
+  categoria,
+  etiqueta,
+} = {}) => {
+  const snapshot = await getDocs(collection(FIRESTORE, COLECCIONES_COMERCIO.productos));
+  const codigoActual = normalizarCodigoProducto(codigoSolicitado);
+  const productos = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+  const codigosUsados = new Set(
+    productos
+      .filter((producto) => String(producto.productoId || producto.id) !== String(productId))
+      .map((producto) => normalizarCodigoProducto(producto.codigo))
+      .filter(Boolean)
+  );
+  const prefijo = prefijoDeCategoriaProducto(categoria, etiqueta);
+  const siguienteNumero = siguienteNumeroCodigoProducto(
+    prefijo,
+    productos.map((producto) => producto.codigo)
+  );
+  const candidatos = [];
+
+  if (codigoActual && !codigosUsados.has(codigoActual)) candidatos.push(codigoActual);
+
+  for (let numero = siguienteNumero; candidatos.length < 100; numero += 1) {
+    const candidato = formatearCodigoProducto(prefijo, numero);
+    if (!codigosUsados.has(candidato) && !candidatos.includes(candidato)) {
+      candidatos.push(candidato);
+    }
+  }
+
+  return runTransaction(FIRESTORE, async (transaction) => {
+    for (const codigo of candidatos) {
+      const reservaRef = doc(FIRESTORE, COLECCION_RESERVAS_CODIGOS, codigo);
+      const reserva = await transaction.get(reservaRef);
+      const dueño = reserva.exists() ? String(reserva.data()?.productoId || '') : '';
+
+      if (dueño && dueño !== String(productId)) {
+        const productoDueñoRef = doc(FIRESTORE, COLECCIONES_COMERCIO.productos, dueño);
+        const productoDueño = await transaction.get(productoDueñoRef);
+        if (productoDueño.exists()) continue;
+      }
+
+      transaction.set(
+        reservaRef,
+        {
+          codigo,
+          productoId: String(productId),
+          categoria: String(categoria || ''),
+          actualizadoEn: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+
+      return codigo;
+    }
+
+    throw new Error('No se encontró un código de producto disponible.');
+  });
+};
+
+const liberarReservaCodigoProducto = async ({ productId, codigo } = {}) => {
+  const codigoNormalizado = normalizarCodigoProducto(codigo);
+  if (!codigoNormalizado) return;
+
+  await runTransaction(FIRESTORE, async (transaction) => {
+    const reservaRef = doc(FIRESTORE, COLECCION_RESERVAS_CODIGOS, codigoNormalizado);
+    const reserva = await transaction.get(reservaRef);
+    if (reserva.exists() && String(reserva.data()?.productoId || '') === String(productId)) {
+      transaction.delete(reservaRef);
+    }
+  });
+};
 
 const getProductCreatedAtTime = (product) => {
   const value = product?.createdAt;
@@ -186,6 +275,21 @@ export const guardarProductoFirestore = async (data, { publish = true, user = {}
     fechaCreacion: previous.exists() ? previous.data()?.fechaCreacion : null,
   });
 
+  const codigoAnterior = normalizarCodigoProducto(previousProduct?.code || previousProduct?.codigo);
+  let codigoReservado = '';
+
+  try {
+    codigoReservado = await reservarCodigoProducto({
+      productId,
+      codigoSolicitado: productDoc.codigo,
+      categoria: productDoc.categoria,
+      etiqueta: productDoc.categoria,
+    });
+    productDoc.codigo = codigoReservado;
+  } catch (error) {
+    throw new Error(`No se pudo validar el código del producto: ${error?.message || error}`);
+  }
+
   // El resumen de resenas no es del formulario: lo escribe quien publica una
   // resena. Tomarlo del formulario lo dejaba en 0 en cada guardado del producto.
   if (previous.exists()) {
@@ -195,26 +299,39 @@ export const guardarProductoFirestore = async (data, { publish = true, user = {}
 
   // La tienda tambien entra por la puerta: no necesita aprobacion de la Oficina
   // Nacional —la gestiona su administrador— pero cada cambio queda en Historial.
-  await proponerCambio({
-    ambito: AMBITOS_CAMBIO.tienda,
-    entidad: {
-      tipo: 'producto',
-      id: productId,
-      nombre: productDoc?.nombre || productDoc?.titulo || productId,
-      ruta: `/dashboard/product/${productId}`,
-    },
-    cambios: [
-      {
-        campo: 'publicacion',
-        etiqueta: 'Publicación',
-        antes: previous.exists() ? (previous.data()?.publicacion ?? null) : null,
-        despues: productDoc.publicacion,
+  try {
+    await proponerCambio({
+      ambito: AMBITOS_CAMBIO.tienda,
+      entidad: {
+        tipo: 'producto',
+        id: productId,
+        nombre: productDoc?.nombre || productDoc?.titulo || productId,
+        ruta: `/dashboard/product/${productId}`,
       },
-    ],
-    usuario: user,
-    descripcion: `Producto ${productDoc?.nombre || productDoc?.titulo || productId} guardado.`,
-    aplicar: () => setDoc(productRef, productDoc),
-  });
+      cambios: [
+        {
+          campo: 'codigo',
+          etiqueta: 'Código del producto',
+          antes: codigoAnterior || null,
+          despues: productDoc.codigo,
+        },
+        {
+          campo: 'publicacion',
+          etiqueta: 'Publicación',
+          antes: previous.exists() ? (previous.data()?.publicacion ?? null) : null,
+          despues: productDoc.publicacion,
+        },
+      ],
+      usuario: user,
+      descripcion: `Producto ${productDoc?.nombre || productDoc?.titulo || productId} guardado.`,
+      aplicar: () => setDoc(productRef, productDoc),
+    });
+  } catch (error) {
+    await liberarReservaCodigoProducto({ productId, codigo: codigoReservado }).catch(
+      (releaseError) => console.error('[product service] no se pudo liberar la reserva de codigo', releaseError)
+    );
+    throw error;
+  }
 
   const savedProduct = mapearProductoFirestoreAUi({ id: productId, ...productDoc });
 
