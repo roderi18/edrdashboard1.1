@@ -56,6 +56,46 @@ service cloud.firestore {
         && 'codigoMiembro' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    // La foto de perfil es una excepción deliberada al permiso de cargo: cada
+    // persona puede cambiar SU propia foto, aunque no tenga ningún rol. El id
+    // de miembro se conserva en el token y en los perfiles que crea/sincroniza
+    // el servidor; nunca se acepta el que venga solo de la interfaz.
+    function esSuIdMiembro(idMiembro) {
+      return estaAutenticado()
+        && (
+          (
+            'idMiembros' in request.auth.token
+            && string(request.auth.token.idMiembros) == string(idMiembro)
+          )
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && 'idMiembros' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+            && string(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.idMiembros)
+              == string(idMiembro)
+          )
+          || (
+            exists(/databases/$(database)/documents/usuarios_roles/$(request.auth.uid))
+            && 'idMiembros' in get(/databases/$(database)/documents/usuarios_roles/$(request.auth.uid)).data
+            && string(get(/databases/$(database)/documents/usuarios_roles/$(request.auth.uid)).data.idMiembros)
+              == string(idMiembro)
+          )
+          || (
+            exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+            && 'idMiembros' in get(/databases/$(database)/documents/admins/$(request.auth.uid)).data
+            && string(get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.idMiembros)
+              == string(idMiembro)
+          )
+        );
+    }
+
+    function esFotoPerfilPropia(idFoto, datos) {
+      return datos.tipoEntidad == 'miembro'
+        && datos.tipoFoto == 'perfil'
+        && datos.idEntidad is string
+        && idFoto == 'miembro_' + datos.idEntidad + '_perfil'
+        && esSuIdMiembro(datos.idEntidad);
+    }
+
     function rutaAsignacion() {
       return /databases/$(database)/documents/usuarios_roles/$(request.auth.uid);
     }
@@ -1112,6 +1152,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Registro único de la foto principal de cada miembro. La lectura sigue
+    // disponible para pintar perfiles; la escritura propia no depende de rol.
+    // El Administrador Global conserva la capacidad de corregir cualquier foto.
+    match /fotos/{idFoto} {
+      allow read: if esUsuarioDelSistema();
+      allow create, update: if esAdministradorGlobal()
+        || esFotoPerfilPropia(idFoto, request.resource.data);
+      allow delete: if esAdministradorGlobal();
+    }
+
     // Las huellas de las contraseñas y la del código de un solo uso.
     //
     // Ninguna deja volver a la clave, pero las dos se pueden atacar SIN
@@ -1569,6 +1619,7 @@ service cloud.firestore {
         && coleccion != 'organigrama_directiva_destacamentos'
         && coleccion != 'usuarios_roles'
         && coleccion != 'admins'
+        && coleccion != 'fotos'
         && coleccion != 'secretos_acceso'
         && coleccion != 'metadatos_privados_publicaciones'
         && coleccion != 'auditoria_sistema'

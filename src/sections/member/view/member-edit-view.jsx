@@ -5,7 +5,7 @@ import Alert from '@mui/material/Alert';
 import { paths } from 'src/routes/paths';
 
 import { isFullOrgManager } from 'src/utils/org-level-access';
-import { canMemberManageMembers } from 'src/utils/member-access';
+import { canMemberManageMembers, puedeEditarSuPropiaFicha } from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -33,9 +33,12 @@ export function MemberEditView({ member: currentMember }) {
   const canEditMembers = isMemberSession
     ? canMemberManageMembers(user)
     : isFullOrgManager(user) || puedeModificar(user, PERMISOS.MIEMBROS_EDITAR);
+  const esFichaPropia = puedeEditarSuPropiaFicha(user, currentMember);
 
-  // Los miembros sin permiso de gestion no acceden a la edicion.
-  if (isMemberSession && !canEditMembers) {
+  // Los miembros sin permiso de gestion pueden entrar a su propia ficha para
+  // cambiar la foto, aunque no tengan cargo. El resto de la ficha conserva el
+  // control normal de permisos.
+  if (isMemberSession && !canEditMembers && !esFichaPropia) {
     return (
       <DashboardContent>
         <CustomBreadcrumbs
@@ -55,7 +58,10 @@ export function MemberEditView({ member: currentMember }) {
 
   return (
     <MemberEditLayout member={currentMember}>
-      <MemberCreateEditForm currentMember={currentMember} readOnly={!canEditMembers} />
+      <MemberCreateEditForm
+        currentMember={currentMember}
+        readOnly={!canEditMembers && !esFichaPropia}
+      />
     </MemberEditLayout>
   );
 }

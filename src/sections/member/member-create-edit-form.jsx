@@ -761,7 +761,9 @@ export function MemberCreateEditForm({
       ? String(destacamentosPropios[0])
       : '';
   const canUploadMemberPhoto =
-    isGlobalOrgManager(user) || (isDestacamentoCargo && (isCreateView || isOwnDestMember));
+    isGlobalOrgManager(user) ||
+    (!isCreateView && esFichaPropia) ||
+    (isDestacamentoCargo && (isCreateView || isOwnDestMember));
   // La ficha completa en PDF solo la baja quien acompaña a esa persona: los de su
   // mismo destacamento, el Administrador Global y la Oficina Nacional.
   const puedeDescargarInformacion =

@@ -580,19 +580,6 @@ export function UserAccountGeneral() {
       });
       const avatarUrl = photo?.urlFoto || '';
 
-      if (isFirebaseConfigured && FIRESTORE && avatarUrl) {
-        await setDoc(
-          doc(FIRESTORE, 'usuarios_roles', String(memberId)),
-          {
-            idMiembros: Number(memberId),
-            avatarUrl,
-            photoURL: avatarUrl,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
-      }
-
       setMember((prev) => ({ ...prev, avatarUrl }));
       setValue('avatarUrl', avatarUrl, { shouldValidate: true });
 
@@ -899,7 +886,7 @@ export function UserAccountGeneral() {
                           lineHeight: 1.45,
                         }}
                       >
-                        Las cintas y medallas son solo una representación gráfica de tus premios
+                        Las cintas y medallas en esta aplicación son solo una representación gráfica de tus premios
                         adquiridos en uniforme. Si usas la medalla, no debes usar la cinta
                         correspondiente.
                       </Typography>
