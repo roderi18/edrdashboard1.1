@@ -45,6 +45,10 @@ export function MemberTableToolbar({
   members = [],
   canManageMembers = true,
   showScopeFilters = true,
+  showDestFilter = showScopeFilters,
+  showSoloDestacamento = false,
+  soloDestacamento = false,
+  onSoloDestacamentoChange,
   onMembersUploaded,
 }) {
   const { user } = useAuthContext();
@@ -231,6 +235,24 @@ export function MemberTableToolbar({
             Subir
           </MenuItem>
         )}
+
+        {showSoloDestacamento && (
+          <MenuItem
+            onClick={() => {
+              onSoloDestacamentoChange?.({ target: { checked: !soloDestacamento } });
+              menuActions.onClose();
+            }}
+          >
+            <Checkbox
+              checked={soloDestacamento}
+              size="small"
+              tabIndex={-1}
+              disableRipple
+              sx={{ width: 24, height: 24, p: 0, mr: 1 }}
+            />
+            Solo ver miembros de mi Dest.
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -276,7 +298,7 @@ export function MemberTableToolbar({
         {/* boton de filtro para desktop */}
         {!isMobile && (
           <>
-            {showScopeFilters &&
+            {showDestFilter &&
               renderFilterSelect(
                 'destName',
                 'Destacamento',
@@ -336,12 +358,12 @@ export function MemberTableToolbar({
             {/* 🔽 Filter */}
             <TableToolbarMobileFilter
               hasActiveFilters={
-                (showScopeFilters && currentFilters.destName.length) ||
+                (showDestFilter && currentFilters.destName.length) ||
                 currentFilters.memberPosition.length ||
                 (showScopeFilters && currentFilters.sectionalId.length)
               }
               filtersConfig={[
-                ...(showScopeFilters
+                ...(showDestFilter
                   ? [
                       {
                         key: 'destName',

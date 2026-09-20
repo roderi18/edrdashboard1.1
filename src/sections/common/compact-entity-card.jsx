@@ -102,8 +102,8 @@ export const CompactEntityCard = memo(function CompactEntityCard({
     <Avatar
       alt={title}
       sx={{
-        width: 48,
-        height: 48,
+        width: 54,
+        height: 54,
         mr: 2,
         overflow: 'hidden',
         position: 'relative',

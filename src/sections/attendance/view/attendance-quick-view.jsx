@@ -8,7 +8,6 @@ import { memo, useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
-import Link from '@mui/material/Link';
 import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
@@ -35,7 +34,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { PickersActionBar } from '@mui/x-date-pickers/PickersActionBar';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 
 import { ESTATUS_MIEMBRO } from 'src/utils/estatus-miembro.mjs';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
@@ -391,34 +389,11 @@ const getDestTitle = (dest, fallbackId = '') => {
 
 const getMemberId = (member) => String(member?.idMiembros ?? member?.id ?? member?.memberId ?? '');
 
-// Pasar asistencia es mirar caras y nombres: desde la foto y desde el nombre se
-// llega a la ficha. Sin subrayado, para que la fila se siga leyendo como una
-// lista y no como un parrafo de enlaces.
-function AttendanceMemberProfileLink({ memberId, children, sx }) {
-  if (!memberId) {
-    return children;
-  }
-
+function AttendanceMemberName({ name, sx }) {
   return (
-    <Link
-      component={RouterLink}
-      href={paths.dashboard.level.member.edit(memberId)}
-      color="inherit"
-      underline="none"
-      sx={sx}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function AttendanceMemberNameLink({ memberId, name, sx }) {
-  return (
-    <AttendanceMemberProfileLink memberId={memberId} sx={{ display: 'block', minWidth: 0 }}>
-      <Typography variant="subtitle2" noWrap sx={sx}>
-        {name}
-      </Typography>
-    </AttendanceMemberProfileLink>
+    <Typography variant="subtitle2" noWrap sx={sx}>
+      {name}
+    </Typography>
   );
 }
 
@@ -627,21 +602,20 @@ const AttendanceMemberRow = memo(function AttendanceMemberRow({
           alignItems="center"
           sx={{ minWidth: 0, gridArea: 'miembro' }}
         >
-          <AttendanceMemberProfileLink memberId={memberId} sx={{ display: 'flex', flexShrink: 0 }}>
-            <Avatar
-              src={avatarUrl}
-              alt={memberName}
-              sx={{
-                width: { xs: 42, sm: 48 },
-                height: { xs: 42, sm: 48 },
-              }}
-            >
-              {memberName.charAt(0)}
-            </Avatar>
-          </AttendanceMemberProfileLink>
+          <Avatar
+            src={avatarUrl}
+            alt={memberName}
+            sx={{
+              width: { xs: 42, sm: 48 },
+              height: { xs: 42, sm: 48 },
+              flexShrink: 0,
+            }}
+          >
+            {memberName.charAt(0)}
+          </Avatar>
 
           <Box sx={{ minWidth: 0 }}>
-            <AttendanceMemberNameLink memberId={memberId} name={memberName} />
+            <AttendanceMemberName name={memberName} />
             <Typography variant="caption" color="text.secondary" noWrap>
               {[getMemberCode(member), resolveMemberDivision(member)].filter(Boolean).join(' • ')}
             </Typography>
@@ -2576,21 +2550,16 @@ export function AttendanceQuickView() {
               sx={{ px: { xs: 2, md: 3 }, py: 1.25 }}
             >
               <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0 }}>
-                <AttendanceMemberProfileLink
-                  memberId={miembro.id}
-                  sx={{ display: 'flex', flexShrink: 0 }}
+                <Avatar
+                  src={miembro.avatarUrl}
+                  alt={miembro.nombre}
+                  sx={{ width: 40, height: 40, flexShrink: 0 }}
                 >
-                  <Avatar
-                    src={miembro.avatarUrl}
-                    alt={miembro.nombre}
-                    sx={{ width: 40, height: 40 }}
-                  >
-                    {miembro.nombre.charAt(0)}
-                  </Avatar>
-                </AttendanceMemberProfileLink>
+                  {miembro.nombre.charAt(0)}
+                </Avatar>
 
                 <Box sx={{ minWidth: 0 }}>
-                  <AttendanceMemberNameLink memberId={miembro.id} name={miembro.nombre} />
+                  <AttendanceMemberName name={miembro.nombre} />
                   <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
                     {[miembro.codigo, miembro.division].filter(Boolean).join(' • ')}
                   </Typography>

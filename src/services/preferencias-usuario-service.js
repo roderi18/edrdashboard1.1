@@ -40,3 +40,27 @@ export const guardarDestacamentoDeAsistencia = async (uid, idDestacamento) => {
     { merge: true }
   );
 };
+
+export const obtenerSoloMiembrosDeMiDestacamento = async (uid) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !uid) return null;
+
+  const snapshot = await getDoc(referencia(uid));
+
+  const valor = snapshot.exists() ? snapshot.data()?.miembros?.soloMiDestacamento : undefined;
+
+  return typeof valor === 'boolean' ? valor : null;
+};
+
+export const guardarSoloMiembrosDeMiDestacamento = async (uid, activo) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !uid) return;
+
+  await setDoc(
+    referencia(uid),
+    {
+      uid: String(uid),
+      miembros: { soloMiDestacamento: Boolean(activo) },
+      actualizadoEn: serverTimestamp(),
+    },
+    { merge: true }
+  );
+};

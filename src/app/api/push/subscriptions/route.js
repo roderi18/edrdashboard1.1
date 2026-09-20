@@ -20,7 +20,9 @@ const esEndpointPushValido = (endpoint) => {
       !url.username &&
       !url.password &&
       !url.port &&
-      (host === 'fcm.googleapis.com' ||
+      (host === 'google.com' ||
+        host.endsWith('.google.com') ||
+        host === 'fcm.googleapis.com' ||
         host === 'web.push.apple.com' ||
         host === 'updates.push.services.mozilla.com' ||
         host.endsWith('.notify.windows.com'))

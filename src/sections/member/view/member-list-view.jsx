@@ -50,8 +50,13 @@ import {
   obtenerCargosDirectiva,
   obtenerAsignacionesDirectivaMiembros,
 } from 'src/services/directivas-organizacionales-service';
+import {
+  obtenerSoloMiembrosDeMiDestacamento,
+  guardarSoloMiembrosDeMiDestacamento,
+} from 'src/services/preferencias-usuario-service';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
@@ -119,6 +124,10 @@ export function MemberListView({ destId = null }) {
     sectionFromUrl,
   } = useMemberListViewState();
   const { user, loading } = useAuthContext();
+  const uidUsuario = String(user?.uid ?? user?.id ?? '');
+  const [soloMiembrosDest, setSoloMiembrosDest] = useState(null);
+  const soloDestVersion = useRef(0);
+  const soloDestSaveQueue = useRef(Promise.resolve());
   const [dests, setDests] = useState([]);
   const [churches, setChurches] = useState([]);
   const [regionals, setRegionals] = useState([]);
@@ -137,6 +146,26 @@ export function MemberListView({ destId = null }) {
   // blanco hasta que Firestore respondia otra vez.
   const [memberPhotoUrls, setMemberPhotoUrls] = useState(mapMemberPhotoUrls);
   const [membersLoading, setMembersLoading] = useState(true);
+
+  useEffect(() => {
+    let vigente = true;
+    const versionInicial = soloDestVersion.current;
+    if (!uidUsuario) return () => { vigente = false; };
+
+    obtenerSoloMiembrosDeMiDestacamento(uidUsuario)
+      .then(
+        (activo) =>
+          vigente &&
+          soloDestVersion.current === versionInicial &&
+          typeof activo === 'boolean' &&
+          setSoloMiembrosDest(activo)
+      )
+      .catch((error) => {
+        console.error('[miembros] no se pudo leer la preferencia del destacamento', error);
+      });
+
+    return () => { vigente = false; };
+  }, [uidUsuario]);
 
   // FIRESTORE ES LA UNICA FUENTE, igual que en la ficha del miembro. Antes esta
   // lista mezclaba `CargosMiembros` (API .NET) con las asignaciones, asi que una
@@ -247,22 +276,66 @@ export function MemberListView({ destId = null }) {
     };
   }, []);
 
-  const visibleMembers = useMemo(() => {
+  const miembrosDentroDelAlcance = useMemo(() => {
     const estructura = { dests, churches, sectionals };
 
+    if (esPestanaDeDestacamento) return [];
+
+    return filterMembersByMemberScope(tableData, user, estructura);
+  }, [churches, dests, sectionals, tableData, user, esPestanaDeDestacamento]);
+
+  const miembroPropio = useMemo(
+    () => tableData.find((member) => esFichaDelPropioMiembro(user, member)) || null,
+    [tableData, user]
+  );
+  const idDestacamentoPropio = String(
+    miembroPropio?.destId ??
+      miembroPropio?.idDestacamento ??
+      (user?.alcance?.destacamentos?.length === 1 ? user.alcance.destacamentos[0] : '') ??
+      ''
+  );
+  const destPropio = dests.find((dest) => String(dest.id) === idDestacamentoPropio);
+  const etiquetaDestacamentoPropio =
+    [
+      destPropio?.name || destPropio?.nombre || destPropio?.destName,
+      destPropio?.destNumber || destPropio?.numero || destPropio?.number,
+    ]
+      .filter(Boolean)
+      .join(' ') || idDestacamentoPropio;
+  const variosDestacamentosVisibles =
+    new Set(
+      miembrosDentroDelAlcance
+        .map((member) => String(member.destId ?? member.idDestacamento ?? ''))
+        .filter(Boolean)
+    ).size > 1;
+  const mostrarFiltroSoloDestacamento =
+    !esPestanaDeDestacamento && Boolean(idDestacamentoPropio) && variosDestacamentosVisibles;
+  const soloMiembrosDestActivo = soloMiembrosDest ?? mostrarFiltroSoloDestacamento;
+
+  const visibleMembers = useMemo(() => {
     if (!esPestanaDeDestacamento) {
-      return filterMembersByMemberScope(tableData, user, estructura);
+      const miembros = filterMembersByMemberScope(tableData, user, { dests, churches, sectionals });
+      return soloMiembrosDestActivo && idDestacamentoPropio
+        ? miembros.filter(
+            (member) =>
+              String(member?.destId ?? member?.idDestacamento ?? '') === idDestacamentoPropio
+          )
+        : miembros;
     }
 
     // Los de ESE destacamento, pasados antes por el alcance de quien mira: la
     // pestaña no es una puerta trasera, enseña lo mismo que ese cargo alcanza.
-    const alcanzables = filtrarMiembrosDentroDelAlcance(tableData, user, estructura);
+    const alcanzables = filtrarMiembrosDentroDelAlcance(tableData, user, {
+      dests,
+      churches,
+      sectionals,
+    });
 
     return alcanzables.filter(
       (member) =>
         String(member?.destId ?? member?.idDestacamento ?? '') === String(destId)
     );
-  }, [churches, dests, sectionals, tableData, user, destId, esPestanaDeDestacamento]);
+  }, [churches, dests, sectionals, tableData, user, destId, esPestanaDeDestacamento, soloMiembrosDestActivo, idDestacamentoPropio]);
   // Se lee UNA vez para toda la tabla y se pasa a cada fila. Antes cada fila
   // leia la coleccion completa en cada render (N copias por render).
   const leadershipAssignments = useMemo(() => getLeadershipAssignments(), []);
@@ -672,6 +745,27 @@ export function MemberListView({ destId = null }) {
     [updateFilters, handleResetPage]
   );
 
+  const handleSoloDestacamentoChange = (event) => {
+    const activo = event.target.checked;
+    const anterior = soloMiembrosDestActivo;
+    const version = ++soloDestVersion.current;
+
+    setSoloMiembrosDest(activo);
+    handleResetPage();
+    if (activo) updateFilters({ destName: [] });
+
+    soloDestSaveQueue.current = soloDestSaveQueue.current
+      .catch(() => {})
+      .then(() => guardarSoloMiembrosDeMiDestacamento(uidUsuario, activo))
+      .catch((error) => {
+        console.error('[miembros] no se pudo guardar la preferencia del destacamento', error);
+        if (soloDestVersion.current !== version) return;
+
+        setSoloMiembrosDest(anterior);
+        toast.error('No se pudo guardar el filtro de destacamento.');
+      });
+  };
+
   if (loading || !hydrated) return null;
 
   const renderLista = () => (
@@ -739,6 +833,14 @@ export function MemberListView({ destId = null }) {
               sectionalId: distinctSectionals,
               regionalId: distinctRegionals,
             }}
+            showSoloDestacamento={mostrarFiltroSoloDestacamento}
+            soloDestacamento={soloMiembrosDestActivo}
+            onSoloDestacamentoChange={handleSoloDestacamentoChange}
+            showDestFilter={
+              !esPestanaDeDestacamento &&
+              !isDestacamentoAdminRole(user) &&
+              !(mostrarFiltroSoloDestacamento && soloMiembrosDestActivo)
+            }
           />
 
           {canReset && (
@@ -883,7 +985,11 @@ export function MemberListView({ destId = null }) {
       <DashboardContent>
         <CustomBreadcrumbs
           heading={
-            memberDestLabel ? `Lista de miembros de ${memberDestLabel}` : 'Lista de miembros'
+            mostrarFiltroSoloDestacamento && soloMiembrosDestActivo
+              ? `Miembros del Destacamento ${etiquetaDestacamentoPropio}`
+              : memberDestLabel
+                ? `Lista de miembros de ${memberDestLabel}`
+                : 'Lista de miembros'
           }
           links={[
             { name: 'Panel', href: paths.dashboard.root },

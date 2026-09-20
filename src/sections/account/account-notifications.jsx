@@ -1,11 +1,10 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
-import Alert from '@mui/material/Alert';
 import Switch from '@mui/material/Switch';
 import ListItemText from '@mui/material/ListItemText';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -18,6 +17,7 @@ import {
   obtenerDefinicionNotificacion,
 } from 'src/utils/firebase-notificaciones';
 
+import { AUTH } from 'src/lib/firebase';
 import {
   leerPreferenciasNotificaciones,
   guardarPreferenciaDestinatarioNotificacion,
@@ -49,21 +49,38 @@ export function AccountNotifications({ sx, ...other }) {
   const idUsuario = String(user?.uid ?? user?.id ?? '');
   const rol = esAdministrador(user) ? 'admin' : 'usuario';
 
-  const [preferencias, setPreferencias] = useState(null);
-  const [guardando, setGuardando] = useState('');
+  const [preferencias, setPreferencias] = useState({});
   const [estadoPush, setEstadoPush] = useState({ cargando: true, compatible: false, permiso: 'default', habilitadas: false });
-  const [cambiandoPush, setCambiandoPush] = useState(false);
+  const preferenciasCambios = useRef(0);
+  const preferenciasVersion = useRef(new Map());
+  const preferenciasLocales = useRef(new Map());
+  const preferenciasCola = useRef(new Map());
+  const pushVersion = useRef(0);
+  const pushCola = useRef(Promise.resolve());
 
   useEffect(() => {
     let activo = true;
 
     if (!idUsuario) return undefined;
 
+    const cantidadCambiosInicial = preferenciasCambios.current;
+
     leerPreferenciasNotificaciones(idUsuario)
-      .then((leidas) => activo && setPreferencias(leidas))
+      .then((leidas) => {
+        if (!activo) return;
+
+        const locales = Object.fromEntries(preferenciasLocales.current);
+        setPreferencias(
+          preferenciasCambios.current === cantidadCambiosInicial
+            ? leidas
+            : {
+                ...leidas,
+                tiposNotificacion: { ...(leidas?.tiposNotificacion ?? {}), ...locales },
+              }
+        );
+      })
       .catch((error) => {
         console.error('[notificaciones] no se pudieron leer las preferencias', error);
-        if (activo) setPreferencias({});
       });
 
     return () => {
@@ -73,32 +90,76 @@ export function AccountNotifications({ sx, ...other }) {
 
   useEffect(() => {
     let activo = true;
-    consultarEstadoWebPush()
-      .then((estado) => activo && setEstadoPush({ ...estado, cargando: false }))
-      .catch((error) => {
-        console.warn('[push] no se pudo consultar el dispositivo', error);
-        if (activo) setEstadoPush({ cargando: false, compatible: false, permiso: 'unsupported', habilitadas: false });
-      });
-    return () => { activo = false; };
-  }, []);
+    const versionPushInicial = pushVersion.current;
 
-  const cambiarPush = async (habilitadas) => {
-    setCambiandoPush(true);
-    try {
+    if (!idUsuario) return () => { activo = false; };
+
+    const consultarCuandoLaSesionEsteLista = async () => {
+      // El usuario puede venir primero del caché de sesión y Firebase resolver
+      // AUTH.currentUser unos milisegundos después. Evita una consulta 401 que
+      // deje el ajuste visualmente deshabilitado hasta recargar.
+      for (let intento = 0; intento < 20 && activo; intento += 1) {
+        if (AUTH?.currentUser?.uid === idUsuario) break;
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
+      }
+
+      if (!activo) return;
+
+      try {
+        const estado = await consultarEstadoWebPush();
+        if (activo && pushVersion.current === versionPushInicial) {
+          setEstadoPush({ ...estado, cargando: false });
+        }
+      } catch (error) {
+        console.warn('[push] no se pudo consultar el dispositivo', error);
+        if (activo && pushVersion.current === versionPushInicial) {
+          setEstadoPush((actual) => ({
+            ...actual,
+            cargando: false,
+            compatible:
+              typeof window !== 'undefined' &&
+              'Notification' in window &&
+              'serviceWorker' in navigator &&
+              'PushManager' in window,
+            permiso: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
+          }));
+        }
+      }
+    };
+
+    consultarCuandoLaSesionEsteLista();
+    return () => { activo = false; };
+  }, [idUsuario]);
+
+  const cambiarPush = (habilitadas) => {
+    const version = ++pushVersion.current;
+    const anterior = estadoPush.habilitadas;
+    setEstadoPush((estado) => ({ ...estado, cargando: false, habilitadas }));
+
+    const guardado = pushCola.current.catch(() => {}).then(async () => {
       if (habilitadas) await activarWebPush();
       else await desactivarWebPush();
-      setEstadoPush((estado) => ({ ...estado, permiso: Notification.permission, habilitadas }));
-      toast.success(habilitadas ? 'Notificaciones activadas en este dispositivo.' : 'Notificaciones desactivadas en este dispositivo.');
-    } catch (error) {
-      toast.error(error.message || 'No se pudo actualizar la configuración del dispositivo.');
-      setEstadoPush((estado) => ({
-        ...estado,
-        permiso: Notification.permission,
-        habilitadas: !habilitadas,
-      }));
-    } finally {
-      setCambiandoPush(false);
-    }
+    });
+    pushCola.current = guardado;
+
+    guardado
+      .then(() => {
+        if (version !== pushVersion.current) return;
+        setEstadoPush((estado) => ({
+          ...estado,
+          permiso: Notification.permission,
+          habilitadas,
+        }));
+      })
+      .catch((error) => {
+        if (version !== pushVersion.current) return;
+        toast.error(error.message || 'No se pudo actualizar la configuración del dispositivo.');
+        setEstadoPush((estado) => ({
+          ...estado,
+          permiso: Notification.permission,
+          habilitadas: anterior,
+        }));
+      });
   };
 
   // Solo los avisos que a esta cuenta le pueden llegar.
@@ -115,8 +176,12 @@ export function AccountNotifications({ sx, ...other }) {
     );
   }, [rol]);
 
-  const cambiar = async (tipoNotificacion, activo) => {
-    const anterior = preferencias;
+  const cambiar = (tipoNotificacion, activo) => {
+    const anterior = estaActivo(preferencias ?? {}, tipoNotificacion);
+    preferenciasCambios.current += 1;
+    const version = (preferenciasVersion.current.get(tipoNotificacion) ?? 0) + 1;
+    preferenciasVersion.current.set(tipoNotificacion, version);
+    preferenciasLocales.current.set(tipoNotificacion, activo);
 
     // Se ve al momento; si no se guarda, vuelve atrás.
     setPreferencias((actual) => ({
@@ -124,22 +189,36 @@ export function AccountNotifications({ sx, ...other }) {
       tiposNotificacion: { ...(actual?.tiposNotificacion ?? {}), [tipoNotificacion]: activo },
     }));
 
-    try {
-      setGuardando(tipoNotificacion);
-      await guardarPreferenciaDestinatarioNotificacion({
+    const guardadoAnterior = preferenciasCola.current.get(tipoNotificacion) ?? Promise.resolve();
+    const guardado = guardadoAnterior.catch(() => {}).then(() =>
+      guardarPreferenciaDestinatarioNotificacion({
         idUsuario,
         rol,
         tipoNotificacion,
         activo,
         usuario: user,
-      });
-    } catch (error) {
+      })
+    );
+    preferenciasCola.current.set(tipoNotificacion, guardado);
+
+    guardado.catch((error) => {
       console.error('[notificaciones] no se pudo guardar la preferencia', error);
-      setPreferencias(anterior);
+      if (preferenciasVersion.current.get(tipoNotificacion) !== version) return;
+
+      preferenciasLocales.current.set(tipoNotificacion, anterior);
+      setPreferencias((actual) => ({
+        ...(actual ?? {}),
+        tiposNotificacion: {
+          ...(actual?.tiposNotificacion ?? {}),
+          [tipoNotificacion]: anterior,
+        },
+      }));
       toast.error('No se pudo guardar el cambio.');
-    } finally {
-      setGuardando('');
-    }
+    }).finally(() => {
+      if (preferenciasCola.current.get(tipoNotificacion) === guardado) {
+        preferenciasCola.current.delete(tipoNotificacion);
+      }
+    });
   };
 
   return (
@@ -150,37 +229,47 @@ export function AccountNotifications({ sx, ...other }) {
       ]}
       {...other}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <FormControlLabel
-          label="Notificaciones en este dispositivo"
-          labelPlacement="start"
-          control={
-            <Switch
-              checked={estadoPush.habilitadas}
-              disabled={
-                estadoPush.cargando ||
-                !estadoPush.compatible ||
-                estadoPush.permiso === 'denied' ||
-                cambiandoPush
-              }
-              onChange={(evento) => cambiarPush(evento.target.checked)}
-              slotProps={{ input: { 'aria-label': 'Notificaciones en este dispositivo' } }}
-            />
-          }
-          sx={{ m: 0, width: 1, justifyContent: 'space-between' }}
-        />
-        <Alert severity={estadoPush.permiso === 'denied' ? 'warning' : estadoPush.compatible ? 'info' : 'warning'}>
-          {estadoPush.permiso === 'denied'
-            ? 'El navegador bloqueó las notificaciones. Habilítalas desde los ajustes del sitio y vuelve a intentarlo.'
-            : estadoPush.compatible
-              ? 'Activa esta opción para recibir avisos del sistema en este dispositivo. Debes permitirlos cuando el navegador lo solicite.'
-              : 'Este navegador no admite notificaciones push. En iPhone o iPad, abre la app instalada desde la pantalla de inicio.'}
-        </Alert>
-      </Box>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <ListItemText
+            primary="Notificaciones en este dispositivo"
+            secondary="Recibe avisos del sistema en este dispositivo."
+            slotProps={{
+              primary: { sx: { typography: 'h6' } },
+              secondary: { sx: { mt: 0.5 } },
+            }}
+          />
+        </Grid>
 
-      <Alert severity="info">
-        Elige qué avisos quieres recibir en la campana. Los cambios se guardan al momento.
-      </Alert>
+        <Grid size={{ xs: 12, md: 8 }}>
+          <Box
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              display: 'flex',
+              justifyContent: 'space-between',
+              bgcolor: 'background.neutral',
+            }}
+          >
+            <FormControlLabel
+              label="Notificaciones push"
+              labelPlacement="start"
+              control={
+                <Switch
+                  checked={estadoPush.habilitadas}
+                  disabled={
+                    (!estadoPush.cargando && !estadoPush.compatible) ||
+                    estadoPush.permiso === 'denied'
+                  }
+                  onChange={(evento) => cambiarPush(evento.target.checked)}
+                  slotProps={{ input: { 'aria-label': 'Notificaciones push' } }}
+                />
+              }
+              sx={{ m: 0, width: 1, justifyContent: 'space-between' }}
+            />
+          </Box>
+        </Grid>
+      </Grid>
 
       {grupos.map((grupo) => (
         <Grid key={grupo.modulo} container spacing={3}>
@@ -213,7 +302,7 @@ export function AccountNotifications({ sx, ...other }) {
                   labelPlacement="start"
                   control={
                     <Switch
-                      disabled={!preferencias || guardando === tipo.tipoNotificacion}
+                      disabled={!idUsuario}
                       checked={estaActivo(preferencias ?? {}, tipo.tipoNotificacion)}
                       onChange={(evento) => cambiar(tipo.tipoNotificacion, evento.target.checked)}
                       slotProps={{ input: { 'aria-label': tipo.titulo } }}
