@@ -15,6 +15,7 @@ import { contactoSistema, esCuentaSistema } from 'src/utils/chat-sistema.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 import { contactoDeBuzon, esBuzonCompartido, buzonPorIdMiembros } from 'src/utils/chat-buzones.mjs';
 
+import { enviarPushAUsuarios } from 'src/server/web-push';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 import { deleteChatStorageObjects } from 'src/server/chat-storage-rest.mjs';
@@ -352,6 +353,15 @@ const guardarNotificacionConfigurada = async (notificacion) => {
       .collection(COLECCIONES_NOTIFICACIONES.notificaciones)
       .doc(notificacionConfigurada.id)
       .set(notificacionConfigurada);
+
+    enviarPushAUsuarios({
+      idsUsuarios: notificacionConfigurada.idsDestinatarios,
+      titulo: notificacionConfigurada.titulo,
+      mensaje: notificacionConfigurada.mensajeVisual || notificacionConfigurada.mensaje,
+      ruta: notificacionConfigurada.ruta,
+    }).catch((error) => {
+      console.warn('[chat] no se pudo enviar la notificación push', error);
+    });
 
     return notificacionConfigurada;
   }

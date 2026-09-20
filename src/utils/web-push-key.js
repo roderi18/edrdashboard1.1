@@ -1,0 +1,1 @@
+export const WEB_PUSH_VAPID_PUBLIC_KEY = 'BNVAgCkmt9aP3b4n1wn2EHsPGRRoRb82fBZnlP4i7xjsbMY3TxecXrCA9M5aExYq_pdBIG-ykXl2eWyqhh-Rr1o';

@@ -105,16 +105,23 @@ self.addEventListener('push', (event) => {
     return;
   }
 
-  const data = event.data.json();
-  const title = data.title || 'Exploradores del Rey';
+  let payload = {};
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { body: event.data.text() };
+  }
+
+  const data = payload.data || payload.notification || payload;
+  const title = data.title || payload.title || 'Exploradores del Rey';
 
   event.waitUntil(
     self.registration.showNotification(title, {
-      body: data.body,
+      body: data.body || data.message || payload.body || '',
       icon: data.icon || '/icon-192x192.png',
       badge: data.badge || '/icon-192x192.png',
       data: {
-        url: data.url || '/',
+        url: data.url || data.click_action || payload.fcmOptions?.link || '/dashboard',
       },
     })
   );

@@ -27,7 +27,7 @@ import {
 } from 'src/utils/estatus-miembro-avisos.mjs';
 
 import { getMembers } from 'src/services/member-service';
-import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { ROLES, ALCANCES } from 'src/auth/permissions/roles';
 import { ALCANCE_PREDETERMINADO_ROL } from 'src/auth/permissions/role-permissions';
@@ -101,6 +101,34 @@ const asegurarFirebaseNotificaciones = () => {
   if (!isFirebaseConfigured || !FIRESTORE) {
     throw new Error('Firebase no está configurado en este entorno.');
   }
+};
+
+const enviarPushDeAvisoCreado = (idNotificacion) => {
+  const usuario = AUTH?.currentUser;
+  if (!usuario || !idNotificacion || typeof window === 'undefined') return;
+
+  usuario
+    .getIdToken()
+    .then((token) =>
+      fetch('/api/push/notificacion', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idNotificacion }),
+        cache: 'no-store',
+      })
+    )
+    .then(async (response) => {
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'No se pudo enviar el aviso push.');
+      }
+    })
+    .catch((error) => {
+      console.warn('[notificaciones] no se pudo solicitar la notificación push', error);
+    });
 };
 
 const obtenerCategoriaNotificacion = (modulo) => MODULOS_CATEGORIAS[modulo] || 'General';
@@ -676,6 +704,7 @@ export async function crearNotificacionUsuario({
     idsDestinatarios: resolvedIds,
     prioridad,
     estado: 'no_leida',
+    creadoPorUid: AUTH?.currentUser?.uid || null,
     fechaCreacion: fechaActual,
     fechaEnvio: fechaActual,
     actorId: String(actorId || 'sistema'),
@@ -714,6 +743,7 @@ export async function crearNotificacionUsuario({
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('notificaciones:actualizar'));
+    enviarPushDeAvisoCreado(notificacionConfigurada.id);
   }
 
   return notificacionConfigurada;
@@ -842,6 +872,7 @@ export async function crearNotificacionAdmin({
     idsDestinatarios: resolvedIdsDestinatarios,
     prioridad: resolvedPrioridad,
     estado: 'no_leida',
+    creadoPorUid: AUTH?.currentUser?.uid || null,
     fechaCreacion: fechaActual,
     fechaEnvio: fechaActual,
     actorId: String(actorId || usuario?.uid || usuario?.id || 'sistema'),
@@ -880,6 +911,7 @@ export async function crearNotificacionAdmin({
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('notificaciones:actualizar'));
+    enviarPushDeAvisoCreado(notificacionConfigurada.id);
   }
 
   return notificacionConfigurada;

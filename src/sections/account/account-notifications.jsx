@@ -11,6 +11,7 @@ import ListItemText from '@mui/material/ListItemText';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { estaActivo, agruparTiposPorModulo } from 'src/utils/modulos-notificaciones.mjs';
+import { activarWebPush, desactivarWebPush, consultarEstadoWebPush } from 'src/utils/web-push-client';
 import {
   TIPOS_NOTIFICACIONES_ADMIN,
   TIPOS_NOTIFICACIONES_USUARIO,
@@ -50,6 +51,8 @@ export function AccountNotifications({ sx, ...other }) {
 
   const [preferencias, setPreferencias] = useState(null);
   const [guardando, setGuardando] = useState('');
+  const [estadoPush, setEstadoPush] = useState({ cargando: true, compatible: false, permiso: 'default', habilitadas: false });
+  const [cambiandoPush, setCambiandoPush] = useState(false);
 
   useEffect(() => {
     let activo = true;
@@ -67,6 +70,36 @@ export function AccountNotifications({ sx, ...other }) {
       activo = false;
     };
   }, [idUsuario]);
+
+  useEffect(() => {
+    let activo = true;
+    consultarEstadoWebPush()
+      .then((estado) => activo && setEstadoPush({ ...estado, cargando: false }))
+      .catch((error) => {
+        console.warn('[push] no se pudo consultar el dispositivo', error);
+        if (activo) setEstadoPush({ cargando: false, compatible: false, permiso: 'unsupported', habilitadas: false });
+      });
+    return () => { activo = false; };
+  }, []);
+
+  const cambiarPush = async (habilitadas) => {
+    setCambiandoPush(true);
+    try {
+      if (habilitadas) await activarWebPush();
+      else await desactivarWebPush();
+      setEstadoPush((estado) => ({ ...estado, permiso: Notification.permission, habilitadas }));
+      toast.success(habilitadas ? 'Notificaciones activadas en este dispositivo.' : 'Notificaciones desactivadas en este dispositivo.');
+    } catch (error) {
+      toast.error(error.message || 'No se pudo actualizar la configuración del dispositivo.');
+      setEstadoPush((estado) => ({
+        ...estado,
+        permiso: Notification.permission,
+        habilitadas: !habilitadas,
+      }));
+    } finally {
+      setCambiandoPush(false);
+    }
+  };
 
   // Solo los avisos que a esta cuenta le pueden llegar.
   const grupos = useMemo(() => {
@@ -117,6 +150,34 @@ export function AccountNotifications({ sx, ...other }) {
       ]}
       {...other}
     >
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <FormControlLabel
+          label="Notificaciones en este dispositivo"
+          labelPlacement="start"
+          control={
+            <Switch
+              checked={estadoPush.habilitadas}
+              disabled={
+                estadoPush.cargando ||
+                !estadoPush.compatible ||
+                estadoPush.permiso === 'denied' ||
+                cambiandoPush
+              }
+              onChange={(evento) => cambiarPush(evento.target.checked)}
+              slotProps={{ input: { 'aria-label': 'Notificaciones en este dispositivo' } }}
+            />
+          }
+          sx={{ m: 0, width: 1, justifyContent: 'space-between' }}
+        />
+        <Alert severity={estadoPush.permiso === 'denied' ? 'warning' : estadoPush.compatible ? 'info' : 'warning'}>
+          {estadoPush.permiso === 'denied'
+            ? 'El navegador bloqueó las notificaciones. Habilítalas desde los ajustes del sitio y vuelve a intentarlo.'
+            : estadoPush.compatible
+              ? 'Activa esta opción para recibir avisos del sistema en este dispositivo. Debes permitirlos cuando el navegador lo solicite.'
+              : 'Este navegador no admite notificaciones push. En iPhone o iPad, abre la app instalada desde la pantalla de inicio.'}
+        </Alert>
+      </Box>
+
       <Alert severity="info">
         Elige qué avisos quieres recibir en la campana. Los cambios se guardan al momento.
       </Alert>

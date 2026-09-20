@@ -3,6 +3,9 @@ import { varAlpha, mergeClasses } from 'minimal-shared/utils';
 import Box from '@mui/material/Box';
 import { styled } from '@mui/material/styles';
 
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
 import { Logo } from 'src/components/logo';
 import { Scrollbar } from 'src/components/scrollbar';
 import { NavSectionMini, NavSectionVertical } from 'src/components/nav-section';
@@ -31,7 +34,12 @@ export function NavVertical({
   const renderNavVertical = () => (
     <>
       {slots?.topArea ?? (
-        <Box sx={{ pl: 3.5, pt: 2.5, pb: 1 }}>
+        <Box
+          component={RouterLink}
+          href={paths.dashboard.principal}
+          aria-label="Ir a Principal"
+          sx={{ pl: 3.5, pt: 2.5, pb: 1, display: 'block', width: 'fit-content' }}
+        >
           <Box
             component="img"
             src={
@@ -73,7 +81,7 @@ export function NavVertical({
     <>
       {slots?.topArea ?? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 2.5 }}>
-          <Logo />
+          <Logo href={paths.dashboard.principal} />
         </Box>
       )}
 
