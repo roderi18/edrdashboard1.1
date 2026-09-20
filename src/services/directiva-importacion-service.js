@@ -541,3 +541,93 @@ export async function tomarFotoDeLaDirectivaActual({ cuatrienio, usuario, alAvan
 
   return { integrantes: integrantes.length };
 }
+
+/**
+ * Actualiza la foto congelada de cada integrante de un cuatrienio con la foto
+ * de perfil que tiene actualmente en su ficha.
+ */
+export async function cargarFotosActualesDelCuatrienio({
+  cuatrienio,
+  usuario,
+  idsIntegrante = null,
+  alAvanzar = () => {},
+}) {
+  const [integrantes, fotos] = await Promise.all([
+    obtenerIntegrantesDelCuatrienio(cuatrienio),
+    obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' }).catch(() => ({})),
+  ]);
+  const objetivo = integrantes.filter(
+    (integrante) => !idsIntegrante || idsIntegrante.includes(integrante.id)
+  );
+  const conFotoActual = objetivo.filter(
+    (integrante) => integrante.idMiembros && fotos[String(integrante.idMiembros)]?.urlFoto
+  );
+  const actualizados = [];
+  let fallidas = 0;
+
+  for (const [indice, integrante] of conFotoActual.entries()) {
+    alAvanzar(`Copiando fotos actuales (${indice + 1} de ${conFotoActual.length})…`);
+
+    try {
+      const foto = await congelarFotoDePerfil({
+        urlOrigen: fotos[String(integrante.idMiembros)].urlFoto,
+        cuatrienio,
+        // Evita que el navegador reutilice una copia anterior al sincronizar otra vez.
+        idIntegrante: `${integrante.id}-foto-${Date.now()}-${indice}`,
+      });
+
+      if (foto.fotoUrl) {
+        actualizados.push({ ...integrante, ...foto });
+      } else {
+        fallidas += 1;
+      }
+    } catch (error) {
+      fallidas += 1;
+      console.warn('[directiva-cuatrienios] no se pudo copiar la foto actual', error);
+    }
+  }
+
+  if (actualizados.length) {
+    await guardarIntegrantes({
+      cuatrienio,
+      integrantes: actualizados,
+      anteriores: actualizados,
+      usuario,
+      descripcion: `Se actualizaron las fotos actuales de ${actualizados.length} integrantes en la Directiva ${cuatrienio}.`,
+    });
+  }
+
+  return {
+    actualizadas: actualizados.length,
+    sinFoto: objetivo.length - conFotoActual.length,
+    fallidas,
+    anteriores: actualizados.map((integrante) => {
+      const original = integrantes.find((fila) => fila.id === integrante.id);
+      return {
+        id: integrante.id,
+        fotoUrl: original?.fotoUrl || '',
+        fotoRuta: original?.fotoRuta || '',
+      };
+    }),
+  };
+}
+
+export async function restaurarFotosDelCuatrienio({ cuatrienio, fotosAnteriores, usuario }) {
+  const actuales = await obtenerIntegrantesDelCuatrienio(cuatrienio);
+  const fotoAnteriorPorId = new Map(fotosAnteriores.map((fila) => [fila.id, fila]));
+  const restaurados = actuales
+    .filter((integrante) => fotoAnteriorPorId.has(integrante.id))
+    .map((integrante) => ({ ...integrante, ...fotoAnteriorPorId.get(integrante.id) }));
+
+  if (!restaurados.length) return 0;
+
+  await guardarIntegrantes({
+    cuatrienio,
+    integrantes: restaurados,
+    anteriores: actuales.filter((integrante) => fotoAnteriorPorId.has(integrante.id)),
+    usuario,
+    descripcion: `Se restauraron las fotos anteriores de ${restaurados.length} integrantes en la Directiva ${cuatrienio}.`,
+  });
+
+  return restaurados.length;
+}

@@ -79,7 +79,7 @@ export function SelectorDeCuatrienio({ titulo, cuatrienio, onCambiar }) {
               }}
             >
               <ListItemText
-                primary={item.id}
+                primary={`Directiva Nacional ${item.id}`}
                 secondary={`${aFecha(item.inicio)} – ${aFecha(item.fin)}`}
               />
               {esCuatrienioVigente(item.id) && (

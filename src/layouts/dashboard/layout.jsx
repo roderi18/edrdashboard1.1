@@ -543,6 +543,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     // transparente cuando el contenido pasaba por debajo. Con la cabecera ya
     // opaca lo unico que hacia era aclararla al bajar.
     const cabeceraDeMarca = {
+      '--offset-color': 'var(--layout-header-text)',
       backgroundColor: 'var(--layout-header-bg)',
       // El degradado encima del color: si un dia se quita, la cabecera se queda
       // en navy plano y no en blanco.

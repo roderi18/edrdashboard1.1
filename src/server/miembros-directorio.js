@@ -97,6 +97,29 @@ export const buscarMiembroPorId = async (idMiembros) => {
 };
 
 /**
+ * Teléfonos de miembros que ya fueron identificados por otra consulta.
+ * El padrón completo se queda en el servidor; solo salen los números pedidos.
+ */
+export const buscarTelefonosPorIds = async (idsMiembros = []) => {
+  const ids = new Set(
+    (Array.isArray(idsMiembros) ? idsMiembros : [])
+      .map((id) => String(id ?? '').trim())
+      .filter(Boolean)
+  );
+
+  if (!ids.size) return [];
+
+  const miembros = await listarMiembros();
+
+  return miembros
+    .filter((miembro) => ids.has(String(miembro?.idMiembros ?? miembro?.id ?? '').trim()))
+    .map((miembro) => ({
+      idMiembros: String(miembro.idMiembros ?? miembro.id),
+      telefono: String(miembro.telefono ?? miembro.phoneNumber ?? miembro.celular ?? '').trim(),
+    }));
+};
+
+/**
  * ¿Ese correo ya es de otro miembro?
  *
  * El correo identifica a la persona: con el se recupera la clave y, una vez

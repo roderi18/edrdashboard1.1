@@ -221,7 +221,7 @@ service firebase.storage {
     }
 
     function esArchivoPerfil(archivo) {
-      return archivo.matches('perfil(-mini)?\\.(jpg|jpeg|png|webp)');
+      return archivo.matches('perfil(-mini)?(-[a-zA-Z0-9-]+)?\\.(jpg|jpeg|png|webp)');
     }
 
     // Cambiar la foto propia no requiere cargo. El id se valida contra la

@@ -414,6 +414,21 @@ export function MemberListView({ destId = null }) {
   }, [hydrateMemberPositions]);
 
   useEffect(() => {
+    const handlePhotoUpdate = (event) => {
+      const { tipoEntidad, idEntidad, foto } = event.detail || {};
+      if (tipoEntidad !== 'miembro' || !idEntidad || !foto?.urlFoto) return;
+
+      setMemberPhotoUrls((current) => ({
+        ...current,
+        [String(idEntidad)]: foto.urlFotoMiniatura || foto.urlFoto,
+      }));
+    };
+
+    window.addEventListener('foto-principal-actualizada', handlePhotoUpdate);
+    return () => window.removeEventListener('foto-principal-actualizada', handlePhotoUpdate);
+  }, []);
+
+  useEffect(() => {
     if (!tableData.length || !dests.length || !churches.length || !sectionals.length) return;
 
     const destById = new Map();
@@ -901,4 +916,3 @@ export function MemberListView({ destId = null }) {
   );
 }
 // ----------------------------------------------------------------------
-

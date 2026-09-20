@@ -637,9 +637,18 @@ service cloud.firestore {
             || atiendeUnBuzon(conversacion(idConversacion))
           )
           && mensajeVisibleParaMi(idConversacion, resource.data);
-        // A Sistema no se le contesta: es un canal de avisos que escribe el servidor.
+        // A los chats individuales de Sistema no se les contesta. El grupo de
+        // Administradores Globales también recibe avisos de Sistema, pero sus
+        // participantes humanos sí pueden conversar entre ellos.
         allow create: if puedeLeerConversacion(idConversacion)
-          && !(20003 in conversacion(idConversacion).participantesIds)
+          && (
+            !(20003 in conversacion(idConversacion).participantesIds)
+            || (
+              conversacion(idConversacion).tipoConversacion == 'GRUPAL'
+              && conversacion(idConversacion).nombreGrupo == 'ADMINISTRADORES GLOBALES'
+              && esAdministradorGlobal()
+            )
+          )
           && mensajeNuevoValido(idMensaje);
         allow update: if puedeLeerConversacion(idConversacion)
           && mensajeVisibleParaMi(idConversacion, resource.data)

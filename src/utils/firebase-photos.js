@@ -101,6 +101,28 @@ export async function registrarFotoEntidadSubida({
     { merge: true }
   );
 
+  const cacheKey = getFotosCacheKey({ tipoEntidad, tipoFoto });
+  const fotosEnCache = fotosPrincipalesCache.get(cacheKey);
+  if (fotosEnCache) {
+    fotosPrincipalesCache.set(cacheKey, {
+      ...fotosEnCache,
+      [String(idEntidad)]: { id: documentId, ...payload },
+    });
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('foto-principal-actualizada', {
+        detail: {
+          tipoEntidad,
+          idEntidad: String(idEntidad),
+          tipoFoto,
+          foto: { id: documentId, ...payload },
+        },
+      })
+    );
+  }
+
   return {
     id: documentId,
     ...payload,
@@ -124,7 +146,13 @@ export async function subirFotoEntidad({
     throw new Error('No se pudo identificar a quién pertenece la foto.');
 
   const folder = carpetaDeEntidad(tipoEntidad);
-  const basePath = `${folder}/${idEntidad}/${tipoFoto}.webp`;
+  // Cada reemplazo usa una ruta nueva: la imagen lleva cache immutable por un
+  // año, y reutilizar la misma ruta podía dejar la foto anterior en el navegador.
+  const version =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const basePath = `${folder}/${idEntidad}/${tipoFoto}-${version}.webp`;
   const metadatos = {
     tipoEntidad,
     idEntidad: String(idEntidad),
@@ -142,7 +170,7 @@ export async function subirFotoEntidad({
     uploadOptimizedImage({
       file,
       preset: 'miniatura',
-      storagePath: `${folder}/${idEntidad}/${tipoFoto}-mini.webp`,
+      storagePath: `${folder}/${idEntidad}/${tipoFoto}-mini-${version}.webp`,
       metadata: { ...metadatos, variante: 'miniatura' },
       // Si la miniatura falla, la foto se sube igual: es una comodidad, no un
       // requisito. Sin ella las listas usan la grande, como hasta ahora.

@@ -55,15 +55,37 @@ export const esIdConversacionDeSistema = (idConversacion) => {
 
 /** ¿Esta conversacion es la de Sistema? Mira su id, los ids guardados o los de la pantalla. */
 export const esConversacionDeSistema = (conversacion = {}) => {
-  if (esIdConversacionDeSistema(conversacion?.idConversacion ?? conversacion?.id)) return true;
-
-  const ids = Array.isArray(conversacion?.participantesIds)
+  const id = String(conversacion?.idConversacion ?? conversacion?.id ?? '');
+  const tipo = String(conversacion?.tipoConversacion ?? '').trim().toUpperCase();
+  const participantesIds = Array.isArray(conversacion?.participantesIds)
     ? conversacion.participantesIds
-    : (Array.isArray(conversacion?.participants) ? conversacion.participants : []).map(
-        (participante) => participante?.idMiembros ?? participante?.id
-      );
+    : [];
+  const participantes = Array.isArray(conversacion?.participants)
+    ? conversacion.participants
+    : Array.isArray(conversacion?.participantes)
+      ? conversacion.participantes
+      : [];
 
-  return ids.some(esCuentaSistema);
+  // Los grupos de administradores pueden incluir mensajes informativos enviados
+  // por Sistema, pero siguen siendo conversaciones entre personas. Solo se
+  // bloquean los chats individuales con la cuenta Sistema.
+  if (
+    tipo === 'GRUPAL' ||
+    id.startsWith('grupo_') ||
+    id.startsWith('grupal_') ||
+    participantesIds.length > 2 ||
+    participantes.length > 2
+  ) {
+    return false;
+  }
+
+  if (esIdConversacionDeSistema(id)) return true;
+
+  const ids = participantesIds.length
+    ? participantesIds
+    : participantes.map((participante) => participante?.idMiembros ?? participante?.id);
+
+  return ids.length === 2 && ids.some(esCuentaSistema);
 };
 
 /** El id de la conversacion de un miembro con Sistema, igual que las demas individuales. */

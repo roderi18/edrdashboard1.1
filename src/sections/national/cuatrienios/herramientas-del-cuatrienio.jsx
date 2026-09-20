@@ -4,13 +4,22 @@ import { useState, useEffect, useCallback } from 'react';
 
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
+import Autocomplete from '@mui/material/Autocomplete';
 import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 import { ocupanteHistorico, integrantesDeEntidad } from 'src/utils/directiva-cuatrienios.mjs';
 
-import { tomarFotoDeLaDirectivaActual } from 'src/services/directiva-importacion-service';
+import {
+  cargarFotosActualesDelCuatrienio,
+  restaurarFotosDelCuatrienio,
+  tomarFotoDeLaDirectivaActual,
+} from 'src/services/directiva-importacion-service';
 import { obtenerIntegrantesDelCuatrienio } from 'src/services/directiva-cuatrienios-service';
 
 import { toast } from 'src/components/snackbar';
@@ -83,6 +92,99 @@ export function useHerramientasDelCuatrienio({ cuatrienio, integrantes, usuario,
   const [importando, setImportando] = useState(false);
   const [pidiendoFoto, setPidiendoFoto] = useState(false);
   const [tomandoFoto, setTomandoFoto] = useState('');
+  const [actualizandoFotos, setActualizandoFotos] = useState('');
+  const [menuFotos, setMenuFotos] = useState(null);
+  const [confirmarCargaFotos, setConfirmarCargaFotos] = useState(false);
+  const [seleccionLibreAbierta, setSeleccionLibreAbierta] = useState(false);
+  const [integranteSeleccionado, setIntegranteSeleccionado] = useState(null);
+  const [confirmarFotoSeleccionada, setConfirmarFotoSeleccionada] = useState(false);
+  const [reversionesFotos, setReversionesFotos] = useState([]);
+  const [reversionesCargadas, setReversionesCargadas] = useState('');
+  const claveReversiones = `directiva-fotos-reversion:${cuatrienio}`;
+
+  useEffect(() => {
+    try {
+      const guardadas = JSON.parse(sessionStorage.getItem(claveReversiones) || '[]');
+      setReversionesFotos(Array.isArray(guardadas) ? guardadas : []);
+    } catch {
+      setReversionesFotos([]);
+    }
+    setReversionesCargadas(claveReversiones);
+  }, [claveReversiones]);
+
+  useEffect(() => {
+    if (reversionesCargadas !== claveReversiones) return;
+
+    try {
+      sessionStorage.setItem(claveReversiones, JSON.stringify(reversionesFotos));
+    } catch (error) {
+      console.warn('[directiva-cuatrienios] no se pudo guardar la opción de volver atrás', error);
+    }
+  }, [claveReversiones, reversionesCargadas, reversionesFotos]);
+
+  const cargarFotosActuales = async (idsIntegrante = null) => {
+    setConfirmarCargaFotos(false);
+    setConfirmarFotoSeleccionada(false);
+    setActualizandoFotos('Preparando…');
+
+    try {
+      const resultado = await cargarFotosActualesDelCuatrienio({
+        cuatrienio,
+        usuario,
+        idsIntegrante,
+        alAvanzar: setActualizandoFotos,
+      });
+      const detalleFallidas = resultado.fallidas
+        ? `; ${resultado.fallidas} no se pudieron copiar`
+        : '';
+      if (resultado.actualizadas) {
+        setReversionesFotos((actuales) => [
+          ...actuales,
+          { cuatrienio, fotosAnteriores: resultado.anteriores },
+        ]);
+      }
+      if (idsIntegrante && resultado.actualizadas) setSeleccionLibreAbierta(false);
+      const estado = idsIntegrante
+        ? `Foto actualizada: ${resultado.actualizadas}`
+        : `Fotos actualizadas: ${resultado.actualizadas}; sin foto actual: ${resultado.sinFoto}`;
+      if (!resultado.actualizadas) {
+        toast.info(
+          idsIntegrante
+            ? 'Esta persona no tiene una foto de perfil actual para cargar.'
+            : 'No se encontraron fotos de perfil actuales para cargar.'
+        );
+      } else {
+        toast.success(`${estado}${detalleFallidas}.`);
+      }
+      alCambiar?.();
+    } catch (error) {
+      console.error('[directiva-cuatrienios] no se pudieron actualizar las fotos', error);
+      toast.error(error?.message || 'No se pudieron cargar las fotos actuales.');
+    } finally {
+      setActualizandoFotos('');
+    }
+  };
+
+  const volverAtrasFotos = async () => {
+    const ultima = reversionesFotos[reversionesFotos.length - 1];
+    if (!ultima) return;
+
+    setActualizandoFotos('Restaurando…');
+    try {
+      const restauradas = await restaurarFotosDelCuatrienio({
+        ...ultima,
+        usuario,
+      });
+      setReversionesFotos((actuales) => actuales.slice(0, -1));
+      toast.success(`Se restauraron ${restauradas} fotos anteriores.`);
+      alCambiar?.();
+    } catch (error) {
+      console.error('[directiva-cuatrienios] no se pudieron restaurar las fotos', error);
+      toast.error(error?.message || 'No se pudieron restaurar las fotos anteriores.');
+    } finally {
+      setActualizandoFotos('');
+    }
+  };
 
   const abrirOrganigrama = (nivel, { id = '', nombre = '' } = {}) => {
     const filas = integrantesDeEntidad(integrantes, { nivel, idEntidad: id, nombre });
@@ -177,16 +279,113 @@ export function useHerramientasDelCuatrienio({ cuatrienio, integrantes, usuario,
           </Button>
         }
       />
+
+      <ConfirmDialog
+        open={confirmarCargaFotos}
+        onClose={() => setConfirmarCargaFotos(false)}
+        title="Cargar fotos actuales"
+        content={`Se reemplazarán las fotos de la Directiva ${cuatrienio} por las fotos de perfil actuales de cada persona que tenga una. Después podrás restaurar las anteriores desde “Volver atrás”. ¿Deseas continuar?`}
+        action={
+          <Button
+            variant="contained"
+            disabled={Boolean(actualizandoFotos)}
+            onClick={() => cargarFotosActuales()}
+          >
+            Cargar fotos
+          </Button>
+        }
+      />
+
+      <ConfirmDialog
+        open={confirmarFotoSeleccionada}
+        onClose={() => setConfirmarFotoSeleccionada(false)}
+        title="Actualizar foto de esta persona"
+        content={`Se reemplazará la foto histórica de ${integranteSeleccionado?.nombres || ''} ${integranteSeleccionado?.apellidos || ''} por su foto de perfil actual. Podrás restaurar la anterior con “Volver atrás”. ¿Deseas continuar?`}
+        action={
+          <Button
+            variant="contained"
+            disabled={Boolean(actualizandoFotos)}
+            onClick={() => cargarFotosActuales([integranteSeleccionado?.id])}
+          >
+            Actualizar foto
+          </Button>
+        }
+      />
+
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        open={seleccionLibreAbierta}
+        onClose={() => setSeleccionLibreAbierta(false)}
+      >
+        <DialogTitle>Seleccionar persona</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Autocomplete
+            options={integrantes}
+            value={integranteSeleccionado}
+            onChange={(_, value) => setIntegranteSeleccionado(value)}
+            getOptionLabel={(integrante) =>
+              `${integrante.nombres || ''} ${integrante.apellidos || ''} · ${integrante.cargoNombre || ''}`.trim()
+            }
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            renderInput={(params) => <TextField {...params} label="Persona de la directiva" />}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSeleccionLibreAbierta(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            disabled={!integranteSeleccionado || Boolean(actualizandoFotos)}
+            onClick={() => setConfirmarFotoSeleccionada(true)}
+          >
+            Continuar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Menu anchorEl={menuFotos} open={Boolean(menuFotos)} onClose={() => setMenuFotos(null)}>
+        <MenuItem
+          disabled={Boolean(actualizandoFotos)}
+          onClick={() => {
+            setMenuFotos(null);
+            setConfirmarCargaFotos(true);
+          }}
+        >
+          Cargar fotos actuales
+        </MenuItem>
+        <MenuItem
+          disabled={!reversionesFotos.length || Boolean(actualizandoFotos)}
+          onClick={() => {
+            setMenuFotos(null);
+            volverAtrasFotos();
+          }}
+        >
+          Volver atrás
+        </MenuItem>
+        <MenuItem
+          disabled={Boolean(actualizandoFotos)}
+          onClick={() => {
+            setMenuFotos(null);
+            setIntegranteSeleccionado(null);
+            setSeleccionLibreAbierta(true);
+          }}
+        >
+          Selección libre
+        </MenuItem>
+      </Menu>
     </>
   );
 
   return {
     dialogos,
     tomandoFoto,
+    actualizandoFotos,
+    reversionesFotos,
     abrirOrganigrama,
     editar: (integrante) => setEdicion(integrante),
     agregar: (base = {}) => setEdicion({ nuevo: true, cuatrienio, ...base }),
     importar: () => setImportando(true),
+    abrirMenuFotos: (event) => setMenuFotos(event.currentTarget),
     pedirFoto: () => setPidiendoFoto(true),
   };
 }

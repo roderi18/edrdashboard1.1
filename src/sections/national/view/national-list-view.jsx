@@ -33,6 +33,7 @@ import {
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
+import { obtenerTelefonosDirectivaActual } from 'src/services/national-directiva-contactos-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
@@ -300,22 +301,32 @@ export function NationalListView() {
   // lista pintaba siempre el avatar por defecto.
   const [fotosPorMiembro, setFotosPorMiembro] = useState(() => ({}));
   const [exComandantes, setExComandantes] = useState([]);
+  const [telefonosDirectiva, setTelefonosDirectiva] = useState(() => ({}));
 
   useEffect(() => {
     let cancelado = false;
 
     const cargar = async () => {
-      const [miembros, asignaciones, secciones, regiones, permanentes] = await Promise.all([
-        getMembers().catch(() => []),
-        obtenerAsignacionesDirectivaMiembros().catch(() => []),
-        getSectionals({ includePhotos: false }).catch(() => []),
-        getRegionals().catch(() => []),
-        obtenerPermanentes().catch(() => []),
-      ]);
+      const [miembros, asignaciones, secciones, regiones, permanentes, telefonos] =
+        await Promise.all([
+          getMembers().catch(() => []),
+          obtenerAsignacionesDirectivaMiembros().catch(() => []),
+          getSectionals({ includePhotos: false }).catch(() => []),
+          getRegionals().catch(() => []),
+          obtenerPermanentes().catch(() => []),
+          obtenerTelefonosDirectivaActual().catch(() => []),
+        ]);
 
       if (cancelado) return;
 
       setExComandantes(permanentes.filter((permanente) => permanente?.exComandante));
+      setTelefonosDirectiva(
+        Object.fromEntries(
+          telefonos
+            .filter((fila) => fila?.idMiembros && fila?.telefono)
+            .map((fila) => [String(fila.idMiembros), fila.telefono])
+        )
+      );
 
       setAllMembers(Array.isArray(miembros) ? miembros : []);
       setNationalAssignments(
@@ -428,7 +439,8 @@ export function NationalListView() {
         assignment.nombreMiembro ||
         'Desconocido',
       email: member?.email,
-      phoneNumber: member?.phoneNumber,
+      phoneNumber:
+        member?.phoneNumber || telefonosDirectiva[String(member?.id ?? assignment.idMiembro)] || '',
       avatarUrl:
         fotosPorMiembro[String(member?.id ?? assignment.idMiembro)] || member?.avatarUrl || '',
 
@@ -464,7 +476,8 @@ export function NationalListView() {
         `${permanente.nombres ?? ''} ${permanente.apellidos ?? ''}`.trim() ||
         'Desconocido',
       email: member?.email,
-      phoneNumber: member?.phoneNumber,
+      phoneNumber:
+        member?.phoneNumber || telefonosDirectiva[String(permanente.idMiembros)] || '',
       // La foto de la historia antes que la de perfil: es la de cuando fue
       // comandante, y la de perfil puede no existir.
       avatarUrl:
@@ -480,7 +493,7 @@ export function NationalListView() {
       nationalEstructureLabel: NATIONAL_STRUCTURES.consejo_ejecutivo,
       nationalOrganizationalLevel: 'Consejo Ejecutivo',
       hierarchyStructureOrder: ORDEN_ESTRUCTURA.consejo_ejecutivo,
-      // Detras de los cargos de hoy del Consejo Ejecutivo.
+      // Siempre al final de la lista de la directiva actual.
       hierarchyRoleOrder: 900,
       nationalXAssignedRegional: 'Consejo Ejecutivo',
     });
@@ -575,13 +588,25 @@ export function NationalListView() {
   }).sort((a, b) => (ORDEN_ESTRUCTURA[a.value] ?? 999) - (ORDEN_ESTRUCTURA[b.value] ?? 999));
 
   const dataFiltered = (() => {
+    const compararPorColumna = getComparator(table.order, table.orderBy);
+    const compararFilas = (a, b) => {
+      if (!esMemoria) {
+        const aEsExComandante = a.nationalXMemberPosition === POSICION_EX_COMANDANTE;
+        const bEsExComandante = b.nationalXMemberPosition === POSICION_EX_COMANDANTE;
+
+        if (aEsExComandante !== bEsExComandante) return aEsExComandante ? 1 : -1;
+      }
+
+      return table.hasUserSorted ? compararPorColumna(a, b) : compararJerarquia(a, b);
+    };
+
     const filtered = applyFilter({
       inputData: tableData,
-      comparator: getComparator(table.order, table.orderBy),
+      comparator: compararFilas,
       filters: currentFilters,
     });
 
-    return table.hasUserSorted ? filtered : [...filtered].sort(compararJerarquia);
+    return filtered;
   })();
 
   const canReset =
@@ -706,13 +731,30 @@ export function NationalListView() {
             puedeEditarMemoria && (
               <Box sx={{ gap: 1, display: 'flex', flexWrap: 'wrap' }}>
                 {esMemoria && cuatrienio === ID_CUATRIENIO_LISTADO && (
-                  <Button
-                    variant="outlined"
-                    startIcon={<Iconify icon="solar:import-bold" />}
-                    onClick={herramientas.importar}
-                  >
-                    Cargar listado {ID_CUATRIENIO_LISTADO}
-                  </Button>
+                  <>
+                    <Button
+                      variant="outlined"
+                      startIcon={<Iconify icon="solar:import-bold" />}
+                      onClick={herramientas.importar}
+                    >
+                      Cargar listado {ID_CUATRIENIO_LISTADO}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      disabled={Boolean(herramientas.actualizandoFotos)}
+                      startIcon={
+                        herramientas.actualizandoFotos ? (
+                          <CircularProgress size={16} />
+                        ) : (
+                          <Iconify icon="solar:gallery-add-bold" />
+                        )
+                      }
+                      endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
+                      onClick={herramientas.abrirMenuFotos}
+                    >
+                      {herramientas.actualizandoFotos || 'Fotos actuales'}
+                    </Button>
+                  </>
                 )}
 
                 {esMemoria && (
