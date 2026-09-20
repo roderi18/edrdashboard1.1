@@ -120,6 +120,8 @@ export const MemberCard = memo(function MemberCard({
       title={member?.name}
       href={memberEditId ? editHref : '#'}
       avatarUrl={resolvedAvatarUrl}
+      avatarSize={80}
+      avatarBorderRadius={2.5}
       fallbackText={member?.name || member?.firstName}
       lines={[
         { icon: 'solar:phone-bold', text: phoneLabel, href: getPhoneHref(phoneNumber) },

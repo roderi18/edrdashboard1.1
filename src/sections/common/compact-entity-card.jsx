@@ -40,6 +40,8 @@ export const CompactEntityCard = memo(function CompactEntityCard({
   href = '#',
   disabled = false,
   avatarUrl = '',
+  avatarSize = 54,
+  avatarBorderRadius = '50%',
   fallbackText = '?',
   lines = [],
   rightImage,
@@ -102,8 +104,9 @@ export const CompactEntityCard = memo(function CompactEntityCard({
     <Avatar
       alt={title}
       sx={{
-        width: 54,
-        height: 54,
+        width: avatarSize,
+        height: avatarSize,
+        borderRadius: avatarBorderRadius,
         mr: 2,
         overflow: 'hidden',
         position: 'relative',
