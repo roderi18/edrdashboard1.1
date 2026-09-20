@@ -141,7 +141,7 @@ export async function POST(req) {
 
   const administrador = await verificarAdminGlobal(bearer(req));
   if (!administrador) {
-    return jsonError('Solo rdpr18@gmail.com como Administrador Global puede usar esta función.', 403);
+    return jsonError('Solo las cuentas Administrador Global autorizadas pueden usar esta función.', 403);
   }
 
   const codigo = String(body?.codigoMiembro ?? '').trim().toUpperCase();

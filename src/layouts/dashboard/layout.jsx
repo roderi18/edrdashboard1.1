@@ -36,6 +36,7 @@ import { useSettingsContext } from 'src/components/settings';
 import { buzonesQueAtiende } from 'src/sections/chat/utils/buzones-del-chat';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { puedeUsarSelectorDeRol } from 'src/auth/permissions/admin-role-switch-policy';
 
 import { NavMobile } from './nav-mobile';
 import { VerticalDivider } from './content';
@@ -522,8 +523,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           <AccountDrawer
             data={_account}
             onProbarComoUsuario={
-              String(user?.email ?? user?.correo ?? '').trim().toLowerCase() === 'rdpr18@gmail.com' &&
-              esAdministradorGlobal
+              puedeUsarSelectorDeRol(user?.email ?? user?.correo) && esAdministradorGlobal
                 ? probarComoUsuario.onTrue
                 : undefined
             }
