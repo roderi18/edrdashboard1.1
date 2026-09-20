@@ -506,9 +506,10 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
               bgcolor: 'error.light',
             },
             ...theme.applyStyles('dark', {
-              bgcolor: theme.vars.palette.error.dark,
+              bgcolor: '#701C35',
+              borderColor: '#B05A70',
               color: '#fff',
-              '&:hover': { bgcolor: theme.vars.palette.error.dark },
+              '&:hover': { bgcolor: '#80243F' },
               '& .MuiTypography-root': { color: '#fff' },
               '& .MuiTypography-colorTextSecondary': { color: 'rgba(255,255,255,0.78)' },
             }),

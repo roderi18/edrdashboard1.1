@@ -571,7 +571,8 @@ export function ChatMessageItem({
                   bgcolor: 'error.lighter',
                 },
                 (theme) => theme.applyStyles('dark', {
-                  bgcolor: theme.vars.palette.error.dark,
+                  bgcolor: '#701C35',
+                  borderColor: '#B05A70',
                   color: '#fff',
                   '& .MuiTypography-root.MuiTypography-caption': {
                     color: 'rgba(255,255,255,0.78)',
