@@ -7,6 +7,8 @@ import { Logo } from 'src/components/logo';
 import { Scrollbar } from 'src/components/scrollbar';
 import { NavSectionMini, NavSectionVertical } from 'src/components/nav-section';
 
+import { BugReportFab } from 'src/sections/bug-report/bug-report-fab';
+
 import { layoutClasses } from '../core';
 import { NavUpgrade } from '../components/nav-upgrade';
 import { NavToggleButton } from '../components/nav-toggle-button';
@@ -90,7 +92,7 @@ export function NavVertical({
         ]}
       />
 
-      {slots?.bottomArea}
+      {slots?.bottomArea ?? <BugReportFab compact />}
     </>
   );
 

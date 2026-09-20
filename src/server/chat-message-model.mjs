@@ -200,6 +200,27 @@ const normalizeMetadata = (value) => {
     };
   }
 
+  const reporteProblema = asObject(metadata.reporteProblema);
+  const reporteId = cleanText(reporteProblema.id).slice(0, 160);
+  const reporterId = positiveMemberId(reporteProblema.miembroId);
+  const reporterName = cleanText(reporteProblema.nombre).slice(0, 160);
+  const reporterPhoto = safeWebOrAppUrl(reporteProblema.fotoUrl);
+  const reporterDate = normalizeIso(reporteProblema.fecha, '');
+  const reporterMessage = cleanText(reporteProblema.mensaje).slice(0, 4_000);
+  const reporterRoute = cleanText(reporteProblema.ruta).slice(0, 500);
+
+  if (reporteId && reporterId && reporterName && reporterDate && reporterMessage) {
+    normalized.reporteProblema = {
+      id: reporteId,
+      miembroId: reporterId,
+      nombre: reporterName,
+      ...(reporterPhoto && { fotoUrl: reporterPhoto }),
+      fecha: reporterDate,
+      mensaje: reporterMessage,
+      ...(reporterRoute && { ruta: reporterRoute }),
+    };
+  }
+
   return normalized;
 };
 

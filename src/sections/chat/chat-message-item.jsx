@@ -421,6 +421,7 @@ export function ChatMessageItem({
         // LA FOTO DEL CUMPLEAÑERO, del ancho de las fotos enviadas: a 320px una foto
         // vertical ocupaba la pantalla entera en el celular.
         !!message.metadata?.cumpleanosSistema && { maxWidth: { xs: 'min(70vw, 260px)', sm: 280 } },
+        !!message.metadata?.reporteProblema && { maxWidth: { xs: 'min(78vw, 340px)', sm: 420 } },
         !!message.metadata?.sharedProduct &&
           ((theme) =>
             theme.applyStyles('dark', { color: 'text.primary', bgcolor: 'background.neutral' })),
@@ -560,7 +561,54 @@ export function ChatMessageItem({
             </Box>
           )}
 
-          {message.metadata?.cumpleanosSistema ? (
+          {message.metadata?.reporteProblema ? (
+            <Box
+              sx={[
+                {
+                  p: 1.25,
+                  borderRadius: 1.25,
+                  border: (theme) => `1px solid ${theme.vars.palette.error.main}`,
+                  bgcolor: 'error.lighter',
+                },
+                (theme) => theme.applyStyles('dark', {
+                  bgcolor: '#7f1d1d',
+                  color: '#fff',
+                  '& .MuiTypography-root.MuiTypography-caption': {
+                    color: 'rgba(255,255,255,0.78)',
+                  },
+                }),
+              ]}
+            >
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Avatar
+                  src={message.metadata.reporteProblema.fotoUrl}
+                  alt={message.metadata.reporteProblema.nombre}
+                  sx={{ width: 34, height: 34 }}
+                >
+                  <Iconify icon="solar:bug-bold" width={18} />
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle2" noWrap>
+                    {message.metadata.reporteProblema.nombre}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(message.metadata.reporteProblema.fecha).toLocaleString('es-DO', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                  </Typography>
+                </Box>
+              </Stack>
+              <Typography component="div" variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                {message.metadata.reporteProblema.mensaje}
+              </Typography>
+              {message.metadata.reporteProblema.ruta && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                  Pantalla: {message.metadata.reporteProblema.ruta}
+                </Typography>
+              )}
+            </Box>
+          ) : message.metadata?.cumpleanosSistema ? (
             <TarjetaDeCumpleanos
               cumpleanos={message.metadata.cumpleanosSistema}
               texto={body}

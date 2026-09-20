@@ -106,6 +106,7 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
   const router = useRouter();
   const notificationRoute = getNotificationRoute(notification);
   const actionLabel = getNotificationActionLabel(notification);
+  const esReporteProblema = notification.tipoNotificacion === 'reporte_problema';
   const esDeProducto = notification.type === 'producto';
   // En los avisos de producto hay DOS caras: la persona, en el circulo, y el
   // producto, en el bloque de debajo. Ver `use-fotos-de-aviso`.
@@ -219,7 +220,11 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
             bgcolor: 'background.neutral',
           }}
         >
-          <SvgIcon sx={{ width: 24, height: 24 }}>{renderIcon(notification.type)}</SvgIcon>
+          {esReporteProblema ? (
+            <Iconify icon="solar:bug-bold" width={22} sx={{ color: 'error.main' }} />
+          ) : (
+            <SvgIcon sx={{ width: 24, height: 24 }}>{renderIcon(notification.type)}</SvgIcon>
+          )}
         </Box>
       )}
     </ListItemAvatar>
@@ -491,6 +496,23 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
           alignItems: 'flex-start',
           cursor: notificationRoute ? 'pointer' : 'default',
           borderBottom: `dashed 1px ${theme.vars.palette.divider}`,
+          ...(esReporteProblema && {
+            m: 0.75,
+            width: 'calc(100% - 12px)',
+            border: `1px solid ${theme.vars.palette.error.main}`,
+            borderRadius: 1.5,
+            bgcolor: 'error.lighter',
+            '&:hover': {
+              bgcolor: 'error.light',
+            },
+            ...theme.applyStyles('dark', {
+              bgcolor: '#7f1d1d',
+              color: '#fff',
+              '&:hover': { bgcolor: '#991b1b' },
+              '& .MuiTypography-root': { color: '#fff' },
+              '& .MuiTypography-colorTextSecondary': { color: 'rgba(255,255,255,0.78)' },
+            }),
+          }),
         }),
       ]}
     >

@@ -6,13 +6,13 @@ import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 
-import { paths } from 'src/routes/paths';
-
 import { getRealMemberEmail, getMemberCodeForDisplay } from 'src/utils/member-access';
 
 import { CONFIG } from 'src/global-config';
 
 import { Label } from 'src/components/label';
+
+import { BugReportFab } from 'src/sections/bug-report/bug-report-fab';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -92,14 +92,7 @@ export function NavUpgrade({ sx, ...other }) {
           )}
         </Box>
 
-        <Button
-          variant="contained"
-          href={paths.minimalStore}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Desarrollo
-        </Button>
+        <BugReportFab />
       </Box>
     </Box>
   );
