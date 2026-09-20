@@ -431,14 +431,6 @@ export function ProductListView() {
                               onChange: (event) => filters.setState({ stock: event.target.value }),
                               options: PRODUCT_STOCK_OPTIONS,
                             },
-                            {
-                              key: 'categoria',
-                              label: 'Categoría',
-                              value: filters.state.categoria,
-                              onChange: (event) =>
-                                filters.setState({ categoria: event.target.value }),
-                              options: categoriaOptions,
-                            },
                             ...(!isMemberUser
                               ? [
                                   {
@@ -471,28 +463,6 @@ export function ProductListView() {
                       spacing={1.5}
                       sx={{ display: { xs: 'none', md: 'flex' }, flexGrow: 1 }}
                     >
-                      <TextField
-                        select
-                        size="small"
-                        label="Categoría"
-                        value={filters.state.categoria}
-                        onChange={(event) => filters.setState({ categoria: event.target.value })}
-                        sx={{ minWidth: 180 }}
-                        slotProps={{
-                          select: {
-                            multiple: true,
-                            renderValue: (seleccion) =>
-                              seleccion.map((valor) => etiquetaDeCategoria(valor)).join(', '),
-                          },
-                        }}
-                      >
-                        {categoriaOptions.map((option) => (
-                          <MenuItem key={option.value} value={option.value}>
-                            {option.label}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-
                       <TextField
                         select
                         size="small"

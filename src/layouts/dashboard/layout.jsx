@@ -468,7 +468,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           {/* Solo el Administrador Global: es el unico que cambia de rol. Para el
               resto era un adorno que ademas decia un solo cargo, y hay quien
               tiene dos; los suyos salen bajo su nombre, en la barra lateral. */}
-          {(esAdministradorGlobal || pruebaDeRolesActiva) && (
+          {(esAdministradorGlobal || pruebaDeRolesActiva || user?.selectorRolAdminGlobal) && (
             <WorkspacesPopover
               data={_workspaces}
               // SEPARADO DEL BUSCADOR. Iba pegado al borde del campo y el nombre
@@ -493,7 +493,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           {/* Probar dos cargos a la vez. Sigue visible durante la prueba —la
               sesion ya no es Administrador Global— porque es el unico camino de
               vuelta. */}
-          {(esAdministradorGlobal || pruebaDeRolesActiva) && (
+          {(esAdministradorGlobal || pruebaDeRolesActiva || user?.selectorRolAdminGlobal) && (
             <RoleCombinationPopover
               sx={{ ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }) }}
             />

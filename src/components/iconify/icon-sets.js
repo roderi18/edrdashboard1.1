@@ -712,7 +712,7 @@ export default {
     body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="13" rx="3"/><path d="M8.5 7V5.5A2 2 0 0 1 10.5 3.5h3A2 2 0 0 1 15.5 5.5V7"/><path d="M2.5 12.5h19"/></g>',
   },
   'custom:categoria-barras': {
-    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h16"/><path d="M4 12h11"/><path d="M4 17h7"/></g>',
+    body: '<path d="M5.5 5h13l-7.5 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
   },
   'custom:categoria-campamentos': {
     body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 4 3 19h18z"/><path d="M12 4v15"/><path d="m8.5 19 3.5-6 3.5 6"/></g>',

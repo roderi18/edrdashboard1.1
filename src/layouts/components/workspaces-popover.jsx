@@ -22,7 +22,6 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { useAuthContext } from 'src/auth/hooks';
 import { ROLES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 import { cambiarRolPropioDesdeSelector } from 'src/auth/permissions';
-import { puedeUsarSelectorDeRol } from 'src/auth/permissions/admin-role-switch-policy';
 
 import { RolePermissionsDialog } from './role-permissions-dialog';
 
@@ -143,9 +142,6 @@ export function WorkspacesPopover({ data = [], sx, disabled = false, nombreForza
     setSubmenuOption(null);
   }, []);
 
-  // Este selector pertenece exclusivamente a la cuenta global autorizada. Se
-  // comprueba también en el servidor usando el correo del token firmado.
-  const puedeCambiarDeRol = puedeUsarSelectorDeRol(user?.email || user?.correo);
   const currentRoleId = user?.rolId || user?.roleId || user?.rolCodigo || user?.roleCodigo || '';
   const selectedWorkspace = useMemo(() => {
     const match = data.find((option) => option.id === currentRoleId);
@@ -248,32 +244,6 @@ export function WorkspacesPopover({ data = [], sx, disabled = false, nombreForza
     // nombre a la vista —es informacion util— pero sin boton, sin flecha y sin
     // menu: un desplegable que permitiera cambiarse el rol a uno mismo seria una
     // via de escalada de privilegios abierta a cualquiera.
-    if (!puedeCambiarDeRol && !disabled) {
-      return (
-        <Box
-          sx={[
-            {
-              py: 0.5,
-              display: 'flex',
-              alignItems: 'center',
-              gap: { xs: 0.5, [mediaQuery]: 1 },
-            },
-            ...(Array.isArray(sx) ? sx : [sx]),
-          ]}
-          {...other}
-        >
-          {renderWorkspaceIcon(workspace, { bgcolor: 'transparent', color: 'primary.main' })}
-
-          <Box
-            component="span"
-            sx={{ typography: 'subtitle2', display: { xs: 'none', [mediaQuery]: 'inline-flex' } }}
-          >
-            {workspace?.name}
-          </Box>
-        </Box>
-      );
-    }
-
     return (
       <ButtonBase
         disableRipple

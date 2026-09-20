@@ -258,6 +258,7 @@ const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
     cargos: unirCargos(memberProfile.cargos, access.cargos),
     // Prueba de roles en curso (la enciende el Administrador Global).
     simulacion: access.simulacion ?? null,
+    selectorRolAdminGlobal: access.selectorRolAdminGlobal === true,
     restricciones: {
       ...(access.restricciones ?? {}),
       ...(memberProfile.restricciones ?? {}),

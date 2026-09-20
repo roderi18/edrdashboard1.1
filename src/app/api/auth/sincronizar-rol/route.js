@@ -83,9 +83,9 @@ export async function POST(req) {
     return jsonError('Token inválido o expirado.', 401);
   }
 
-  // La cuenta global autorizada elige aquí un rol manual para probar la
-  // aplicación. No debe recalcularse desde sus posibles casillas de directiva,
-  // porque eso desharía la selección justo después de recargar la página.
+  // Una cuenta con Administrador Global elige aquí un rol manual para probar la
+  // aplicación. La marca, puesta por switch-own-role tras validar el cargo
+  // global activo, evita que la sincronización deshaga la selección al recargar.
   //
   // Pero salir sin escribir NADA la dejaba sin documento en `usuarios_roles/<uid>`
   // cuando el suyo estaba guardado por número de miembro, que es como están la
@@ -95,8 +95,12 @@ export async function POST(req) {
   // por el cargo le respondía "permisos insuficientes" en sus propias pantallas.
   //
   // Se crea el documento SOLO si no existe, y con el cargo que le corresponde por
-  // ser esta cuenta. Si ya existe no se toca ni un campo: ahí está su selección
-  // manual, que es lo que este atajo protege.
+  // ser esta cuenta. Si ya existe una selección manual marcada, no se toca.
+  const asignacionManual = await db.collection(COLECCION_USUARIOS_ROLES).doc(caller.uid).get();
+  if (asignacionManual.data()?.selectorRolAdminGlobal === true) {
+    return Response.json({ ok: true, omitido: 'rol manual del Administrador Global' });
+  }
+
   if (puedeUsarSelectorDeRol(caller.email)) {
     const suyo = db.collection(COLECCION_USUARIOS_ROLES).doc(caller.uid);
     const existente = await suyo.get();

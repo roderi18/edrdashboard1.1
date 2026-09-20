@@ -4,7 +4,6 @@ import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase
 
 import { ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 import { deriveUserClaims } from 'src/auth/permissions/user-claims';
-import { puedeUsarSelectorDeRol } from 'src/auth/permissions/admin-role-switch-policy';
 
 export const runtime = 'nodejs';
 
@@ -24,11 +23,6 @@ const normalizarRol = (value) =>
     .trim()
     .toLowerCase();
 
-const esPerfilAdministradorGlobal = (perfil = {}) =>
-  normalizarRol(perfil?.rol ?? perfil?.role) === 'admin' &&
-  normalizarRol(perfil?.estatus ?? perfil?.estado ?? 'activo') === 'activo' &&
-  puedeUsarSelectorDeRol(perfil?.correo ?? perfil?.email);
-
 export async function POST(req) {
   if (!isAdminConfigured()) {
     return jsonError('El servidor no tiene configurado FIREBASE_SERVICE_ACCOUNT.', 503);
@@ -46,29 +40,27 @@ export async function POST(req) {
     return jsonError('Token inválido o expirado.', 401);
   }
 
-  // Esta es la barrera real. No se confía en el correo enviado por el cliente.
-  // El correo procede del token firmado y además se contrasta con Firebase Auth.
-  if (!puedeUsarSelectorDeRol(caller.email)) {
-    return jsonError('Esta cuenta no está autorizada para cambiar el rol de la sesión.', 403);
-  }
-
   const authUser = await auth.getUser(caller.uid).catch(() => null);
-  if (!authUser || !puedeUsarSelectorDeRol(authUser.email)) {
+  if (!authUser || normalizarRol(authUser.email) !== normalizarRol(caller.email)) {
     return jsonError('No se pudo verificar la cuenta autorizada.', 403);
   }
 
   const db = getAdminDb();
-  const [adminPorUid, adminsPorCampo] = await Promise.all([
-    db.collection('admins').doc(caller.uid).get(),
-    db.collection('admins').where('uid', '==', caller.uid).limit(1).get(),
-  ]);
-  const perfilAdmin = adminPorUid.exists ? adminPorUid.data() : adminsPorCampo.docs[0]?.data();
+  const asignacionRef = db.collection(COLECCION_USUARIOS_ROLES).doc(caller.uid);
+  const asignacionActual = await asignacionRef.get();
+  const datosActuales = asignacionActual.exists ? asignacionActual.data() : {};
+  const esAdministradorGlobalActivo =
+    datosActuales?.activo !== false &&
+    normalizarRol(datosActuales?.rolId) === 'administrador_global';
+  const tieneAccesoDeRetorno =
+    datosActuales?.activo !== false && datosActuales?.selectorRolAdminGlobal === true;
 
-  // El correo permitido debe seguir siendo, además, la cuenta global activa del
-  // registro de administradores. El rol de simulación puede cambiar; esta
-  // identidad administrativa permanente es la que le permite regresar.
-  if (!esPerfilAdministradorGlobal(perfilAdmin)) {
-    return jsonError('La cuenta autorizada no es el Administrador Global activo.', 403);
+  // La primera vez se exige la asignación activa y exacta de Administrador
+  // Global. Se deja una marca en este documento, que solo escribe el servidor,
+  // para que el titular pueda volver a cambiar o recuperar su rol luego de que
+  // la asignación principal haya pasado a ser el rol elegido.
+  if (!esAdministradorGlobalActivo && !tieneAccesoDeRetorno) {
+    return jsonError('La cuenta no tiene una asignación activa de Administrador Global.', 403);
   }
 
   let body;
@@ -89,10 +81,6 @@ export async function POST(req) {
     tipo: rol.alcancePredeterminado,
     modo: rol.alcancePredeterminado,
   };
-  const asignacionRef = db.collection(COLECCION_USUARIOS_ROLES).doc(caller.uid);
-  const asignacionActual = await asignacionRef.get();
-  const datosActuales = asignacionActual.exists ? asignacionActual.data() : {};
-
   const payload = {
     uidUsuario: caller.uid,
     correo: authUser.email || caller.email,
@@ -104,6 +92,7 @@ export async function POST(req) {
     cargos: [],
     simulacion: FieldValue.delete(),
     activo: true,
+    selectorRolAdminGlobal: true,
     asignadoPor: caller.uid,
     asignadoEn: new Date().toISOString(),
     actualizadoEnServidor: FieldValue.serverTimestamp(),
