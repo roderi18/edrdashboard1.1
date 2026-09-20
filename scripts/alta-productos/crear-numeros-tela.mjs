@@ -117,6 +117,10 @@ const construirProducto = ({ productoId, codigo, numero, imagen }) => {
 const main = async () => {
   const numeros = leerNumeros();
   let codigoNumero = await siguienteNumero();
+  const existentes = await db.collection('productos').where('categoria', '==', CATEGORIA).get();
+  const nombresExistentes = new Set(
+    existentes.docs.map((doc) => String(doc.data()?.nombre || '').trim().toLowerCase())
+  );
   console.log(APLICAR ? 'ESCRIBIENDO' : 'SIMULACION (usa --aplicar para escribir)');
 
   for (const producto of numeros) {
@@ -125,7 +129,7 @@ const main = async () => {
     const referencia = db.collection('productos').doc(productoId);
     const existente = await referencia.get();
 
-    if (existente.exists) {
+    if (existente.exists || nombresExistentes.has(producto.nombre.toLowerCase())) {
       console.log(`  ya existe: ${producto.nombre} (${productoId})`);
       codigoNumero += 1;
       continue;
