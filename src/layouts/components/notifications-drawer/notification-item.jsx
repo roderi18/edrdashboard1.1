@@ -107,6 +107,9 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
   const notificationRoute = getNotificationRoute(notification);
   const actionLabel = getNotificationActionLabel(notification);
   const esReporteProblema = notification.tipoNotificacion === 'reporte_problema';
+  const nombreReportante =
+    String(notification.actorNombre || notification.metadatos?.reporteProblema?.nombre || '').trim() ||
+    'Un miembro';
   const esDeProducto = notification.type === 'producto';
   // En los avisos de producto hay DOS caras: la persona, en el circulo, y el
   // producto, en el bloque de debajo. Ver `use-fotos-de-aviso`.
@@ -236,7 +239,16 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
     <ListItemText
       primary={
         <Box sx={{ gap: 0.75, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          {readerContent(notification.title)}
+          {esReporteProblema ? (
+            <Box component="span">
+              <Box component="span" sx={{ fontWeight: 'fontWeightBold' }}>
+                {nombreReportante}
+              </Box>{' '}
+              reportó un problema.
+            </Box>
+          ) : (
+            readerContent(notification.title)
+          )}
           {isCritical && (
             <Iconify
               icon="solar:danger-triangle-bold"
