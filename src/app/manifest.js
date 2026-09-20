@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 
-const APP_INSTALL_NAME = 'ExploradoresDelRey';
+const APP_INSTALL_NAME = 'EXPLORA ERRD';
 const START_URL = '/auth/firebase/sign-in';
 const THEME_COLOR = '#00A76F';
 
