@@ -128,6 +128,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
   const { user } = useAuthContext();
   const [contactosDelDestacamento, setContactosDelDestacamento] = useState([]);
+  const [cargaSecundariaLista, setCargaSecundariaLista] = useState(false);
   // La cuenta administrativa de siempre (admin001) llega con `role: 'admin'`;
   // una sesion que es administrativa por ocupar un cargo, no.
   const esAdministradorGlobal =
@@ -140,9 +141,37 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const pruebaDeRolesActiva = Boolean(user?.simulacion?.activa);
   const { labels: mailLabels } = useGetLabels(isMailRoute);
   const chatMemberId = Number(user?.idMiembros ?? user?.memberId ?? 0) || null;
-  const chatSummaryEnabled = Boolean(user?.accessToken && chatMemberId);
+  const chatSummaryEnabled = Boolean(
+    cargaSecundariaLista && user?.accessToken && chatMemberId
+  );
+
+  // El primer pintado solo necesita la sesión y la estructura del panel. Los
+  // contadores, contactos, notificaciones y sonidos esperan a que el navegador
+  // quede libre para no competir con el JS y CSS iniciales.
+  useEffect(() => {
+    let activo = true;
+    const iniciarCargaSecundaria = () => {
+      if (activo) setCargaSecundariaLista(true);
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(iniciarCargaSecundaria, { timeout: 2200 });
+      return () => {
+        activo = false;
+        window.cancelIdleCallback(id);
+      };
+    }
+
+    const id = window.setTimeout(iniciarCargaSecundaria, 1800);
+    return () => {
+      activo = false;
+      window.clearTimeout(id);
+    };
+  }, []);
 
   useEffect(() => {
+    if (!cargaSecundariaLista) return undefined;
+
     let vigente = true;
 
     const cargarContactos = async () => {
@@ -208,11 +237,11 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     return () => {
       vigente = false;
     };
-  }, [user]);
+  }, [cargaSecundariaLista, user]);
 
   // Los sonidos de aviso, listos antes del primer mensaje. Se leen una vez por
   // sesion: los eligio el Administrador Global y valen para toda la aplicacion.
-  useCargarSonidosDeAviso();
+  useCargarSonidosDeAviso(cargaSecundariaLista);
 
   // Un solo resumen para la persona y todos sus buzones. Fuera de /chat no se
   // abren listeners de conversaciones ni se publica presencia: el contador se
@@ -340,6 +369,8 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   };
 
   useEffect(() => {
+    if (!cargaSecundariaLista) return undefined;
+
     let isMounted = true;
 
     const cargarNotificaciones = async () => {
@@ -402,7 +433,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       window.removeEventListener('notificaciones:actualizar', cargarNotificaciones);
       cancelarEscucha();
     };
-  }, [user]);
+  }, [cargaSecundariaLista, user]);
 
   // CON ROLES COMBINADOS, EL MENU SIGUE SIENDO EL DEL ADMINISTRADOR GLOBAL.
   // La prueba solo la enciende el; si el menu se recortaba a la pareja probada,

@@ -480,11 +480,6 @@ export function AuthProvider({ children }) {
 
           if (adminProfile) {
             const adminProfileData = getAdminProfileData(adminProfile);
-            const authorizationAccess =
-              (await loadAuthorizationAccess(authUser, adminProfileData, memberAccess)) ??
-              memberAccess?.profile ??
-              null;
-
             // SU IDENTIDAD DE MIEMBRO VIAJA CON LA SESION, TAMBIEN AQUI.
             //
             // Esta rama se armaba solo con el documento de administrador, y ese
@@ -511,13 +506,55 @@ export function AuthProvider({ children }) {
                 memberAccess?.member?.memberId,
             };
 
-            sessionUser = await buildAdminSessionWithMemberPhoto(authUser, {
+            // La identidad de Firebase y el perfil administrativo bastan para
+            // entrar al panel. No se espera la foto ni la lectura de permisos
+            // adicionales: el dashboard pinta su skeleton y se refina detrás.
+            const sesionInicial = buildAdminSessionUser(authUser, {
               ...adminProfileData,
-              ...pickAuthorizationProfile(authorizationAccess, memberAccess),
               ...Object.fromEntries(
                 Object.entries(identidadDeMiembro).filter(([, valor]) => Boolean(valor))
               ),
             });
+
+            setState({
+              user: aplicarSimulacionDeRoles({ ...sesionInicial, accessToken }),
+              loading: false,
+            });
+            writeCachedSession({ ...sesionInicial, accessToken });
+
+            // El perfil completo llega después: permisos, cargos combinados y
+            // foto no deben formar parte de la ruta crítica de entrada.
+            window.setTimeout(() => {
+              Promise.all([
+                loadAuthorizationAccess(authUser, adminProfileData, memberAccess),
+                buildAdminSessionWithMemberPhoto(authUser, {
+                  ...adminProfileData,
+                  ...Object.fromEntries(
+                    Object.entries(identidadDeMiembro).filter(([, valor]) => Boolean(valor))
+                  ),
+                }),
+              ])
+                .then(([authorizationAccess, adminSessionWithPhoto]) => {
+                  const refinedSession = {
+                    ...adminSessionWithPhoto,
+                    ...pickAuthorizationProfile(authorizationAccess, memberAccess),
+                    ...Object.fromEntries(
+                      Object.entries(identidadDeMiembro).filter(([, valor]) => Boolean(valor))
+                    ),
+                    accessToken,
+                  };
+
+                  setState({
+                    user: aplicarSimulacionDeRoles(refinedSession),
+                    loading: false,
+                  });
+                  writeCachedSession(refinedSession);
+                })
+                .catch(() => {});
+            }, 900);
+
+            window.setTimeout(() => sincronizarRolPorCargo(accessToken).catch(() => {}), 1800);
+            return;
           } else if (memberAccess?.profile || memberAccess?.member || isMemberAuth) {
             // PINTAR YA, REFINAR DESPUES.
             //
@@ -557,13 +594,15 @@ export function AuthProvider({ children }) {
             publicar(armarSesion(null));
 
             // Y por detras, sin que nadie espere.
-            sincronizarRolPorCargo(accessToken).catch(() => {});
+            window.setTimeout(() => sincronizarRolPorCargo(accessToken).catch(() => {}), 1800);
 
-            loadAuthorizationAccess(authUser, memberAccess?.profile, memberAccess)
-              .then((acceso) => {
-                if (acceso?.rolId || acceso?.alcance) publicar(armarSesion(acceso));
-              })
-              .catch(() => {});
+            window.setTimeout(() => {
+              loadAuthorizationAccess(authUser, memberAccess?.profile, memberAccess)
+                .then((acceso) => {
+                  if (acceso?.rolId || acceso?.alcance) publicar(armarSesion(acceso));
+                })
+                .catch(() => {});
+            }, 900);
 
             return;
           } else if (isSocialAuthUser(authUser)) {

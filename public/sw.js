@@ -154,6 +154,19 @@ self.addEventListener('notificationclick', (event) => {
 //
 // La red sigue mandando cuando la hay: asi una version nueva se recoge sola.
 async function navegacion(request, url) {
+  // Una pantalla del panel ya visitada debe abrirse desde el caché de inmediato.
+  // La red actualiza la copia en segundo plano para que el siguiente arranque
+  // tenga el HTML más reciente, sin dejar al usuario esperando la respuesta del
+  // servidor o un cold start de Netlify.
+  if (url.pathname.startsWith(PAGINAS_CON_MEMORIA)) {
+    const guardada = await caches.match(request, { ignoreSearch: true });
+
+    if (guardada) {
+      revalidateNavigation(request);
+      return guardada;
+    }
+  }
+
   try {
     const response = await fetch(request);
 
@@ -171,6 +184,17 @@ async function navegacion(request, url) {
 
     return caches.match('/offline.html');
   }
+}
+
+function revalidateNavigation(request) {
+  fetch(request)
+    .then(async (response) => {
+      if (!response || !response.ok) return;
+
+      const cache = await caches.open(PAGINAS_CACHE);
+      await cache.put(request, response.clone());
+    })
+    .catch(() => {});
 }
 
 // LA RED MANDA, Y LA MEMORIA SALVA.
