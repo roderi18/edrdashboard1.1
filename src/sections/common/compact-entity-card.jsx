@@ -178,13 +178,13 @@ export const CompactEntityCard = memo(function CompactEntityCard({
         }
         secondary={
           <Box component="span" sx={{ display: 'grid', gap: 0.35, minWidth: 0 }}>
-            {lines.map((line) => (
+            {lines.map((line, index) => (
               <Box
-                key={`${line.icon}-${line.text}`}
+                key={`${line.icon ?? 'text'}-${line.text}-${index}`}
                 component="span"
                 sx={{
                   display: 'flex',
-                  alignItems: 'center',
+                  alignItems: line.wrap ? 'flex-start' : 'center',
                   minWidth: 0,
                   typography: 'caption',
                   color: 'text.disabled',
@@ -200,14 +200,22 @@ export const CompactEntityCard = memo(function CompactEntityCard({
                       : { href: line.href })}
                     color="inherit"
                     underline="hover"
-                    sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    sx={
+                      line.wrap
+                        ? { whiteSpace: 'normal', overflowWrap: 'anywhere' }
+                        : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                    }
                   >
                     {line.text}
                   </Link>
                 ) : (
                   <Box
                     component="span"
-                    sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    sx={
+                      line.wrap
+                        ? { whiteSpace: 'normal', overflowWrap: 'anywhere' }
+                        : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                    }
                   >
                     {line.text}
                   </Box>

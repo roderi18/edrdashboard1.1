@@ -454,6 +454,23 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     nombreCargoPadre: 'Consejo Ejecutivo',
     orden: 14,
   }),
+  ...Array.from({ length: 20 }, (_, indice) => {
+    const numero = indice + 1;
+    const idNodoDiagrama = `oficial-especial-${numero}`;
+    const nodoPadre = numero === 1 ? 'comites-especiales' : `oficial-especial-${numero - 1}`;
+
+    return createPosition({
+      idCargo: `nacional-${idNodoDiagrama}`,
+      nivel: DIRECTIVA_LEVELS.nacional,
+      nombreCargo: 'Oficial Especial',
+      idNodoDiagrama,
+      idCargoPadre: numero === 1 ? 'nacional-comites-especiales' : `nacional-${nodoPadre}`,
+      idNodoPadre: nodoPadre,
+      nombreCargoPadre: numero === 1 ? 'Comités Especiales' : 'Oficial Especial',
+      orden: 15 + numero,
+      ordenCasilla: numero,
+    });
+  }),
   createPosition({
     idCargo: 'nacional-director-ministerios-infantiles-api',
     idCargoApi: API_CARGO_IDS.directorMinisteriosInfantiles,

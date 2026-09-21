@@ -1,5 +1,6 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import webpush from 'web-push';
 
 import {
   DIAS_DE_AVISO,
@@ -13,6 +14,7 @@ import {
   destinatariosDelDestacamento,
 } from '../../src/server/cumpleanos-core.mjs';
 import { enviarCumpleanosPorChatDeSistema } from '../../src/server/chat-sistema-envio.mjs';
+import { WEB_PUSH_VAPID_PUBLIC_KEY } from '../../src/utils/web-push-key.js';
 import {
   leerMiembros,
   leerFotosDeMiembros,
@@ -41,6 +43,93 @@ export const config = {
   schedule: '0 11 * * *',
 };
 
+const COLECCION_SUSCRIPCIONES_PUSH = 'web_push_subscriptions';
+const TAMANO_GRUPO_PUSH = 30;
+let webPushConfigurado = false;
+
+const enviarPushDeCumpleanos = async (db, aviso, idsDestinatarios) => {
+  const clavePrivadaPush = process.env.WEB_PUSH_VAPID_PRIVATE_KEY;
+  const asuntoPush = process.env.WEB_PUSH_VAPID_SUBJECT;
+
+  if (!clavePrivadaPush || !asuntoPush) {
+    console.warn('[cumpleanos] falta configurar Web Push; el aviso quedó en la campana');
+    return;
+  }
+
+  if (!webPushConfigurado) {
+    webpush.setVapidDetails(asuntoPush, WEB_PUSH_VAPID_PUBLIC_KEY, clavePrivadaPush);
+    webPushConfigurado = true;
+  }
+
+  const referenciaAviso = db.collection(COLECCION_NOTIFICACIONES).doc(aviso.id);
+  const puedeEnviar = await db.runTransaction(async (transaccion) => {
+    const snapshot = await transaccion.get(referenciaAviso);
+    const existente = snapshot.data() || {};
+
+    if (existente.pushEnviadoEn || existente.pushEnviandoHasta > Date.now()) return false;
+
+    transaccion.update(referenciaAviso, { pushEnviandoHasta: Date.now() + 60_000 });
+    return true;
+  });
+
+  if (!puedeEnviar) return;
+
+  try {
+    const usuarios = [...new Set(idsDestinatarios.map((id) => String(id).trim()).filter(Boolean))];
+    const suscripciones = [];
+
+    for (let inicio = 0; inicio < usuarios.length; inicio += TAMANO_GRUPO_PUSH) {
+      const grupo = usuarios.slice(inicio, inicio + TAMANO_GRUPO_PUSH);
+      const snapshot = await db
+        .collection(COLECCION_SUSCRIPCIONES_PUSH)
+        .where('uid', 'in', grupo)
+        .get();
+      suscripciones.push(
+        ...snapshot.docs.map((documento) => ({ id: documento.id, ...documento.data() }))
+      );
+    }
+
+    const url = String(aviso.ruta || '/dashboard');
+    const payload = JSON.stringify({
+      title: String(aviso.titulo || 'Cumpleaños en tu destacamento').slice(0, 120),
+      body: String(aviso.mensajeVisual || aviso.mensaje || '').slice(0, 500),
+      url: url.startsWith('/') && !url.startsWith('//') ? url : '/dashboard',
+    });
+    const resultados = await Promise.allSettled(
+      suscripciones.map(({ subscription }) =>
+        webpush.sendNotification(subscription, payload, { TTL: 60 * 60 })
+      )
+    );
+    const caducadas = [];
+
+    resultados.forEach((resultado, indice) => {
+      if (resultado.status !== 'rejected') return;
+      const statusCode = Number(resultado.reason?.statusCode);
+      if (statusCode === 404 || statusCode === 410) {
+        caducadas.push(
+          db.collection(COLECCION_SUSCRIPCIONES_PUSH).doc(suscripciones[indice].id).delete()
+        );
+      }
+    });
+    await Promise.all(caducadas);
+
+    const enviados = resultados.filter((resultado) => resultado.status === 'fulfilled').length;
+    await referenciaAviso.update({
+      pushEnviadoEn: FieldValue.serverTimestamp(),
+      pushEnviandoHasta: FieldValue.delete(),
+      pushDispositivosDestino: suscripciones.length,
+      pushEnviados: enviados,
+      pushFallidos: resultados.length - enviados,
+    });
+    console.info(
+      `[cumpleanos] push ${aviso.id}: ${enviados}/${suscripciones.length} dispositivo(s)`
+    );
+  } catch (error) {
+    await referenciaAviso.update({ pushEnviandoHasta: FieldValue.delete() }).catch(() => {});
+    console.error(`[cumpleanos] no se pudo enviar la push ${aviso.id}`, error);
+  }
+};
+
 // El Admin SDK se inicializa AQUI y no se reutiliza `src/server/firebase-admin`:
 // ese modulo empieza con `import 'server-only'`, que existe para reventar si
 // alguien lo carga fuera de un componente de servidor de Next —y una funcion de
@@ -48,7 +137,9 @@ export const config = {
 // La clave del service account suele viajar con los saltos de linea
 // escapados (\n literal). Firebase la necesita con saltos de verdad.
 const clavePrivada = (cuenta = {}) =>
-  String(cuenta.private_key ?? cuenta.privateKey ?? '').split('\\n').join('\n');
+  String(cuenta.private_key ?? cuenta.privateKey ?? '')
+    .split('\\n')
+    .join('\n');
 
 const conexion = () => {
   const credencial = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -143,6 +234,8 @@ export default async function handler() {
         .collection(COLECCION_NOTIFICACIONES)
         .doc(aviso.id)
         .set({ ...aviso, idsDestinatarios: destinatarios }, { merge: true });
+
+      await enviarPushDeCumpleanos(db, aviso, destinatarios);
 
       enviados += 1;
     }

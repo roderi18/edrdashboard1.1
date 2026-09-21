@@ -1,5 +1,3 @@
-import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
-
 import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
 // ----------------------------------------------------------------------
@@ -9,7 +7,9 @@ const getNationalName = (national) => national?.nationalXname || 'Desconocido';
 const getNationalAvatar = (national) => national?.avatarUrl ?? national?.photoURL ?? '';
 
 const getNationalHref = (national) =>
-  national?.memberId ? `/dashboard/level/member/${national.memberId}/edit` : '#';
+  national?.memberId
+    ? `/dashboard/level/member/${national.memberId}/edit?origen=consejo-nacional`
+    : '#';
 
 const getStructureHref = (national) => {
   if (national?.level === 'regional' && national?.entityId) {
@@ -39,30 +39,40 @@ export function NationalCard({ national, canManage = true, sx, ...other }) {
   const nationalName = getNationalName(national);
   const nationalHref = getNationalHref(national);
   const structureHref = getStructureHref(national);
-  const phoneNumber = national?.phoneNumber || '';
   const positionLabel =
     national?.nationalXMemberPositionLabel || national?.nationalXMemberPosition || 'Desconocido';
   const positionHref = national?.nationalXMemberPositionHref || '';
   const organizationalLevel = national?.nationalOrganizationalLevel || 'Desconocido';
   const structure =
     national?.nationalEstructureLabel || national?.nationalEstructure || 'Desconocida';
+  const seenLineTexts = new Set([
+    String(nationalName).trim().replace(/\s+/g, ' ').toLocaleLowerCase(),
+  ]);
+  const lines = [
+    { text: positionLabel, href: positionHref },
+    { text: organizationalLevel },
+    { text: structure, href: structureHref },
+  ].filter((line) => {
+    const key = String(line.text || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLocaleLowerCase();
+
+    if (!key || seenLineTexts.has(key)) return false;
+
+    seenLineTexts.add(key);
+    return true;
+  });
 
   return (
     <CompactEntityCard
       title={nationalName}
       href={nationalHref}
       avatarUrl={getNationalAvatar(national)}
+      avatarSize={80}
+      avatarBorderRadius={2.5}
       fallbackText={nationalName}
-      lines={[
-        {
-          icon: 'solar:phone-calling-rounded-bold',
-          text: formatPhoneNumber(phoneNumber),
-          href: getPhoneHref(phoneNumber),
-        },
-        { icon: 'solar:user-bold', text: positionLabel, href: positionHref },
-        { icon: 'solar:map-point-bold', text: organizationalLevel },
-        { icon: 'mingcute:location-fill', text: structure, href: structureHref },
-      ]}
+      lines={lines}
       sx={sx}
       {...other}
     />

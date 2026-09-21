@@ -319,7 +319,30 @@ export function NationalListView() {
 
       if (cancelado) return;
 
-      setExComandantes(permanentes.filter((permanente) => permanente?.exComandante));
+      const integrantesDeDirectivaNacional = new Set(
+        asignaciones
+          .filter((asignacion) => {
+            const cargo = DIRECTIVA_POSITIONS.find(
+              (item) => item.idCargo === asignacion.idPosicionDirectiva
+            );
+
+            return (
+              cargo?.nivel === 'nacional' ||
+              String(asignacion.idEntidad || '').trim().toLowerCase() === 'nacional'
+            );
+          })
+          .map((asignacion) => String(asignacion.idMiembro))
+      );
+
+      // Un ex comandante que vuelve a ocupar una casilla nacional aparece como
+      // integrante actual; no debe duplicarse al final como ex comandante.
+      setExComandantes(
+        permanentes.filter(
+          (permanente) =>
+            permanente?.exComandante &&
+            !integrantesDeDirectivaNacional.has(String(permanente.idMiembros))
+        )
+      );
       setTelefonosDirectiva(
         Object.fromEntries(
           telefonos
@@ -722,11 +745,6 @@ export function NationalListView() {
               onCambiar={cambiarCuatrienio}
             />
           }
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Nacional', href: paths.dashboard.level.national.root },
-            { name: 'Lista' },
-          ]}
           action={
             puedeEditarMemoria && (
               <Box sx={{ gap: 1, display: 'flex', flexWrap: 'wrap' }}>

@@ -11,7 +11,7 @@ export const metadata = {
 
 export default function Page() {
   return (
-    <DestEditLayout tituloPrefijo="Miembros del Destacamento">
+    <DestEditLayout tituloPrefijo="Miembros Dest.">
       <DestMembersView />
     </DestEditLayout>
   );

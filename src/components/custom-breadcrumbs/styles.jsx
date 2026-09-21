@@ -29,10 +29,3 @@ export const BreadcrumbsContent = styled('div')(({ theme }) => ({
   gap: theme.spacing(2),
   flexDirection: 'column',
 }));
-
-export const BreadcrumbsSeparator = styled('span')(({ theme }) => ({
-  width: 4,
-  height: 4,
-  borderRadius: '50%',
-  backgroundColor: theme.vars.palette.text.disabled,
-}));

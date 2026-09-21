@@ -357,21 +357,17 @@ export function RegionalListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Lista de Regionales"
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Región', href: paths.dashboard.level.regional.root },
-            { name: 'Lista' },
-          ]}
           action={
             canManage ? (
-              <Button
+              <IconButton
                 component={RouterLink}
                 href={paths.dashboard.level.regional.new}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
+                aria-label="Crear nueva región"
+                title="Crear nuevo"
+                color="primary"
               >
-                Crear nuevo
-              </Button>
+                <Iconify icon="mingcute:add-line" />
+              </IconButton>
             ) : null
           }
           sx={{ mb: { xs: 3, md: 5 } }}

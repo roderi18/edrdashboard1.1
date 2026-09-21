@@ -42,7 +42,6 @@ export function MemberEditView({ member: currentMember }) {
     return (
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Editar miembro"
           links={[
             { name: 'Panel', href: paths.dashboard.root },
             { name: 'Miembros', href: paths.dashboard.level.member.root },

@@ -5,12 +5,10 @@ import { removeLastSlash } from 'minimal-shared/utils';
 
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import { useTheme } from '@mui/material/styles';
-import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { useParams, useRouter, usePathname } from 'src/routes/hooks';
+import { useParams, useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import {
@@ -33,11 +31,11 @@ import { useAuthContext } from 'src/auth/hooks';
 export function MemberEditLayout({ children, member = null, ...other }) {
   const { user } = useAuthContext();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const params = useParams();
   const memberId = params?.id;
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const vieneDeConsejoNacional = searchParams?.get('origen') === 'consejo-nacional';
   const memberCode = member?.memberId || member?.codigoMiembro || memberId;
   const memberName = getMemberFullName(member) || member?.name || memberCode || 'Miembro';
   const canonicalMemberSegment = encodeURIComponent(String(memberCode || memberId || ''));
@@ -106,22 +104,16 @@ export function MemberEditLayout({ children, member = null, ...other }) {
 
   return (
     <DashboardContent {...other}>
-      {/* <CustomBreadcrumbs
-                heading="Editar miembro"
-                links={[
-                    { name: 'Panel', href: paths.dashboard.root },
-                    { name: 'Miembros', href: paths.dashboard.level.member.root },
-                    { name: 'Editar' },
-                ]}
-                sx={{ mb: 3 }}
-            /> */}
       <CustomBreadcrumbs
-        heading={isMobile ? null : 'Editar miembro'}
+        heading={null}
         links={[
           { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Miembros', href: paths.dashboard.level.member.root },
+          vieneDeConsejoNacional
+            ? { name: 'Consejo Nacional', href: paths.dashboard.level.national }
+            : { name: 'Miembros', href: paths.dashboard.level.member.root },
           { name: memberName },
         ]}
+        slotProps={{ breadcrumbs: { separator: '•' } }}
         sx={{ mb: 3 }}
       />
 
@@ -133,7 +125,11 @@ export function MemberEditLayout({ children, member = null, ...other }) {
             label={tab.label}
             icon={tab.icon}
             value={tab.href}
-            href={tab.href}
+            href={
+              vieneDeConsejoNacional
+                ? `${tab.href}?origen=consejo-nacional`
+                : tab.href
+            }
           />
         ))}
       </Tabs>

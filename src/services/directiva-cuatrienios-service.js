@@ -1,4 +1,4 @@
-import { doc, query, where, getDocs, deleteDoc, collection, writeBatch } from 'firebase/firestore';
+import { doc, query, where, getDocs, getDoc, deleteDoc, collection, writeBatch } from 'firebase/firestore';
 
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
 import { puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
@@ -105,6 +105,18 @@ export async function obtenerIntegrantesDelCuatrienio(cuatrienio) {
   );
 
   return snapshot.docs.map((fila) => ({ id: fila.id, ...fila.data() })).sort(compararIntegrantes);
+}
+
+/** Lee una sola ficha de la memoria, sin consultar el perfil real del miembro. */
+export async function obtenerIntegranteDelCuatrienioPorId(cuatrienio, idIntegrante) {
+  asegurar();
+  if (!cuatrienio || !idIntegrante) return null;
+
+  const snapshot = await getDoc(doc(FIRESTORE, COLECCION_INTEGRANTES, String(idIntegrante)));
+  if (!snapshot.exists()) return null;
+
+  const integrante = { id: snapshot.id, ...snapshot.data() };
+  return String(integrante.cuatrienio) === String(cuatrienio) ? integrante : null;
 }
 
 // Todos los que conservan algo para siempre. La lista nacional los usa para que

@@ -55,15 +55,15 @@ export function DestCard({ dest, sx, ...other }) {
       title={getDestName(dest)}
       href={editHref}
       avatarUrl={getDestAvatar(dest)}
+      avatarSize={80}
+      avatarBorderRadius={2.5}
       fallbackText={getDestName(dest)}
       lines={[
         {
-          icon: 'solar:user-bold',
           text: coordinatorLine,
           href: coordinatorId ? `/dashboard/level/member/${coordinatorId}/edit` : '',
         },
         {
-          icon: 'mingcute:location-fill',
           text: sectionalLine,
           href:
             sectionalName !== UNKNOWN_SECTIONAL
@@ -73,7 +73,6 @@ export function DestCard({ dest, sx, ...other }) {
         ...(regionalLine
           ? [
               {
-                icon: 'solar:map-point-bold',
                 text: regionalLine,
                 href: dest?.regionalId
                   ? `/dashboard/level/regional?region=${dest.regionalId}`

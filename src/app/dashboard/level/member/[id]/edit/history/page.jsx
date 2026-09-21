@@ -1,17 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { canViewMemberHistoryTab } from 'src/utils/member-access';
 
 import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
+import { obtenerIntegranteDelCuatrienioPorId } from 'src/services/directiva-cuatrienios-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
 
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberHistoryLog } from 'src/sections/member/history/member-history-log';
+import { PerfilDirectivaNacional } from 'src/sections/national/cuatrienios/perfil-directiva-nacional';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -136,15 +138,33 @@ const getLocalDemoHistoryLogs = (memberName) => {
 
 export default function Page() {
   const { id } = useParams();
+  const searchParams = useSearchParams();
   const { user } = useAuthContext();
+  const cuatrienio = searchParams.get('cuatrienio') || '';
+  const integranteId = searchParams.get('integrante') || '';
+  const esPerfilHistorico = Boolean(cuatrienio && integranteId);
   const [hydrated, setHydrated] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
+  const [integranteHistorico, setIntegranteHistorico] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       try {
+        if (esPerfilHistorico) {
+          const integrante = await obtenerIntegranteDelCuatrienioPorId(cuatrienio, integranteId);
+          if (
+            !cancelled &&
+            integrante &&
+            String(integrante.id) === String(id) &&
+            String(integrante.cuatrienio) === String(cuatrienio)
+          ) {
+            setIntegranteHistorico(integrante);
+          }
+          return;
+        }
+
         const member = await getResolvedMemberByIdentifier(id, {
           includeMetadata: false,
           includePhoto: false,
@@ -165,10 +185,15 @@ export default function Page() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [cuatrienio, esPerfilHistorico, id, integranteId]);
 
   if (!hydrated) {
     return <SplashScreen title="Cargando historial" subtitle="Buscando los cambios del miembro..." />;
+  }
+
+  if (esPerfilHistorico) {
+    if (!integranteHistorico) return <div>Perfil histórico no encontrado</div>;
+    return <PerfilDirectivaNacional integrante={integranteHistorico} activeTab="historial" />;
   }
 
   const memberName = getMemberFullName(currentMember);

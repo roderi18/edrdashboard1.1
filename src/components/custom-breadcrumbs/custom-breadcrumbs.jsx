@@ -10,7 +10,6 @@ import {
   BreadcrumbsHeading,
   BreadcrumbsContent,
   BreadcrumbsContainer,
-  BreadcrumbsSeparator,
 } from './styles';
 
 // ----------------------------------------------------------------------
@@ -37,7 +36,7 @@ export function CustomBreadcrumbs({
 
   const renderLinks = () =>
     slots?.breadcrumbs ?? (
-      <Breadcrumbs separator={<BreadcrumbsSeparator />} {...slotProps?.breadcrumbs}>
+      <Breadcrumbs separator="" {...slotProps?.breadcrumbs}>
         {links.map((link, index) => (
           <BreadcrumbsLink
             key={link.name ?? index}

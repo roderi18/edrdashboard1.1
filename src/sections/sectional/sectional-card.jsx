@@ -61,16 +61,16 @@ export function SectionalCard({
       href={editHref}
       disabled={disabled}
       avatarUrl={getSectionalAvatar(sectional)}
+      avatarSize={80}
+      avatarBorderRadius={2.5}
       fallbackText={sectionalName}
       lines={[
         ...(sectionalName2 ? [{ text: sectionalName2 }] : []),
         {
-          icon: 'solar:user-bold',
           text: `Director ${directorName}`,
           href: directorId ? `/dashboard/level/member/${directorId}/edit` : '',
         },
         {
-          icon: 'mingcute:location-fill',
           text: regionalLine,
           href:
             regionalName !== UNKNOWN_REGIONAL
@@ -81,7 +81,6 @@ export function SectionalCard({
         ...(destCount !== undefined
           ? [
               {
-                icon: 'solar:home-2-bold',
                 text: `${destCount} destacamento${Number(destCount) === 1 ? '' : 's'}`,
                 href:
                   sectionalId && !destCountDisabled

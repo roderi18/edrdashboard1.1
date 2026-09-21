@@ -261,7 +261,7 @@ function renderNombre({ identity, children, aviso, other }) {
 // Vive aqui porque la usan los organigramas de nacion y de region; tenerla dos
 // veces era garantia de que acabaran distintas.
 // ----------------------------------------------------------------------
-export function LeadershipStructureNode({ name, role, avatarUrl, sx, ...other }) {
+export function LeadershipStructureNode({ name, role, avatarUrl, sx, children, ...other }) {
   return (
     <Card
       sx={{
@@ -271,6 +271,8 @@ export function LeadershipStructureNode({ name, role, avatarUrl, sx, ...other })
         ...LEADERSHIP_NODE_SIZE_SX,
         borderRadius: 1.5,
         textAlign: 'left',
+        position: 'relative',
+        overflow: 'visible',
         alignItems: 'center',
         display: 'inline-flex',
         ...sx,
@@ -315,6 +317,7 @@ export function LeadershipStructureNode({ name, role, avatarUrl, sx, ...other })
           </Typography>
         )}
       </Box>
+      {children}
     </Card>
   );
 }

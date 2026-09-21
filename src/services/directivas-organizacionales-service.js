@@ -426,11 +426,20 @@ export async function obtenerPosicionesDirectiva({ fallbackLocal = true } = {}) 
     }))
     .map(normalizePosition);
 
-  if (posiciones.length || !fallbackLocal) {
+  if (!fallbackLocal) {
     return posiciones;
   }
 
-  return CARGOS_DIRECTIVA_BASE.map(normalizePosition);
+  // El catálogo local puede añadir posiciones sin obligar a volver a sembrar
+  // Firestore antes de que el organigrama pueda usarlas. Las entradas guardadas
+  // allí conservan precedencia (incluido su estado activo/inactivo); solo se
+  // agregan las que aún no existen en la colección.
+  const idsExistentes = new Set(posiciones.map((position) => position.idPosicionDirectiva));
+  const posicionesNuevas = CARGOS_DIRECTIVA_BASE.map(normalizePosition).filter(
+    (position) => !idsExistentes.has(position.idPosicionDirectiva)
+  );
+
+  return [...posiciones, ...posicionesNuevas];
 }
 
 export async function obtenerCargosDirectiva({
@@ -1049,6 +1058,14 @@ export async function obtenerDisenoDirectiva({ nivel, idEntidad } = {}) {
     connectionGroups: Array.isArray(data?.connectionGroups) ? data.connectionGroups : [],
     hiddenConnections: Array.isArray(data?.hiddenConnections) ? data.hiddenConnections : [],
     extraConnections: Array.isArray(data?.extraConnections) ? data.extraConnections : [],
+    customNodeCounts:
+      data?.customNodeCounts && typeof data.customNodeCounts === 'object'
+        ? data.customNodeCounts
+        : {},
+    customNodeLists:
+      data?.customNodeLists && typeof data.customNodeLists === 'object'
+        ? data.customNodeLists
+        : {},
   };
 }
 
@@ -1062,6 +1079,8 @@ export async function guardarDisenoDirectiva({
   connectionGroups = [],
   hiddenConnections = [],
   extraConnections = [],
+  customNodeCounts = {},
+  customNodeLists = {},
   usuario = {},
 } = {}) {
   asegurarFirebaseDirectivas();
@@ -1114,6 +1133,32 @@ export async function guardarDisenoDirectiva({
         toLado: String(vinculo?.toLado || vinculo?.toEsquina || ''),
       }))
       .filter((vinculo) => vinculo.from && vinculo.to && vinculo.from !== vinculo.to),
+    customNodeCounts: Object.entries(
+      customNodeCounts && typeof customNodeCounts === 'object' ? customNodeCounts : {}
+    ).reduce((acc, [clave, valor]) => {
+      const cantidad = Number(valor);
+
+      if (/^[a-zA-Z0-9_-]{1,64}$/.test(clave) && Number.isFinite(cantidad)) {
+        acc[clave] = Math.max(0, Math.min(20, Math.floor(cantidad)));
+      }
+
+      return acc;
+    }, {}),
+    customNodeLists: Object.entries(
+      customNodeLists && typeof customNodeLists === 'object' ? customNodeLists : {}
+    ).reduce((acc, [clave, valores]) => {
+      if (/^[a-zA-Z0-9_-]{1,64}$/.test(clave) && Array.isArray(valores)) {
+        acc[clave] = [
+          ...new Set(
+            valores
+              .map((valor) => String(valor || ''))
+              .filter((valor) => /^[a-zA-Z0-9_-]{1,64}$/.test(valor))
+          ),
+        ].slice(0, 20);
+      }
+
+      return acc;
+    }, {}),
     fechaActualizacion: serverTimestamp(),
   };
 

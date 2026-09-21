@@ -37,9 +37,12 @@ import {
   getLeadershipNodeIdentity,
 } from 'src/sections/common/leadership-node-identity';
 import {
+  LeadershipNodeAnchors,
   LeadershipLayoutEditor,
+  getLeadershipContainerWidthSx,
   getLeadershipEditGridSx,
   getLeadershipConnections,
+  aplicarVinculosDelDiagrama,
   useLeadershipLayoutEditor,
   hasLeadershipLayoutOffsets,
   getLeadershipEditableNodeSx,
@@ -149,6 +152,7 @@ function SectionalLeadershipNode({
           ...getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode }),
         }}
       >
+        <LeadershipNodeAnchors editor={layoutEditor} nodeId={id} />
         <IconButton
           color={menuActions.open ? 'inherit' : 'default'}
           onClick={menuActions.onOpen}
@@ -258,9 +262,22 @@ export function SectionalLeadershipView({ historico = null } = {}) {
     return historico?.cuatrienio ? `${titulo} · ${historico.cuatrienio}` : titulo;
   }, [sectionalName, historico?.cuatrienio]);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
-  const connections = useMemo(() => getLeadershipConnections(SECTIONAL_LEADERSHIP_DATA), []);
-  const connectorLayerActive = hasLeadershipLayoutOffsets(layoutEditor);
-  const connectorWatchKey = `${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
+  const connections = useMemo(
+    () =>
+      aplicarVinculosDelDiagrama(getLeadershipConnections(SECTIONAL_LEADERSHIP_DATA), {
+        hiddenConnections: layoutEditor.hiddenConnections,
+        extraConnections: layoutEditor.extraConnections,
+      }),
+    [layoutEditor.hiddenConnections, layoutEditor.extraConnections]
+  );
+  const connectorLayerActive =
+    layoutEditor.editMode ||
+    Boolean(layoutEditor.arrastreDeVinculo) ||
+    hasLeadershipLayoutOffsets(layoutEditor) ||
+    layoutEditor.connectionGroups.length > 0 ||
+    layoutEditor.hiddenConnections.length > 0 ||
+    layoutEditor.extraConnections.length > 0;
+  const connectorWatchKey = `${layoutEditor.editMode}:${JSON.stringify(layoutEditor.connectionGroups)}:${JSON.stringify(layoutEditor.hiddenConnections)}:${JSON.stringify(layoutEditor.extraConnections)}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
 
   useEffect(() => {
     setZoom(DEFAULT_ZOOM);
@@ -426,6 +443,7 @@ export function SectionalLeadershipView({ historico = null } = {}) {
           userSelect: 'none',
           touchAction: 'none',
           ...getLeadershipEditGridSx(layoutEditor.editMode),
+          ...getLeadershipContainerWidthSx(layoutEditor.containerWidthOffset),
           ...getLeadershipConnectorOverrideSx(connectorLayerActive),
           '& button, & a, & input, & textarea, & select, & [role="button"]': {
             cursor: 'pointer',
@@ -650,6 +668,12 @@ export function SectionalLeadershipView({ historico = null } = {}) {
           connections={connections}
           containerRef={containerRef}
           lineWidth={2}
+          connectionGroups={layoutEditor.connectionGroups}
+          editMode={layoutEditor.editMode}
+          selectedConnections={layoutEditor.selectedConnections}
+          onSelectConnection={layoutEditor.selectConnection}
+          lineasRectas
+          arrastreDeVinculo={layoutEditor.arrastreDeVinculo}
         />
 
         <LeadershipLayoutOffsetStyles editor={layoutEditor} />
@@ -664,6 +688,7 @@ export function SectionalLeadershipView({ historico = null } = {}) {
             containerMinHeight={containerMinHeight}
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
+            mostrarMargenHorizontal
           />
         )}
       </Box>

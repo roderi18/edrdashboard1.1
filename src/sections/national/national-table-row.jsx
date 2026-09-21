@@ -36,7 +36,11 @@ export function NationalTableRow({
     (m) => String(m.id) === String(row.memberId) || String(m.memberId) === String(row.memberId)
   );
   const memberName = row.nationalXname || member?.fullName || 'Desconocido';
-  const memberHref = member ? `/dashboard/level/member/${member.id}/edit` : '';
+  const memberHref = row.integrante?.id
+    ? `/dashboard/level/member/${encodeURIComponent(row.integrante.id)}/edit?cuatrienio=${encodeURIComponent(row.integrante.cuatrienio || '')}&integrante=${encodeURIComponent(row.integrante.id)}`
+    : member
+      ? `/dashboard/level/member/${member.id}/edit?origen=consejo-nacional`
+      : '';
   const phoneNumber = member?.phoneNumber || row.phoneNumber;
   const positionLabel = row.nationalXMemberPositionLabel || '-';
   const positionHref = row.nationalXMemberPositionHref || '';

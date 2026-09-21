@@ -9,7 +9,6 @@ import { isAdminGlobal } from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import { useSettingsContext } from 'src/components/settings';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -17,7 +16,7 @@ import { ProfileHome } from '../../user/profile-home';
 import { HAY_DATOS_DE_EJEMPLO } from '../datos-de-ejemplo';
 import { useContenidoDePortada } from '../use-contenido-de-portada';
 import { useAnaliticasDePortada } from '../use-analiticas-de-portada';
-import { PrincipalAccesos, PrincipalBienvenida } from '../principal-bienvenida';
+import { PrincipalBienvenida } from '../principal-bienvenida';
 import { alcanceDeLaSesion, identidadDeLaSesion } from '../identidad-de-la-sesion';
 import {
   PrincipalHistorias,
@@ -62,8 +61,6 @@ const esDeEjemplo = (bloque) => HAY_DATOS_DE_EJEMPLO && bloque.origen === 'codig
 
 export function PrincipalHomeView() {
   const { user } = useAuthContext();
-  const settings = useSettingsContext();
-  const accesosVisibles = settings.state.accesosRapidos === true;
   // CADA BLOQUE, DE LO PUBLICADO O DE LO DE SIEMPRE. Mientras nadie publique nada
   // desde EXPLORA Designer, esto devuelve exactamente los mismos datos que antes
   // se importaban a mano de `datos-de-ejemplo.js` (ver `useContenidoDePortada`).
@@ -94,23 +91,6 @@ export function PrincipalHomeView() {
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, lg: 8 }}>
             <Stack spacing={3}>
-              {/* LOS ACCESOS, DENTRO DE ESTA COLUMNA Y NO A TODO LO ANCHO.
-                  Ocupaban el ancho entero de la pagina, por encima de la rejilla,
-                  y con cuatro tarjetas repartidas en 1045 pixeles quedaban
-                  separadas por franjas de nada. Aqui miden lo mismo que la fila de
-                  abajo y las tres piezas se leen como una sola columna.
-
-                  Se pueden apagar desde el panel de ajustes ("Accesos rápidos"):
-                  son atajos a sitios que tambien estan en el menu. Solo aparecen
-                  cuando el usuario los activa de forma expresa. */}
-              {accesosVisibles && (
-                <PrincipalAccesos
-                  accesos={portada['accesos-rapidos'].contenido}
-                  diseno={portada['accesos-rapidos'].diseno}
-                  puedeEditar={esAdministradorGlobal}
-                />
-              )}
-
               {/* LA ACTIVIDAD Y EL PROGRESO, EN LA MISMA FILA. Las dos responden
                   a "¿que tengo por delante?" desde dos lados: la fecha que viene
                   y lo que falta para el siguiente nivel.

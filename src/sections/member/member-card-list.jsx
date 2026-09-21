@@ -7,6 +7,7 @@ import { MemberCard } from './member-card';
 export function MemberCardList({
   members,
   dests = [],
+  showLeadershipPositions = false,
   loading = false,
   memberPhotoUrls = {},
   page,
@@ -24,6 +25,7 @@ export function MemberCardList({
           member={member}
           avatarUrl={memberPhotoUrls[String(member.id)]}
           dests={dests}
+          showLeadershipPositions={showLeadershipPositions}
         />
       )}
     />

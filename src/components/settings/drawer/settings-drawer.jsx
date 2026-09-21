@@ -57,7 +57,6 @@ export function SettingsDrawer({ sx, defaultSettings }) {
     fontFamily: hasKeys(defaultSettings, ['fontFamily']),
     primaryColor: hasKeys(defaultSettings, ['primaryColor']),
     navBlanco: hasKeys(defaultSettings, ['navBlanco']),
-    accesosRapidos: hasKeys(defaultSettings, ['accesosRapidos']),
   };
 
   useEffect(() => {
@@ -192,37 +191,6 @@ export function SettingsDrawer({ sx, defaultSettings }) {
         icon={<SvgIcon>{settingIcons.siderbarDuotone}</SvgIcon>}
         onChangeOption={() => {
           settings.setState({ navBlanco: !settings.state.navBlanco });
-        }}
-      />
-    </LargeBlock>
-  );
-
-  // LOS CUATRO ACCESOS RAPIDOS DE LA PANTALLA PRINCIPAL.
-  //
-  // Debajo de "Barra y cabecera" porque es la misma clase de ajuste: que se ve y
-  // que no en el marco de la aplicacion. Son atajos —Registrar actividad, Proxima
-  // actividad, Mis insignias, Capacitacion—, y quien no los use se los quita sin
-  // perder nada: todos llevan a sitios que tambien estan en el menu.
-  //
-  // Solo se muestran cuando el usuario los activa de forma expresa. Esto también
-  // mantiene apagadas las sesiones antiguas que todavía no guardaron esta clave.
-  const accesosVisibles = settings.state.accesosRapidos === true;
-
-  const renderAccesosRapidos = () => (
-    <LargeBlock
-      title="Accesos rápidos"
-      canReset={accesosVisibles !== Boolean(defaultSettings.accesosRapidos)}
-      onReset={() => {
-        settings.setState({ accesosRapidos: defaultSettings.accesosRapidos });
-      }}
-    >
-      <BaseOption
-        label="Visibles"
-        tooltip="Enseña u oculta los cuatro atajos de la pantalla Principal: Registrar actividad, Próxima actividad, Mis insignias y Capacitación."
-        selected={accesosVisibles}
-        icon={<SvgIcon>{settingIcons.navMini}</SvgIcon>}
-        onChangeOption={() => {
-          settings.setState({ accesosRapidos: !accesosVisibles });
         }}
       />
     </LargeBlock>
@@ -381,7 +349,6 @@ export function SettingsDrawer({ sx, defaultSettings }) {
           {(visibility.navColor || visibility.navLayout) && renderNav()}
           {visibility.primaryColor && renderPresets()}
           {visibility.navBlanco && renderNavBlanco()}
-          {visibility.accesosRapidos && renderAccesosRapidos()}
           {(visibility.fontFamily || visibility.fontSize) && renderFont()}
         </Box>
       </Scrollbar>

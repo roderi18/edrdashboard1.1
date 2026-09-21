@@ -475,12 +475,14 @@ export function DestYouthLeadershipView() {
   // hay cajas desplazadas como si hay lineas unidas: las nativas no saben
   // compartir barra.
   const connectorLayerActive =
+    layoutEditor.editMode ||
+    Boolean(layoutEditor.arrastreDeVinculo) ||
     hasLeadershipLayoutOffsets(layoutEditor) ||
     layoutEditor.connectionGroups.length > 0 ||
     layoutEditor.hiddenConnections.length > 0 ||
     layoutEditor.extraConnections.length > 0;
   const containerMinHeight = 760 + layoutEditor.containerHeightOffset;
-  const connectorWatchKey = `${divisionId}:${JSON.stringify(layoutEditor.connectionGroups)}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
+  const connectorWatchKey = `${divisionId}:${layoutEditor.editMode}:${JSON.stringify(layoutEditor.connectionGroups)}:${JSON.stringify(layoutEditor.hiddenConnections)}:${JSON.stringify(layoutEditor.extraConnections)}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
 
   const structureTitle = destNombreCompleto
     ? `${destNombreCompleto} · ${division?.nombre ?? ''}`

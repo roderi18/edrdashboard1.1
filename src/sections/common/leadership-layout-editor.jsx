@@ -104,6 +104,8 @@ export function useLeadershipLayoutEditor({
   initialConnectionGroups = [],
   initialHiddenConnections = [],
   initialExtraConnections = [],
+  initialCustomNodeCounts = {},
+  initialCustomNodeLists = {},
 } = {}) {
   const nodeDragRef = useRef(null);
   const [editMode, setEditMode] = useState(false);
@@ -142,6 +144,8 @@ export function useLeadershipLayoutEditor({
   const [extraConnections, setExtraConnections] = useState(() =>
     normalizarVinculos(initialExtraConnections)
   );
+  const [customNodeCounts, setCustomNodeCounts] = useState(() => ({ ...initialCustomNodeCounts }));
+  const [customNodeLists, setCustomNodeLists] = useState(() => ({ ...initialCustomNodeLists }));
   // Primer nodo de un vinculo a mano, esperando al segundo.
   const [origenVinculo, setOrigenVinculo] = useState(null);
   // El tirador del que se esta arrastrando ahora mismo: { nodeId, esquina }.
@@ -492,6 +496,8 @@ export function useLeadershipLayoutEditor({
       connectionGroups: grupos,
       hiddenConnections: ocultas,
       extraConnections: extras,
+      customNodeCounts: cantidadesNodos,
+      customNodeLists: listasNodos,
     } = {}) => {
       if (offsets && typeof offsets === 'object') {
         setNodeOffsets(offsets);
@@ -516,6 +522,14 @@ export function useLeadershipLayoutEditor({
       if (Array.isArray(extras)) {
         setExtraConnections(normalizarVinculos(extras));
       }
+
+      if (cantidadesNodos && typeof cantidadesNodos === 'object') {
+        setCustomNodeCounts(cantidadesNodos);
+      }
+
+      if (listasNodos && typeof listasNodos === 'object') {
+        setCustomNodeLists(listasNodos);
+      }
     },
     []
   );
@@ -533,6 +547,8 @@ export function useLeadershipLayoutEditor({
       selectedConnections,
       hiddenConnections,
       extraConnections,
+      customNodeCounts: customNodeCounts || {},
+      customNodeLists: customNodeLists || {},
       origenVinculo,
       arrastreDeVinculo,
       applyLayout,
@@ -580,6 +596,8 @@ export function useLeadershipLayoutEditor({
       cambiarOrientacionDe,
       hiddenConnections,
       extraConnections,
+      customNodeCounts,
+      customNodeLists,
       origenVinculo,
       desvincularConexion,
       revincularConexion,
@@ -702,6 +720,17 @@ export function getLeadershipConnectorOverrideSx(active) {
 export function LeadershipLayoutOffsetStyles({ editor, lineStyles }) {
   const styles = useMemo(() => {
     const offsetStyles = {};
+
+    // La capa de conexiones queda por encima de los <ul>/<li> del arbol para
+    // que sus trazos tengan una superficie de pulsacion real. Las tarjetas y
+    // sus anclas se mantienen por encima: asi se pueden seleccionar lineas en
+    // los espacios entre tarjetas sin tapar los controles de conexion.
+    if (editor.editMode) {
+      offsetStyles['[data-leadership-node-id]'] = {
+        position: 'relative',
+        zIndex: 3,
+      };
+    }
 
     Object.entries(editor.nodeOffsets).forEach(([id, offset]) => {
       offsetStyles[`.${editor.getNodeTreeClassName({ id })}`] = {
@@ -1151,12 +1180,12 @@ export function LeadershipLayoutConnectorLayer({
         // POR DEBAJO DE LAS TARJETAS. Iba al mismo nivel que ellas y, al pasar
         // una linea bajo una casilla, se le dibujaba encima y la cruzaba por la
         // cara. Las tarjetas se pintan a partir del 1.
-        zIndex: 0,
+        zIndex: editMode ? 2 : 0,
         width: 1,
         height: 1,
         position: 'absolute',
         overflow: 'visible',
-        pointerEvents: 'none',
+        pointerEvents: editMode ? 'auto' : 'none',
       }}
     >
       {/* La linea que se esta trazando: a rayas y en el color de acento, para
@@ -1193,6 +1222,7 @@ export function LeadershipLayoutConnectorLayer({
                   strokeLinecap="round"
                   strokeWidth={seleccionada ? lineWidth + 1.5 : lineWidth}
                   stroke={seleccionada ? 'var(--palette-primary-main)' : 'var(--palette-grey-600)'}
+                  sx={{ pointerEvents: 'none' }}
                 />
 
                 {/* El tronco es lo mas visible de una barra vertical: sin zona
@@ -1232,6 +1262,7 @@ export function LeadershipLayoutConnectorLayer({
                     ? 'var(--palette-grey-600)'
                     : 'var(--palette-grey-500)'
               }
+              sx={{ pointerEvents: 'none' }}
             />
 
             {/* Una copia gruesa e invisible: el trazo real mide dos pixeles y

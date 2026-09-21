@@ -1831,6 +1831,13 @@ export const filterSectionalsByMemberScope = (
   user,
   { dests = [], churches = [] } = {}
 ) => {
+  // El Administrador Global ve todas las secciones. Su cuenta tambien puede
+  // tener un alcance regional heredado de su perfil de miembro; ese alcance no
+  // debe reducir la lista organizacional completa.
+  if (isAdminGlobal(user)) {
+    return sectionals;
+  }
+
   const scope = getMemberScope(user);
   const scopeMode = getScopeMode(scope, user);
 

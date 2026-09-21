@@ -21,10 +21,8 @@ import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
 
 // ----------------------------------------------------------------------
 
-// CADA PESTAÑA DICE LO QUE ES. Con pestañas, "Editar sección" ya no basta: el
-// titulo tiene que decir en cual estas y de que seccion. El prefijo lo pone cada
-// pagina —una cadena, que la pagina es un componente de servidor y no puede pasar
-// funciones— y el nombre lo pone este layout, que ya lo tiene.
+// Los títulos descriptivos de listas anidadas incluyen el nombre de la sección.
+// Las pantallas generales no necesitan un encabezado "Editar".
 export function SectionalEditLayout({ children, tituloPrefijo = '', ...other }) {
   const pathname = usePathname();
   const params = useParams();
@@ -44,9 +42,7 @@ export function SectionalEditLayout({ children, tituloPrefijo = '', ...other }) 
     }
   }, [sectionalId]);
 
-  const titulo = tituloPrefijo
-    ? [tituloPrefijo, sectionalName].filter(Boolean).join(' ')
-    : 'Editar sección';
+  const titulo = [tituloPrefijo, sectionalName].filter(Boolean).join(' ');
 
   const currentPath = pathname.replace(/\/$/, '');
   const editHref = paths.dashboard.level.sectional.edit(sectionalId);
@@ -89,15 +85,7 @@ export function SectionalEditLayout({ children, tituloPrefijo = '', ...other }) 
 
     >
     <DashboardContent {...other}>
-      <CustomBreadcrumbs
-        heading={isMobile ? null : titulo}
-        links={[
-          { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Secciones', href: paths.dashboard.level.sectional.root },
-          { name: sectionalName },
-        ]}
-        sx={{ mb: 3 }}
-      />
+      {tituloPrefijo && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
 
       <Tabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
         {navItems.map((tab) => (

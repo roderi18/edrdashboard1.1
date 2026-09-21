@@ -666,21 +666,17 @@ export function SectionalListView({ regionalId = null }) {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Lista de Seccionales"
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Sección', href: paths.dashboard.level.sectional.root },
-            { name: 'Lista' },
-          ]}
           action={
             canCreate ? (
-              <Button
+              <IconButton
                 component={RouterLink}
                 href={paths.dashboard.level.sectional.new}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
+                aria-label="Crear nueva sección"
+                title="Crear nuevo"
+                color="primary"
               >
-                Crear nuevo
-              </Button>
+                <Iconify icon="mingcute:add-line" />
+              </IconButton>
             ) : null
           }
           sx={{ mb: { xs: 3, md: 5 } }}

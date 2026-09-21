@@ -17,10 +17,6 @@ export const defaultSettings = {
   // La barra lateral y la cabecera en blanco, como en la plantilla. Apagado: la
   // casa las quiere en navy. Se enciende desde el panel de ajustes.
   navBlanco: false,
-  // Los cuatro accesos rapidos de la pantalla Principal (Registrar actividad,
-  // Proxima actividad, Mis insignias, Capacitacion). Permanecen ocultos hasta que
-  // cada usuario decida mostrarlos desde el panel de ajustes.
-  accesosRapidos: false,
   compactLayout: true,
   fontSize: 16,
   fontFamily: themeConfig.fontFamily.primary,

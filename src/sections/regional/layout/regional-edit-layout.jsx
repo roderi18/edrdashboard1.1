@@ -29,10 +29,8 @@ import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
-// CADA PESTAÑA DICE LO QUE ES. Con pestañas, "Editar región" ya no basta: el
-// titulo tiene que decir en cual estas y de que region. El prefijo lo pone cada
-// pagina —una cadena, que la pagina es un componente de servidor y no puede pasar
-// funciones— y el nombre lo pone este layout, que ya lo tiene.
+// Los títulos descriptivos de listas anidadas incluyen el nombre de la región.
+// Las pantallas generales no necesitan un encabezado "Editar".
 export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
   const pathname = usePathname();
   const params = useParams();
@@ -101,9 +99,7 @@ export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
   const leadershipHref = `/dashboard/level/regional/${regionalId}/edit/leadership`;
   const sectionsHref = `/dashboard/level/regional/${regionalId}/edit/sections`;
 
-  const titulo = tituloPrefijo
-    ? [tituloPrefijo, regionalName].filter(Boolean).join(' ')
-    : 'Editar región';
+  const titulo = [tituloPrefijo, regionalName].filter(Boolean).join(' ');
 
   const navItems = [
     {
@@ -136,10 +132,6 @@ export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
       <DashboardContent {...other}>
         <CustomBreadcrumbs
           heading={isMobile ? null : 'Regiones'}
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Regiones', href: paths.dashboard.level.regional.root },
-          ]}
           sx={{ mb: 3 }}
         />
 
@@ -154,15 +146,7 @@ export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
 
   return (
     <DashboardContent {...other}>
-      <CustomBreadcrumbs
-        heading={isMobile ? null : titulo}
-        links={[
-          { name: 'Panel', href: paths.dashboard.root },
-          { name: 'Regiones', href: paths.dashboard.level.regional.root },
-          { name: regionalName },
-        ]}
-        sx={{ mb: 3 }}
-      />
+      {tituloPrefijo && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
 
       <Tabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
         {navItems.map((tab) => (

@@ -1,7 +1,7 @@
 'use client';
 
 import { usePopover } from 'minimal-shared/hooks';
-import { useRef, useMemo, useState, useEffect } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -13,10 +13,15 @@ import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
+import { normalizeText } from 'src/utils/normalize-text';
 import { canManageDirectiva } from 'src/utils/admin-role-label';
-import { canManageNationalLeadership } from 'src/utils/org-level-access';
+import {
+  isAdminGlobal,
+  isOficinaNacional,
+  canManageNationalLeadership,
+} from 'src/utils/org-level-access';
 
-import { NATIONAL_LEADERSHIP_DATA } from 'src/catalogs/directiva-diagrams';
+import { obtenerDiagramaNacionalConOficiales } from 'src/catalogs/directiva-diagrams';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -35,13 +40,16 @@ import {
   getLeadershipNodeIdentity,
 } from 'src/sections/common/leadership-node-identity';
 import {
+  LeadershipNodeAnchors,
   LeadershipLayoutEditor,
   getLeadershipEditGridSx,
   getLeadershipConnections,
   useLeadershipLayoutEditor,
+  aplicarVinculosDelDiagrama,
   hasLeadershipLayoutOffsets,
   getLeadershipEditableNodeSx,
   LeadershipLayoutOffsetStyles,
+  getLeadershipContainerWidthSx,
   LeadershipLayoutConnectorLayer,
   getLeadershipConnectorOverrideSx,
 } from 'src/sections/common/leadership-layout-editor';
@@ -86,7 +94,9 @@ function NationalDivisionNode({ id, name, depth, avatarUrl, role, layoutEditor }
       onPointerDown={editProps.onPointerDown}
       onPointerCancel={editProps.onPointerCancel}
       sx={getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode })}
-    />
+    >
+      <LeadershipNodeAnchors editor={layoutEditor} nodeId={id} />
+    </LeadershipStructureNode>
   );
 }
 
@@ -102,6 +112,11 @@ function NationalLeadershipNode({
   miembroAsignado = null,
   onAsignarMiembro,
   onRemoverMiembro,
+  agregarOficialEspecial,
+  puedeAgregarOficialEspecial = false,
+  guardandoDiseno = false,
+  puedeEliminarOficialEspecial = false,
+  onEliminarOficialEspecial,
 }) {
   const menuActions = usePopover();
   const isRootNode = depth === undefined;
@@ -121,6 +136,8 @@ function NationalLeadershipNode({
   }
 
   const editProps = layoutEditor.getNodeEditProps({ id, name: identity.displayName, role });
+  const esNodoOficialEspecial = /^oficial-especial-(?:[1-9]|1\d|20)$/.test(String(id || ''));
+  const esNodoComitesEspeciales = id === 'comites-especiales';
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -130,6 +147,19 @@ function NationalLeadershipNode({
       slotProps={{ arrow: { placement: 'left-center' } }}
     >
       <MenuList onPointerDown={(event) => event.stopPropagation()}>
+        {puedeAgregarOficialEspecial && (esNodoComitesEspeciales || esNodoOficialEspecial) && (
+          <MenuItem
+            disabled={guardandoDiseno}
+            onClick={() => {
+              menuActions.onClose();
+              agregarOficialEspecial?.();
+            }}
+          >
+            <Iconify icon="solar:add-circle-bold" />
+            Agregar Oficial Especial
+          </MenuItem>
+        )}
+
         {canManage && (
           <MenuItem
             onClick={() => {
@@ -156,6 +186,22 @@ function NationalLeadershipNode({
           </MenuItem>
         )}
 
+        {role === 'Oficial Especial' &&
+          puedeEliminarOficialEspecial &&
+          onEliminarOficialEspecial && (
+          <MenuItem
+            disabled={guardandoDiseno}
+            onClick={() => {
+              menuActions.onClose();
+              onEliminarOficialEspecial({ id, role });
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Eliminar Oficial Especial
+          </MenuItem>
+        )}
+
         <MenuItem onClick={menuActions.onClose}>
           <Iconify icon="solar:info-circle-bold" />
           Información de rol
@@ -179,11 +225,13 @@ function NationalLeadershipNode({
           borderRadius: 1.5,
           textAlign: 'left',
           position: 'relative',
+          overflow: 'visible',
           display: 'inline-flex',
           flexDirection: 'column',
           ...getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode }),
         }}
       >
+        <LeadershipNodeAnchors editor={layoutEditor} nodeId={id} />
         <IconButton
           color={menuActions.open ? 'inherit' : 'default'}
           onClick={menuActions.onOpen}
@@ -216,6 +264,42 @@ function NationalLeadershipNode({
         >
           {role}
         </Typography>
+
+        {(esNodoOficialEspecial || esNodoComitesEspeciales) &&
+          puedeAgregarOficialEspecial && (
+          <Tooltip
+            title={
+              guardandoDiseno
+                ? 'Guardando diseño…'
+                : esNodoComitesEspeciales
+                  ? 'Crear el primer Oficial Especial debajo de este'
+                  : 'Agregar otro Oficial Especial debajo de este'
+            }
+          >
+            <span>
+              <IconButton
+                aria-label="Agregar otro Oficial Especial"
+                size="small"
+                disabled={guardandoDiseno}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  agregarOficialEspecial?.();
+                }}
+                sx={{
+                  mt: 1,
+                  alignSelf: 'flex-start',
+                  width: 28,
+                  height: 28,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Iconify icon="solar:add-circle-bold" width={18} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
       </Card>
 
       {renderMenuActions()}
@@ -233,14 +317,24 @@ export function NationalLeadershipView({ historico = null } = {}) {
   const { user } = useAuthContext();
   // Los cargos del Consejo Ejecutivo proponen; Oficina Nacional o Administrador
   // Global resuelven. Solo el Administrador Global modifica el diseño visual.
-  const canManageLeadership = !historico && canManageNationalLeadership(user);
+  const canManageLeadership =
+    !historico && (canManageNationalLeadership(user) || isOficinaNacional(user));
   const canManageLayout = !historico && canManageDirectiva(user);
+  const esAdministradorGlobal =
+    isAdminGlobal(user) ||
+    canManageDirectiva(user) ||
+    [user?.rolNombre, user?.roleName, user?.rolLabel, user?.roleLabel]
+      .map((nombre) => normalizeText(nombre))
+      .includes('administrador global');
+  const canManageOfficialStructure =
+    !historico && (esAdministradorGlobal || isOficinaNacional(user));
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
   const layoutEditor = useLeadershipLayoutEditor({
     initialNodeOffsets: DEFAULT_NODE_OFFSETS,
     initialContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
+    initialCustomNodeCounts: { oficialesEspeciales: 1 },
   });
   const [isDragging, setIsDragging] = useState(false);
   // La directiva nacional es unica, pero su entidad NO es la cadena vacia:
@@ -250,7 +344,7 @@ export function NationalLeadershipView({ historico = null } = {}) {
     nivel: 'nacional',
     idEntidad: 'nacional',
     nombreEntidad: 'Directiva Nacional',
-    canManage: canManageLeadership,
+    canManage: canManageLeadership || canManageOfficialStructure,
     conDatosDeHoy: !historico,
   });
   const obtenerOcupante = historico?.obtenerOcupante ?? leadership.getAssignedMember;
@@ -259,17 +353,195 @@ export function NationalLeadershipView({ historico = null } = {}) {
     nivel: 'nacional',
     idEntidad: '',
     nombreEntidad: 'Directiva Nacional',
-    canManage: canManageLayout,
+    canManage: canManageOfficialStructure,
     defaultNodeOffsets: DEFAULT_NODE_OFFSETS,
     defaultContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
+    defaultCustomNodeCounts: { oficialesEspeciales: 1 },
   });
   const [pan, setPan] = useState(DEFAULT_PAN);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const idsOficialesEspeciales = useMemo(() => {
+    const idsGuardados = layoutEditor.customNodeLists?.oficialesEspeciales;
+
+    return Array.isArray(idsGuardados)
+      ? idsGuardados.slice(0, 20)
+      : Array.from(
+          {
+            length: Math.min(
+              20,
+              Math.max(1, Number(layoutEditor.customNodeCounts?.oficialesEspeciales) || 1)
+            ),
+          },
+          (_, indice) => `oficial-especial-${indice + 1}`
+        );
+  }, [
+    layoutEditor.customNodeLists?.oficialesEspeciales,
+    layoutEditor.customNodeCounts?.oficialesEspeciales,
+  ]);
+  const cantidadOficialesEspeciales = idsOficialesEspeciales.length;
+  const [oficialEspecialPendienteEliminar, setOficialEspecialPendienteEliminar] = useState(null);
+  const [eliminandoOficialEspecial, setEliminandoOficialEspecial] = useState(false);
+  const diagramaNacional = useMemo(
+    () => obtenerDiagramaNacionalConOficiales(idsOficialesEspeciales),
+    [idsOficialesEspeciales]
+  );
   const zoomPercentage = useMemo(() => Math.round(zoom * 100), [zoom]);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
-  const connections = useMemo(() => getLeadershipConnections(NATIONAL_LEADERSHIP_DATA), []);
-  const connectorLayerActive = hasLeadershipLayoutOffsets(layoutEditor);
-  const connectorWatchKey = `${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
+  const connections = useMemo(
+    () =>
+      aplicarVinculosDelDiagrama(getLeadershipConnections(diagramaNacional), {
+        hiddenConnections: layoutEditor.hiddenConnections,
+        extraConnections: layoutEditor.extraConnections,
+      }),
+    [diagramaNacional, layoutEditor.hiddenConnections, layoutEditor.extraConnections]
+  );
+  const agregarOficialEspecial = useCallback(async () => {
+    if (!canManageOfficialStructure || cantidadOficialesEspeciales >= 20 || layoutStorage.guardando) {
+      return;
+    }
+
+    const siguienteId = Array.from({ length: 20 }, (_, indice) => `oficial-especial-${indice + 1}`)
+      .find((id) => !idsOficialesEspeciales.includes(id));
+
+    if (!siguienteId) return;
+
+    const siguientesIds = [...idsOficialesEspeciales, siguienteId];
+    const siguienteCantidad = siguientesIds.length;
+    const siguientesConteos = {
+      ...(layoutEditor.customNodeCounts || {}),
+      oficialesEspeciales: siguienteCantidad,
+    };
+    const siguientesListas = {
+      ...(layoutEditor.customNodeLists || {}),
+      oficialesEspeciales: siguientesIds,
+    };
+
+    const guardado = await layoutStorage.guardar({
+      customNodeCounts: siguientesConteos,
+      customNodeLists: siguientesListas,
+    });
+
+    if (guardado) {
+      layoutEditor.applyLayout({
+        customNodeCounts: siguientesConteos,
+        customNodeLists: siguientesListas,
+      });
+    }
+  }, [
+    canManageOfficialStructure,
+    cantidadOficialesEspeciales,
+    idsOficialesEspeciales,
+    layoutEditor,
+    layoutStorage,
+  ]);
+  const guardarEliminacionDeOficialEspecial = useCallback(
+    async (id) => {
+      if (layoutStorage.guardando) return false;
+
+      const siguientesIds = idsOficialesEspeciales.filter((oficialId) => oficialId !== id);
+      const conexionesDelNodo = new Set(
+        getLeadershipConnections(diagramaNacional)
+          .filter((conexion) => conexion.from === id || conexion.to === id)
+          .map((conexion) => `${conexion.from}-${conexion.to}`)
+      );
+      const siguientesConteos = {
+        ...(layoutEditor.customNodeCounts || {}),
+        oficialesEspeciales: siguientesIds.length,
+      };
+      const siguientesListas = {
+        ...(layoutEditor.customNodeLists || {}),
+        oficialesEspeciales: siguientesIds,
+      };
+      const siguientesOffsets = { ...layoutEditor.nodeOffsets };
+      delete siguientesOffsets[id];
+      const siguientesGrupos = layoutEditor.connectionGroups
+        .map((grupo) => ({
+          ...grupo,
+          ids: grupo.ids.filter((conexionId) => !conexionesDelNodo.has(conexionId)),
+        }))
+        .filter((grupo) => grupo.ids.length > 1);
+      const siguientesConexionesEscondidas = layoutEditor.hiddenConnections.filter(
+        (conexionId) => !conexionesDelNodo.has(conexionId)
+      );
+      const siguientesConexionesExtra = layoutEditor.extraConnections.filter(
+        (conexion) => conexion.from !== id && conexion.to !== id
+      );
+      const guardado = await layoutStorage.guardar({
+        customNodeCounts: siguientesConteos,
+        customNodeLists: siguientesListas,
+        nodeOffsets: siguientesOffsets,
+        connectionGroups: siguientesGrupos,
+        hiddenConnections: siguientesConexionesEscondidas,
+        extraConnections: siguientesConexionesExtra,
+      });
+
+      if (guardado) {
+        layoutEditor.applyLayout({
+          customNodeCounts: siguientesConteos,
+          customNodeLists: siguientesListas,
+          nodeOffsets: siguientesOffsets,
+          connectionGroups: siguientesGrupos,
+          hiddenConnections: siguientesConexionesEscondidas,
+          extraConnections: siguientesConexionesExtra,
+        });
+        layoutEditor.selectConnection(null);
+        layoutEditor.limpiarSeleccionDeNodos();
+      }
+
+      return guardado;
+    }, [idsOficialesEspeciales, diagramaNacional, layoutEditor, layoutStorage]
+  );
+  const solicitarEliminarOficialEspecial = useCallback(
+    ({ id, role }) => {
+      const asignado = leadership.getAssignedMember(id);
+
+      if (asignado) {
+        setOficialEspecialPendienteEliminar({ node: { id, role }, miembro: asignado });
+        return;
+      }
+
+      guardarEliminacionDeOficialEspecial(id);
+    },
+    [guardarEliminacionDeOficialEspecial, leadership]
+  );
+  const confirmarEliminarOficialEspecial = useCallback(async () => {
+    const pendiente = oficialEspecialPendienteEliminar;
+    const idMiembro = pendiente?.miembro?.id ?? pendiente?.miembro?.idMiembros;
+
+    if (!pendiente?.node?.id || !idMiembro || eliminandoOficialEspecial) return;
+
+    setEliminandoOficialEspecial(true);
+
+    try {
+      const removido = await leadership.guardar({
+        node: pendiente.node,
+        idMiembro,
+        miembro: pendiente.miembro,
+        activo: false,
+      });
+
+      if (removido === true) {
+        const guardado = await guardarEliminacionDeOficialEspecial(pendiente.node.id);
+
+        if (guardado) setOficialEspecialPendienteEliminar(null);
+      }
+    } finally {
+      setEliminandoOficialEspecial(false);
+    }
+  }, [
+    oficialEspecialPendienteEliminar,
+    eliminandoOficialEspecial,
+    leadership,
+    guardarEliminacionDeOficialEspecial,
+  ]);
+  const connectorLayerActive =
+    layoutEditor.editMode ||
+    Boolean(layoutEditor.arrastreDeVinculo) ||
+    hasLeadershipLayoutOffsets(layoutEditor) ||
+    layoutEditor.connectionGroups.length > 0 ||
+    layoutEditor.hiddenConnections.length > 0 ||
+    layoutEditor.extraConnections.length > 0;
+  const connectorWatchKey = `${layoutEditor.editMode}:${JSON.stringify(layoutEditor.connectionGroups)}:${JSON.stringify(layoutEditor.hiddenConnections)}:${JSON.stringify(layoutEditor.extraConnections)}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
 
   useEffect(() => {
     setZoom(DEFAULT_ZOOM);
@@ -402,6 +674,7 @@ export function NationalLeadershipView({ historico = null } = {}) {
           userSelect: 'none',
           touchAction: 'none',
           ...getLeadershipEditGridSx(layoutEditor.editMode),
+          ...getLeadershipContainerWidthSx(layoutEditor.containerWidthOffset),
           ...getLeadershipConnectorOverrideSx(connectorLayerActive),
           '& button, & a, & input, & textarea, & select, & [role="button"]': {
             cursor: 'pointer',
@@ -607,7 +880,7 @@ export function NationalLeadershipView({ historico = null } = {}) {
             lineWidth="2px"
             lineHeight="34px"
             lineColor="var(--palette-grey-500)"
-            data={NATIONAL_LEADERSHIP_DATA}
+            data={diagramaNacional}
             nodeClassName={layoutEditor.getNodeTreeClassName}
             nodeItem={(props) => (
               <NationalLeadershipNode
@@ -617,6 +890,18 @@ export function NationalLeadershipView({ historico = null } = {}) {
                 miembroAsignado={obtenerOcupante(props.id)}
                 onAsignarMiembro={leadership.openAssign}
                 onRemoverMiembro={leadership.pedirRemoverMiembro}
+                agregarOficialEspecial={agregarOficialEspecial}
+                puedeAgregarOficialEspecial={
+                  canManageOfficialStructure &&
+                  (props.id === 'comites-especiales' ||
+                    props.id === `oficial-especial-${cantidadOficialesEspeciales}`) &&
+                  cantidadOficialesEspeciales < 20
+                }
+                guardandoDiseno={layoutStorage.guardando}
+                puedeEliminarOficialEspecial={canManageOfficialStructure}
+                onEliminarOficialEspecial={
+                  canManageOfficialStructure ? solicitarEliminarOficialEspecial : undefined
+                }
               />
             )}
           />
@@ -628,6 +913,12 @@ export function NationalLeadershipView({ historico = null } = {}) {
           connections={connections}
           containerRef={containerRef}
           lineWidth={2}
+          connectionGroups={layoutEditor.connectionGroups}
+          editMode={layoutEditor.editMode}
+          selectedConnections={layoutEditor.selectedConnections}
+          onSelectConnection={layoutEditor.selectConnection}
+          lineasRectas
+          arrastreDeVinculo={layoutEditor.arrastreDeVinculo}
         />
 
         <LeadershipLayoutOffsetStyles editor={layoutEditor} />
@@ -642,6 +933,7 @@ export function NationalLeadershipView({ historico = null } = {}) {
             containerMinHeight={containerMinHeight}
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
+            mostrarMargenHorizontal
           />
         )}
       </Box>
@@ -687,6 +979,33 @@ export function NationalLeadershipView({ historico = null } = {}) {
         action={
           <Button variant="contained" onClick={leadership.confirmarTraspaso}>
             Sí, moverlo aquí
+          </Button>
+        }
+      />
+
+      <ConfirmDialog
+        open={Boolean(oficialEspecialPendienteEliminar)}
+        onClose={() => {
+          if (!eliminandoOficialEspecial) setOficialEspecialPendienteEliminar(null);
+        }}
+        title="Eliminar Oficial Especial"
+        content={
+          <>
+            ¿Quieres retirar a{' '}
+            <strong>
+              {getMemberDisplayName(oficialEspecialPendienteEliminar?.miembro) || 'esta persona'}
+            </strong>{' '}
+            del cargo y eliminar este cuadro de la Directiva Nacional?
+          </>
+        }
+        action={
+          <Button
+            variant="contained"
+            color="error"
+            disabled={eliminandoOficialEspecial || layoutStorage.guardando}
+            onClick={confirmarEliminarOficialEspecial}
+          >
+            Eliminar
           </Button>
         }
       />

@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 
-const APP_INSTALL_NAME = 'ExploradoresDelRey';
+const APP_INSTALL_NAME = 'EXPLORA ™';
 const START_URL = '/auth/firebase/sign-in';
 const THEME_COLOR = '#00A76F';
 
@@ -9,7 +9,7 @@ export default function manifest() {
     id: '/',
     name: APP_INSTALL_NAME,
     short_name: APP_INSTALL_NAME,
-    description: 'Sistema de gestion para Exploradores del Rey.',
+    description: 'Sistema de gestión de EXPLORA ™.',
     start_url: START_URL,
     scope: '/',
     display: 'standalone',

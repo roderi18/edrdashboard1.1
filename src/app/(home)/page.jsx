@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation';
 
 import { paths } from 'src/routes/paths';
+import { CONFIG } from 'src/global-config';
 
 // ----------------------------------------------------------------------
 
 export const metadata = {
-  title: 'Iniciar sesion',
+  title: `Iniciar sesión | ${CONFIG.appName}`,
 };
 
 export default function Page() {

@@ -44,17 +44,17 @@ export function RegionalCard({ regional, disabledCounts = false, disabledDestCou
       title={regionalName}
       href={editHref}
       avatarUrl={getRegionalAvatar(regional)}
+      avatarSize={80}
+      avatarBorderRadius={2.5}
       fallbackText={regionalName}
       lines={[
         {
-          icon: 'solar:user-bold',
           text: directorLine,
           href: directorId && !deshabilitada ? `/dashboard/level/member/${directorId}/edit` : '',
         },
         ...(sectionalCount !== undefined
           ? [
               {
-                icon: 'mingcute:location-fill',
                 text: `${sectionalCount} secci\u00f3n${Number(sectionalCount) === 1 ? '' : 'es'}`,
                 href: countsDisabled
                   ? ''
@@ -65,7 +65,6 @@ export function RegionalCard({ regional, disabledCounts = false, disabledDestCou
         ...(destCount !== undefined
           ? [
               {
-                icon: 'solar:home-2-bold',
                 text: `${destCount} destacamento${Number(destCount) === 1 ? '' : 's'}`,
                 href:
                   destCountDisabled || !regionalId

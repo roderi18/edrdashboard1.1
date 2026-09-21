@@ -16,7 +16,7 @@ export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...
     <LogoRoot
       component={RouterLink}
       href={href}
-      aria-label="Exploradores del Rey"
+      aria-label="EXPLORA ™"
       underline="none"
       className={mergeClasses([logoClasses.root, className])}
       sx={[
@@ -32,7 +32,7 @@ export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...
     >
       <img
         src="/logo/exploradores-del-rey-logo.webp"
-        alt="Exploradores del Rey"
+        alt="EXPLORA ™"
         width="100%"
         height="100%"
         draggable={false}

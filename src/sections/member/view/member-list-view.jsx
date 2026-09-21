@@ -132,6 +132,7 @@ export function MemberListView({ destId = null }) {
   const [churches, setChurches] = useState([]);
   const [regionals, setRegionals] = useState([]);
   const [sectionals, setSectionals] = useState([]);
+  const [directoryMetadataLoading, setDirectoryMetadataLoading] = useState(true);
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
@@ -235,6 +236,9 @@ export function MemberListView({ destId = null }) {
           (Number(destPosition?.orden) || Infinity),
         directivaLeadershipPosition: directivaPosition ? getCargoLabel(directivaPosition) : '',
         nationalLeadershipPosition: nacionalPosition ? getCargoLabel(nacionalPosition) : '',
+        organizationalPositions: mergedPositions
+          .filter((cargo) => ['seccional', 'regional', 'nacional'].includes(cargo.nivel))
+          .map((cargo) => ({ nivel: cargo.nivel, label: getCargoLabel(cargo) })),
       };
     });
   }, []);
@@ -267,6 +271,7 @@ export function MemberListView({ destId = null }) {
       setChurches(Array.isArray(metadata?.churches) ? metadata.churches : []);
       setRegionals(Array.isArray(metadata?.regionals) ? metadata.regionals : []);
       setSectionals(Array.isArray(metadata?.sectionals) ? metadata.sectionals : []);
+      setDirectoryMetadataLoading(false);
     };
 
     loadMetadata();
@@ -395,6 +400,7 @@ export function MemberListView({ destId = null }) {
             destLeadershipPosition: member.destLeadershipPosition,
             directivaLeadershipPosition: member.directivaLeadershipPosition,
             nationalLeadershipPosition: member.nationalLeadershipPosition,
+            organizationalPositions: member.organizationalPositions,
             destPositionOrden: member.destPositionOrden,
           },
         ])
@@ -447,6 +453,7 @@ export function MemberListView({ destId = null }) {
                   destLeadershipPosition: member.destLeadershipPosition,
                   directivaLeadershipPosition: member.directivaLeadershipPosition,
                   nationalLeadershipPosition: member.nationalLeadershipPosition,
+                  organizationalPositions: member.organizationalPositions,
                   destPositionOrden: member.destPositionOrden,
                 },
               ])
@@ -950,7 +957,8 @@ export function MemberListView({ destId = null }) {
         <MemberCardList
           members={dataFiltered}
           dests={dests}
-          loading={membersLoading}
+          showLeadershipPositions={soloMiembrosDestActivo}
+          loading={membersLoading || directoryMetadataLoading}
           memberPhotoUrls={memberPhotoUrls}
           page={table.page + 1}
           onPageChange={handleChangeCardPage}
@@ -986,19 +994,11 @@ export function MemberListView({ destId = null }) {
         <CustomBreadcrumbs
           heading={
             mostrarFiltroSoloDestacamento && soloMiembrosDestActivo
-              ? `Miembros del Destacamento ${etiquetaDestacamentoPropio}`
+              ? `Miembros Dest. ${etiquetaDestacamentoPropio}`
               : memberDestLabel
                 ? `Lista de miembros de ${memberDestLabel}`
                 : 'Lista de miembros'
           }
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Miembros', href: paths.dashboard.level.member.root },
-
-            ...(memberFromUrl
-              ? [{ name: `${memberFromUrl.firstName} ${memberFromUrl.lastName}` }]
-              : [{ name: 'Lista' }]),
-          ]}
           action={
             memberCanManage ? (
               <Button

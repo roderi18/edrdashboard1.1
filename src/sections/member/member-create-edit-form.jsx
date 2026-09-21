@@ -652,6 +652,7 @@ export function MemberCreateEditForm({
   const [dests, setDests] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [fotoPerfilInmediata, setFotoPerfilInmediata] = useState('');
   const [photoUploadErrorMessage, setPhotoUploadErrorMessage] = useState('');
   // Se incrementa tras guardar para releer los cargos desde la API. El `reset`
   // posterior al guardado repuebla el formulario con `mapMemberToForm`, que saca
@@ -718,6 +719,10 @@ export function MemberCreateEditForm({
   const fotoPendienteRef = useRef(null);
   const lastCalculatedBirthdateRef = useRef('');
   const skippedInitialDivisionFetchRef = useRef(false);
+
+  useEffect(() => {
+    setFotoPerfilInmediata('');
+  }, [currentMember?.id]);
 
   useEffect(() => {
     if (Array.isArray(availableDests) && availableDests.length) {
@@ -1766,6 +1771,7 @@ export function MemberCreateEditForm({
         };
 
         toast.success(getImageOptimizationMessage(info));
+        setFotoPerfilInmediata(pendiente.urlFoto);
 
         // Se devuelve la URL ya subida: el avatar se pinta desde Storage, igual
         // que al editar, y no desde un archivo en memoria.
@@ -1776,6 +1782,8 @@ export function MemberCreateEditForm({
         file,
         idMiembros,
       });
+
+      if (result?.urlFoto) setFotoPerfilInmediata(result.urlFoto);
 
       return result?.urlFoto || null;
     } catch (error) {
@@ -2550,7 +2558,7 @@ export function MemberCreateEditForm({
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 4 }}>
             <MemberProfileCard
-              avatarUrl={avatarUrl}
+              avatarUrl={fotoPerfilInmediata || avatarUrl}
               memberFullName={memberFullName}
               uploadingPhoto={uploadingPhoto}
               canUploadMemberPhoto={canUploadMemberPhoto}

@@ -541,6 +541,7 @@ export function useLeadershipAssignments({
     selectedMember,
     setSelectedMember,
     isSaving,
+    guardar,
     openAssign,
     closeAssign,
     asignarMiembro,

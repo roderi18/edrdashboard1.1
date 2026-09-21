@@ -51,9 +51,9 @@ export const metadata = {
   manifest: '/manifest.webmanifest',
   title: {
     default: CONFIG.appName,
-    template: `%s | ${CONFIG.appName}`,
+    template: '%s',
   },
-  description: 'Sistema de gestion para Exploradores del Rey.',
+  description: 'Sistema de gestión de EXPLORA ™.',
   icons: [
     {
       rel: 'icon',

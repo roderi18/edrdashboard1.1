@@ -19,13 +19,8 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
 
-// CADA PESTAÑA DICE LO QUE ES.
-//
-// "Editar destacamento" servia mientras la ficha era una sola pantalla. Con
-// pestañas, el titulo tiene que decir en cual estas y de QUE destacamento:
-// "Miembros del Destacamento Tribu de Judá 18". El prefijo lo pone cada pagina
-// —una cadena, que la pagina es un componente de servidor y no puede pasar
-// funciones— y el nombre y el numero los pone este layout, que ya los tiene.
+// Los títulos descriptivos de listas anidadas incluyen el nombre del
+// destacamento. Las pantallas generales no necesitan un encabezado "Editar".
 export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
 
     const pathname = usePathname();
@@ -51,9 +46,7 @@ export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
     // mejor que uno con un hueco al final.
     const destNumber = String(dest?.numero ?? dest?.destNumber ?? '').trim();
     const destNombreCompleto = [destName, destNumber].filter(Boolean).join(' ').trim();
-    const titulo = tituloPrefijo
-      ? [tituloPrefijo, destNombreCompleto].filter(Boolean).join(' ')
-      : 'Editar destacamento';
+    const titulo = [tituloPrefijo, destNombreCompleto].filter(Boolean).join(' ');
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -105,15 +98,7 @@ export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
       >
         <DashboardContent {...other}>
 
-            <CustomBreadcrumbs
-                heading={isMobile ? null : titulo}
-                links={[
-                    { name: 'Panel', href: paths.dashboard.root },
-                    { name: 'Destacamentos', href: paths.dashboard.level.dest.root },
-                    { name: destNombreCompleto },
-                ]}
-                sx={{ mb: 3 }}
-            />
+            {tituloPrefijo && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
 
             <Tabs value={pathname.replace(/\/$/, '')} sx={{ mb: { xs: 3, md: 5 } }}>                {NAV_ITEMS.map((tab) => (
 

@@ -83,8 +83,11 @@ import {
 } from 'src/sections/common/leadership-node-identity';
 import {
   LeadershipLayoutEditor,
+  getLeadershipContainerWidthSx,
   getLeadershipEditGridSx,
   getLeadershipConnections,
+  aplicarVinculosDelDiagrama,
+  LeadershipNodeAnchors,
   useLeadershipLayoutEditor,
   hasLeadershipLayoutOffsets,
   getLeadershipEditableNodeSx,
@@ -401,6 +404,8 @@ function DivisionNode({ id, name, depth, avatarUrl, role, sx, layoutEditor }) {
           ...LEADERSHIP_NODE_SIZE_SX,
           borderRadius: 1.5,
           textAlign: 'left',
+          position: 'relative',
+          overflow: 'visible',
           alignItems: 'center',
           display: 'inline-flex',
         }),
@@ -435,6 +440,7 @@ function DivisionNode({ id, name, depth, avatarUrl, role, sx, layoutEditor }) {
           {role}
         </Typography>
       </Box>
+      <LeadershipNodeAnchors editor={layoutEditor} nodeId={nodeId} />
     </Card>
   );
 }
@@ -678,6 +684,7 @@ function LeadershipNode({
             borderRadius: 1.5,
             textAlign: 'left',
             position: 'relative',
+            overflow: 'visible',
             display: 'inline-flex',
             flexDirection: 'column',
           }),
@@ -685,6 +692,7 @@ function LeadershipNode({
           ...(Array.isArray(sx) ? sx : [sx]),
         ]}
       >
+        <LeadershipNodeAnchors editor={layoutEditor} nodeId={nodeId} />
         <IconButton
           color={menuActions.open ? 'inherit' : 'default'}
           onClick={menuActions.onOpen}
@@ -917,11 +925,24 @@ export default function Page() {
     role: 'Titulo del diagrama',
   });
   const connections = useMemo(
-    () => getLeadershipConnections([DEST_LEADERSHIP_DATA, ...DEST_DIVISION_GROUPS]),
-    []
+    () =>
+      aplicarVinculosDelDiagrama(
+        getLeadershipConnections([DEST_LEADERSHIP_DATA, ...DEST_DIVISION_GROUPS]),
+        {
+          hiddenConnections: layoutEditor.hiddenConnections,
+          extraConnections: layoutEditor.extraConnections,
+        }
+      ),
+    [layoutEditor.hiddenConnections, layoutEditor.extraConnections]
   );
-  const connectorLayerActive = hasLeadershipLayoutOffsets(layoutEditor);
-  const connectorWatchKey = `${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
+  const connectorLayerActive =
+    layoutEditor.editMode ||
+    Boolean(layoutEditor.arrastreDeVinculo) ||
+    hasLeadershipLayoutOffsets(layoutEditor) ||
+    layoutEditor.connectionGroups.length > 0 ||
+    layoutEditor.hiddenConnections.length > 0 ||
+    layoutEditor.extraConnections.length > 0;
+  const connectorWatchKey = `${layoutEditor.editMode}:${JSON.stringify(layoutEditor.connectionGroups)}:${JSON.stringify(layoutEditor.hiddenConnections)}:${JSON.stringify(layoutEditor.extraConnections)}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
   const membersById = useMemo(
     () =>
       members.reduce((acc, member) => {
@@ -1485,6 +1506,7 @@ export default function Page() {
           userSelect: 'none',
           touchAction: 'none',
           ...getLeadershipEditGridSx(layoutEditor.editMode),
+          ...getLeadershipContainerWidthSx(layoutEditor.containerWidthOffset),
           ...getLeadershipConnectorOverrideSx(connectorLayerActive),
           '& button, & a, & input, & textarea, & select, & [role="button"]': {
             cursor: 'pointer',
@@ -1753,6 +1775,12 @@ export default function Page() {
           connections={connections}
           containerRef={chartCaptureRef}
           lineWidth={2}
+          connectionGroups={layoutEditor.connectionGroups}
+          editMode={layoutEditor.editMode}
+          selectedConnections={layoutEditor.selectedConnections}
+          onSelectConnection={layoutEditor.selectConnection}
+          lineasRectas
+          arrastreDeVinculo={layoutEditor.arrastreDeVinculo}
         />
 
         <LeadershipLayoutOffsetStyles editor={layoutEditor} />
@@ -1767,6 +1795,7 @@ export default function Page() {
             containerMinHeight={containerMinHeight}
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
+            mostrarMargenHorizontal
           />
         )}
       </Box>

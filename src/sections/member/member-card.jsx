@@ -84,7 +84,7 @@ const buildDestLabel = (member, dests) => {
     return label.toLowerCase().startsWith('dest') ? label : `Dest. ${label}`;
   }
 
-  return memberDestId ? `Dest. ${memberDestId}` : 'Dest. desconocido';
+  return 'Dest. desconocido';
 };
 
 const getDestHref = (member, dests) => {
@@ -104,6 +104,7 @@ export const MemberCard = memo(function MemberCard({
   sx,
   avatarUrl,
   dests: destsProp = [],
+  showLeadershipPositions = false,
   ...other
 }) {
   const memberEditId = getMemberEditId(member);
@@ -114,6 +115,25 @@ export const MemberCard = memo(function MemberCard({
   const destHref = getDestHref(member, destsProp);
   const divisionIcon = getMemberDivisionIcon(member);
   const resolvedAvatarUrl = avatarUrl || getMemberAvatar(member);
+  const leadershipLines = [
+    ...(member?.destLeadershipPosition
+      ? [
+          {
+            text: member.destLeadershipPosition,
+            wrap: true,
+          },
+        ]
+      : []),
+    ...(member?.organizationalPositions || []).map(({ label }) => ({ text: label, wrap: true })),
+  ];
+  const lines = showLeadershipPositions
+    ? leadershipLines.length
+      ? leadershipLines
+      : [{ text: 'Sin posición asignada' }]
+    : [
+        { icon: 'solar:phone-bold', text: phoneLabel, href: getPhoneHref(phoneNumber) },
+        { icon: 'mingcute:location-fill', text: destLabel, href: destHref },
+      ];
 
   return (
     <CompactEntityCard
@@ -123,10 +143,7 @@ export const MemberCard = memo(function MemberCard({
       avatarSize={80}
       avatarBorderRadius={2.5}
       fallbackText={member?.name || member?.firstName}
-      lines={[
-        { icon: 'solar:phone-bold', text: phoneLabel, href: getPhoneHref(phoneNumber) },
-        { icon: 'mingcute:location-fill', text: destLabel, href: destHref },
-      ]}
+      lines={lines}
       rightImage={divisionIcon}
       sx={sx}
       {...other}

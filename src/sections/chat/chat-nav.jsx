@@ -104,13 +104,6 @@ export function ChatNav({
     }
   }, [mdUp, onCloseMobile, onCollapseDesktop]);
 
-  const handleClickCompose = useCallback(() => {
-    if (!mdUp) {
-      onCloseMobile();
-    }
-    router.push(rutaDelChat({ bandeja }));
-  }, [bandeja, mdUp, onCloseMobile, router]);
-
   const handleSearchContacts = useCallback(
     (inputValue) => {
       const searchResults = searchChatDirectory({
@@ -340,11 +333,6 @@ export function ChatNav({
           />
         </IconButton>
 
-        {!collapseDesktop && (
-          <IconButton aria-label="Crear conversación" onClick={handleClickCompose}>
-            <Iconify width={24} icon="solar:user-plus-bold" />
-          </IconButton>
-        )}
       </Box>
 
       <Box sx={{ p: 2.5, pt: 0 }}>{!collapseDesktop && renderSearchInput()}</Box>

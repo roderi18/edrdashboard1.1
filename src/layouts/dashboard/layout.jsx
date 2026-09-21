@@ -12,13 +12,14 @@ import { paths } from 'src/routes/paths';
 import { usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
+import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { setModuloActivo, moduloDesdeRuta } from 'src/utils/modulo-activo';
 import { canManageStoreProducts, filterDashboardNavDataByUser } from 'src/utils/member-access';
 
-import { allLangs } from 'src/locales';
 import { useGetLabels } from 'src/actions/mail';
-import { _contacts, _notifications } from 'src/_mock';
+import { _notifications } from 'src/_mock';
+import { getMembers } from 'src/services/member-service';
 import { useCargarSonidosDeAviso } from 'src/actions/sonidos';
 import { useGetDashboardChatSummary } from 'src/actions/chat-summary';
 import {
@@ -48,7 +49,6 @@ import { _workspaces } from '../nav-config-workspace';
 import { MenuButton } from '../components/menu-button';
 import { AccountDrawer } from '../components/account-drawer';
 import { SettingsButton } from '../components/settings-button';
-import { LanguagePopover } from '../components/language-popover';
 import { ContactsPopover } from '../components/contacts-popover';
 import { WorkspacesPopover } from '../components/workspaces-popover';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
@@ -127,6 +127,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const isMailRoute = pathname?.startsWith(paths.dashboard.mail);
 
   const { user } = useAuthContext();
+  const [contactosDelDestacamento, setContactosDelDestacamento] = useState([]);
   // La cuenta administrativa de siempre (admin001) llega con `role: 'admin'`;
   // una sesion que es administrativa por ocupar un cargo, no.
   const esAdministradorGlobal =
@@ -140,6 +141,74 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const { labels: mailLabels } = useGetLabels(isMailRoute);
   const chatMemberId = Number(user?.idMiembros ?? user?.memberId ?? 0) || null;
   const chatSummaryEnabled = Boolean(user?.accessToken && chatMemberId);
+
+  useEffect(() => {
+    let vigente = true;
+
+    const cargarContactos = async () => {
+      try {
+        const miembros = await getMembers();
+        if (!vigente) return;
+
+        const idMiembroActual = String(user?.idMiembros ?? user?.memberId ?? user?.id ?? '');
+        const miembroActual = miembros.find((miembro) =>
+          [miembro?.id, miembro?.idMiembros, miembro?.memberId, miembro?.codigoMiembro].some(
+            (id) => String(id ?? '') === idMiembroActual
+          )
+        );
+        const idDestacamento = String(
+          miembroActual?.destId ??
+            miembroActual?.idDestacamento ??
+            miembroActual?.destacamentoId ??
+            user?.destId ??
+            user?.idDestacamento ??
+            user?.alcance?.destacamentos?.[0] ??
+            ''
+        );
+
+        if (!idDestacamento) {
+          setContactosDelDestacamento([]);
+          return;
+        }
+
+        setContactosDelDestacamento(
+          miembros
+            .filter((miembro) => {
+              const mismoDestacamento = String(
+                miembro?.destId ?? miembro?.idDestacamento ?? miembro?.destacamentoId ?? ''
+              ) === idDestacamento;
+              const esLaPersonaActual = [
+                miembro?.id,
+                miembro?.idMiembros,
+                miembro?.memberId,
+                miembro?.codigoMiembro,
+              ].some((id) => String(id ?? '') === idMiembroActual);
+
+              return mismoDestacamento && !esLaPersonaActual;
+            })
+            .map((miembro) => ({
+              ...miembro,
+              id: miembro.id ?? miembro.idMiembros ?? miembro.memberId,
+              idMiembros: miembro.idMiembros ?? miembro.id ?? miembro.memberId,
+              name:
+                getMemberFullName(miembro) ||
+                miembro.name ||
+                [miembro.nombres, miembro.apellidos].filter(Boolean).join(' ') ||
+                'Miembro',
+              avatarUrl: miembro.avatarUrl || miembro.photoURL || miembro.urlFoto || '',
+            }))
+        );
+      } catch (error) {
+        console.error('Error cargando contactos del destacamento:', error);
+        if (vigente) setContactosDelDestacamento([]);
+      }
+    };
+
+    cargarContactos();
+    return () => {
+      vigente = false;
+    };
+  }, [user]);
 
   // Los sonidos de aviso, listos antes del primer mensaje. Se leen una vez por
   // sesion: los eligio el Administrador Global y valen para toda la aplicacion.
@@ -502,9 +571,6 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       ),
       rightArea: (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 } }}>
-          {/** @slot Language popover */}
-          <LanguagePopover data={allLangs} disabled />
-
           {/** @slot Notifications popover */}
           <NotificationsDrawer
             data={notificacionesDrawer}
@@ -514,7 +580,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           />
 
           {/** @slot Contacts popover */}
-          <ContactsPopover data={_contacts} />
+          <ContactsPopover data={contactosDelDestacamento} />
 
           {/** @slot Settings button */}
           <SettingsButton />

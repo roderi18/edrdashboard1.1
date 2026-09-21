@@ -1,6 +1,5 @@
 import { m } from 'framer-motion';
 
-import Badge from '@mui/material/Badge';
 import SvgIcon from '@mui/material/SvgIcon';
 import IconButton from '@mui/material/IconButton';
 
@@ -23,8 +22,7 @@ export function SettingsButton({ sx, ...other }) {
       sx={[{ p: 0, width: 40, height: 40 }, ...(Array.isArray(sx) ? sx : [sx])]}
       {...other}
     >
-      <Badge color="error" variant="dot" invisible={!settings.canReset}>
-        <SvgIcon>
+      <SvgIcon>
           {/** https://icon-sets.iconify.design/solar/settings-bold-duotone/ */}
           <m.path
             fill="currentColor"
@@ -39,8 +37,7 @@ export function SettingsButton({ sx, ...other }) {
             fill="currentColor"
             d="M15.523 12c0 1.657-1.354 3-3.023 3c-1.67 0-3.023-1.343-3.023-3S10.83 9 12.5 9c1.67 0 3.023 1.343 3.023 3"
           />
-        </SvgIcon>
-      </Badge>
+      </SvgIcon>
     </IconButton>
   );
 }

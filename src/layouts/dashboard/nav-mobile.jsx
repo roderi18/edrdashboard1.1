@@ -4,7 +4,9 @@ import { mergeClasses } from 'minimal-shared/utils';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 
+import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
+import { RouterLink } from 'src/routes/components';
 
 import { Scrollbar } from 'src/components/scrollbar';
 import { NavSectionVertical } from 'src/components/nav-section';
@@ -53,7 +55,12 @@ export function NavMobile({
       }}
     >
       {slots?.topArea ?? (
-        <Box sx={{ pl: 3.5, pt: 2.5, pb: 1 }}>
+        <Box
+          component={RouterLink}
+          href={paths.dashboard.principal}
+          aria-label="Ir a Principal"
+          sx={{ pl: 3.5, pt: 2.5, pb: 1, display: 'block', width: 'fit-content' }}
+        >
           <Box
             component="img"
             src={

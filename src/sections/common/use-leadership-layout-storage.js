@@ -31,6 +31,8 @@ export function useLeadershipLayoutStorage({
   defaultContainerHeightOffset = 0,
   defaultContainerWidthOffset = 0,
   defaultConnectionGroups = [],
+  defaultCustomNodeCounts = {},
+  defaultCustomNodeLists = {},
 }) {
   const [guardando, setGuardando] = useState(false);
   // Mientras se trae el diseno guardado el cuadro no se puede pintar: saldria
@@ -71,6 +73,8 @@ export function useLeadershipLayoutStorage({
           : defaultConnectionGroups,
         hiddenConnections: diseno.hiddenConnections,
         extraConnections: diseno.extraConnections,
+        customNodeCounts: { ...defaultCustomNodeCounts, ...diseno.customNodeCounts },
+        customNodeLists: { ...defaultCustomNodeLists, ...diseno.customNodeLists },
       });
 
       setCargando(false);
@@ -92,7 +96,7 @@ export function useLeadershipLayoutStorage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nivel, idEntidad, idEntidadRespaldo, applyLayout]);
 
-  const guardar = useCallback(async () => {
+  const guardar = useCallback(async (opciones = {}) => {
     if (!canManage) {
       toast.error('Solo el administrador global puede guardar el diseño.');
       return false;
@@ -105,12 +109,14 @@ export function useLeadershipLayoutStorage({
         nivel,
         idEntidad,
         nombreEntidad,
-        nodeOffsets: editor.nodeOffsets,
-        containerHeightOffset: editor.containerHeightOffset,
-        containerWidthOffset: editor.containerWidthOffset,
-        connectionGroups: editor.connectionGroups,
-        hiddenConnections: editor.hiddenConnections,
-        extraConnections: editor.extraConnections,
+        nodeOffsets: opciones?.nodeOffsets ?? editor.nodeOffsets,
+        containerHeightOffset: opciones?.containerHeightOffset ?? editor.containerHeightOffset,
+        containerWidthOffset: opciones?.containerWidthOffset ?? editor.containerWidthOffset,
+        connectionGroups: opciones?.connectionGroups ?? editor.connectionGroups,
+        hiddenConnections: opciones?.hiddenConnections ?? editor.hiddenConnections,
+        extraConnections: opciones?.extraConnections ?? editor.extraConnections,
+        customNodeCounts: opciones?.customNodeCounts ?? editor.customNodeCounts,
+        customNodeLists: opciones?.customNodeLists ?? editor.customNodeLists,
       });
 
       toast.success('Diseño del organigrama guardado.');
@@ -135,6 +141,8 @@ export function useLeadershipLayoutStorage({
     editor.connectionGroups,
     editor.hiddenConnections,
     editor.extraConnections,
+    editor.customNodeCounts,
+    editor.customNodeLists,
   ]);
 
   return { guardar, guardando, cargando };

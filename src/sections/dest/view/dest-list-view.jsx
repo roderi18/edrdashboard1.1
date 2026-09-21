@@ -783,26 +783,17 @@ export function DestListView({ sectionalId = null }) {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Lista Destacamentos"
-          links={[
-            { name: 'Panel', href: paths.dashboard.root },
-            { name: 'Destacamentos', href: paths.dashboard.level.dest.root },
-            { name: 'Lista' },
-          ]}
           action={
             canCreateDest ? (
-              <Button
+              <IconButton
                 component={RouterLink}
                 href={paths.dashboard.level.dest.new}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-                sx={{
-                  position: { xs: 'absolute', md: 'static' },
-                  right: { xs: 0, md: 'auto' },
-                  top: { xs: 0, md: 'auto' },
-                }}
+                aria-label="Crear nuevo destacamento"
+                title="Crear nuevo"
+                color="primary"
               >
-                Crear nuevo
-              </Button>
+                <Iconify icon="mingcute:add-line" />
+              </IconButton>
             ) : null
           }
           sx={{

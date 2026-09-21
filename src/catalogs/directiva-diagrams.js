@@ -26,6 +26,20 @@ import { claveNodo } from '../utils/leadership-assignments.js';
 // ocupante el cargo se dibuja como vacante.
 export const createNode = (id, role, children) => ({ id, role, children });
 
+const crearCadenaOficialesEspeciales = (cantidad = 20) => {
+  let siguiente = null;
+
+  for (let numero = Math.min(20, Math.max(0, cantidad)); numero >= 1; numero -= 1) {
+    siguiente = createNode(
+      `oficial-especial-${numero}`,
+      'Oficial Especial',
+      siguiente ? [siguiente] : []
+    );
+  }
+
+  return siguiente;
+};
+
 export const NATIONAL_LEADERSHIP_DATA = {
   // Sin subtitulo: el nombre de la tarjeta ya lo dice, y repetirlo debajo
   // ("Concilio de las Asambleas de Dios" sobre "Concilio de las Asambleas de
@@ -63,7 +77,9 @@ export const NATIONAL_LEADERSHIP_DATA = {
             createNode('coordinador-nacional-promocion', 'Coordinador Nacional de Promoción'),
             createNode('coordinador-nacional-produccion', 'Coordinador Nacional de Producción'),
             createNode('coordinador-nacional-programa', 'Coordinador Nacional de Programa'),
-            createNode('comites-especiales', 'Comités Especiales'),
+            createNode('comites-especiales', 'Comités Especiales', [
+              crearCadenaOficialesEspeciales(20),
+            ]),
           ]),
           createNode('capellan-nacional', 'Capellán Nacional'),
         ]),
@@ -77,6 +93,41 @@ export const NATIONAL_LEADERSHIP_DATA = {
   name: 'Concilio de las Asambleas de Dios',
   avatarUrl: '/logo/asambleas-de-dios.png',
   isDivision: true,
+};
+
+// El catálogo contiene las veinte casillas posibles para que cada una tenga
+// identidad y asignación propias. La vista actual muestra solo las creadas.
+export const obtenerDiagramaNacionalConOficiales = (cantidadOficiales = 1) => {
+  const idsOficiales = Array.isArray(cantidadOficiales)
+    ? [...new Set(cantidadOficiales.map((id) => String(id || '')))
+        .filter((id) => /^oficial-especial-(?:[1-9]|1\d|20)$/.test(id))
+        .slice(0, 20)]
+    : Array.from(
+        { length: Math.min(20, Math.max(0, Number(cantidadOficiales) || 0)) },
+        (_, indice) => `oficial-especial-${indice + 1}`
+      );
+  let primero = null;
+
+  idsOficiales
+    .slice()
+    .reverse()
+    .forEach((id) => {
+      const siguiente = primero;
+      primero = createNode(id, 'Oficial Especial', siguiente ? [siguiente] : []);
+    });
+  const clonar = (nodo) => {
+    const copia = { ...nodo };
+
+    if (nodo.id === 'comites-especiales') {
+      copia.children = primero ? [primero] : [];
+    } else if (Array.isArray(nodo.children)) {
+      copia.children = nodo.children.map(clonar);
+    }
+
+    return copia;
+  };
+
+  return clonar(NATIONAL_LEADERSHIP_DATA);
 };
 
 export const REGIONAL_LEADERSHIP_DATA = {
