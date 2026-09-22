@@ -1,7 +1,7 @@
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 
 import {
   canEditMembers,
@@ -10,15 +10,15 @@ import {
   puedeEditarSuPropiaFicha,
 } from 'src/utils/member-access';
 
+import { obtenerIntegranteDelCuatrienioPorId } from 'src/services/directiva-cuatrienios-service';
 import {
   getMemberDirectoryMetadata,
+  getCachedMemberByIdentifier,
   getResolvedMemberByIdentifier,
 } from 'src/services/member-context-service';
-import { obtenerIntegranteDelCuatrienioPorId } from 'src/services/directiva-cuatrienios-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
 
-import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberCreateEditForm } from 'src/sections/member/member-create-edit-form';
 import { PerfilDirectivaNacional } from 'src/sections/national/cuatrienios/perfil-directiva-nacional';
 
@@ -51,6 +51,13 @@ export default function Page() {
   useEffect(() => {
     let cancelled = false;
 
+    const cachedMember = getCachedMemberByIdentifier(id);
+
+    if (cachedMember && !esPerfilHistorico) {
+      setCurrentMember(cachedMember);
+      setHydrated(true);
+    }
+
     const load = async () => {
       try {
         if (esPerfilHistorico) {
@@ -68,13 +75,19 @@ export default function Page() {
 
         const [metadata, member] = await Promise.all([
           getMemberDirectoryMetadata(),
-          getResolvedMemberByIdentifier(id, { includeMetadata: true, includePhoto: true }),
+          getResolvedMemberByIdentifier(id, { includeMetadata: true, includePhoto: false }),
         ]);
 
         if (cancelled) return;
 
         setAvailableDests(metadata?.dests || []);
         setCurrentMember(member);
+
+        void getResolvedMemberByIdentifier(id, { includeMetadata: true, includePhoto: true }).then(
+          (memberWithPhoto) => {
+            if (!cancelled && memberWithPhoto) setCurrentMember(memberWithPhoto);
+          }
+        );
       } finally {
         if (!cancelled) {
           setHydrated(true);
@@ -106,14 +119,12 @@ export default function Page() {
   }
 
   return (
-    <MemberEditLayout member={currentMember}>
-      <MemberCreateEditForm
-        currentMember={currentMember}
-        // Su propia ficha nunca se le enmascara, aunque no gestione miembros.
-        // Lo que cambie ahi va a aprobacion, no directo a la base de datos.
-        readOnly={!canManage && !puedeEditarSuPropiaFicha(user, currentMember)}
-        availableDests={availableDests}
-      />
-    </MemberEditLayout>
+    <MemberCreateEditForm
+      currentMember={currentMember}
+      // Su propia ficha nunca se le enmascara, aunque no gestione miembros.
+      // Lo que cambie ahi va a aprobacion, no directo a la base de datos.
+      readOnly={!canManage && !puedeEditarSuPropiaFicha(user, currentMember)}
+      availableDests={availableDests}
+    />
   );
 }

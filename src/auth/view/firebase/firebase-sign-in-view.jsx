@@ -237,8 +237,6 @@ export function FirebaseSignInView({ mode = 'member' }) {
         return;
       }
 
-      await checkUserSession?.();
-
       // Ya entro: si le habia pedido ayuda a su Coordinador, esa solicitud queda
       // atendida. Sin esperar, que no tiene por que retrasar la entrada.
       if (!isAdminMode) marcarRecuperacionAtendida();

@@ -23,7 +23,12 @@ const variantesDe = (valor) =>
 const buscarDocumentos = async (coleccion, usuario) => {
   const db = getAdminDb();
   const variantes = variantesDe(usuario);
-  const campos = ['codigoUsuario', 'codigoMiembro', 'username', 'uid'];
+  // El acceso administrativo usa normalmente `codigoUsuario` o `username`.
+  // Consultar todos los campos antiguos multiplicaba las lecturas antes de
+  // poder llamar a Firebase Auth.
+  const campos = coleccion === 'admins'
+    ? ['codigoUsuario', 'username', 'codigoMiembro']
+    : ['codigoUsuario', 'username', 'uid'];
   const consultas = [
     ...variantes.map((id) => db.collection(coleccion).doc(id).get()),
     ...campos.flatMap((campo) =>
@@ -54,6 +59,12 @@ const buscarDocumentos = async (coleccion, usuario) => {
 
 const correoAutorizadoDe = async (documento) => {
   const datos = documento?.data?.() ?? {};
+  // La mayoría de perfiles ya guarda el correo de Firebase. Evitar una lectura
+  // adicional de Auth acorta el acceso por usuario sin cambiar el resultado.
+  if (datos.correo || datos.email) {
+    return datos.correo || datos.email;
+  }
+
   const auth = getAdminAuth();
   const posiblesUid = [...new Set([datos.uid, datos.idUsuario, documento?.id].filter(Boolean))];
 

@@ -11,11 +11,14 @@ import {
   canViewMemberParentsTab,
 } from 'src/utils/member-access';
 
-import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
+import {
+  getCachedMemberByIdentifier,
+  getResolvedMemberByIdentifier,
+  getCachedResolvedMemberByIdentifier,
+} from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
 
-import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberEditParentsForm } from 'src/sections/member/parents/member-edit-parents-form';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -40,15 +43,34 @@ export default function Page() {
 
   useEffect(() => {
     let cancelled = false;
+    const cachedMember = getCachedMemberByIdentifier(id);
+    const cachedResolvedMember = getCachedResolvedMemberByIdentifier(id, {
+      includeMetadata: true,
+      includePhoto: false,
+    });
+
+    if (cachedResolvedMember) {
+      setCurrentMember(cachedResolvedMember);
+      setHydrated(true);
+    } else if (cachedMember) {
+      setCurrentMember(cachedMember);
+    }
 
     const load = async () => {
       try {
         const member = await getResolvedMemberByIdentifier(id, {
-          includeMetadata: false,
-          includePhoto: true,
+          includeMetadata: true,
+          includePhoto: false,
         });
 
         if (!cancelled) setCurrentMember(member);
+
+        void getResolvedMemberByIdentifier(id, {
+          includeMetadata: true,
+          includePhoto: true,
+        }).then((memberWithPhoto) => {
+          if (!cancelled && memberWithPhoto) setCurrentMember(memberWithPhoto);
+        });
       } finally {
         if (!cancelled) setHydrated(true);
       }
@@ -74,18 +96,16 @@ export default function Page() {
   }
 
   return (
-    <MemberEditLayout member={currentMember}>
-      {puedeVer && (
-        <MemberEditParentsForm
-          idMiembro={currentMember?.id ?? currentMember?.idMiembros ?? ''}
-          nombreDelMiembro={`${currentMember?.firstName ?? ''} ${currentMember?.lastName ?? ''}`.trim()}
-          usuario={user}
-          idDestacamento={currentMember?.destId ?? currentMember?.idDestacamento ?? null}
-          readOnly={!puedeEditar}
-          puedeEliminar={puedeEliminar}
-          puedePrellenarDesdeSalud={canViewHealth(user) && esDeSuAlcance}
-        />
-      )}
-    </MemberEditLayout>
+    puedeVer && (
+      <MemberEditParentsForm
+        idMiembro={currentMember?.id ?? currentMember?.idMiembros ?? ''}
+        nombreDelMiembro={`${currentMember?.firstName ?? ''} ${currentMember?.lastName ?? ''}`.trim()}
+        usuario={user}
+        idDestacamento={currentMember?.destId ?? currentMember?.idDestacamento ?? null}
+        readOnly={!puedeEditar}
+        puedeEliminar={puedeEliminar}
+        puedePrellenarDesdeSalud={canViewHealth(user) && esDeSuAlcance}
+      />
+    )
   );
 }

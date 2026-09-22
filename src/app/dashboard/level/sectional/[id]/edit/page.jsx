@@ -1,18 +1,13 @@
 import { CONFIG } from 'src/global-config';
 
 import { SectionalEditView } from 'src/sections/sectional/view';
-import { SectionalEditLayout } from 'src/sections/sectional/layout/sectional-edit-layout';
 
 export const metadata = { title: `Sectional edit | Dashboard - ${CONFIG.appName}` };
 
 export default async function Page({ params }) {
   const { id } = await params;
 
-  return (
-    <SectionalEditLayout>
-      <SectionalEditView sectionalId={id} />
-    </SectionalEditLayout>
-  );
+  return <SectionalEditView sectionalId={id} />;
 }
 
 // ----------------------------------------------------------------------

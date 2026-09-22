@@ -41,6 +41,7 @@ const buildMetadata = ({ dests = [], churches = [], regionals = [], sectionals =
 });
 
 let memberDirectoryMetadataPromise = null;
+const resolvedMemberCache = new Map();
 
 // La foto del destacamento SI, por defecto.
 //
@@ -82,6 +83,18 @@ export function findMemberByIdentifier(members, identifier) {
 export function getCachedMemberByIdentifier(identifier) {
   return findMemberByIdentifierInList(getCachedMembers(), identifier);
 }
+
+export function getCachedResolvedMemberByIdentifier(
+  identifier,
+  { includePhoto = true, includeMetadata = true } = {}
+) {
+  return resolvedMemberCache.get(
+    resolvedMemberCacheKey(identifier, includePhoto, includeMetadata)
+  ) || null;
+}
+
+const resolvedMemberCacheKey = (identifier, includePhoto, includeMetadata) =>
+  `${String(identifier ?? '')}:${includePhoto ? 'photo' : 'no-photo'}:${includeMetadata ? 'metadata' : 'no-metadata'}`;
 
 export function resolveMemberWithMetadata(member, metadata = null) {
   if (!member) {
@@ -128,6 +141,26 @@ export async function getResolvedMemberByIdentifier(
   identifier,
   { includePhoto = true, includeMetadata = false } = {}
 ) {
+  const cacheKey = resolvedMemberCacheKey(identifier, includePhoto, includeMetadata);
+  const cached = resolvedMemberCache.get(cacheKey);
+
+  if (cached) {
+    // Devuelve la ficha ya conocida y refresca silenciosamente para la próxima
+    // visita. El tab no vuelve a mostrar skeleton por esperar la red.
+    void loadResolvedMember(identifier, { includePhoto, includeMetadata }).then((fresh) => {
+      if (fresh) resolvedMemberCache.set(cacheKey, fresh);
+    });
+    return cached;
+  }
+
+  const resolved = await loadResolvedMember(identifier, { includePhoto, includeMetadata });
+
+  if (resolved) resolvedMemberCache.set(cacheKey, resolved);
+
+  return resolved;
+}
+
+async function loadResolvedMember(identifier, { includePhoto, includeMetadata }) {
   const [members, metadata] = await Promise.all([
     getMembers(),
     includeMetadata ? getMemberDirectoryMetadata() : Promise.resolve(null),
@@ -153,4 +186,8 @@ export async function getResolvedMemberByIdentifier(
     ...resolvedMember,
     avatarUrl: memberPhoto?.urlFoto || resolvedMember?.avatarUrl || member?.avatarUrl || null,
   };
+}
+
+export function clearResolvedMemberCache() {
+  resolvedMemberCache.clear();
 }

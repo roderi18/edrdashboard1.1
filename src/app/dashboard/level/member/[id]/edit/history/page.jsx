@@ -6,12 +6,15 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { canViewMemberHistoryTab } from 'src/utils/member-access';
 
-import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
 import { obtenerIntegranteDelCuatrienioPorId } from 'src/services/directiva-cuatrienios-service';
+import {
+  getCachedMemberByIdentifier,
+  getResolvedMemberByIdentifier,
+  getCachedResolvedMemberByIdentifier,
+} from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
 
-import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberHistoryLog } from 'src/sections/member/history/member-history-log';
 import { PerfilDirectivaNacional } from 'src/sections/national/cuatrienios/perfil-directiva-nacional';
 
@@ -149,6 +152,18 @@ export default function Page() {
 
   useEffect(() => {
     let cancelled = false;
+    const cachedMember = getCachedMemberByIdentifier(id);
+    const cachedResolvedMember = getCachedResolvedMemberByIdentifier(id, {
+      includeMetadata: true,
+      includePhoto: false,
+    });
+
+    if (!esPerfilHistorico && cachedResolvedMember) {
+      setCurrentMember(cachedResolvedMember);
+      setHydrated(true);
+    } else if (cachedMember && !esPerfilHistorico) {
+      setCurrentMember(cachedMember);
+    }
 
     const load = async () => {
       try {
@@ -166,7 +181,7 @@ export default function Page() {
         }
 
         const member = await getResolvedMemberByIdentifier(id, {
-          includeMetadata: false,
+          includeMetadata: true,
           includePhoto: false,
         });
 
@@ -202,20 +217,18 @@ export default function Page() {
   // Sin acceso al Historial (p. ej. el Director Nacional): tabs y aviso de
   // "información oculta" (con solicitud de acceso) visibles, pero sin el contenido.
   if (!canViewMemberHistoryTab(user, currentMember)) {
-    return <MemberEditLayout member={currentMember} />;
+    return null;
   }
 
   return (
-    <MemberEditLayout member={currentMember}>
-      <MemberHistoryLog
-        memberId={memberId}
-        memberName={memberName}
-        demoLogs={
-          isLocalhost() && isLocalDemoMember(currentMember, id)
-            ? getLocalDemoHistoryLogs(memberName)
-            : []
-        }
-      />
-    </MemberEditLayout>
+    <MemberHistoryLog
+      memberId={memberId}
+      memberName={memberName}
+      demoLogs={
+        isLocalhost() && isLocalDemoMember(currentMember, id)
+          ? getLocalDemoHistoryLogs(memberName)
+          : []
+      }
+    />
   );
 }

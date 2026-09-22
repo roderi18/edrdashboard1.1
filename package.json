@@ -127,6 +127,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@svgr/webpack": "^8.1.0",
+    "baseline-browser-mapping": "^2.11.25",
     "eslint": "^9.39.2",
     "eslint-import-resolver-alias": "^1.1.2",
     "eslint-plugin-import": "^2.32.0",

@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from 'react';
 
-import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 import { useParams, usePathname } from 'src/routes/hooks';
 
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -18,6 +16,7 @@ import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
+import { OrganizationalTab } from 'src/sections/common/organizational-tab';
 
 // ----------------------------------------------------------------------
 
@@ -27,6 +26,8 @@ export function SectionalEditLayout({ children, tituloPrefijo = '', ...other }) 
   const pathname = usePathname();
   const params = useParams();
   const sectionalId = params?.id;
+  const tituloPrefijoActual =
+    tituloPrefijo || (pathname.endsWith('/dests') ? 'Destacamentos de la Sección' : '');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [sectionalName, setSectionalName] = useState('Sección');
@@ -42,7 +43,7 @@ export function SectionalEditLayout({ children, tituloPrefijo = '', ...other }) 
     }
   }, [sectionalId]);
 
-  const titulo = [tituloPrefijo, sectionalName].filter(Boolean).join(' ');
+  const titulo = [tituloPrefijoActual, sectionalName].filter(Boolean).join(' ');
 
   const currentPath = pathname.replace(/\/$/, '');
   const editHref = paths.dashboard.level.sectional.edit(sectionalId);
@@ -85,17 +86,13 @@ export function SectionalEditLayout({ children, tituloPrefijo = '', ...other }) 
 
     >
     <DashboardContent {...other}>
-      {tituloPrefijo && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
+      {tituloPrefijoActual && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
 
       <Tabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
         {navItems.map((tab) => (
-          <Tab
-            component={RouterLink}
+          <OrganizationalTab
             key={tab.href}
-            label={tab.label}
-            icon={tab.icon}
-            value={tab.href}
-            href={tab.href}
+            tab={tab}
           />
         ))}
       </Tabs>

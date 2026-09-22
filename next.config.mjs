@@ -121,6 +121,9 @@ const nextConfig = {
 
   // With --turbopack (next dev --turbopack)
   turbopack: {
+    // Evita que Turbopack tome el package-lock del directorio padre como raíz
+    // y mezcle módulos durante las actualizaciones HMR.
+    root: process.cwd(),
     rules: {
       '*.svg': {
         loaders: ['@svgr/webpack'],

@@ -1,7 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
 import { RegionalEditView } from 'src/sections/regional/view';
-import { RegionalEditLayout } from 'src/sections/regional/layout/regional-edit-layout';
 
 // ----------------------------------------------------------------------
 
@@ -12,9 +11,5 @@ export const metadata = {
 export default async function Page({ params }) {
   const { id } = await params;
 
-  return (
-    <RegionalEditLayout>
-      <RegionalEditView id={id} />
-    </RegionalEditLayout>
-  );
+  return <RegionalEditView id={id} />;
 }

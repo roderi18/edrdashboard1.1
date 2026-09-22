@@ -67,7 +67,6 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
-import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
 import { RETARDO_ASIGNACION_MS } from 'src/sections/common/use-leadership-assignments';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
 import {
@@ -1480,8 +1479,7 @@ export default function Page() {
   };
 
   return (
-    <DestEditLayout>
-      <Box
+    <Box
         ref={chartCaptureRef}
         aria-label="Mover organigrama"
         onPointerDown={handlePointerDown}
@@ -1798,8 +1796,6 @@ export default function Page() {
             mostrarMargenHorizontal
           />
         )}
-      </Box>
-
       <Dialog open={!!selectedNode} onClose={handleCloseChangeMember} fullWidth maxWidth="xs">
         <DialogTitle>
           {selectedNode?.miembroAsignado ? 'Cambiar miembro' : 'Asignar miembro'}
@@ -1999,6 +1995,6 @@ export default function Page() {
         palabra="Remover"
         confirmLabel="Remover"
       />
-    </DestEditLayout>
+    </Box>
   );
 }

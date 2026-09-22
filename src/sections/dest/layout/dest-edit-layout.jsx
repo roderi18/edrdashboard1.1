@@ -3,13 +3,11 @@
 
 import { useState, useEffect } from 'react';
 
-import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 import { useParams, usePathname } from 'src/routes/hooks';
 
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -18,6 +16,7 @@ import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
+import { OrganizationalTab } from 'src/sections/common/organizational-tab';
 
 // Los títulos descriptivos de listas anidadas incluyen el nombre del
 // destacamento. Las pantallas generales no necesitan un encabezado "Editar".
@@ -26,6 +25,8 @@ export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
     const pathname = usePathname();
     const params = useParams();
     const destId = params?.id;
+    const tituloPrefijoActual =
+        tituloPrefijo || (pathname.endsWith('/members') ? 'Miembros Dest.' : '');
 
     const [dest, setDest] = useState(null);
 
@@ -46,7 +47,7 @@ export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
     // mejor que uno con un hueco al final.
     const destNumber = String(dest?.numero ?? dest?.destNumber ?? '').trim();
     const destNombreCompleto = [destName, destNumber].filter(Boolean).join(' ').trim();
-    const titulo = [tituloPrefijo, destNombreCompleto].filter(Boolean).join(' ');
+    const titulo = [tituloPrefijoActual, destNombreCompleto].filter(Boolean).join(' ');
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -98,17 +99,13 @@ export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
       >
         <DashboardContent {...other}>
 
-            {tituloPrefijo && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
+            {tituloPrefijoActual && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
 
             <Tabs value={pathname.replace(/\/$/, '')} sx={{ mb: { xs: 3, md: 5 } }}>                {NAV_ITEMS.map((tab) => (
 
-                <Tab
-                    component={RouterLink}
+                <OrganizationalTab
                     key={tab.href}
-                    label={tab.label}
-                    icon={tab.icon}
-                    value={tab.href}
-                    href={tab.href}
+                    tab={tab}
                 />
             ))}
             </Tabs>

@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { removeLastSlash } from 'minimal-shared/utils';
 
-import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 import { useParams, useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
@@ -18,10 +16,15 @@ import {
 } from 'src/utils/member-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
+import {
+  getResolvedMemberByIdentifier,
+  getCachedResolvedMemberByIdentifier,
+} from 'src/services/member-context-service';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { OrganizationalTab } from 'src/sections/common/organizational-tab';
 import { MemberSensitiveInfoBanner } from 'src/sections/member/member-sensitive-info-banner';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -35,9 +38,63 @@ export function MemberEditLayout({ children, member = null, ...other }) {
   const router = useRouter();
   const params = useParams();
   const memberId = params?.id;
+  const [resolvedMember, setResolvedMember] = useState(member);
+
+  useEffect(() => {
+    if (member) {
+      setResolvedMember(member);
+      return undefined;
+    }
+
+    const cachedMember = getCachedResolvedMemberByIdentifier(memberId, {
+      includeMetadata: true,
+      includePhoto: false,
+    });
+
+    if (cachedMember) {
+      setResolvedMember(cachedMember);
+    }
+
+    let cancelled = false;
+
+    const loadMember = async () => {
+      const loadedMember =
+        cachedMember ||
+        (await getResolvedMemberByIdentifier(memberId, {
+          includeMetadata: true,
+          includePhoto: false,
+        }));
+
+      if (!cancelled && loadedMember) setResolvedMember(loadedMember);
+
+      const memberWithPhoto = await getResolvedMemberByIdentifier(memberId, {
+        includeMetadata: true,
+        includePhoto: true,
+      });
+
+      if (!cancelled && memberWithPhoto) setResolvedMember(memberWithPhoto);
+    };
+
+    void loadMember();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [member, memberId]);
+
+  const currentMember = member || resolvedMember;
   const vieneDeConsejoNacional = searchParams?.get('origen') === 'consejo-nacional';
-  const memberCode = member?.memberId || member?.codigoMiembro || memberId;
-  const memberName = getMemberFullName(member) || member?.name || memberCode || 'Miembro';
+  const memberCode = currentMember?.memberId || currentMember?.codigoMiembro || memberId;
+  const memberName = getMemberFullName(currentMember) || currentMember?.name || memberCode || 'Miembro';
+  const destacamentoLabel = [
+    currentMember?.destName || currentMember?.destacamentoName || currentMember?.nombreDestacamento,
+    currentMember?.destNumber || currentMember?.numeroDestacamento || currentMember?.number,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const memberHeading = destacamentoLabel
+    ? `Miembro de Dest. ${destacamentoLabel}`
+    : 'Miembro';
   const canonicalMemberSegment = encodeURIComponent(String(memberCode || memberId || ''));
   const currentMemberSegment = `/member/${memberId}/`;
   const nextMemberSegment = `/member/${canonicalMemberSegment}/`;
@@ -105,7 +162,7 @@ export function MemberEditLayout({ children, member = null, ...other }) {
   return (
     <DashboardContent {...other}>
       <CustomBreadcrumbs
-        heading={null}
+        heading={memberHeading}
         links={[
           { name: 'Panel', href: paths.dashboard.root },
           vieneDeConsejoNacional
@@ -119,12 +176,9 @@ export function MemberEditLayout({ children, member = null, ...other }) {
 
       <Tabs value={removeLastSlash(canonicalPathname)} sx={{ mb: { xs: 3, md: 5 } }}>
         {NAV_ITEMS.map((tab) => (
-          <Tab
-            component={RouterLink}
+          <OrganizationalTab
             key={tab.href}
-            label={tab.label}
-            icon={tab.icon}
-            value={tab.href}
+            tab={tab}
             href={
               vieneDeConsejoNacional
                 ? `${tab.href}?origen=consejo-nacional`
@@ -134,7 +188,7 @@ export function MemberEditLayout({ children, member = null, ...other }) {
         ))}
       </Tabs>
 
-      <MemberSensitiveInfoBanner member={member} />
+      <MemberSensitiveInfoBanner member={currentMember} />
 
       {children}
     </DashboardContent>

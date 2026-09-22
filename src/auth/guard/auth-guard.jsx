@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react';
 import { paths } from 'src/routes/paths';
 import { useRouter, usePathname } from 'src/routes/hooks';
 
+import { AUTH } from 'src/lib/firebase';
+
 import { SplashScreen } from 'src/components/loading-screen';
 
 import { useAuthContext } from '../hooks';
@@ -23,6 +25,10 @@ export function AuthGuard({ children }) {
   const { user, authenticated, loading } = useAuthContext();
 
   const [isChecking, setIsChecking] = useState(true);
+  // Firebase ya validó las credenciales, aunque el perfil y los permisos aún
+  // estén llegando al contexto. En ese intervalo no se debe volver a Login:
+  // hacerlo producía el destello de la pantalla vacía de acceso al entrar.
+  const firebaseSessionPending = Boolean(AUTH?.currentUser);
 
   const checkPermissions = () => {
     if (loading) {
@@ -30,6 +36,10 @@ export function AuthGuard({ children }) {
     }
 
     if (!authenticated) {
+      if (firebaseSessionPending) {
+        return;
+      }
+
       const redirectPath = new URLSearchParams({ returnTo: pathname }).toString();
       const signInPath = getRedirectPath(pathname);
 
@@ -51,7 +61,7 @@ export function AuthGuard({ children }) {
   useEffect(() => {
     checkPermissions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated, loading, pathname, user?.debeCambiarClave]);
+  }, [authenticated, firebaseSessionPending, loading, pathname, user?.debeCambiarClave]);
 
   if (isChecking || loading) {
     return (

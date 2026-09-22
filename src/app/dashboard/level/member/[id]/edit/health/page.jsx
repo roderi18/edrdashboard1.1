@@ -5,11 +5,14 @@ import { useParams } from 'next/navigation';
 
 import { canEditHealth, esMiembroDeSuAlcance } from 'src/utils/member-access';
 
-import { getResolvedMemberByIdentifier } from 'src/services/member-context-service';
+import {
+  getCachedMemberByIdentifier,
+  getResolvedMemberByIdentifier,
+  getCachedResolvedMemberByIdentifier,
+} from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
 
-import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
 import { MemberEditHealthForm } from 'src/sections/member/member-edit-health-form';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -29,17 +32,36 @@ export default function Page() {
 
   useEffect(() => {
     let cancelled = false;
+    const cachedMember = getCachedMemberByIdentifier(id);
+    const cachedResolvedMember = getCachedResolvedMemberByIdentifier(id, {
+      includeMetadata: true,
+      includePhoto: false,
+    });
+
+    if (cachedResolvedMember) {
+      setCurrentMember(cachedResolvedMember);
+      setHydrated(true);
+    } else if (cachedMember) {
+      setCurrentMember(cachedMember);
+    }
 
     const load = async () => {
       try {
         const member = await getResolvedMemberByIdentifier(id, {
-          includeMetadata: false,
-          includePhoto: true,
+          includeMetadata: true,
+          includePhoto: false,
         });
 
         if (!cancelled) {
           setCurrentMember(member);
         }
+
+        void getResolvedMemberByIdentifier(id, {
+          includeMetadata: true,
+          includePhoto: true,
+        }).then((memberWithPhoto) => {
+          if (!cancelled && memberWithPhoto) setCurrentMember(memberWithPhoto);
+        });
       } finally {
         if (!cancelled) {
           setHydrated(true);
@@ -66,9 +88,5 @@ export default function Page() {
     return <div>Miembro no encontrado</div>;
   }
 
-  return (
-    <MemberEditLayout member={currentMember}>
-      <MemberEditHealthForm currentMember={currentMember} readOnly={!canManage} />
-    </MemberEditLayout>
-  );
+  return <MemberEditHealthForm currentMember={currentMember} readOnly={!canManage} />;
 }

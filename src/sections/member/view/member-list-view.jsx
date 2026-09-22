@@ -994,7 +994,7 @@ export function MemberListView({ destId = null }) {
         <CustomBreadcrumbs
           heading={
             mostrarFiltroSoloDestacamento && soloMiembrosDestActivo
-              ? `Miembros Dest. ${etiquetaDestacamentoPropio}`
+              ? `Miembro de Dest. ${etiquetaDestacamentoPropio}`
               : memberDestLabel
                 ? `Lista de miembros de ${memberDestLabel}`
                 : 'Lista de miembros'

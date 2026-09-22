@@ -2,7 +2,6 @@ import { CONFIG } from 'src/global-config';
 import { _nationalList } from 'src/_mock/_national';
 
 import { NationalEditView } from 'src/sections/national/view';
-import { NationalEditLayout } from 'src/sections/national/layout/national-edit-layout';
 
 // ----------------------------------------------------------------------
 
@@ -13,11 +12,7 @@ export default async function Page({ params }) {
 
   const currentNational = _nationalList.find((national) => national.id === id);
 
-  return (
-    <NationalEditLayout>
-      <NationalEditView national={currentNational} />
-    </NationalEditLayout>
-  );
+  return <NationalEditView national={currentNational} />;
 }
 
 // ----------------------------------------------------------------------

@@ -35,6 +35,15 @@ export async function resolverCorreosDeMiembroPorNumero(numeroEscrito) {
 
   if (!numero) return [];
 
+  const cacheKey = `firebase-member-email:${numero}`;
+
+  try {
+    const cachedEmail = window.localStorage.getItem(cacheKey);
+    if (cachedEmail) return [cachedEmail];
+  } catch {
+    // El almacenamiento puede estar bloqueado en modo privado.
+  }
+
   try {
     const correo = await fetch('/api/auth/correo-acceso/', {
       // No cambia nada: es una consulta. Va por POST para no llevar el numero
@@ -46,6 +55,14 @@ export async function resolverCorreosDeMiembroPorNumero(numeroEscrito) {
     })
       .then((respuesta) => respuesta.json())
       .then((datos) => String(datos?.correo || '').trim());
+
+    if (correo) {
+      try {
+        window.localStorage.setItem(cacheKey, correo);
+      } catch {
+        // El almacenamiento puede estar bloqueado en modo privado.
+      }
+    }
 
     return correo ? [correo] : [];
   } catch {

@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
 import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 
@@ -43,12 +44,17 @@ export function FotoDeMiembro({
   const entrada = useRef(null);
   const [ampliada, setAmpliada] = useState(false);
   const [porRecortar, setPorRecortar] = useState(null);
+  const [imagenCargando, setImagenCargando] = useState(Boolean(url));
   const iniciales = String(nombre)
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((parte) => parte[0]?.toUpperCase() ?? '')
     .join('');
+
+  useEffect(() => {
+    setImagenCargando(Boolean(url));
+  }, [url]);
 
   const alElegirArchivo = (evento) => {
     const archivo = evento.target.files?.[0];
@@ -82,10 +88,24 @@ export function FotoDeMiembro({
                 cursor: url ? 'pointer' : 'default',
               }}
             >
+              {imagenCargando && (
+                <Skeleton
+                  variant="circular"
+                  animation="wave"
+                  sx={{ inset: 0, position: 'absolute', width: 1, height: 1 }}
+                />
+              )}
               <Avatar
                 src={url || undefined}
                 alt={nombre}
-                sx={{ width: 1, height: 1, fontSize: tamano / 3.5 }}
+                onLoad={() => setImagenCargando(false)}
+                onError={() => setImagenCargando(false)}
+                sx={{
+                  width: 1,
+                  height: 1,
+                  fontSize: tamano / 3.5,
+                  opacity: imagenCargando ? 0 : 1,
+                }}
               >
                 {iniciales}
               </Avatar>

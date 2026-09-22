@@ -1,6 +1,5 @@
 import { CONFIG } from 'src/global-config';
 
-import { DestEditLayout } from 'src/sections/dest/layout/dest-edit-layout';
 import { DestMembersView } from 'src/sections/dest/members/dest-members-view';
 
 // ----------------------------------------------------------------------
@@ -10,9 +9,5 @@ export const metadata = {
 };
 
 export default function Page() {
-  return (
-    <DestEditLayout tituloPrefijo="Miembros Dest.">
-      <DestMembersView />
-    </DestEditLayout>
-  );
+  return <DestMembersView />;
 }
