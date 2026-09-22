@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { removeLastSlash } from 'minimal-shared/utils';
 
-import Tabs from '@mui/material/Tabs';
-
 import { paths } from 'src/routes/paths';
 import { useParams, useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
@@ -25,6 +23,7 @@ import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { OrganizationalTab } from 'src/sections/common/organizational-tab';
+import { OrganizationalTabs } from 'src/sections/common/organizational-tabs';
 import { MemberSensitiveInfoBanner } from 'src/sections/member/member-sensitive-info-banner';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -174,10 +173,11 @@ export function MemberEditLayout({ children, member = null, ...other }) {
         sx={{ mb: 3 }}
       />
 
-      <Tabs value={removeLastSlash(canonicalPathname)} sx={{ mb: { xs: 3, md: 5 } }}>
+      <OrganizationalTabs value={removeLastSlash(canonicalPathname)} sx={{ mb: { xs: 3, md: 5 } }}>
         {NAV_ITEMS.map((tab) => (
           <OrganizationalTab
             key={tab.href}
+            value={tab.href}
             tab={tab}
             href={
               vieneDeConsejoNacional
@@ -186,7 +186,7 @@ export function MemberEditLayout({ children, member = null, ...other }) {
             }
           />
         ))}
-      </Tabs>
+      </OrganizationalTabs>
 
       <MemberSensitiveInfoBanner member={currentMember} />
 

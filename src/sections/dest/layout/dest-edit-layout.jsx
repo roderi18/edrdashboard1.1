@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 
-import Tabs from '@mui/material/Tabs';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
@@ -17,6 +16,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
 import { OrganizationalTab } from 'src/sections/common/organizational-tab';
+import { OrganizationalTabs } from 'src/sections/common/organizational-tabs';
 
 // Los títulos descriptivos de listas anidadas incluyen el nombre del
 // destacamento. Las pantallas generales no necesitan un encabezado "Editar".
@@ -101,14 +101,16 @@ export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
 
             {tituloPrefijoActual && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
 
-            <Tabs value={pathname.replace(/\/$/, '')} sx={{ mb: { xs: 3, md: 5 } }}>                {NAV_ITEMS.map((tab) => (
+            <OrganizationalTabs value={pathname.replace(/\/$/, '')} sx={{ mb: { xs: 3, md: 5 } }}>
+                {NAV_ITEMS.map((tab) => (
 
                 <OrganizationalTab
                     key={tab.href}
+                    value={tab.href}
                     tab={tab}
                 />
             ))}
-            </Tabs>
+            </OrganizationalTabs>
 
             {children}
 

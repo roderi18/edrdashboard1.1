@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 
-import Tabs from '@mui/material/Tabs';
 import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import AlertTitle from '@mui/material/AlertTitle';
@@ -24,6 +23,7 @@ import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { OrganizationalTab } from 'src/sections/common/organizational-tab';
+import { OrganizationalTabs } from 'src/sections/common/organizational-tabs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -150,14 +150,15 @@ export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
     <DashboardContent {...other}>
       {tituloPrefijoActual && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
 
-      <Tabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
+      <OrganizationalTabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
         {navItems.map((tab) => (
           <OrganizationalTab
             key={tab.href}
+            value={tab.href}
             tab={tab}
           />
         ))}
-      </Tabs>
+      </OrganizationalTabs>
 
       {children}
     </DashboardContent>

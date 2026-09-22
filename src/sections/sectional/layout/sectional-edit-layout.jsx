@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 
-import Tabs from '@mui/material/Tabs';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
@@ -17,6 +16,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
 import { OrganizationalTab } from 'src/sections/common/organizational-tab';
+import { OrganizationalTabs } from 'src/sections/common/organizational-tabs';
 
 // ----------------------------------------------------------------------
 
@@ -88,14 +88,15 @@ export function SectionalEditLayout({ children, tituloPrefijo = '', ...other }) 
     <DashboardContent {...other}>
       {tituloPrefijoActual && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
 
-      <Tabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
+      <OrganizationalTabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
         {navItems.map((tab) => (
           <OrganizationalTab
             key={tab.href}
+            value={tab.href}
             tab={tab}
           />
         ))}
-      </Tabs>
+      </OrganizationalTabs>
 
       {children}
     </DashboardContent>

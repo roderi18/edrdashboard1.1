@@ -1,7 +1,5 @@
 'use client';
 
-import Tabs from '@mui/material/Tabs';
-
 import { paths } from 'src/routes/paths';
 import { useParams, usePathname } from 'src/routes/hooks';
 
@@ -10,6 +8,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 
 import { OrganizationalTab } from 'src/sections/common/organizational-tab';
+import { OrganizationalTabs } from 'src/sections/common/organizational-tabs';
 
 
 // ----------------------------------------------------------------------
@@ -40,14 +39,15 @@ export function NationalEditLayout({ children, ...other }) {
 
   return (
     <DashboardContent {...other}>
-      <Tabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
+      <OrganizationalTabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
         {navItems.map((tab) => (
           <OrganizationalTab
             key={tab.href}
+            value={tab.href}
             tab={tab}
           />
         ))}
-      </Tabs>
+      </OrganizationalTabs>
 
       {children}
     </DashboardContent>
