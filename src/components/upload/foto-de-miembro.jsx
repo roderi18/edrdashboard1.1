@@ -10,6 +10,11 @@ import Skeleton from '@mui/material/Skeleton';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 
+import {
+  recordarImagenDelPerfil,
+  imagenDelPerfilYaResuelta,
+} from 'src/utils/cache-visual-perfil-miembro.mjs';
+
 import { Iconify } from 'src/components/iconify';
 
 import { RecorteDeFoto } from './recorte-de-foto';
@@ -44,7 +49,9 @@ export function FotoDeMiembro({
   const entrada = useRef(null);
   const [ampliada, setAmpliada] = useState(false);
   const [porRecortar, setPorRecortar] = useState(null);
-  const [imagenCargando, setImagenCargando] = useState(Boolean(url));
+  const [imagenCargando, setImagenCargando] = useState(
+    () => Boolean(url) && !imagenDelPerfilYaResuelta(url)
+  );
   const iniciales = String(nombre)
     .split(/\s+/)
     .filter(Boolean)
@@ -53,7 +60,33 @@ export function FotoDeMiembro({
     .join('');
 
   useEffect(() => {
-    setImagenCargando(Boolean(url));
+    if (!url) {
+      setImagenCargando(false);
+      return undefined;
+    }
+
+    if (imagenDelPerfilYaResuelta(url)) {
+      setImagenCargando(false);
+      return undefined;
+    }
+
+    let activa = true;
+    const imagen = new Image();
+    const terminarCarga = () => {
+      recordarImagenDelPerfil(url);
+      if (activa) setImagenCargando(false);
+    };
+
+    setImagenCargando(true);
+    imagen.onload = terminarCarga;
+    imagen.onerror = terminarCarga;
+    imagen.src = url;
+
+    return () => {
+      activa = false;
+      imagen.onload = null;
+      imagen.onerror = null;
+    };
   }, [url]);
 
   const alElegirArchivo = (evento) => {
@@ -98,8 +131,6 @@ export function FotoDeMiembro({
               <Avatar
                 src={url || undefined}
                 alt={nombre}
-                onLoad={() => setImagenCargando(false)}
-                onError={() => setImagenCargando(false)}
                 sx={{
                   width: 1,
                   height: 1,

@@ -179,6 +179,7 @@ export function MemberEditLayout({ children, member = null, ...other }) {
           <OrganizationalTab
             key={tab.href}
             tab={tab}
+            value={tab.href}
             href={
               vieneDeConsejoNacional
                 ? `${tab.href}?origen=consejo-nacional`

@@ -14,6 +14,12 @@ import { keyframes } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
 import {
+  recordarImagenDelPerfil,
+  imagenDelPerfilYaResuelta,
+  recordarInsigniasDelPerfil,
+  leerInsigniasDelPerfilEnCache,
+} from 'src/utils/cache-visual-perfil-miembro.mjs';
+import {
   AJUSTES_MEDALLA,
   MAXIMO_MEDALLAS,
   ordenarMedallas,
@@ -166,14 +172,25 @@ export function EsqueletoDeMedallas({
  */
 export function useMedallasDelMiembro(idMiembros) {
   const id = String(Number(idMiembros) || '');
-  const [leidas, setLeidas] = useState({ idLeido: '', medallas: [] });
+  const [leidas, setLeidas] = useState(() => {
+    const medallasEnCache = leerInsigniasDelPerfilEnCache('medallas', id);
+
+    return medallasEnCache === undefined
+      ? { idLeido: '', medallas: [] }
+      : { idLeido: id, medallas: medallasEnCache };
+  });
 
   useEffect(() => {
     if (!id) return undefined;
 
     return onSnapshot(
       referenciaDeMedallas(id),
-      (instantanea) => setLeidas({ idLeido: id, medallas: instantanea.data()?.medallas ?? [] }),
+      (instantanea) => {
+        const medallas = instantanea.data()?.medallas ?? [];
+
+        recordarInsigniasDelPerfil('medallas', id, medallas);
+        setLeidas({ idLeido: id, medallas });
+      },
       (error) => {
         // Sin permiso o sin red el perfil sigue pintándose, solo que sin medallas.
         console.error('[medallas] no se pudieron leer', error);
@@ -182,7 +199,12 @@ export function useMedallasDelMiembro(idMiembros) {
     );
   }, [id]);
 
-  return { cargando: leidas.idLeido !== id, medallas: leidas.medallas };
+  const medallasEnCache = leerInsigniasDelPerfilEnCache('medallas', id);
+
+  return {
+    cargando: leidas.idLeido !== id && medallasEnCache === undefined,
+    medallas: leidas.idLeido === id ? leidas.medallas : (medallasEnCache ?? []),
+  };
 }
 
 // ----------------------------------------------------------------------
@@ -295,8 +317,12 @@ export function ImagenDeMedalla({
   intensidadBrillo = 1,
   sx,
 }) {
-  const [cargada, setCargada] = useState(false);
   const src = pequena ? medalla.srcPequena || medalla.src : medalla.src;
+  const [cargada, setCargada] = useState(() => imagenDelPerfilYaResuelta(src));
+  const marcarCargada = () => {
+    recordarImagenDelPerfil(src);
+    setCargada(true);
+  };
   const desfase = desfaseDeMedalla(medalla.id);
   const movimiento = normalizarMovimientoMedalla(efectoMovimiento);
   const brillo = normalizarBrilloMedalla(efectoBrillo);
@@ -365,10 +391,10 @@ export function ImagenDeMedalla({
         decoding="async"
         draggable={false}
         ref={(nodo) => {
-          if (nodo?.complete && nodo.naturalWidth && !cargada) setCargada(true);
+          if (nodo?.complete && nodo.naturalWidth && !cargada) marcarCargada();
         }}
-        onLoad={() => setCargada(true)}
-        onError={() => setCargada(true)}
+        onLoad={marcarCargada}
+        onError={marcarCargada}
         sx={{
           width: 1,
           display: 'block',

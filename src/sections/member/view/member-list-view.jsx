@@ -9,12 +9,10 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 
 import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
@@ -59,7 +57,6 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   emptyRows,
   rowInPage,
@@ -72,6 +69,8 @@ import {
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-delete';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
+import { OrganizationalCreateButton } from 'src/sections/common/organizational-create-button';
+import { OrganizationalListBreadcrumbs } from 'src/sections/common/organizational-list-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { PERMISOS, puedeModificar } from 'src/auth/permissions';
@@ -991,7 +990,8 @@ export function MemberListView({ destId = null }) {
   return (
     <>
       <DashboardContent>
-        <CustomBreadcrumbs
+        <OrganizationalListBreadcrumbs
+          nivel="member"
           heading={
             mostrarFiltroSoloDestacamento && soloMiembrosDestActivo
               ? `Miembro de Dest. ${etiquetaDestacamentoPropio}`
@@ -1001,14 +1001,10 @@ export function MemberListView({ destId = null }) {
           }
           action={
             memberCanManage ? (
-              <Button
-                component={RouterLink}
+              <OrganizationalCreateButton
                 href={paths.dashboard.level.member.new}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                Crear nuevo
-              </Button>
+                ariaLabel="Crear nuevo miembro"
+              />
             ) : null
           }
           sx={{ mb: { xs: 3, md: 5 } }}

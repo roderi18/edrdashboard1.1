@@ -45,6 +45,7 @@ export function NationalEditLayout({ children, ...other }) {
           <OrganizationalTab
             key={tab.href}
             tab={tab}
+            value={tab.href}
           />
         ))}
       </Tabs>

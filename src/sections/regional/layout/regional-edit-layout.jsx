@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 
-import Tabs from '@mui/material/Tabs';
 import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import AlertTitle from '@mui/material/AlertTitle';
@@ -23,7 +22,7 @@ import { getSectionals } from 'src/services/sectional-service';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { OrganizationalTab } from 'src/sections/common/organizational-tab';
+import { OrganizationalProfileNavigation } from 'src/sections/common/organizational-profile-navigation';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -31,13 +30,11 @@ import { useAuthContext } from 'src/auth/hooks';
 
 // Los títulos descriptivos de listas anidadas incluyen el nombre de la región.
 // Las pantallas generales no necesitan un encabezado "Editar".
-export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
+export function RegionalEditLayout({ children, ...other }) {
   const pathname = usePathname();
   const params = useParams();
   const { user } = useAuthContext();
   const regionalId = params?.id;
-  const tituloPrefijoActual =
-    tituloPrefijo || (pathname.endsWith('/sections') ? 'Secciones de la Región' : '');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [regionalName, setRegionalName] = useState('Región');
@@ -101,8 +98,6 @@ export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
   const leadershipHref = `/dashboard/level/regional/${regionalId}/edit/leadership`;
   const sectionsHref = `/dashboard/level/regional/${regionalId}/edit/sections`;
 
-  const titulo = [tituloPrefijoActual, regionalName].filter(Boolean).join(' ');
-
   const navItems = [
     {
       label: 'General',
@@ -148,16 +143,13 @@ export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
 
   return (
     <DashboardContent {...other}>
-      {tituloPrefijoActual && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
-
-      <Tabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
-        {navItems.map((tab) => (
-          <OrganizationalTab
-            key={tab.href}
-            tab={tab}
-          />
-        ))}
-      </Tabs>
+      <OrganizationalProfileNavigation
+        heading={regionalName}
+        nivel="Regiones"
+        nivelHref={paths.dashboard.level.regional.root}
+        tabs={navItems}
+        value={currentPath}
+      />
 
       {children}
     </DashboardContent>

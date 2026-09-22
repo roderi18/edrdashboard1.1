@@ -1,11 +1,6 @@
 'use client';
 
-
 import { useState, useEffect } from 'react';
-
-import Tabs from '@mui/material/Tabs';
-import { useTheme } from '@mui/material/styles';
-import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { paths } from 'src/routes/paths';
 import { useParams, usePathname } from 'src/routes/hooks';
@@ -13,21 +8,17 @@ import { useParams, usePathname } from 'src/routes/hooks';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
-import { OrganizationalTab } from 'src/sections/common/organizational-tab';
+import { OrganizationalProfileNavigation } from 'src/sections/common/organizational-profile-navigation';
 
 // Los títulos descriptivos de listas anidadas incluyen el nombre del
 // destacamento. Las pantallas generales no necesitan un encabezado "Editar".
-export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
+export function DestEditLayout({ children, ...other }) {
 
     const pathname = usePathname();
     const params = useParams();
     const destId = params?.id;
-    const tituloPrefijoActual =
-        tituloPrefijo || (pathname.endsWith('/members') ? 'Miembros Dest.' : '');
-
     const [dest, setDest] = useState(null);
 
     useEffect(() => {
@@ -42,16 +33,11 @@ export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
         load();
     }, [destId]);
 
-    const destName = dest ? dest.nombre : 'Destacamento';
+    const destName = dest ? dest.nombre || dest.name : 'Destacamento';
     // El numero solo si lo tiene: un "Destacamento Tribu de Judá" a secas se lee
     // mejor que uno con un hueco al final.
     const destNumber = String(dest?.numero ?? dest?.destNumber ?? '').trim();
     const destNombreCompleto = [destName, destNumber].filter(Boolean).join(' ').trim();
-    const titulo = [tituloPrefijoActual, destNombreCompleto].filter(Boolean).join(' ');
-
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
     const NAV_ITEMS = [
         {
             label: 'General',
@@ -99,16 +85,13 @@ export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
       >
         <DashboardContent {...other}>
 
-            {tituloPrefijoActual && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
-
-            <Tabs value={pathname.replace(/\/$/, '')} sx={{ mb: { xs: 3, md: 5 } }}>                {NAV_ITEMS.map((tab) => (
-
-                <OrganizationalTab
-                    key={tab.href}
-                    tab={tab}
-                />
-            ))}
-            </Tabs>
+            <OrganizationalProfileNavigation
+              heading={destNombreCompleto}
+              nivel="Destacamentos"
+              nivelHref={paths.dashboard.level.dest.root}
+              tabs={NAV_ITEMS}
+              value={pathname.replace(/\/$/, '')}
+            />
 
             {children}
 

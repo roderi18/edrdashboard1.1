@@ -33,12 +33,12 @@ import {
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
-import { obtenerTelefonosDirectivaActual } from 'src/services/national-directiva-contactos-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import { ID_CUATRIENIO_LISTADO } from 'src/catalogs/directiva-2022-2026.mjs';
 import { quitarIntegrante, obtenerPermanentes } from 'src/services/directiva-cuatrienios-service';
+import { obtenerTelefonosDirectivaActual } from 'src/services/national-directiva-contactos-service';
 import {
   NATIONAL_LEADERSHIP_DATA,
   REGIONAL_LEADERSHIP_DATA,
@@ -53,7 +53,6 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
   emptyRows,
@@ -66,6 +65,7 @@ import {
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 import { SelectorDeCuatrienio } from 'src/sections/national/cuatrienios/selector-de-cuatrienio';
+import { OrganizationalListBreadcrumbs } from 'src/sections/common/organizational-list-breadcrumbs';
 import {
   useIntegrantesDelCuatrienio,
   useHerramientasDelCuatrienio,
@@ -737,7 +737,8 @@ export function NationalListView() {
   return (
     <>
       <DashboardContent>
-        <CustomBreadcrumbs
+        <OrganizationalListBreadcrumbs
+          nivel="national"
           heading={
             <SelectorDeCuatrienio
               titulo="Directiva Nacional"

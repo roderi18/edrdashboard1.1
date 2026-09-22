@@ -24,6 +24,12 @@ import { isAdminGlobal } from 'src/utils/org-level-access';
 import { catalogoDePinesEnOrden } from 'src/utils/pines-perfil.mjs';
 import { configuracionDeMedallas, catalogoDeMedallasEnOrden } from 'src/utils/medallas-perfil.mjs';
 import {
+  recordarImagenDelPerfil,
+  imagenDelPerfilYaResuelta,
+  recordarInsigniasDelPerfil,
+  leerInsigniasDelPerfilEnCache,
+} from 'src/utils/cache-visual-perfil-miembro.mjs';
+import {
   AJUSTES_CINTA,
   digitosDeVeces,
   CINTAS_POR_FILA,
@@ -315,10 +321,20 @@ export function CintasDeMiembro({
   const id = String(Number(idMiembros) || '');
 
   // `idLeido` dice de quién son las cintas: mientras no coincide, siguen cargando.
-  const [leidas, setLeidas] = useState({ idLeido: '', cintas: [] });
+  const [leidas, setLeidas] = useState(() => {
+    const cintasEnCache = leerInsigniasDelPerfilEnCache('cintas', id);
+
+    return cintasEnCache === undefined
+      ? { idLeido: '', cintas: [] }
+      : { idLeido: id, cintas: cintasEnCache };
+  });
   const [abierto, setAbierto] = useState(false);
-  const cargando = leidas.idLeido !== id;
-  const asignadas = useMemo(() => (cargando ? [] : leidas.cintas), [cargando, leidas.cintas]);
+  const cintasEnCache = leerInsigniasDelPerfilEnCache('cintas', id);
+  const cargando = leidas.idLeido !== id && cintasEnCache === undefined;
+  const asignadas = useMemo(
+    () => (leidas.idLeido === id ? leidas.cintas : (cintasEnCache ?? [])),
+    [cintasEnCache, id, leidas.cintas, leidas.idLeido]
+  );
 
   useEffect(() => {
     if (!id) return undefined;
@@ -329,6 +345,7 @@ export function CintasDeMiembro({
         const cintas = instantanea.data()?.cintas ?? [];
 
         recordarCantidad(id, cintas.length);
+        recordarInsigniasDelPerfil('cintas', id, cintas);
         setLeidas({ idLeido: id, cintas });
       },
       (error) => {
@@ -471,7 +488,11 @@ export function ImagenDeCinta({
   const fuerzaNumero = normalizarAjusteCinta('intensidadNumero', intensidadNumero);
   const [brilloAleatorio, setBrilloAleatorio] = useState(null);
   // La imagen aún no llegó: se guarda su hueco con un esqueleto.
-  const [imagenLista, setImagenLista] = useState(false);
+  const [imagenLista, setImagenLista] = useState(() => imagenDelPerfilYaResuelta(cinta.src));
+  const marcarImagenLista = () => {
+    recordarImagenDelPerfil(cinta.src);
+    setImagenLista(true);
+  };
 
   useEffect(() => {
     if (numeroElegido !== EFECTOS_NUMERO_CINTA.DESTELLO || !digitos.length) return undefined;
@@ -516,11 +537,11 @@ export function ImagenDeCinta({
         component="img"
         src={cinta.src}
         alt={cinta.nombre}
-        onLoad={() => setImagenLista(true)}
-        onError={() => setImagenLista(true)}
+        onLoad={marcarImagenLista}
+        onError={marcarImagenLista}
         // Ya en caché, `onLoad` puede dispararse antes de hidratar: se mira `complete`.
         ref={(imagen) => {
-          if (imagen?.complete && !imagenLista) setImagenLista(true);
+          if (imagen?.complete && !imagenLista) marcarImagenLista();
         }}
         sx={{
           width: 1,
