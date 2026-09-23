@@ -39,7 +39,7 @@ const ITEMS = [
   {
     key: 'profile',
     label: 'Mi perfil',
-    href: paths.dashboard.user.root,
+    href: paths.dashboard.user.account,
     icon: 'solar:user-id-linear',
   },
 ];
@@ -55,15 +55,27 @@ const rutaActiva = (pathname, href) => {
 
 // ----------------------------------------------------------------------
 
-export function MobileQuickNav({ unreadChats = 0, layoutQuery = 'lg' }) {
+export function MobileQuickNav({
+  unreadChats = 0,
+  layoutQuery = 'lg',
+  collapseOnRoutes = [],
+  hiddenOnRoutes = [],
+}) {
   const router = useRouter();
   const pathname = usePathname();
-  const [expanded, setExpanded] = useState(true);
+  const collapseOnThisRoute = collapseOnRoutes.some((route) => rutaActiva(pathname, route));
+  const hiddenOnThisRoute = hiddenOnRoutes.some((route) => rutaActiva(pathname, route));
+  const [expanded, setExpanded] = useState(!collapseOnThisRoute);
+  const navRef = useRef(null);
   const lastScrollY = useRef(0);
   const scrollDistance = useRef(0);
 
   useEffect(() => {
     lastScrollY.current = Math.max(window.scrollY, 0);
+
+    // Las rutas compactas se controlan con la casita y un toque exterior.
+    // El desplazamiento no debe volver a abrirlas por su cuenta.
+    if (collapseOnThisRoute) return undefined;
 
     const handleScroll = () => {
       const currentScrollY = Math.max(window.scrollY, 0);
@@ -91,12 +103,28 @@ export function MobileQuickNav({ unreadChats = 0, layoutQuery = 'lg' }) {
     window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [collapseOnThisRoute]);
 
   useEffect(() => {
-    setExpanded(true);
+    setExpanded(!collapseOnThisRoute);
     scrollDistance.current = 0;
-  }, [pathname]);
+  }, [collapseOnThisRoute, pathname]);
+
+  useEffect(() => {
+    if (!collapseOnThisRoute || !expanded) return undefined;
+
+    const handleOutsidePress = (event) => {
+      if (!navRef.current?.contains(event.target)) {
+        setExpanded(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handleOutsidePress, true);
+
+    return () => document.removeEventListener('pointerdown', handleOutsidePress, true);
+  }, [collapseOnThisRoute, expanded]);
+
+  if (hiddenOnThisRoute) return null;
 
   const handleHomeClick = () => {
     if (!expanded) {
@@ -131,6 +159,7 @@ export function MobileQuickNav({ unreadChats = 0, layoutQuery = 'lg' }) {
       })}
     >
       <Paper
+        ref={navRef}
         component="nav"
         aria-label="Navegación rápida"
         elevation={0}
@@ -153,7 +182,7 @@ export function MobileQuickNav({ unreadChats = 0, layoutQuery = 'lg' }) {
             `inset 0 1px 0 ${varAlpha(theme.vars.palette.common.whiteChannel, 0.42)}`,
             `inset 0 -1px 0 ${varAlpha(theme.vars.palette.common.whiteChannel, 0.12)}`,
           ].join(', '),
-          backdropFilter: 'blur(14px) saturate(190%) brightness(1.08)',
+          backdropFilter: 'blur(10px) saturate(190%) brightness(1.08)',
           WebkitBackdropFilter: 'blur(14px) saturate(190%) brightness(1.08)',
           backgroundColor: varAlpha(theme.vars.palette.background.paperChannel, 0.22),
           backgroundImage: `linear-gradient(145deg, ${varAlpha(

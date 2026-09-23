@@ -101,6 +101,7 @@ const agregarIndicadoresMensajes = (
   }));
 
 const LOCAL_REPORT_NOTIFICATIONS_KEY = 'dashboard_post_report_notifications';
+const MOBILE_QUICK_NAV_HIDDEN_ROUTES = [paths.dashboard.chat];
 
 const obtenerNotificacionesReportesLocales = () => {
   if (typeof window === 'undefined') return [];
@@ -731,7 +732,11 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       ]}
     >
       {renderMain()}
-      <MobileQuickNav unreadChats={chatsSinLeer} layoutQuery={layoutQuery} />
+      <MobileQuickNav
+        unreadChats={chatsSinLeer}
+        layoutQuery={layoutQuery}
+        hiddenOnRoutes={MOBILE_QUICK_NAV_HIDDEN_ROUTES}
+      />
       <ProbarComoUsuarioDialog
         open={probarComoUsuario.value}
         onClose={probarComoUsuario.onFalse}
