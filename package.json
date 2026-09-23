@@ -8,7 +8,7 @@
     "dev": "next dev -p 3032",
     "start": "next start -p 3032",
     "prebuild": "node scripts/generar-manifiesto-medallas.mjs",
-    "build": "next build",
+    "build": "node scripts/next-build.mjs",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "test:chat-auth": "node --test tests/chat/*.test.mjs",
     "test:directivas": "node --test tests/directivas/*.test.mjs",
