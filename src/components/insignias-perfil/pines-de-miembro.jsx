@@ -16,6 +16,12 @@ import {
   PINES_POR_FILA,
   disponerPinesEnFilas,
 } from 'src/utils/pines-perfil.mjs';
+import {
+  recordarImagenDelPerfil,
+  imagenDelPerfilYaResuelta,
+  recordarInsigniasDelPerfil,
+  leerInsigniasDelPerfilEnCache,
+} from 'src/utils/cache-visual-perfil-miembro.mjs';
 
 import { fetcher } from 'src/lib/axios';
 import { referenciaDePines } from 'src/services/pines-miembros-apply';
@@ -135,14 +141,25 @@ export function EsqueletoDePines({ idMiembros, sx, maxWidth = 300, espacioHorizo
 /** Los pines guardados de un miembro, en vivo. Sin permiso o sin red, ninguno. */
 export function usePinesDelMiembro(idMiembros) {
   const id = String(Number(idMiembros) || '');
-  const [leidos, setLeidos] = useState({ idLeido: '', pines: [] });
+  const [leidos, setLeidos] = useState(() => {
+    const pinesEnCache = leerInsigniasDelPerfilEnCache('pines', id);
+
+    return pinesEnCache === undefined
+      ? { idLeido: '', pines: [] }
+      : { idLeido: id, pines: pinesEnCache };
+  });
 
   useEffect(() => {
     if (!id) return undefined;
 
     return onSnapshot(
       referenciaDePines(id),
-      (instantanea) => setLeidos({ idLeido: id, pines: instantanea.data()?.pines ?? [] }),
+      (instantanea) => {
+        const pines = instantanea.data()?.pines ?? [];
+
+        recordarInsigniasDelPerfil('pines', id, pines);
+        setLeidos({ idLeido: id, pines });
+      },
       (error) => {
         console.error('[pines] no se pudieron leer', error);
         setLeidos({ idLeido: id, pines: [] });
@@ -150,13 +167,22 @@ export function usePinesDelMiembro(idMiembros) {
     );
   }, [id]);
 
-  return { cargando: leidos.idLeido !== id, pines: leidos.pines };
+  const pinesEnCache = leerInsigniasDelPerfilEnCache('pines', id);
+
+  return {
+    cargando: leidos.idLeido !== id && pinesEnCache === undefined,
+    pines: leidos.idLeido === id ? leidos.pines : (pinesEnCache ?? []),
+  };
 }
 
 /** Un pin, con un hueco gris mientras llega la imagen. */
 export function ImagenDePin({ pin, pequena = false, sx }) {
-  const [cargada, setCargada] = useState(false);
   const src = pequena ? pin.srcPequena || pin.src : pin.src;
+  const [cargada, setCargada] = useState(() => imagenDelPerfilYaResuelta(src));
+  const marcarCargada = () => {
+    recordarImagenDelPerfil(src);
+    setCargada(true);
+  };
 
   return (
     <Box sx={[{ position: 'relative', width: 1 }, ...(Array.isArray(sx) ? sx : [sx])]}>
@@ -174,10 +200,10 @@ export function ImagenDePin({ pin, pequena = false, sx }) {
         decoding="async"
         draggable={false}
         ref={(nodo) => {
-          if (nodo?.complete && nodo.naturalWidth && !cargada) setCargada(true);
+          if (nodo?.complete && nodo.naturalWidth && !cargada) marcarCargada();
         }}
-        onLoad={() => setCargada(true)}
-        onError={() => setCargada(true)}
+        onLoad={marcarCargada}
+        onError={marcarCargada}
         sx={{
           width: 1,
           display: 'block',

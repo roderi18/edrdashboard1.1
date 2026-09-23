@@ -74,7 +74,10 @@ export function MemberEditLayout({ children, member = null, ...other }) {
       if (!cancelled && memberWithPhoto) setResolvedMember(memberWithPhoto);
     };
 
-    void loadMember();
+    // La cabecera es un extra: si la ficha no se puede leer se queda con el
+    // nombre que ya hubiera, pero el rechazo no puede quedar sin dueño o Next
+    // lo pinta encima de la pestaña que si cargo.
+    void loadMember().catch(() => {});
 
     return () => {
       cancelled = true;

@@ -15,6 +15,7 @@ import {
   getMemberDirectoryMetadata,
   getCachedMemberByIdentifier,
   getResolvedMemberByIdentifier,
+  getCachedResolvedMemberByIdentifier,
 } from 'src/services/member-context-service';
 
 import { SplashScreen } from 'src/components/loading-screen';
@@ -51,7 +52,11 @@ export default function Page() {
   useEffect(() => {
     let cancelled = false;
 
-    const cachedMember = getCachedMemberByIdentifier(id);
+    const cachedMember =
+      getCachedResolvedMemberByIdentifier(id, {
+        includeMetadata: true,
+        includePhoto: true,
+      }) || getCachedMemberByIdentifier(id);
 
     if (cachedMember && !esPerfilHistorico) {
       setCurrentMember(cachedMember);
@@ -81,7 +86,14 @@ export default function Page() {
         if (cancelled) return;
 
         setAvailableDests(metadata?.dests || []);
-        setCurrentMember(member);
+        // Al volver desde otra pestaña, conservar la foto ya resuelta mientras
+        // se confirma en segundo plano. La lectura sin foto no debe borrarla
+        // durante un fotograma.
+        setCurrentMember((anterior) =>
+          anterior?.avatarUrl && !member?.avatarUrl
+            ? { ...member, avatarUrl: anterior.avatarUrl }
+            : member
+        );
 
         void getResolvedMemberByIdentifier(id, { includeMetadata: true, includePhoto: true }).then(
           (memberWithPhoto) => {
@@ -95,7 +107,9 @@ export default function Page() {
       }
     };
 
-    load();
+    // `finally` ya deja la pestaña hidratada aunque falle; el `catch` es para
+    // que el rechazo no quede sin dueño y Next lo pinte encima de lo cargado.
+    load().catch(() => {});
 
     return () => {
       cancelled = true;

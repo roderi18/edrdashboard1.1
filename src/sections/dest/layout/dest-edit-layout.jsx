@@ -1,57 +1,55 @@
 'use client';
 
-
 import { useState, useEffect } from 'react';
-
-import { useTheme } from '@mui/material/styles';
-import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { paths } from 'src/routes/paths';
 import { useParams, usePathname } from 'src/routes/hooks';
 
+import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
-import { OrganizationalTab } from 'src/sections/common/organizational-tab';
-import { OrganizationalTabs } from 'src/sections/common/organizational-tabs';
+import { OrganizationalProfileNavigation } from 'src/sections/common/organizational-profile-navigation';
 
 // Los títulos descriptivos de listas anidadas incluyen el nombre del
 // destacamento. Las pantallas generales no necesitan un encabezado "Editar".
-export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
+export function DestEditLayout({ children, ...other }) {
 
     const pathname = usePathname();
     const params = useParams();
     const destId = params?.id;
-    const tituloPrefijoActual =
-        tituloPrefijo || (pathname.endsWith('/members') ? 'Miembros Dest.' : '');
-
     const [dest, setDest] = useState(null);
 
     useEffect(() => {
-        const load = async () => {
-            const res = await fetch('/api/dest/');
-            const data = await res.json();
+        let cancelado = false;
 
-            const found = (data?.data || []).find((d) => String(d.idDestacamento) === String(destId));
-            setDest(found);
+        // Por el servicio, no por `fetch` a pelo. El crudo no tenia try/catch:
+        // un 500 o el corte por tiempo de la API dejaba el rechazo sin dueño y
+        // el encabezado clavado en "Destacamento". `getDestsApi` ya reintenta
+        // contra el espejo local y comparte cache con el resto de pantallas,
+        // asi que la pestaña no vuelve a bajar el padron entero.
+        const load = async () => {
+            const dests = await getDestsApi({ includePhotos: false }).catch(() => []);
+
+            if (cancelado) return;
+
+            setDest(dests.find((d) => String(d?.id) === String(destId)) || null);
         };
 
         load();
+
+        return () => {
+            cancelado = true;
+        };
     }, [destId]);
 
-    const destName = dest ? dest.nombre : 'Destacamento';
+    const destName = dest ? dest.nombre || dest.name : 'Destacamento';
     // El numero solo si lo tiene: un "Destacamento Tribu de Judá" a secas se lee
     // mejor que uno con un hueco al final.
     const destNumber = String(dest?.numero ?? dest?.destNumber ?? '').trim();
     const destNombreCompleto = [destName, destNumber].filter(Boolean).join(' ').trim();
-    const titulo = [tituloPrefijoActual, destNombreCompleto].filter(Boolean).join(' ');
-
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
     const NAV_ITEMS = [
         {
             label: 'General',
@@ -99,18 +97,13 @@ export function DestEditLayout({ children, tituloPrefijo = '', ...other }) {
       >
         <DashboardContent {...other}>
 
-            {tituloPrefijoActual && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
-
-            <OrganizationalTabs value={pathname.replace(/\/$/, '')} sx={{ mb: { xs: 3, md: 5 } }}>
-                {NAV_ITEMS.map((tab) => (
-
-                <OrganizationalTab
-                    key={tab.href}
-                    value={tab.href}
-                    tab={tab}
-                />
-            ))}
-            </OrganizationalTabs>
+            <OrganizationalProfileNavigation
+              heading={destNombreCompleto}
+              nivel="Destacamentos"
+              nivelHref={paths.dashboard.level.dest.root}
+              tabs={NAV_ITEMS}
+              value={pathname.replace(/\/$/, '')}
+            />
 
             {children}
 

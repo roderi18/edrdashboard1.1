@@ -29,6 +29,11 @@ export function useEntidadEnSuAlcance({ tipo, id }) {
   useEffect(() => {
     let cancelado = false;
 
+    // Resolver SIEMPRE termina en un si o un no. Si algo de aqui dentro lanzaba,
+    // el estado se quedaba en 'resolviendo' para siempre y el candado pintaba
+    // una pantalla vacia que solo se arreglaba recargando: colgarse es peor que
+    // cualquiera de las dos respuestas. Ante la duda se responde 'fuera', que es
+    // como ya se responde cuando no hay id.
     const resolver = async () => {
       if (!id) {
         if (!cancelado) setEstado('fuera');
@@ -60,7 +65,9 @@ export function useEntidadEnSuAlcance({ tipo, id }) {
       setEstado(dentro ? 'dentro' : 'fuera');
     };
 
-    resolver();
+    resolver().catch(() => {
+      if (!cancelado) setEstado('fuera');
+    });
 
     return () => {
       cancelado = true;

@@ -22,8 +22,7 @@ import { getSectionals } from 'src/services/sectional-service';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { OrganizationalTab } from 'src/sections/common/organizational-tab';
-import { OrganizationalTabs } from 'src/sections/common/organizational-tabs';
+import { OrganizationalProfileNavigation } from 'src/sections/common/organizational-profile-navigation';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -31,13 +30,11 @@ import { useAuthContext } from 'src/auth/hooks';
 
 // Los títulos descriptivos de listas anidadas incluyen el nombre de la región.
 // Las pantallas generales no necesitan un encabezado "Editar".
-export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
+export function RegionalEditLayout({ children, ...other }) {
   const pathname = usePathname();
   const params = useParams();
   const { user } = useAuthContext();
   const regionalId = params?.id;
-  const tituloPrefijoActual =
-    tituloPrefijo || (pathname.endsWith('/sections') ? 'Secciones de la Región' : '');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [regionalName, setRegionalName] = useState('Región');
@@ -74,7 +71,12 @@ export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
       setPuedeEntrar(puedeEntrarALaRegion(user, regionalId, { ownRegionIds }));
     };
 
-    averiguar();
+    // Averiguar SIEMPRE termina en un si o un no: con `puedeEntrar` en `null` el
+    // layout se queda pintando una pantalla vacia sin las pestañas, y eso solo
+    // se arreglaba recargando. Ante la duda, la region no es suya.
+    averiguar().catch(() => {
+      if (!cancelado) setPuedeEntrar(false);
+    });
 
     return () => {
       cancelado = true;
@@ -82,8 +84,16 @@ export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
   }, [user, regionalId]);
 
   useEffect(() => {
+    let cancelado = false;
+
+    // Sin fotos: aqui solo se lee el nombre y pedirlas costaba una consulta de
+    // mas a Storage en cada entrada. Y con cancelacion, que al saltar de una
+    // region a otra la respuesta lenta de la anterior pisaba el nombre nuevo.
     const loadRegional = async () => {
-      const regionals = await getRegionals();
+      const regionals = await getRegionals({ includePhotos: false }).catch(() => []);
+
+      if (cancelado) return;
+
       const regional = (Array.isArray(regionals) ? regionals : []).find(
         (item) => String(item.id) === String(regionalId)
       );
@@ -94,14 +104,16 @@ export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
     if (regionalId) {
       loadRegional();
     }
+
+    return () => {
+      cancelado = true;
+    };
   }, [regionalId]);
 
   const currentPath = pathname.replace(/\/$/, '');
   const editHref = paths.dashboard.level.regional.edit(regionalId);
   const leadershipHref = `/dashboard/level/regional/${regionalId}/edit/leadership`;
   const sectionsHref = `/dashboard/level/regional/${regionalId}/edit/sections`;
-
-  const titulo = [tituloPrefijoActual, regionalName].filter(Boolean).join(' ');
 
   const navItems = [
     {
@@ -148,17 +160,13 @@ export function RegionalEditLayout({ children, tituloPrefijo = '', ...other }) {
 
   return (
     <DashboardContent {...other}>
-      {tituloPrefijoActual && !isMobile && <CustomBreadcrumbs heading={titulo} sx={{ mb: 3 }} />}
-
-      <OrganizationalTabs value={currentPath} sx={{ mb: { xs: 3, md: 5 } }}>
-        {navItems.map((tab) => (
-          <OrganizationalTab
-            key={tab.href}
-            value={tab.href}
-            tab={tab}
-          />
-        ))}
-      </OrganizationalTabs>
+      <OrganizationalProfileNavigation
+        heading={regionalName}
+        nivel="Regiones"
+        nivelHref={paths.dashboard.level.regional.root}
+        tabs={navItems}
+        value={currentPath}
+      />
 
       {children}
     </DashboardContent>

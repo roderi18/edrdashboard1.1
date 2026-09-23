@@ -31,10 +31,21 @@ test('las paginas existen y reutilizan la lista de siempre', () => {
   const vistaDests = leer('src/sections/sectional/dests/sectional-dests-view.jsx');
   const vistaSecciones = leer('src/sections/regional/sections/regional-sections-view.jsx');
 
-  assert.match(paginaDests, /tituloPrefijo="Destacamentos de la Sección"/);
-  assert.match(paginaSecciones, /tituloPrefijo="Secciones de la Región"/);
+  // La pagina solo monta la vista: el encabezado ya no se lo pasa a mano con
+  // `tituloPrefijo`, lo pone la cabecera comun a partir de la pestaña activa.
+  assert.match(paginaDests, /<SectionalDestsView \/>/);
+  assert.match(paginaSecciones, /<RegionalSectionsView \/>/);
   assert.match(vistaDests, /<DestListView sectionalId=\{sectionalId\} \/>/);
   assert.match(vistaSecciones, /<SectionalListView regionalId=\{regionalId\} \/>/);
+});
+
+test('el nombre de la pestaña abierta lo pone la cabecera comun', () => {
+  const cabecera = leer('src/sections/common/organizational-profile-navigation.jsx');
+
+  // Donde vivia `tituloPrefijo`: la miga final es la etiqueta de la pestaña
+  // activa, asi que ningun nivel puede volver a escribirla por su cuenta.
+  assert.match(cabecera, /tabs\.find\(\(tab\) => tab\.href === value\)/);
+  assert.match(cabecera, /\{ name: tabActual\.label \}/);
 });
 
 test('la pestaña acota lo que el alcance ya deja ver, no lo abre', () => {

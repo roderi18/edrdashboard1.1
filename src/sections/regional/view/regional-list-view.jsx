@@ -10,13 +10,11 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 
 import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
@@ -45,7 +43,6 @@ import { obtenerAsignacionesDirectivaMiembros } from 'src/services/directivas-or
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
   emptyRows,
@@ -59,6 +56,8 @@ import {
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-delete';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
+import { OrganizationalCreateButton } from 'src/sections/common/organizational-create-button';
+import { OrganizationalListBreadcrumbs } from 'src/sections/common/organizational-list-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -355,19 +354,15 @@ export function RegionalListView() {
   return (
     <>
       <DashboardContent>
-        <CustomBreadcrumbs
+        <OrganizationalListBreadcrumbs
+          nivel="regional"
           heading="Lista de Regionales"
           action={
             canManage ? (
-              <IconButton
-                component={RouterLink}
+              <OrganizationalCreateButton
                 href={paths.dashboard.level.regional.new}
-                aria-label="Crear nueva región"
-                title="Crear nuevo"
-                color="primary"
-              >
-                <Iconify icon="mingcute:add-line" />
-              </IconButton>
+                ariaLabel="Crear nueva región"
+              />
             ) : null
           }
           sx={{ mb: { xs: 3, md: 5 } }}
