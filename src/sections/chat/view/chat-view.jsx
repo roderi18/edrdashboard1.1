@@ -575,16 +575,16 @@ export function ChatView() {
         { display: 'flex', flex: '1 1 auto', flexDirection: 'column' },
         // LA PANTALLA ES PARA LA CONVERSACION.
         //
-        // El panel deja 64px libres abajo para que se vea que una lista termina;
-        // aqui no hay lista que siga: el chat llega hasta el campo de escribir,
-        // y ese hueco solo quitaba mensajes de vista —una pantalla entera en el
-        // celular, y un buen par de lineas tambien en el escritorio—. Queda el
-        // aire justo para que el panel no toque los bordes.
-        // El mismo aire arriba que abajo: el panel es una sola pieza y con los
-        // huecos distintos se veia caido hacia un lado.
+        // En pantallas pequeñas, la caja de escribir termina por encima de la
+        // navegacion flotante incluso cuando esta abierta. El espacio incluye
+        // el area segura del dispositivo; en escritorio conserva el margen
+        // corto y simetrico del panel.
         (theme) => ({
           '--layout-dashboard-content-pt': theme.spacing(3.5),
-          '--layout-dashboard-content-pb': theme.spacing(3.5),
+          '--layout-dashboard-content-pb': `calc(${theme.spacing(12)} + env(safe-area-inset-bottom))`,
+          [theme.breakpoints.up('lg')]: {
+            '--layout-dashboard-content-pb': theme.spacing(3.5),
+          },
         }),
       ]}
     >

@@ -59,12 +59,10 @@ export function MobileQuickNav({
   unreadChats = 0,
   layoutQuery = 'lg',
   collapseOnRoutes = [],
-  hiddenOnRoutes = [],
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const collapseOnThisRoute = collapseOnRoutes.some((route) => rutaActiva(pathname, route));
-  const hiddenOnThisRoute = hiddenOnRoutes.some((route) => rutaActiva(pathname, route));
   const [expanded, setExpanded] = useState(!collapseOnThisRoute);
   const navRef = useRef(null);
   const lastScrollY = useRef(0);
@@ -123,8 +121,6 @@ export function MobileQuickNav({
 
     return () => document.removeEventListener('pointerdown', handleOutsidePress, true);
   }, [collapseOnThisRoute, expanded]);
-
-  if (hiddenOnThisRoute) return null;
 
   const handleHomeClick = () => {
     if (!expanded) {
