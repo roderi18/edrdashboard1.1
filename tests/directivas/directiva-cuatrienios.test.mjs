@@ -14,6 +14,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 register(new URL('../soporte/resolver-alias-src.mjs', import.meta.url));
 
@@ -156,4 +157,25 @@ test('las secciones del listado se reconocen en el padrón por nombre o alias', 
     '5'
   );
   assert.equal(buscarPorNombre(padron, 'San Pedro', { obtenerNombre: nombre }), null);
+});
+
+// EL TELEFONO NO SE ENSEÑA EN LA MEMORIA DE UN CUATRIENIO.
+//
+// La fila de un cuatrienio pasado pinta el nombre y la foto CONGELADOS de
+// entonces, pero el telefono se sacaba del padron de HOY: un dato de ahora
+// colado en una instantanea de antes. Se quita con `undefined` porque es lo
+// unico que la celda omite; con cadena vacia saldria "Tel. desconocido".
+test('en la memoria de un cuatrienio la fila no enseña el telefono', () => {
+  const fila = readFileSync(
+    new URL('../../src/sections/national/national-table-row.jsx', import.meta.url),
+    'utf8'
+  );
+
+  // `integrante` solo lo llevan las filas del cuatrienio guardado.
+  assert.match(fila, /const esMemoriaDeCuatrienio = Boolean\(row\.integrante\);/);
+  assert.match(fila, /subtitle=\{esMemoriaDeCuatrienio \? undefined : formatPhoneNumber\(phoneNumber\)\}/);
+  assert.match(
+    fila,
+    /subtitleHref=\{esMemoriaDeCuatrienio \? undefined : getPhoneHref\(phoneNumber\)\}/
+  );
 });

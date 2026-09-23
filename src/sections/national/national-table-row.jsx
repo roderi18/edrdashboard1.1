@@ -42,6 +42,13 @@ export function NationalTableRow({
       ? `/dashboard/level/member/${member.id}/edit?origen=consejo-nacional`
       : '';
   const phoneNumber = member?.phoneNumber || row.phoneNumber;
+  // EN LA MEMORIA DE UN CUATRIENIO NO SE ENSEÑA EL TELEFONO.
+  //
+  // La fila pinta el nombre y la foto CONGELADOS de entonces, pero el telefono
+  // se saca del padron de HOY: era un dato de ahora colado en una instantanea
+  // de antes. Se quita con `undefined`, que es lo unico que la celda omite; con
+  // cadena vacia saldria el "Tel. desconocido" de formatPhoneNumber.
+  const esMemoriaDeCuatrienio = Boolean(row.integrante);
   const positionLabel = row.nationalXMemberPositionLabel || '-';
   const positionHref = row.nationalXMemberPositionHref || '';
   const organizationalLevel = row.nationalOrganizationalLevel || '-';
@@ -65,8 +72,8 @@ export function NationalTableRow({
       <CompactEntityTableCell
         title={memberName}
         href={memberHref}
-        subtitle={formatPhoneNumber(phoneNumber)}
-        subtitleHref={getPhoneHref(phoneNumber)}
+        subtitle={esMemoriaDeCuatrienio ? undefined : formatPhoneNumber(phoneNumber)}
+        subtitleHref={esMemoriaDeCuatrienio ? undefined : getPhoneHref(phoneNumber)}
         avatarAlt={row.nationalXname}
         avatarUrl={row.avatarUrl}
         linkSx={{ cursor: member ? 'pointer' : 'default' }}
