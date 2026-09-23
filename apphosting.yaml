@@ -1,0 +1,44 @@
+# Firebase App Hosting (backend de la rama main).
+#
+# Convive con Netlify mientras se comprueba que todo funciona aqui: los .env no
+# estan en el repositorio, asi que lo que la app lee de process.env tiene que
+# venir de este archivo. Lo NEXT_PUBLIC_* es la configuracion publica del cliente
+# (ya viaja en el JS del navegador) y necesita BUILD porque Next lo incrusta al
+# compilar. Lo privado va como secreto de Cloud Secret Manager, nunca en claro.
+
+runConfig:
+  minInstances: 0
+  maxInstances: 4
+  # Las rutas /api esperan a la API .NET, que tarda hasta 17 s.
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 1024
+
+env:
+  - variable: NEXT_PUBLIC_SERVER_URL
+    value: https://api-dev-minimal-v700.pages.dev
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyCp0VZy72mT4FJ7Gs7ibDUv17YysYFHADc
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: systexploradores.firebaseapp.com
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: systexploradores
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: systexploradores.firebasestorage.app
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: '385574507135'
+  - variable: NEXT_PUBLIC_FIREBASE_APPID
+    value: 1:385574507135:web:62234046f5c0d63a32254a
+  - variable: WEB_PUSH_VAPID_SUBJECT
+    value: https://lively-palmier-a1d83c.netlify.app
+    availability:
+      - RUNTIME
+
+  - variable: FIREBASE_SERVICE_ACCOUNT
+    secret: FIREBASE_SERVICE_ACCOUNT
+    availability:
+      - RUNTIME
+  - variable: WEB_PUSH_VAPID_PRIVATE_KEY
+    secret: WEB_PUSH_VAPID_PRIVATE_KEY
+    availability:
+      - RUNTIME
