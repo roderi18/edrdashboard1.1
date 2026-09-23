@@ -65,7 +65,9 @@ import {
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 import { SelectorDeCuatrienio } from 'src/sections/national/cuatrienios/selector-de-cuatrienio';
+import { NationalLeadershipView } from 'src/sections/national/leadership/national-leadership-view';
 import { OrganizationalListBreadcrumbs } from 'src/sections/common/organizational-list-breadcrumbs';
+import { SectionalLeadershipView } from 'src/sections/sectional/leadership/sectional-leadership-view';
 import {
   useIntegrantesDelCuatrienio,
   useHerramientasDelCuatrienio,
@@ -411,6 +413,8 @@ export function NationalListView() {
     nationalOrganizationalLevel: [],
     nationalEstructure: [],
   });
+  // Que se pinta en la tarjeta: la lista de personas o el organigrama.
+  const [vista, setVista] = useState('lista');
 
   const NATIONAL_STRUCTURES = {
     ministerios_infantiles: 'Ministerios Infantiles',
@@ -579,6 +583,27 @@ export function NationalListView() {
   const tableData = esMemoria ? filasDelCuatrienio : filasDeHoy;
 
   const { state: currentFilters } = filters;
+
+  // LA JERARQUIA, EN EL MISMO SITIO QUE LA LISTA.
+  //
+  // No es un organigrama nuevo: es el MISMO que ya se abre desde el cargo, solo
+  // que pintado dentro de la tarjeta en vez de la tabla. El filtro de nivel
+  // organizacional dice de que entidad; sin filtro, el del Consejo Nacional.
+  //
+  // La entidad sale de la propia fila —ya lleva su `level` y su `entityId`—, que
+  // es lo que la lista uso para construir el enlace al organigrama: preguntarlo
+  // aqui otra vez seria una segunda regla que se desincroniza de la primera.
+  const nivelesElegidos = currentFilters.nationalOrganizationalLevel;
+  const entidadDeLaJerarquia =
+    nivelesElegidos.length === 1
+      ? (() => {
+          const fila = tableData.find(
+            (row) => row.nationalOrganizationalLevel === nivelesElegidos[0]
+          );
+
+          return fila ? { nivel: fila.level, id: fila.entityId } : null;
+        })()
+      : null;
   const distinctPositions = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'nationalXMemberPosition',
@@ -813,7 +838,8 @@ export function NationalListView() {
         <>
           <Card>
             <Tabs
-              value={currentFilters.status}
+              value={vista}
+              onChange={(event, valor) => setVista(valor)}
               sx={[
                 (themeItem) => ({
                   px: { md: 2.5 },
@@ -822,11 +848,14 @@ export function NationalListView() {
               ]}
             >
               <Tab
-                value="all"
+                value="lista"
                 label="Todos"
                 iconPosition="end"
                 icon={<Label variant="filled">{tableData.length}</Label>}
               />
+              {/* Solo en la directiva de hoy: la de un cuatrienio guardado ya
+                  abre su organigrama desde el cargo, en su dialogo. */}
+              {!esMemoria && <Tab value="jerarquia" label="Jerarquía" />}
             </Tabs>
 
             <NationalTableToolbar
@@ -855,7 +884,17 @@ export function NationalListView() {
               />
             )}
 
-            {displayMode === 'panel' && (
+            {vista === 'jerarquia' && (
+              <Box sx={{ p: { xs: 1, md: 2.5 }, pt: 0 }}>
+                {entidadDeLaJerarquia?.nivel === 'seccional' ? (
+                  <SectionalLeadershipView idSeccion={entidadDeLaJerarquia.id} />
+                ) : (
+                  <NationalLeadershipView />
+                )}
+              </Box>
+            )}
+
+            {vista === 'lista' && displayMode === 'panel' && (
               <Box sx={{ position: 'relative' }}>
                 {canDelete && (
                   <TableSelectedAction
@@ -928,7 +967,7 @@ export function NationalListView() {
               </Box>
             )}
 
-            {displayMode === 'panel' && (
+            {vista === 'lista' && displayMode === 'panel' && (
               <TablePaginationCustom
                 page={table.page}
                 dense={table.dense}
@@ -941,7 +980,7 @@ export function NationalListView() {
             )}
           </Card>
 
-          {displayMode !== 'panel' && (
+          {vista === 'lista' && displayMode !== 'panel' && (
             <NationalCardList nationals={dataFiltered} canManage={canManage} />
           )}
         </>

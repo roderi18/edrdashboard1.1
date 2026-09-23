@@ -200,10 +200,16 @@ function SectionalLeadershipNode({
  * `{ idEntidad, nombreEntidad, cuatrienio, obtenerOcupante(nodeId) }`. Es de
  * solo lectura: la historia se corrige en su pantalla, no aqui.
  */
-export function SectionalLeadershipView({ historico = null } = {}) {
+/**
+ * `idSeccion` dice de que seccion es el organigrama cuando NO se llega por su
+ * ruta: la pestaña Jerarquia del Consejo Nacional lo pinta dentro de su propia
+ * pantalla, donde no hay un `[id]` del que sacarlo. Sigue siendo la directiva
+ * de hoy, con sus permisos: no es un modo de solo lectura como `historico`.
+ */
+export function SectionalLeadershipView({ historico = null, idSeccion = null } = {}) {
   const params = useParams();
   const { user } = useAuthContext();
-  const sectionalId = historico ? historico.idEntidad : params?.id;
+  const sectionalId = historico ? historico.idEntidad : (idSeccion ?? params?.id);
   // LA REGION DE LA SECCION, no la del usuario. El Coordinador Regional y su
   // Sub-Director proponen sobre las secciones de su region, y su alcance no trae
   // ids de seccion: sin esto el guarda no tiene con que compararlo y el
