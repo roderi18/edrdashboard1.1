@@ -79,6 +79,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { NationalTableRow } from '../national-table-row';
 import { NationalCardList } from '../national-card-list';
 import { NationalTableToolbar } from '../national-table-toolbar';
+import { NationalJerarquiaToolbar } from '../national-jerarquia-toolbar';
 import { NationalTableFiltersResult } from '../national-table-filters-result';
 
 // ----------------------------------------------------------------------
@@ -241,6 +242,11 @@ const POSICION_EX_COMANDANTE = 'ex-comandante-nacional';
 // En la memoria de un cuatrienio, lo que no ocupa casilla del organigrama va
 // detras de los cargos: los provisionales, los oficiales y los ex comandantes.
 const ORDEN_SIN_CASILLA = { directiva: 1000, oficiales: 2000, ex_comandantes: 3000 };
+
+// Alto del organigrama embebido en la pestaña Jerarquía: una ventana fija que se
+// recorre en vertical con el arrastre, para que NO ocupe toda la pantalla. El
+// ancho no se toca.
+const ALTURA_JERARQUIA = '70vh';
 
 const RUTA_LISTA = paths.dashboard.level.national.root;
 const rutaDelCuatrienio = (id, vigente) =>
@@ -683,6 +689,9 @@ export function NationalListView() {
     },
     [filters]
   );
+  // El desplegable de la Jerarquía es de una sola opción: el primer (y único)
+  // nivel elegido, o vacío para el Consejo Nacional.
+  const nivelValorJerarquia = nivelesElegidos[0] || '';
   const distinctPositions = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'nationalXMemberPosition',
@@ -937,54 +946,100 @@ export function NationalListView() {
               <Tab value="jerarquia" label="Jerarquía" />
             </Tabs>
 
-            <NationalTableToolbar
-              filters={filters}
-              onResetPage={table.onResetPage}
-              displayMode={displayMode}
-              setDisplayMode={setDisplayMode}
-              options={{
-                nationalXMemberPosition: distinctPositions,
-                nationalOrganizationalLevel: distinctOrganizationalLevels,
-                nationalEstructure: distinctEstructures,
-              }}
-            />
+            {/* La lista manda cuatro filtros; la Jerarquía, solo su propia barra
+                (buscar por nombre + nivel de una sola opción). */}
+            {vista === 'lista' && (
+              <>
+                <NationalTableToolbar
+                  filters={filters}
+                  onResetPage={table.onResetPage}
+                  displayMode={displayMode}
+                  setDisplayMode={setDisplayMode}
+                  options={{
+                    nationalXMemberPosition: distinctPositions,
+                    nationalOrganizationalLevel: distinctOrganizationalLevels,
+                    nationalEstructure: distinctEstructures,
+                  }}
+                />
 
-            {canReset && (
-              <NationalTableFiltersResult
-                filters={filters}
-                options={{
-                  nationalOrganizationalLevel: distinctOrganizationalLevels,
-                  nationalEstructure: distinctEstructures,
-                  nationalXMemberPosition: distinctPositions,
-                }}
-                totalResults={dataFiltered.length}
-                onResetPage={table.onResetPage}
-                sx={{ p: 2.5, pt: 0 }}
-              />
+                {canReset && (
+                  <NationalTableFiltersResult
+                    filters={filters}
+                    options={{
+                      nationalOrganizationalLevel: distinctOrganizationalLevels,
+                      nationalEstructure: distinctEstructures,
+                      nationalXMemberPosition: distinctPositions,
+                    }}
+                    totalResults={dataFiltered.length}
+                    onResetPage={table.onResetPage}
+                    sx={{ p: 2.5, pt: 0 }}
+                  />
+                )}
+              </>
             )}
 
             {vista === 'jerarquia' && (
-              <Box sx={{ p: { xs: 1, md: 2.5 }, pt: 0 }}>
-                {nivelDeLaJerarquia === 'seccional' ? (
-                  esMemoria ? (
-                    <SectionalLeadershipView historico={historicoDeLaJerarquia} />
+              <>
+                <NationalJerarquiaToolbar
+                  opcionesBusqueda={opcionesBusquedaJerarquia}
+                  onSeleccionarMiembro={seleccionarMiembroJerarquia}
+                  nivelOpciones={distinctOrganizationalLevels}
+                  nivelValor={nivelValorJerarquia}
+                  onCambiarNivel={cambiarNivelJerarquia}
+                />
+
+                <Box sx={{ p: { xs: 1, md: 2.5 }, pt: 0 }}>
+                  {nivelDeLaJerarquia === 'seccional' ? (
+                    esMemoria ? (
+                      <SectionalLeadershipView
+                        historico={historicoDeLaJerarquia}
+                        alturaMaxima={ALTURA_JERARQUIA}
+                        resaltarMiembroId={resaltado?.id}
+                        resaltarToken={resaltado?.token}
+                      />
+                    ) : (
+                      <SectionalLeadershipView
+                        idSeccion={entidadDeLaJerarquia.id}
+                        alturaMaxima={ALTURA_JERARQUIA}
+                        resaltarMiembroId={resaltado?.id}
+                        resaltarToken={resaltado?.token}
+                      />
+                    )
+                  ) : nivelDeLaJerarquia === 'regional' ? (
+                    esMemoria ? (
+                      <RegionalLeadershipView
+                        historico={historicoDeLaJerarquia}
+                        alturaMaxima={ALTURA_JERARQUIA}
+                        resaltarMiembroId={resaltado?.id}
+                        resaltarToken={resaltado?.token}
+                      />
+                    ) : (
+                      <RegionalLeadershipView
+                        idRegion={entidadDeLaJerarquia.id}
+                        alturaMaxima={ALTURA_JERARQUIA}
+                        resaltarMiembroId={resaltado?.id}
+                        resaltarToken={resaltado?.token}
+                      />
+                    )
+                  ) : esMemoria ? (
+                    <NationalLeadershipView
+                      historico={historicoDeLaJerarquia}
+                      alturaMaxima={ALTURA_JERARQUIA}
+                      resaltarMiembroId={resaltado?.id}
+                      resaltarToken={resaltado?.token}
+                    />
                   ) : (
-                    <SectionalLeadershipView idSeccion={entidadDeLaJerarquia.id} />
-                  )
-                ) : nivelDeLaJerarquia === 'regional' ? (
-                  esMemoria ? (
-                    <RegionalLeadershipView historico={historicoDeLaJerarquia} />
-                  ) : (
-                    <RegionalLeadershipView idRegion={entidadDeLaJerarquia.id} />
-                  )
-                ) : esMemoria ? (
-                  <NationalLeadershipView historico={historicoDeLaJerarquia} />
-                ) : (
-                  // Aquí solo se consulta la estructura: los Oficiales Especiales
-                  // no se asignan, agregan ni eliminan desde la lista.
-                  <NationalLeadershipView gestionarOficialesEspeciales={false} />
-                )}
-              </Box>
+                    // Aquí solo se consulta la estructura: los Oficiales Especiales
+                    // no se asignan, agregan ni eliminan desde la lista.
+                    <NationalLeadershipView
+                      gestionarOficialesEspeciales={false}
+                      alturaMaxima={ALTURA_JERARQUIA}
+                      resaltarMiembroId={resaltado?.id}
+                      resaltarToken={resaltado?.token}
+                    />
+                  )}
+                </Box>
+              </>
             )}
 
             {vista === 'lista' && displayMode === 'panel' && (
