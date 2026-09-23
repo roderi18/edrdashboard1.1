@@ -179,3 +179,39 @@ test('en la memoria de un cuatrienio la fila no enseña el telefono', () => {
     /subtitleHref=\{esMemoriaDeCuatrienio \? undefined : getPhoneHref\(phoneNumber\)\}/
   );
 });
+
+// EL PERFIL DE UN CUATRIENIO PASADO NO ES LA FICHA DE UN MIEMBRO.
+//
+// Vive bajo /level/member/<id>/edit porque reutiliza esa pantalla, pero es la
+// instantanea de quien ocupo un cargo. Se le pintaba encima la cabecera de
+// miembro —el titulo "Miembro", unas migas con el id del integrante en vez de
+// un nombre y cinco pestañas que ahi no llevan a nada—, y el menu lateral
+// saltaba de "Consejo Nacional" a "Miembros". Lo delatan los dos parametros.
+test('el perfil de un cuatrienio no lleva la cabecera ni las pestañas del miembro', () => {
+  const layout = readFileSync(
+    new URL('../../src/sections/member/layout/member-edit-layout.jsx', import.meta.url),
+    'utf8'
+  );
+
+  assert.match(layout, /searchParams\?\.get\('cuatrienio'\) && searchParams\?\.get\('integrante'\)/);
+  // Los hijos a pelo: PerfilDirectivaNacional ya trae su propio contenedor.
+  assert.match(layout, /if \(esPerfilHistorico\) \{\s*\n\s*return children;/);
+});
+
+test('en el perfil de un cuatrienio el menu se queda en Consejo Nacional', () => {
+  const menu = readFileSync(
+    new URL('../../src/layouts/nav-config-dashboard.jsx', import.meta.url),
+    'utf8'
+  );
+
+  // Hacen falta LOS DOS parametros: una ficha normal con ?cuatrienio= suelto
+  // sigue siendo de Miembros.
+  assert.match(
+    menu,
+    /searchParams\?\.get\('cuatrienio'\) && searchParams\?\.get\('integrante'\)/
+  );
+  assert.match(menu, /marcaActiva: esDelConsejoNacional/);
+  assert.match(menu, /marcaActiva: esDeMiembros/);
+  // Y "Miembros" se apaga justo cuando el Consejo Nacional se enciende.
+  assert.match(menu, /const esDeMiembros = \(contexto\) =>[\s\S]*?&& !esPerfilDeCuatrienio\(contexto\)/);
+});

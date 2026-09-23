@@ -59,7 +59,32 @@ const ICONS = {
  * - `children`: An optional array of nested navigation items.
  * - `disabled`: An optional boolean to disable the item.
  * - `deepMatch`: An optional boolean to indicate if the item should match subpaths.
+ * - `marcaActiva`: función opcional `({ pathname, searchParams })` para las
+ *   entradas que no se distinguen solo por la ruta.
  */
+
+// EL PERFIL DE UN CUATRIENIO PASADO ES DEL CONSEJO NACIONAL, NO DE MIEMBROS.
+//
+// Vive bajo /level/member/<id>/edit porque reutiliza esa pantalla, pero no es la
+// ficha de un miembro: es la instantanea de quien ocupo un cargo entonces. Al
+// abrirlo desde el Consejo Nacional el menu saltaba a "Miembros" y se perdia de
+// vista de donde venia. Lo delatan los dos parametros que ya miran la pagina y
+// el layout del miembro.
+const RUTA_MIEMBROS = paths.dashboard.level.member.list;
+const RUTA_NACIONAL = paths.dashboard.level.national.list;
+
+const dentroDe = (pathname, ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`);
+
+const esPerfilDeCuatrienio = ({ pathname, searchParams }) =>
+  dentroDe(pathname, RUTA_MIEMBROS) &&
+  Boolean(searchParams?.get('cuatrienio') && searchParams?.get('integrante'));
+
+const esDelConsejoNacional = (contexto) =>
+  dentroDe(contexto.pathname, RUTA_NACIONAL) || esPerfilDeCuatrienio(contexto);
+
+const esDeMiembros = (contexto) =>
+  dentroDe(contexto.pathname, RUTA_MIEMBROS) && !esPerfilDeCuatrienio(contexto);
+
 export const navData = [
   /**
    * EL MENU, POR LO QUE HACE LA GENTE.
@@ -93,11 +118,21 @@ export const navData = [
           paths.dashboard.level.member.list,
         ],
         children: [
-          { title: 'Consejo Nacional', path: paths.dashboard.level.national.root, deepMatch: true },
+          {
+            title: 'Consejo Nacional',
+            path: paths.dashboard.level.national.root,
+            deepMatch: true,
+            marcaActiva: esDelConsejoNacional,
+          },
           { title: 'Regiones', path: paths.dashboard.level.regional.root, deepMatch: true },
           { title: 'Secciones', path: paths.dashboard.level.sectional.root, deepMatch: true },
           { title: 'Destacamentos', path: paths.dashboard.level.dest.root, deepMatch: true },
-          { title: 'Miembros', path: paths.dashboard.level.member.root, deepMatch: true },
+          {
+            title: 'Miembros',
+            path: paths.dashboard.level.member.root,
+            deepMatch: true,
+            marcaActiva: esDeMiembros,
+          },
         ],
       },
       {

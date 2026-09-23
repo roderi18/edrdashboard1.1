@@ -4,7 +4,7 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useEffect, useCallback } from 'react';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
 
-import { usePathname } from 'src/routes/hooks';
+import { usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { NavItem } from './nav-item';
 import { navSectionClasses } from '../styles';
@@ -14,6 +14,7 @@ import { NavUl, NavLi, NavCollapse } from '../components';
 
 export function NavList({ data, depth, render, slotProps, checkPermissions, enabledRootRedirect }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const navItemRef = useRef(null);
 
   const matchesPath = useCallback(
@@ -21,9 +22,15 @@ export function NavList({ data, depth, render, slotProps, checkPermissions, enab
     [pathname]
   );
 
-  const isActive = Array.isArray(data.activePaths) && data.activePaths.length
-    ? data.activePaths.some((activePath) => matchesPath(activePath))
-    : isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
+  // `marcaActiva` es para las entradas que no se distinguen por la ruta: la
+  // misma ruta pertenece a una u otra segun el query string. Se decide en la
+  // configuracion del menu, que es donde vive esa regla de negocio.
+  const isActive =
+    typeof data.marcaActiva === 'function'
+      ? data.marcaActiva({ pathname, searchParams })
+      : Array.isArray(data.activePaths) && data.activePaths.length
+        ? data.activePaths.some((activePath) => matchesPath(activePath))
+        : isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
 
   const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
 

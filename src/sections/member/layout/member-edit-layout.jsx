@@ -38,8 +38,23 @@ export function MemberEditLayout({ children, member = null, ...other }) {
   const params = useParams();
   const memberId = params?.id;
   const [resolvedMember, setResolvedMember] = useState(member);
+  // EL PERFIL HISTORICO NO ES UNA FICHA DE MIEMBRO.
+  //
+  // Es la instantanea de quien ocupo un cargo en un cuatrienio, y llega por el
+  // mismo sitio que la ficha. Sin esto se le pintaba encima la cabecera de
+  // miembro: el titulo "Miembro", unas migas con el id del integrante
+  // (`2022-2026__nacional__nacional__director`) en vez de un nombre, y las cinco
+  // pestañas —Dispensa Medica, Padres, Historial— que ahi no llevan a nada.
+  // Lo mira la pagina con estos mismos dos parametros.
+  const esPerfilHistorico = Boolean(
+    searchParams?.get('cuatrienio') && searchParams?.get('integrante')
+  );
 
   useEffect(() => {
+    // Su "miembro" es el id del integrante, que no esta en el padron: buscarlo
+    // era pedir la lista entera para no encontrar nada.
+    if (esPerfilHistorico) return undefined;
+
     if (member) {
       setResolvedMember(member);
       return undefined;
@@ -82,7 +97,7 @@ export function MemberEditLayout({ children, member = null, ...other }) {
     return () => {
       cancelled = true;
     };
-  }, [member, memberId]);
+  }, [esPerfilHistorico, member, memberId]);
 
   const currentMember = member || resolvedMember;
   const vieneDeConsejoNacional = searchParams?.get('origen') === 'consejo-nacional';
@@ -116,6 +131,14 @@ export function MemberEditLayout({ children, member = null, ...other }) {
       router.replace(`${pathname.replace(currentMemberSegment, nextMemberSegment)}${search}`);
     }
   }, [currentMemberSegment, memberCode, memberId, nextMemberSegment, pathname, router]);
+
+  // Los hijos a pelo: `PerfilDirectivaNacional` ya trae su propio
+  // DashboardContent y su cabecera ("Perfil de Directiva Nacional 2022-2026"),
+  // asi que envolverlo otra vez anidaba dos contenedores. Se pinta desde ahi
+  // hacia abajo. Va despues de los hooks para no llamarlos condicionalmente.
+  if (esPerfilHistorico) {
+    return children;
+  }
 
   // Todos los tabs quedan habilitados. El control de acceso al CONTENIDO de cada
   // módulo se maneja dentro de cada vista y con el aviso de "información oculta"
