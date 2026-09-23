@@ -29,6 +29,7 @@ import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-d
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
+import { GLOW_JERARQUIA_SX, useResaltarMiembro } from 'src/sections/common/use-resaltar-miembro';
 import {
   LeadershipNodeAvatar,
   getMemberDisplayName,
@@ -40,14 +41,14 @@ import {
 import {
   LeadershipNodeAnchors,
   LeadershipLayoutEditor,
-  getLeadershipContainerWidthSx,
   getLeadershipEditGridSx,
   getLeadershipConnections,
-  aplicarVinculosDelDiagrama,
   useLeadershipLayoutEditor,
+  aplicarVinculosDelDiagrama,
   hasLeadershipLayoutOffsets,
   getLeadershipEditableNodeSx,
   LeadershipLayoutOffsetStyles,
+  getLeadershipContainerWidthSx,
   LeadershipLayoutConnectorLayer,
   getLeadershipConnectorOverrideSx,
 } from 'src/sections/common/leadership-layout-editor';
@@ -227,14 +228,30 @@ function RegionalLeadershipNode({
 /**
  * `historico`: la directiva de un cuatrienio guardado, de solo lectura. Ver
  * `SectionalLeadershipView`.
+ *
+ * `idRegion` dice de que region es el organigrama cuando NO se llega por su ruta:
+ * la pestaña Jerarquia del Consejo Nacional lo pinta dentro de su propia pantalla,
+ * donde no hay un `[id]` del que sacarlo. Sigue siendo la directiva de hoy, con
+ * sus permisos: no es un modo de solo lectura como `historico`.
  */
-export function RegionalLeadershipView({ historico = null } = {}) {
+export function RegionalLeadershipView({
+  historico = null,
+  idRegion = null,
+  // Ver `NationalLeadershipView`: alto máximo embebido y miembro a resaltar tras
+  // una búsqueda por nombre en la pestaña Jerarquía.
+  alturaMaxima = null,
+  resaltarMiembroId = null,
+  resaltarToken = null,
+} = {}) {
   const params = useParams();
   const { user } = useAuthContext();
   // Todos los cargos regionales pueden proponer en SU region y el Consejo
   // Ejecutivo en cualquiera. Ningun cargo regional aplica directamente.
-  const regionalId = historico ? historico.idEntidad : params?.id;
-  const canManageLeadership = !historico && canManageRegionLeadership(user, params?.id);
+  const regionalId = historico ? historico.idEntidad : (idRegion ?? params?.id);
+  // El guarda va contra la region del organigrama, no contra la ruta: sin ruta
+  // (`params.id` vacio en la pestaña Jerarquia) el Coordinador Regional se quedaba
+  // sin permiso en su propia region.
+  const canManageLeadership = !historico && canManageRegionLeadership(user, regionalId);
   const canManageLayout = !historico && canManageDirectiva(user);
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
@@ -279,6 +296,17 @@ export function RegionalLeadershipView({ historico = null } = {}) {
     return historico?.cuatrienio ? `${titulo} · ${historico.cuatrienio}` : titulo;
   }, [regionalName, historico?.cuatrienio]);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
+  const sxAlturaContenedor = alturaMaxima
+    ? { minHeight: alturaMaxima, maxHeight: alturaMaxima }
+    : { minHeight: containerMinHeight };
+
+  useResaltarMiembro({
+    containerRef,
+    diagrama: REGIONAL_LEADERSHIP_DATA,
+    obtenerOcupante,
+    miembroId: resaltarMiembroId,
+    token: resaltarToken,
+  });
   const connections = useMemo(
     () =>
       aplicarVinculosDelDiagrama(getLeadershipConnections(REGIONAL_LEADERSHIP_DATA), {
@@ -448,7 +476,8 @@ export function RegionalLeadershipView({ historico = null } = {}) {
           display: 'flex',
           overflow: 'hidden',
           position: 'relative',
-          minHeight: containerMinHeight,
+          ...sxAlturaContenedor,
+          ...GLOW_JERARQUIA_SX,
           justifyContent: 'center',
           bgcolor: 'background.neutral',
           border: '1px solid',

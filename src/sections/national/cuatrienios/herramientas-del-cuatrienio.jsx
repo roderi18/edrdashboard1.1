@@ -2,25 +2,25 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
+import Menu from '@mui/material/Menu';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
-import Autocomplete from '@mui/material/Autocomplete';
 import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
+import Autocomplete from '@mui/material/Autocomplete';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
 import { ocupanteHistorico, integrantesDeEntidad } from 'src/utils/directiva-cuatrienios.mjs';
 
+import { obtenerIntegrantesDelCuatrienio } from 'src/services/directiva-cuatrienios-service';
 import {
-  cargarFotosActualesDelCuatrienio,
   restaurarFotosDelCuatrienio,
   tomarFotoDeLaDirectivaActual,
+  cargarFotosActualesDelCuatrienio,
 } from 'src/services/directiva-importacion-service';
-import { obtenerIntegrantesDelCuatrienio } from 'src/services/directiva-cuatrienios-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -186,16 +186,26 @@ export function useHerramientasDelCuatrienio({ cuatrienio, integrantes, usuario,
     }
   };
 
-  const abrirOrganigrama = (nivel, { id = '', nombre = '' } = {}) => {
-    const filas = integrantesDeEntidad(integrantes, { nivel, idEntidad: id, nombre });
+  // El `historico` que espera cada organigrama de solo lectura: sus ocupantes
+  // salen de la memoria del cuatrienio, no del padron de hoy. Lo usan por igual el
+  // dialogo que abre un cargo y la pestaña Jerarquia embebida en la lista.
+  const construirHistorico = useCallback(
+    (nivel, { id = '', nombre = '' } = {}) => {
+      const filas = integrantesDeEntidad(integrantes, { nivel, idEntidad: id, nombre });
 
-    setOrganigrama({
-      nivel,
-      idEntidad: id,
-      nombreEntidad: nombre,
-      cuatrienio,
-      obtenerOcupante: (nodeId) => ocupanteHistorico(filas, nivel, nodeId),
-    });
+      return {
+        nivel,
+        idEntidad: id,
+        nombreEntidad: nombre,
+        cuatrienio,
+        obtenerOcupante: (nodeId) => ocupanteHistorico(filas, nivel, nodeId),
+      };
+    },
+    [integrantes, cuatrienio]
+  );
+
+  const abrirOrganigrama = (nivel, entidad = {}) => {
+    setOrganigrama(construirHistorico(nivel, entidad));
   };
 
   const tomarFoto = async () => {
@@ -382,6 +392,7 @@ export function useHerramientasDelCuatrienio({ cuatrienio, integrantes, usuario,
     actualizandoFotos,
     reversionesFotos,
     abrirOrganigrama,
+    construirHistorico,
     editar: (integrante) => setEdicion(integrante),
     agregar: (base = {}) => setEdicion({ nuevo: true, cuatrienio, ...base }),
     importar: () => setImportando(true),

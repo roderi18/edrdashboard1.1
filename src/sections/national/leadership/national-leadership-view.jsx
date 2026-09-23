@@ -31,6 +31,7 @@ import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-d
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
+import { GLOW_JERARQUIA_SX, useResaltarMiembro } from 'src/sections/common/use-resaltar-miembro';
 import {
   LeadershipNodeAvatar,
   getMemberDisplayName,
@@ -312,8 +313,26 @@ function NationalLeadershipNode({
 /**
  * `historico`: la Directiva Nacional de un cuatrienio guardado, de solo lectura.
  * Ver `SectionalLeadershipView`.
+ *
+ * `gestionarOficialesEspeciales`: apagado cuando el organigrama se pinta embebido
+ * en la pestaña Jerarquía de la lista nacional. Alli se consulta la estructura,
+ * pero los Oficiales Especiales NO se tocan: ni se asignan, ni se agregan, ni se
+ * eliminan. Eso se hace en la ficha del cargo, no dentro de la tarjeta de la
+ * lista. El resto de cargos se siguen asignando con normalidad.
  */
-export function NationalLeadershipView({ historico = null } = {}) {
+export function NationalLeadershipView({
+  historico = null,
+  gestionarOficialesEspeciales = true,
+  // Alto máximo del contenedor cuando el organigrama va embebido en la pestaña
+  // Jerarquía: sin esto ocupaba toda la pantalla vertical. El ancho no se toca; se
+  // navega en vertical con el arrastre de siempre.
+  alturaMaxima = null,
+  // Miembro a resaltar tras una búsqueda por nombre: su casilla brilla unos
+  // segundos y se trae al centro. `resaltarToken` fuerza el efecto aunque se
+  // repita el mismo nombre.
+  resaltarMiembroId = null,
+  resaltarToken = null,
+} = {}) {
   const { user } = useAuthContext();
   // Los cargos del Consejo Ejecutivo proponen; Oficina Nacional o Administrador
   // Global resuelven. Solo el Administrador Global modifica el diseño visual.
@@ -327,7 +346,9 @@ export function NationalLeadershipView({ historico = null } = {}) {
       .map((nombre) => normalizeText(nombre))
       .includes('administrador global');
   const canManageOfficialStructure =
-    !historico && (esAdministradorGlobal || isOficinaNacional(user));
+    !historico &&
+    gestionarOficialesEspeciales &&
+    (esAdministradorGlobal || isOficinaNacional(user));
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
@@ -387,6 +408,19 @@ export function NationalLeadershipView({ historico = null } = {}) {
   );
   const zoomPercentage = useMemo(() => Math.round(zoom * 100), [zoom]);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
+  // Embebido en la pestaña Jerarquía: el contenedor deja de crecer con el diagrama
+  // y se queda en una ventana fija que se recorre en vertical con el arrastre.
+  const sxAlturaContenedor = alturaMaxima
+    ? { minHeight: alturaMaxima, maxHeight: alturaMaxima }
+    : { minHeight: containerMinHeight };
+
+  useResaltarMiembro({
+    containerRef,
+    diagrama: diagramaNacional,
+    obtenerOcupante,
+    miembroId: resaltarMiembroId,
+    token: resaltarToken,
+  });
   const connections = useMemo(
     () =>
       aplicarVinculosDelDiagrama(getLeadershipConnections(diagramaNacional), {
@@ -662,7 +696,8 @@ export function NationalLeadershipView({ historico = null } = {}) {
           display: 'flex',
           overflow: 'hidden',
           position: 'relative',
-          minHeight: containerMinHeight,
+          ...sxAlturaContenedor,
+          ...GLOW_JERARQUIA_SX,
           justifyContent: 'center',
           bgcolor: 'background.neutral',
           border: '1px solid',
@@ -886,7 +921,15 @@ export function NationalLeadershipView({ historico = null } = {}) {
               <NationalLeadershipNode
                 {...props}
                 layoutEditor={layoutEditor}
-                canManage={canManageLeadership}
+                // En la pestaña Jerarquía los Oficiales Especiales no se asignan:
+                // el nodo pierde su menú de gestión, pero el resto de cargos no.
+                canManage={
+                  canManageLeadership &&
+                  !(
+                    !gestionarOficialesEspeciales &&
+                    /^oficial-especial-(?:[1-9]|1\d|20)$/.test(String(props.id || ''))
+                  )
+                }
                 miembroAsignado={obtenerOcupante(props.id)}
                 onAsignarMiembro={leadership.openAssign}
                 onRemoverMiembro={leadership.pedirRemoverMiembro}

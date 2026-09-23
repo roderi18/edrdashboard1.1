@@ -85,7 +85,9 @@ export const NATIONAL_LEADERSHIP_DATA = {
         ]),
         ]),
         name: 'Consejo Ejecutivo',
-        avatarUrl: '/exploradores-del-rey-icono.ico',
+        // La caja de estructura lleva el sello de la casa (watermark), no la "O"
+        // de EXPLORA: es la marca de agua unica de las jerarquias y los niveles.
+        avatarUrl: '/watermark.webp',
         isDivision: true,
       },
     ]),
@@ -99,9 +101,11 @@ export const NATIONAL_LEADERSHIP_DATA = {
 // identidad y asignación propias. La vista actual muestra solo las creadas.
 export const obtenerDiagramaNacionalConOficiales = (cantidadOficiales = 1) => {
   const idsOficiales = Array.isArray(cantidadOficiales)
-    ? [...new Set(cantidadOficiales.map((id) => String(id || '')))
+    ? // El spread se cierra JUNTO al Set: si no, `.filter` se llamaba sobre el
+      // propio Set (que no lo tiene) y el organigrama reventaba al abrir Jerarquía.
+      [...new Set(cantidadOficiales.map((id) => String(id || '')))]
         .filter((id) => /^oficial-especial-(?:[1-9]|1\d|20)$/.test(id))
-        .slice(0, 20)]
+        .slice(0, 20)
     : Array.from(
         { length: Math.min(20, Math.max(0, Number(cantidadOficiales) || 0)) },
         (_, indice) => `oficial-especial-${indice + 1}`
@@ -145,7 +149,8 @@ export const REGIONAL_LEADERSHIP_DATA = {
     createNode('capellan-regional', 'Capellán Regional'),
   ]),
   name: 'Consejo Ejecutivo',
-  avatarUrl: '/exploradores-del-rey-icono.ico',
+  // Mismo sello (watermark) que el organigrama nacional, en vez de la "O".
+  avatarUrl: '/watermark.webp',
   isDivision: true,
 };
 

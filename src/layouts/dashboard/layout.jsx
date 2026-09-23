@@ -12,13 +12,13 @@ import { paths } from 'src/routes/paths';
 import { usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
-import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
+import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { setModuloActivo, moduloDesdeRuta } from 'src/utils/modulo-activo';
 import { canManageStoreProducts, filterDashboardNavDataByUser } from 'src/utils/member-access';
 
-import { useGetLabels } from 'src/actions/mail';
 import { _notifications } from 'src/_mock';
+import { useGetLabels } from 'src/actions/mail';
 import { getMembers } from 'src/services/member-service';
 import { useCargarSonidosDeAviso } from 'src/actions/sonidos';
 import { useGetDashboardChatSummary } from 'src/actions/chat-summary';
@@ -45,6 +45,7 @@ import { NavVertical } from './nav-vertical';
 import { NavHorizontal } from './nav-horizontal';
 import { _account } from '../nav-config-account';
 import { Searchbar } from '../components/searchbar';
+import { MobileQuickNav } from './mobile-quick-nav';
 import { _workspaces } from '../nav-config-workspace';
 import { MenuButton } from '../components/menu-button';
 import { AccountDrawer } from '../components/account-drawer';
@@ -730,6 +731,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       ]}
     >
       {renderMain()}
+      <MobileQuickNav unreadChats={chatsSinLeer} layoutQuery={layoutQuery} />
       <ProbarComoUsuarioDialog
         open={probarComoUsuario.value}
         onClose={probarComoUsuario.onFalse}

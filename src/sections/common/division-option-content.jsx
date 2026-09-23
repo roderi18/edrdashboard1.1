@@ -9,13 +9,14 @@ import Stack from '@mui/material/Stack';
 // lista de asistencia, su informe avanzado y la Directiva de Lideres
 // Juveniles—: repetido en cada una, unas acababan con escudos y otras sin ellos.
 //
-// "Todos" es el valor `all` del desplegable y no una division: lleva el icono de
-// Exploradores del Rey, que es la casa entera. Sin el, la unica opcion sin
-// imagen seria justamente la primera y la lista arrancaria con un hueco.
+// "Todos" es el valor `all` del desplegable y no una division: lleva el sello de
+// la casa (watermark), que es la marca de agua unica de jerarquias y niveles, no
+// la "O" de EXPLORA. Sin imagen, la unica opcion sin escudo seria justamente la
+// primera y la lista arrancaria con un hueco.
 // ----------------------------------------------------------------------
 
 export const DIVISION_ICON_PATHS = {
-  all: '/exploradores-del-rey-icono.ico',
+  all: '/watermark.webp',
   Liderazgo: '/assets/images/divisions/member/liderazgo-ico.png',
   Exploradores: '/assets/images/divisions/member/exploradores-ico.png',
   Seguidores: '/assets/images/divisions/member/seguidores-ico.png',

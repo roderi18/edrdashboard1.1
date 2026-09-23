@@ -29,6 +29,7 @@ import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-d
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
+import { GLOW_JERARQUIA_SX, useResaltarMiembro } from 'src/sections/common/use-resaltar-miembro';
 import {
   LeadershipNodeAvatar,
   getMemberDisplayName,
@@ -39,14 +40,14 @@ import {
 import {
   LeadershipNodeAnchors,
   LeadershipLayoutEditor,
-  getLeadershipContainerWidthSx,
   getLeadershipEditGridSx,
   getLeadershipConnections,
-  aplicarVinculosDelDiagrama,
   useLeadershipLayoutEditor,
+  aplicarVinculosDelDiagrama,
   hasLeadershipLayoutOffsets,
   getLeadershipEditableNodeSx,
   LeadershipLayoutOffsetStyles,
+  getLeadershipContainerWidthSx,
   LeadershipLayoutConnectorLayer,
   getLeadershipConnectorOverrideSx,
 } from 'src/sections/common/leadership-layout-editor';
@@ -206,7 +207,15 @@ function SectionalLeadershipNode({
  * pantalla, donde no hay un `[id]` del que sacarlo. Sigue siendo la directiva
  * de hoy, con sus permisos: no es un modo de solo lectura como `historico`.
  */
-export function SectionalLeadershipView({ historico = null, idSeccion = null } = {}) {
+export function SectionalLeadershipView({
+  historico = null,
+  idSeccion = null,
+  // Ver `NationalLeadershipView`: alto máximo embebido y miembro a resaltar tras
+  // una búsqueda por nombre en la pestaña Jerarquía.
+  alturaMaxima = null,
+  resaltarMiembroId = null,
+  resaltarToken = null,
+} = {}) {
   const params = useParams();
   const { user } = useAuthContext();
   const sectionalId = historico ? historico.idEntidad : (idSeccion ?? params?.id);
@@ -268,6 +277,17 @@ export function SectionalLeadershipView({ historico = null, idSeccion = null } =
     return historico?.cuatrienio ? `${titulo} · ${historico.cuatrienio}` : titulo;
   }, [sectionalName, historico?.cuatrienio]);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
+  const sxAlturaContenedor = alturaMaxima
+    ? { minHeight: alturaMaxima, maxHeight: alturaMaxima }
+    : { minHeight: containerMinHeight };
+
+  useResaltarMiembro({
+    containerRef,
+    diagrama: SECTIONAL_LEADERSHIP_DATA,
+    obtenerOcupante,
+    miembroId: resaltarMiembroId,
+    token: resaltarToken,
+  });
   const connections = useMemo(
     () =>
       aplicarVinculosDelDiagrama(getLeadershipConnections(SECTIONAL_LEADERSHIP_DATA), {
@@ -437,7 +457,8 @@ export function SectionalLeadershipView({ historico = null, idSeccion = null } =
           display: 'flex',
           overflow: 'hidden',
           position: 'relative',
-          minHeight: containerMinHeight,
+          ...sxAlturaContenedor,
+          ...GLOW_JERARQUIA_SX,
           justifyContent: 'center',
           bgcolor: 'background.neutral',
           border: '1px solid',

@@ -1,8 +1,8 @@
 'use client';
 
 import { varAlpha } from 'minimal-shared/utils';
-import { useState, useEffect, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -66,6 +66,7 @@ import { CompactEntityListView } from 'src/sections/common/compact-entity-list-v
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 import { SelectorDeCuatrienio } from 'src/sections/national/cuatrienios/selector-de-cuatrienio';
 import { NationalLeadershipView } from 'src/sections/national/leadership/national-leadership-view';
+import { RegionalLeadershipView } from 'src/sections/regional/leadership/regional-leadership-view';
 import { OrganizationalListBreadcrumbs } from 'src/sections/common/organizational-list-breadcrumbs';
 import { SectionalLeadershipView } from 'src/sections/sectional/leadership/sectional-leadership-view';
 import {
@@ -456,6 +457,15 @@ export function NationalListView() {
     return {
       id: assignment.idAsignacion || assignment.id,
       entityId: idEntidad,
+      // Nombre CRUDO de la entidad (sin el prefijo "Región"/"Sección"): la pestaña
+      // Jerarquía lo usa para casar la memoria de un cuatrienio cuando el id aún
+      // no existe en el padrón. La nacional no tiene entidad.
+      entityNombre:
+        nivel === 'regional'
+          ? regionesPorId.get(String(idEntidad)) || ''
+          : nivel === 'seccional'
+            ? seccionesPorId.get(String(idEntidad)) || ''
+            : '',
       memberId: member?.id ?? assignment.idMiembro,
       level: nivel,
       // El nombre del listado manda; si el miembro no viene (baja, filtro), se usa
@@ -556,6 +566,9 @@ export function NationalListView() {
       integrante,
       soloLectura: !puedeEditarMemoria,
       entityId: entidad.id || nivel,
+      // Nombre CRUDO de la entidad guardada: con él, la Jerarquía de la memoria
+      // encuentra a una sección o región que aún no existe en el padrón por id.
+      entityNombre: entidad.nombre || '',
       memberId: integrante.idMiembros || '',
       level: nivel,
       nationalXname: nombreCompleto(integrante) || 'Sin nombre',
@@ -601,9 +614,75 @@ export function NationalListView() {
             (row) => row.nationalOrganizationalLevel === nivelesElegidos[0]
           );
 
-          return fila ? { nivel: fila.level, id: fila.entityId } : null;
+          return fila
+            ? { nivel: fila.level, id: fila.entityId, nombre: fila.entityNombre || '' }
+            : null;
         })()
       : null;
+  // Nivel del organigrama a pintar en la pestaña Jerarquía: la entidad elegida en
+  // el filtro o, sin filtro, el Consejo Nacional.
+  const nivelDeLaJerarquia = entidadDeLaJerarquia?.nivel || 'nacional';
+  const idEntidadDeLaJerarquia = entidadDeLaJerarquia?.id || '';
+  const nombreEntidadDeLaJerarquia = entidadDeLaJerarquia?.nombre || '';
+  // La directiva ANTERIOR (un cuatrienio guardado) se pinta de solo lectura con
+  // sus ocupantes de entonces; la de HOY, con sus permisos. El mismo `historico`
+  // que ya usa el diálogo que abre un cargo.
+  //
+  // Memoizado por sus datos primitivos: si se rehiciera en cada render, su
+  // `obtenerOcupante` cambiaría de identidad y el resaltado de una persona se
+  // dispararía en bucle en vez de una vez.
+  const historicoDeLaJerarquia = useMemo(
+    () =>
+      esMemoria
+        ? herramientas.construirHistorico(
+            nivelDeLaJerarquia,
+            entidadDeLaJerarquia
+              ? { id: idEntidadDeLaJerarquia, nombre: nombreEntidadDeLaJerarquia }
+              : {}
+          )
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [esMemoria, herramientas.construirHistorico, nivelDeLaJerarquia, idEntidadDeLaJerarquia, nombreEntidadDeLaJerarquia]
+  );
+
+  // Persona a resaltar en el organigrama tras una búsqueda. El `token` cambia con
+  // cada elección para que repetir el mismo nombre vuelva a hacerla brillar.
+  const [resaltado, setResaltado] = useState(null);
+
+  // Cada persona de la directiva, buscable por nombre, con la ubicación que la
+  // lleva a su organigrama. Solo importa en la pestaña Jerarquía.
+  const opcionesBusquedaJerarquia = tableData
+    .filter((row) => row.memberId && row.nationalXname && row.nationalXname !== 'Desconocido')
+    .map((row) => ({
+      clave: row.id,
+      memberId: String(row.memberId),
+      label: row.nationalXname,
+      ambito: row.nationalOrganizationalLevel,
+      cargo: row.nationalXMemberPositionLabel,
+      avatarUrl: row.avatarUrl,
+    }));
+
+  // Al elegir a una persona: se lleva el filtro a su ámbito (para que salga SU
+  // organigrama) y se marca para resaltarla.
+  const seleccionarMiembroJerarquia = useCallback(
+    (opcion) => {
+      filters.setState({
+        nationalOrganizationalLevel: opcion.ambito ? [opcion.ambito] : [],
+      });
+      setResaltado({ id: opcion.memberId, token: Date.now() });
+    },
+    [filters]
+  );
+
+  // El desplegable de una sola opción: guarda el array que el resto del código ya
+  // usa, pero con 0 o 1 elemento. Cambiar de nivel a mano apaga el resaltado.
+  const cambiarNivelJerarquia = useCallback(
+    (value) => {
+      filters.setState({ nationalOrganizationalLevel: value ? [value] : [] });
+      setResaltado(null);
+    },
+    [filters]
+  );
   const distinctPositions = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'nationalXMemberPosition',
@@ -853,9 +932,9 @@ export function NationalListView() {
                 iconPosition="end"
                 icon={<Label variant="filled">{tableData.length}</Label>}
               />
-              {/* Solo en la directiva de hoy: la de un cuatrienio guardado ya
-                  abre su organigrama desde el cargo, en su dialogo. */}
-              {!esMemoria && <Tab value="jerarquia" label="Jerarquía" />}
+              {/* Tanto la directiva de hoy como la de un cuatrienio guardado: la
+                  memoria se pinta de solo lectura con sus ocupantes de entonces. */}
+              <Tab value="jerarquia" label="Jerarquía" />
             </Tabs>
 
             <NationalTableToolbar
@@ -886,10 +965,24 @@ export function NationalListView() {
 
             {vista === 'jerarquia' && (
               <Box sx={{ p: { xs: 1, md: 2.5 }, pt: 0 }}>
-                {entidadDeLaJerarquia?.nivel === 'seccional' ? (
-                  <SectionalLeadershipView idSeccion={entidadDeLaJerarquia.id} />
+                {nivelDeLaJerarquia === 'seccional' ? (
+                  esMemoria ? (
+                    <SectionalLeadershipView historico={historicoDeLaJerarquia} />
+                  ) : (
+                    <SectionalLeadershipView idSeccion={entidadDeLaJerarquia.id} />
+                  )
+                ) : nivelDeLaJerarquia === 'regional' ? (
+                  esMemoria ? (
+                    <RegionalLeadershipView historico={historicoDeLaJerarquia} />
+                  ) : (
+                    <RegionalLeadershipView idRegion={entidadDeLaJerarquia.id} />
+                  )
+                ) : esMemoria ? (
+                  <NationalLeadershipView historico={historicoDeLaJerarquia} />
                 ) : (
-                  <NationalLeadershipView />
+                  // Aquí solo se consulta la estructura: los Oficiales Especiales
+                  // no se asignan, agregan ni eliminan desde la lista.
+                  <NationalLeadershipView gestionarOficialesEspeciales={false} />
                 )}
               </Box>
             )}
