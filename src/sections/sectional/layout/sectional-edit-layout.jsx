@@ -24,14 +24,26 @@ export function SectionalEditLayout({ children, ...other }) {
   const [sectionalName, setSectionalName] = useState('Sección');
 
   useEffect(() => {
+    let cancelado = false;
+
+    // Con cancelacion y captura: al saltar de una seccion a otra la respuesta
+    // lenta de la anterior pisaba el nombre nuevo, y un fallo de la API dejaba
+    // el rechazo sin dueño.
     const loadSectional = async () => {
-      const sectional = await getSectionalById(sectionalId);
+      const sectional = await getSectionalById(sectionalId).catch(() => null);
+
+      if (cancelado) return;
+
       setSectionalName(sectional?.sectionalName || 'Sección');
     };
 
     if (sectionalId) {
       loadSectional();
     }
+
+    return () => {
+      cancelado = true;
+    };
   }, [sectionalId]);
 
   const currentPath = pathname.replace(/\/$/, '');

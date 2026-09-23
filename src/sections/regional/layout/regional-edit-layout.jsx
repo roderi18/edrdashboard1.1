@@ -71,7 +71,12 @@ export function RegionalEditLayout({ children, ...other }) {
       setPuedeEntrar(puedeEntrarALaRegion(user, regionalId, { ownRegionIds }));
     };
 
-    averiguar();
+    // Averiguar SIEMPRE termina en un si o un no: con `puedeEntrar` en `null` el
+    // layout se queda pintando una pantalla vacia sin las pestañas, y eso solo
+    // se arreglaba recargando. Ante la duda, la region no es suya.
+    averiguar().catch(() => {
+      if (!cancelado) setPuedeEntrar(false);
+    });
 
     return () => {
       cancelado = true;
@@ -79,8 +84,16 @@ export function RegionalEditLayout({ children, ...other }) {
   }, [user, regionalId]);
 
   useEffect(() => {
+    let cancelado = false;
+
+    // Sin fotos: aqui solo se lee el nombre y pedirlas costaba una consulta de
+    // mas a Storage en cada entrada. Y con cancelacion, que al saltar de una
+    // region a otra la respuesta lenta de la anterior pisaba el nombre nuevo.
     const loadRegional = async () => {
-      const regionals = await getRegionals();
+      const regionals = await getRegionals({ includePhotos: false }).catch(() => []);
+
+      if (cancelado) return;
+
       const regional = (Array.isArray(regionals) ? regionals : []).find(
         (item) => String(item.id) === String(regionalId)
       );
@@ -91,6 +104,10 @@ export function RegionalEditLayout({ children, ...other }) {
     if (regionalId) {
       loadRegional();
     }
+
+    return () => {
+      cancelado = true;
+    };
   }, [regionalId]);
 
   const currentPath = pathname.replace(/\/$/, '');

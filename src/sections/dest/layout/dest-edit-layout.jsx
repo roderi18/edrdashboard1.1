@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { paths } from 'src/routes/paths';
 import { useParams, usePathname } from 'src/routes/hooks';
 
+import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
@@ -22,15 +23,26 @@ export function DestEditLayout({ children, ...other }) {
     const [dest, setDest] = useState(null);
 
     useEffect(() => {
-        const load = async () => {
-            const res = await fetch('/api/dest/');
-            const data = await res.json();
+        let cancelado = false;
 
-            const found = (data?.data || []).find((d) => String(d.idDestacamento) === String(destId));
-            setDest(found);
+        // Por el servicio, no por `fetch` a pelo. El crudo no tenia try/catch:
+        // un 500 o el corte por tiempo de la API dejaba el rechazo sin dueño y
+        // el encabezado clavado en "Destacamento". `getDestsApi` ya reintenta
+        // contra el espejo local y comparte cache con el resto de pantallas,
+        // asi que la pestaña no vuelve a bajar el padron entero.
+        const load = async () => {
+            const dests = await getDestsApi({ includePhotos: false }).catch(() => []);
+
+            if (cancelado) return;
+
+            setDest(dests.find((d) => String(d?.id) === String(destId)) || null);
         };
 
         load();
+
+        return () => {
+            cancelado = true;
+        };
     }, [destId]);
 
     const destName = dest ? dest.nombre || dest.name : 'Destacamento';

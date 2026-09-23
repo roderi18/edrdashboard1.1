@@ -107,7 +107,9 @@ export default function Page() {
       }
     };
 
-    load();
+    // `finally` ya deja la pestaña hidratada aunque falle; el `catch` es para
+    // que el rechazo no quede sin dueño y Next lo pinte encima de lo cargado.
+    load().catch(() => {});
 
     return () => {
       cancelled = true;

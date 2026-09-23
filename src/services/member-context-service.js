@@ -64,7 +64,7 @@ export async function getMemberDirectoryMetadata({
     return memberDirectoryMetadataPromise;
   }
 
-  memberDirectoryMetadataPromise = Promise.all([
+  const enCurso = Promise.all([
     getDestsApi({ includePhotos: includeDestPhotos }),
     getChurches(),
     getRegionals({ includePhotos: includeRegionalPhotos }),
@@ -73,7 +73,23 @@ export async function getMemberDirectoryMetadata({
     buildMetadata({ dests, churches, regionals, sectionals })
   );
 
-  return memberDirectoryMetadataPromise;
+  memberDirectoryMetadataPromise = enCurso;
+
+  // UNA PROMESA ROTA NO SE QUEDA CACHEADA.
+  //
+  // Al guardar el rechazo, el primer fallo de la estructura dejaba clavadas
+  // TODAS las pestañas del miembro: cada navegacion volvia a leer la misma
+  // promesa rota y solo recargando la pagina entera —modulo nuevo, cache
+  // vacia— se reintentaba. Es lo mismo que ya hacen miembros y divisiones.
+  //
+  // La comparacion evita pisar una recarga mas nueva que ya este en vuelo.
+  enCurso.catch(() => {
+    if (memberDirectoryMetadataPromise === enCurso) {
+      memberDirectoryMetadataPromise = null;
+    }
+  });
+
+  return enCurso;
 }
 
 export function findMemberByIdentifier(members, identifier) {
@@ -147,9 +163,15 @@ export async function getResolvedMemberByIdentifier(
   if (cached) {
     // Devuelve la ficha ya conocida y refresca silenciosamente para la próxima
     // visita. El tab no vuelve a mostrar skeleton por esperar la red.
-    void loadResolvedMember(identifier, { includePhoto, includeMetadata }).then((fresh) => {
-      if (fresh) resolvedMemberCache.set(cacheKey, fresh);
-    });
+    void loadResolvedMember(identifier, { includePhoto, includeMetadata })
+      .then((fresh) => {
+        if (fresh) resolvedMemberCache.set(cacheKey, fresh);
+      })
+      // El refresco es de cortesia: si falla, se sigue con la ficha cacheada.
+      // Sin este catch el rechazo quedaba sin dueño y Next lo pintaba encima de
+      // la pestaña ya cargada.
+      .catch(() => {});
+
     return cached;
   }
 
