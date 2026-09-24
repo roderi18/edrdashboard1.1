@@ -38,8 +38,10 @@ export function NationalTableRow({
   const memberName = row.nationalXname || member?.fullName || 'Desconocido';
   const memberHref = row.integrante?.id
     ? `/dashboard/level/member/${encodeURIComponent(row.integrante.id)}/edit?cuatrienio=${encodeURIComponent(row.integrante.cuatrienio || '')}&integrante=${encodeURIComponent(row.integrante.id)}`
-    : member
-      ? `/dashboard/level/member/${member.id}/edit?origen=consejo-nacional`
+    : member || row.memberId
+      ? // Con el id de la asignación basta: sin él, si el padrón (API .NET) no
+        // cargaba, el nombre quedaba sin enlace a la ficha.
+        `/dashboard/level/member/${encodeURIComponent(member?.id ?? row.memberId)}/edit?origen=consejo-nacional`
       : '';
   const phoneNumber = member?.phoneNumber || row.phoneNumber;
   // EN LA MEMORIA DE UN CUATRIENIO NO SE ENSEÑA EL TELEFONO.
@@ -76,7 +78,7 @@ export function NationalTableRow({
         subtitleHref={esMemoriaDeCuatrienio ? undefined : getPhoneHref(phoneNumber)}
         avatarAlt={row.nationalXname}
         avatarUrl={row.avatarUrl}
-        linkSx={{ cursor: member ? 'pointer' : 'default' }}
+        linkSx={{ cursor: memberHref ? 'pointer' : 'default' }}
       />
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
