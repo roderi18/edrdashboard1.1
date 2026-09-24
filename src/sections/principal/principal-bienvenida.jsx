@@ -11,6 +11,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import { RouterLink } from 'src/routes/components';
 
 import { Iconify } from 'src/components/iconify';
+import { CapaDeEsqueleto, useFondoCargado } from 'src/components/esqueleto-de-medios';
 
 import { MarcaDeEjemplo } from './marca-de-ejemplo';
 import { useTonosDeMarca } from './use-tonos-de-marca';
@@ -103,6 +104,9 @@ export function PrincipalBienvenida({
   // El fondo publicado desde EXPLORA Designer, si lo hay, manda sobre el de
   // siempre. Sin el —el valor de fabrica— se usa el de siempre.
   const fondo = resumen.fondo ? resumen.fondo.url : banner.foto;
+  // Esqueleto mientras no se sabe si hay fondo o mientras la foto baja.
+  const fondoListo = useFondoCargado(fondo);
+  const cargandoFondo = (!resumen.fondo && banner.buscando) || !fondoListo;
 
   const primerNombre =
     String(nombre || '')
@@ -133,8 +137,13 @@ export function PrincipalBienvenida({
                 backgroundImage: `linear-gradient(100deg, ${NAVY.fondo} 0%, ${NAVY.claro} 62%, ${AZUL.oscuro} 100%)`,
               }),
         ...radioDelDiseno(diseno),
+        // La capa del esqueleto va con `zIndex: -1`: encima del fondo de la
+        // tarjeta y debajo del texto, que se lee mientras tanto.
+        isolation: 'isolate',
       }}
     >
+      <CapaDeEsqueleto visible={cargandoFondo} sx={{ zIndex: -1 }} />
+
       <Stack
         direction="row"
         alignItems="center"

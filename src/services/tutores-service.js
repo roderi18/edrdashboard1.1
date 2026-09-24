@@ -1,3 +1,5 @@
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { AUTH } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -34,7 +36,7 @@ const leerRespuesta = async (respuesta) => {
   return datos;
 };
 
-export async function obtenerTutoresDelMiembro(idMiembro) {
+async function obtenerTutoresDelMiembroSinCache(idMiembro) {
   if (!idMiembro) return [];
 
   const respuesta = await fetch(`${RUTA}?idMiembro=${encodeURIComponent(idMiembro)}`, {
@@ -52,7 +54,7 @@ export async function obtenerTutoresDelMiembro(idMiembro) {
  * los que se llama cuando a un menor le pasa algo; dar por guardado lo que el
  * servidor rechazo seria la peor mentira posible aqui.
  */
-export async function guardarTutoresDelMiembro({ idMiembro, tutores }) {
+async function guardarTutoresDelMiembroDirecto({ idMiembro, tutores }) {
   const respuesta = await fetch(RUTA, {
     method: 'PUT',
     headers: await cabeceras(),
@@ -63,7 +65,7 @@ export async function guardarTutoresDelMiembro({ idMiembro, tutores }) {
   return Array.isArray(datos?.tutores) ? datos.tutores : [];
 }
 
-export async function obtenerNotaTutoresDelMiembro(idMiembro) {
+async function obtenerNotaTutoresDelMiembroSinCache(idMiembro) {
   if (!idMiembro) return '';
 
   const respuesta = await fetch(`${RUTA_NOTA}?idMiembro=${encodeURIComponent(idMiembro)}`, {
@@ -74,7 +76,7 @@ export async function obtenerNotaTutoresDelMiembro(idMiembro) {
   return String(datos?.nota ?? '');
 }
 
-export async function guardarNotaTutoresDelMiembro({ idMiembro, nota, keepalive = false }) {
+async function guardarNotaTutoresDelMiembroDirecto({ idMiembro, nota, keepalive = false }) {
   const respuesta = await fetch(RUTA_NOTA, {
     method: 'PUT',
     headers: await cabeceras(),
@@ -85,3 +87,15 @@ export async function guardarNotaTutoresDelMiembro({ idMiembro, nota, keepalive 
 
   return String(datos?.nota ?? '');
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerTutoresDelMiembro = conCache('tutores:obtenerTutoresDelMiembro', obtenerTutoresDelMiembroSinCache);
+export const obtenerNotaTutoresDelMiembro = conCache('tutores:obtenerNotaTutoresDelMiembro', obtenerNotaTutoresDelMiembroSinCache);
+export const guardarTutoresDelMiembro = conInvalidacion(guardarTutoresDelMiembroDirecto, [], ['tutores:']);
+export const guardarNotaTutoresDelMiembro = conInvalidacion(guardarNotaTutoresDelMiembroDirecto, [], ['tutores:']);

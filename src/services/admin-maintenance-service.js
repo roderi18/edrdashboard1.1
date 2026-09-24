@@ -10,6 +10,8 @@ import {
   getCountFromServer,
 } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { listarAuditoriaSistema } from 'src/services/audit-log-service';
 
@@ -59,7 +61,7 @@ const downloadJson = ({ data, fileName }) => {
 
 const getDateStamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 
-export async function obtenerUltimoRespaldoAdmin() {
+async function obtenerUltimoRespaldoAdminSinCache() {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
   const snapshot = await getDoc(doc(FIRESTORE, BACKUP_META_COLLECTION, BACKUP_META_DOC)).catch(
@@ -100,7 +102,7 @@ export async function inspeccionarColeccionesAdmin() {
   return rows;
 }
 
-export async function exportarRespaldoAdmin({ usuario = {} } = {}) {
+async function exportarRespaldoAdminDirecto({ usuario = {} } = {}) {
   if (!isFirebaseConfigured || !FIRESTORE) {
     throw new Error('Firebase no está configurado para exportar respaldo.');
   }
@@ -154,3 +156,13 @@ export async function descargarLogsAdmin() {
 
   return { fileName, total: logs.length };
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerUltimoRespaldoAdmin = conCache('admin-mantenimiento:obtenerUltimoRespaldoAdmin', obtenerUltimoRespaldoAdminSinCache);
+export const exportarRespaldoAdmin = conInvalidacion(exportarRespaldoAdminDirecto, ['admin-mantenimiento:']);

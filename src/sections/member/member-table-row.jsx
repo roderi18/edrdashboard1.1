@@ -143,6 +143,11 @@ export function MemberTableRow({
       selected={selected}
       aria-checked={selected}
       tabIndex={-1}
+      // La foto abre la ficha con `router.push`, que no precarga como un enlace:
+      // al pasar por la fila se adelanta la ficha y su esqueleto sale al instante.
+      onPointerEnter={() => {
+        if (memberEditId) router.prefetch(`/dashboard/level/member/${memberEditId}/edit`);
+      }}
     >
       <TableCell padding="checkbox">
         <Checkbox

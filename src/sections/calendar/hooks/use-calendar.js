@@ -20,14 +20,11 @@ export function useCalendar({
   const [view, setView] = useState(defaultDesktopView);
   const [lastDesktopView, setLastDesktopView] = useState(defaultDesktopView);
 
-  const getCalendarApi = useCallback(() => {
-    const calendarApi = calendarRef.current?.getApi();
-    if (!calendarApi) {
-      console.warn('La API del calendario no está disponible');
-      return null;
-    }
-    return calendarApi;
-  }, []);
+  const getCalendarApi = useCallback(() => 
+    // Puede no estar aún: la cuadrícula llega aparte (`next/dynamic`) y avisa con
+    // `alMontar` cuando ya existe. No es un error que avisar.
+     calendarRef.current?.getApi() ?? null
+  , []);
 
   const onOpenForm = useCallback(() => {
     setOpenForm(true);
@@ -156,6 +153,7 @@ export function useCalendar({
   return {
     calendarRef,
     getCalendarApi,
+    syncView,
     /********/
     view,
     title,

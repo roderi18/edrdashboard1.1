@@ -125,6 +125,17 @@ directiva_nacional_permanentes/{idMiembros}
   (`src/sections/{national,regional,sectional}/leadership`) en **modo histórico**
   (`historico`): mismos componentes, ocupantes y fotos del cuatrienio, solo
   lectura, sin tocar la directiva de hoy.
+- **El diseño sí se edita** (el lápiz, solo el Administrador Global), igual que
+  en la directiva de hoy: recolocar casillas y líneas. **Hay un solo diseño por
+  organigrama para todos los cuatrienios**: se edite desde la directiva de hoy o
+  desde una anterior, va a la misma entidad de `disenosDirectiva` y se ve en todas
+  (`entidadesDeDisenoDe`); solo cambian los ocupantes, que ahí no se tocan. El
+  documento `nacional_general-cuatrienio-2022-2026` es de una prueba anterior y
+  ya no se lee (su contenido se copió al diseño nacional el 23/09/2026).
+  Test: `tests/directivas/diseno-por-cuatrienio.test.mjs`.
+- La pestaña **Jerarquía** lista todas las regiones y secciones del padrón
+  (también las que no tienen a nadie asignado) y pinta el organigrama completo,
+  con el alto de su diseño.
 - Para quien edita: **Agregar** en el encabezado, **Editar** y **Eliminar** en
   el menú de cada fila (y por selección); **Cargar listado 2022-2026** en el
   encabezado (vista previa → Cargar); en el cuatrienio vigente, **Guardar en la
@@ -156,8 +167,10 @@ Tests: `tests/directivas/directiva-cuatrienios.test.mjs` y
 - La directiva de la Región Sur usaba "Secretario seccional"; se guarda como
   Secretario Regional. En la sección, Director y Sub-Director ocupan las casillas
   "Coordinador Seccional" y "Sub-Coordinador Seccional" del organigrama.
-- La Directiva Nacional no tiene casilla de Secretario en su organigrama: el
-  Secretario Nacional se guarda y sale en la lista, no en el dibujo.
+- El Secretario Nacional tiene casilla (`secretario-nacional`, en la fila del
+  Consejo Ejecutivo, antes de Oficiales Especiales). Las filas guardadas cuando
+  aún no la tenía llevan la posición vacía y se reconocen por su cargo
+  (`ocupanteHistorico`). Test: `tests/directivas/secretario-nacional.test.mjs`.
 
 ## 7. Listado 2022-2026
 

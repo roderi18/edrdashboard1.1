@@ -1,5 +1,6 @@
 import { doc, getDocs, writeBatch, collection, runTransaction } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { CAPACIDADES, analizarCombinacion } from 'src/utils/simulador-permisos';
 import { mergeCombinationCapabilityReview } from 'src/utils/role-combination-reviews';
 
@@ -65,7 +66,7 @@ const documentoBase = (combinacion) => {
 };
 
 /** Todo lo guardado, indexado por id de combinacion. */
-export async function obtenerCombinacionesRoles() {
+async function obtenerCombinacionesRolesSinCache() {
   asegurarFirebase();
 
   const snapshot = await getDocs(collection(FIRESTORE, COLECCION_COMBINACIONES));
@@ -78,7 +79,7 @@ export async function obtenerCombinacionesRoles() {
  * codigo. Con `rehacer` vuelve a calcular tambien las que ya estaban, que es
  * como se descarta un ajuste manual y se vuelve al comportamiento real.
  */
-export async function sembrarCombinacionesRoles({ usuario = null, rehacer = false } = {}) {
+async function sembrarCombinacionesRolesDirecto({ usuario = null, rehacer = false } = {}) {
   asegurarFirebase();
 
   const guardadas = await obtenerCombinacionesRoles();
@@ -145,7 +146,7 @@ export async function sembrarCombinacionesRoles({ usuario = null, rehacer = fals
  * Guarda la revision de una combinacion: si ya se comprobo y la nota de quien
  * la comprobo. Queda en Historial como cualquier otro cambio.
  */
-export async function guardarRevisionCombinacion({
+async function guardarRevisionCombinacionDirecto({
   idCombinacion,
   revisado = false,
   nota = '',
@@ -204,7 +205,7 @@ export async function guardarRevisionCombinacion({
  * La transacción vuelve a leer el mapa antes de guardar para que dos clics
  * cercanos no borren entre sí las demás filas ya revisadas.
  */
-export async function guardarRevisionCapacidadCombinacion({
+async function guardarRevisionCapacidadCombinacionDirecto({
   idCombinacion,
   idCapacidad,
   validada = false,
@@ -274,3 +275,15 @@ export async function guardarRevisionCapacidadCombinacion({
     },
   });
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerCombinacionesRoles = conCache('combinaciones:obtenerCombinacionesRoles', obtenerCombinacionesRolesSinCache);
+export const sembrarCombinacionesRoles = conInvalidacion(sembrarCombinacionesRolesDirecto, [], ['combinaciones:']);
+export const guardarRevisionCombinacion = conInvalidacion(guardarRevisionCombinacionDirecto, [], ['combinaciones:']);
+export const guardarRevisionCapacidadCombinacion = conInvalidacion(guardarRevisionCapacidadCombinacionDirecto, [], ['combinaciones:']);

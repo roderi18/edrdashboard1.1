@@ -575,13 +575,14 @@ export function ChatView() {
         { display: 'flex', flex: '1 1 auto', flexDirection: 'column' },
         // LA PANTALLA ES PARA LA CONVERSACION.
         //
-        // En pantallas pequeñas, la caja de escribir termina por encima de la
-        // navegacion flotante incluso cuando esta abierta. El espacio incluye
-        // el area segura del dispositivo; en escritorio conserva el margen
-        // corto y simetrico del panel.
+        // En el celular la barra flotante no sale en el chat (ver el layout del
+        // panel), asi que el panel vuelve a llegar hasta abajo: solo el mismo
+        // aire que arriba mas el area segura del telefono (la raya de inicio del
+        // iPhone). Antes dejaba 96px libres para la barra y eso eran mensajes
+        // menos en una pantalla que es para la conversacion.
         (theme) => ({
           '--layout-dashboard-content-pt': theme.spacing(3.5),
-          '--layout-dashboard-content-pb': `calc(${theme.spacing(12)} + env(safe-area-inset-bottom))`,
+          '--layout-dashboard-content-pb': `calc(${theme.spacing(3.5)} + env(safe-area-inset-bottom))`,
           [theme.breakpoints.up('lg')]: {
             '--layout-dashboard-content-pb': theme.spacing(3.5),
           },

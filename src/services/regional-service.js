@@ -1,3 +1,4 @@
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
 import {
   registrarFotoEntidadSubida,
@@ -30,6 +31,9 @@ const escribirRegion = async (payload) => {
     headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
+  // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+  invalidarLecturas();
+  avisarAOtrasSesiones('regiones:');
 
   const texto = await res.text();
 
@@ -78,36 +82,43 @@ function mapApiRegionalToUI(regional) {
 
 export const getCachedRegionals = () => getStorageCollection(REGIONALS_STORAGE_KEY) || [];
 
-export const getRegionals = async ({ includePhotos = true } = {}) => {
-    try {
-        const res = await fetch('/api/regional/');
+// Lo leído se reparte desde la caché de lecturas: el layout, la lista y las
+// directivas pedían la misma lista a la vez y en cada pestaña.
+export const CLAVE_REGIONES = 'regiones:';
 
-        if (!res.ok) {
-            await res.text();
-            throw new Error('Error al obtener regionales');
-        }
+const leerRegionales = async ({ includePhotos }) => {
+    const res = await fetch('/api/regional/');
 
-        const response = await res.json();
-
-        const data = response.data || response.Data || [];
-        const mappedRegionals = Array.isArray(data) ? data.map(mapApiRegionalToUI) : [];
-        const photosByRegionalId = includePhotos
-            ? await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'region' })
-            : {};
-
-        const resolvedRegionals = mappedRegionals.map((regional) => ({
-            ...regional,
-            avatarUrl: photosByRegionalId[String(regional.id)]?.urlFoto || regional.avatarUrl || null,
-        }));
-
-        setStorageCollection(REGIONALS_STORAGE_KEY, resolvedRegionals);
-
-        return resolvedRegionals;
-    } catch (error) {
-        console.error('getRegionals error:', error);
-        return getCachedRegionals();
+    if (!res.ok) {
+        await res.text();
+        throw new Error('Error al obtener regionales');
     }
+
+    const response = await res.json();
+
+    const data = response.data || response.Data || [];
+    const mappedRegionals = Array.isArray(data) ? data.map(mapApiRegionalToUI) : [];
+    const photosByRegionalId = includePhotos
+        ? await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'region' })
+        : {};
+
+    const resolvedRegionals = mappedRegionals.map((regional) => ({
+        ...regional,
+        avatarUrl: photosByRegionalId[String(regional.id)]?.urlFoto || regional.avatarUrl || null,
+    }));
+
+    setStorageCollection(REGIONALS_STORAGE_KEY, resolvedRegionals);
+
+    return resolvedRegionals;
 };
+
+export const getRegionals = ({ includePhotos = true } = {}) =>
+    leerConCache(`${CLAVE_REGIONES}${includePhotos}`, () => leerRegionales({ includePhotos })).catch(
+        (error) => {
+            console.error('getRegionals error:', error);
+            return getCachedRegionals();
+        }
+    );
 
 const getRegionalAuditName = (regional = {}) =>
     regional.nombre || regional.regionalName || regional.name || 'Región';
@@ -149,6 +160,9 @@ export const saveRegional = async (payload, { usuario } = {}) => {
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
+    // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+    invalidarLecturas();
+    avisarAOtrasSesiones('regiones:');
 
     const text = await res.text();
 
@@ -214,6 +228,9 @@ export const deleteRegional = async (id, { usuario, antes = null } = {}) => {
         // Global. Sin esta cabecera, el propio administrador se llevaria un 401.
         headers: await authHeaders(),
     });
+    // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+    invalidarLecturas();
+    avisarAOtrasSesiones('regiones:');
     const text = await res.text();
 
     if (!res.ok) {

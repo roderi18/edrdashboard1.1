@@ -2,14 +2,10 @@ import { useCallback } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
-import Select from '@mui/material/Select';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
-import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
-import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
-import FormControl from '@mui/material/FormControl';
 import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
@@ -17,6 +13,8 @@ import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
+
+import { FiltroBuscable } from './filtro-buscable';
 // ----------------------------------------------------------------------
 
 export function NationalTableToolbar({ filters, options, onResetPage, displayMode, setDisplayMode }) {
@@ -225,86 +223,45 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
           </Box>
         )}
 
-        {/* Filtro posición */}
+        {/* Filtros con buscador (ver `FiltroBuscable`): posición, nivel y estructura. */}
         {!isMobile && (
-          <FormControl sx={{ minWidth: 220 }}>
-            <InputLabel>Posición</InputLabel>
-            <Select
-              multiple
-              value={currentFilters.nationalXMemberPosition}
-              onChange={handleFilternationalXMemberPosition}
-              label="Posición"
-              renderValue={(selected) =>
-                options.nationalXMemberPosition
-                  .filter((opt) => selected.includes(opt.value))
-                  .map((opt) => opt.label)
-                  .join(', ')
-              }
-            >
-              {options.nationalXMemberPosition.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  <Checkbox
-                    checked={currentFilters.nationalXMemberPosition.includes(option.value)}
-                  />
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <FiltroBuscable
+            multiple
+            label="Posición"
+            options={options.nationalXMemberPosition}
+            value={currentFilters.nationalXMemberPosition}
+            onChange={(valores) => {
+              onResetPage();
+              updateFilters({ nationalXMemberPosition: valores });
+            }}
+            sx={{ minWidth: 220, flexShrink: 0 }}
+          />
         )}
-
-        {/* Filtro nivel organizacional */}
         {!isMobile && (
-          <FormControl sx={{ minWidth: 220 }}>
-            <InputLabel>Nivel organizacional</InputLabel>
-            <Select
-              multiple
-              value={currentFilters.nationalOrganizationalLevel}
-              onChange={handleFilterOrganizationalLevel}
-              label="Nivel organizacional"
-              renderValue={(selected) =>
-                options.nationalOrganizationalLevel
-                  .filter((opt) => selected.includes(opt.value))
-                  .map((opt) => opt.label)
-                  .join(', ')
-              }
-            >
-              {options.nationalOrganizationalLevel.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  <Checkbox
-                    checked={currentFilters.nationalOrganizationalLevel.includes(option.value)}
-                  />
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <FiltroBuscable
+            multiple
+            label="Nivel organizacional"
+            options={options.nationalOrganizationalLevel}
+            value={currentFilters.nationalOrganizationalLevel}
+            onChange={(valores) => {
+              onResetPage();
+              updateFilters({ nationalOrganizationalLevel: valores });
+            }}
+            sx={{ minWidth: 220, flexShrink: 0 }}
+          />
         )}
-
-        {/* Filtro estructura */}
         {!isMobile && (
-          <FormControl sx={{ minWidth: 220 }}>
-            <InputLabel>Estructura</InputLabel>
-            <Select
-              multiple
-              value={currentFilters.nationalEstructure}
-              onChange={handleFilterEstructure}
-              label="Estructura"
-              renderValue={(selected) =>
-                options.nationalEstructure
-                  .filter((opt) => selected.includes(opt.value))
-                  .map((opt) => opt.label)
-                  .join(', ')
-              }
-            >
-              {options.nationalEstructure.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  <Checkbox checked={currentFilters.nationalEstructure.includes(option.value)} />
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <FiltroBuscable
+            multiple
+            label="Estructura"
+            options={options.nationalEstructure}
+            value={currentFilters.nationalEstructure}
+            onChange={(valores) => {
+              onResetPage();
+              updateFilters({ nationalEstructure: valores });
+            }}
+            sx={{ minWidth: 220, flexShrink: 0 }}
+          />
         )}
 
         {/* 🖥 Desktop */}

@@ -7,6 +7,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -51,7 +52,7 @@ const addRecipient = (map, data = {}, docId = '', collectionName = '') => {
   });
 };
 
-export async function listarConfiguracionNotificaciones() {
+async function listarConfiguracionNotificacionesSinCache() {
   if (!isFirebaseConfigured || !FIRESTORE) {
     return {
       tipos: [],
@@ -89,7 +90,7 @@ export async function listarConfiguracionNotificaciones() {
   };
 }
 
-export async function guardarConfiguracionTipoNotificacion({
+async function guardarConfiguracionTipoNotificacionDirecto({
   tipoNotificacion,
   tipo = {},
   plantilla = {},
@@ -152,7 +153,7 @@ export async function guardarConfiguracionTipoNotificacion({
   });
 }
 
-export async function guardarPreferenciaDestinatarioNotificacion({
+async function guardarPreferenciaDestinatarioNotificacionDirecto({
   idUsuario,
   rol = 'usuario',
   tipoNotificacion,
@@ -204,7 +205,7 @@ export async function guardarPreferenciaDestinatarioNotificacion({
 
 // Las preferencias de UNA cuenta, para su pantalla de notificaciones. Sin
 // documento todavia, todo esta encendido: asi se reparten hoy los avisos.
-export async function leerPreferenciasNotificaciones(idUsuario) {
+async function leerPreferenciasNotificacionesSinCache(idUsuario) {
   if (!isFirebaseConfigured || !FIRESTORE || !idUsuario) return {};
 
   const snapshot = await getDoc(
@@ -213,3 +214,15 @@ export async function leerPreferenciasNotificaciones(idUsuario) {
 
   return snapshot.exists() ? snapshot.data() : {};
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarConfiguracionNotificaciones = conCache('avisos-config:listarConfiguracionNotificaciones', listarConfiguracionNotificacionesSinCache);
+export const leerPreferenciasNotificaciones = conCache('avisos-config:leerPreferenciasNotificaciones', leerPreferenciasNotificacionesSinCache);
+export const guardarConfiguracionTipoNotificacion = conInvalidacion(guardarConfiguracionTipoNotificacionDirecto, ['avisos-config:']);
+export const guardarPreferenciaDestinatarioNotificacion = conInvalidacion(guardarPreferenciaDestinatarioNotificacionDirecto, ['avisos-config:']);

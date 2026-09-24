@@ -36,6 +36,7 @@ import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
+import { useLecturasVivas } from 'src/lib/avisos-de-lecturas';
 import { getSectionals } from 'src/services/sectional-service';
 import { getRegionals, deleteRegional, getCachedRegionals } from 'src/services/regional-service';
 import { obtenerAsignacionesDirectivaMiembros } from 'src/services/directivas-organizacionales-service';
@@ -150,6 +151,9 @@ export function RegionalListView() {
     [user, ownRegionIds]
   );
 
+  // Otra sesión cambió regiones, directivas o personas: la lista se relee sola.
+  const cambiosVivos = useLecturasVivas(['regiones:', 'directiva:', 'miembros:']);
+
   useEffect(() => {
     async function loadRegionals() {
       const cachedRegionals = getCachedRegionals();
@@ -257,7 +261,7 @@ export function RegionalListView() {
     }
 
     loadRegionals();
-  }, []);
+  }, [cambiosVivos]);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const [selectedDisplayMode, setSelectedDisplayMode] = useState(null);

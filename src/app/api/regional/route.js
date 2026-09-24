@@ -1,9 +1,10 @@
+import { responderConEtag } from 'src/utils/respuesta-con-etag.mjs';
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
 
 import { exigirAdministradorGlobalRest } from 'src/server/sesion-rest.mjs';
 
-export async function GET() {
+export async function GET(request) {
     try {
         // Regiones y secciones en paralelo (antes iban en serie) y cacheadas.
         //
@@ -62,7 +63,8 @@ export async function GET() {
             };
         });
 
-        return Response.json(normalizeApiResponse({ ...data, data: newData }));
+        // Con huella: si no cambió, 304 y el navegador usa su copia.
+        return responderConEtag(request, normalizeApiResponse({ ...data, data: newData }));
     } catch (error) {
         // Con el motivo: sin el, en el navegador solo se leia "Error obteniendo
         // regionales" y no se sabia si el upstream se cayo o tardo de mas.

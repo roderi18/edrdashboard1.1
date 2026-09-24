@@ -11,6 +11,7 @@ import {
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { bloquePorId } from 'src/utils/everest/bloques.mjs';
 import { COLECCIONES_EXPLORA } from 'src/utils/everest/colecciones.mjs';
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -55,7 +56,7 @@ const asegurarBloque = (idBloque) => {
  * el Designer tiene que decirlo, no enseñar la pantalla como si no hubiera nada
  * a medias.
  */
-export async function obtenerBorradores(pantalla) {
+async function obtenerBorradoresSinCache(pantalla) {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
   const documento = await getDoc(referenciaDeBorradores(pantalla));
@@ -68,7 +69,7 @@ export async function obtenerBorradores(pantalla) {
  * estar a medias—, pero si se deja en algo que Firestore acepte: sin `undefined`
  * ni funciones.
  */
-export async function guardarBorradorDeBloque({
+async function guardarBorradorDeBloqueDirecto({
   pantalla,
   idBloque,
   contenido,
@@ -104,7 +105,7 @@ export async function guardarBorradorDeBloque({
 }
 
 /** Tira lo que se estaba editando de un bloque. Lo publicado no se toca. */
-export async function descartarBorradorDeBloque({ pantalla, idBloque, usuario }) {
+async function descartarBorradorDeBloqueDirecto({ pantalla, idBloque, usuario }) {
   asegurar(usuario);
   asegurarBloque(idBloque);
 
@@ -120,3 +121,14 @@ export async function descartarBorradorDeBloque({ pantalla, idBloque, usuario })
     serverTimestamp()
   );
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerBorradores = conCache('everest-borradores:obtenerBorradores', obtenerBorradoresSinCache);
+export const guardarBorradorDeBloque = conInvalidacion(guardarBorradorDeBloqueDirecto, ['everest-borradores:']);
+export const descartarBorradorDeBloque = conInvalidacion(descartarBorradorDeBloqueDirecto, ['everest-borradores:']);

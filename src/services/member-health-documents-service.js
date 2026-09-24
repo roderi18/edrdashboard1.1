@@ -2,6 +2,7 @@ import { ref, deleteObject } from 'firebase/storage';
 import { doc, query, where, setDoc, getDocs, deleteDoc, collection } from 'firebase/firestore';
 
 import { uploadFilesToStorage } from 'src/utils/firebase-file-storage';
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 import {
@@ -75,7 +76,7 @@ const mapearDocumentoSaludFirestoreAUi = (data = {}) => ({
   isFavorited: false,
 });
 
-export const listarDocumentosSaludMiembro = async (idMiembros) => {
+const listarDocumentosSaludMiembroSinCache = async (idMiembros) => {
   if (!isFirebaseConfigured || !FIRESTORE || !idMiembros) return [];
 
   const snapshot = await getDocs(
@@ -91,7 +92,7 @@ export const listarDocumentosSaludMiembro = async (idMiembros) => {
     .sort((a, b) => String(b.modifiedAt || '').localeCompare(String(a.modifiedAt || '')));
 };
 
-export const subirDocumentosSaludMiembro = async ({
+const subirDocumentosSaludMiembroDirecto = async ({
   files = [],
   idMiembros,
   codigoMiembro = '',
@@ -182,7 +183,7 @@ export const subirDocumentosSaludMiembro = async ({
   return documents.map(mapearDocumentoSaludFirestoreAUi);
 };
 
-export const renombrarDocumentoSaludMiembro = async (documento, nuevoNombre, usuario) => {
+const renombrarDocumentoSaludMiembroDirecto = async (documento, nuevoNombre, usuario) => {
   if (!isFirebaseConfigured || !FIRESTORE || !documento?.id) return null;
 
   const now = new Date().toISOString();
@@ -224,7 +225,7 @@ export const renombrarDocumentoSaludMiembro = async (documento, nuevoNombre, usu
   });
 };
 
-export const eliminarDocumentoSaludMiembro = async (documento, usuario) => {
+const eliminarDocumentoSaludMiembroDirecto = async (documento, usuario) => {
   const fileId = typeof documento === 'string' ? documento : documento?.id;
   const storagePath = typeof documento === 'string' ? '' : documento?.storagePath;
 
@@ -256,3 +257,15 @@ export const eliminarDocumentoSaludMiembro = async (documento, usuario) => {
     });
   }
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarDocumentosSaludMiembro = conCache('salud-documentos:listarDocumentosSaludMiembro', listarDocumentosSaludMiembroSinCache);
+export const subirDocumentosSaludMiembro = conInvalidacion(subirDocumentosSaludMiembroDirecto, [], ['salud-documentos:']);
+export const renombrarDocumentoSaludMiembro = conInvalidacion(renombrarDocumentoSaludMiembroDirecto, [], ['salud-documentos:']);
+export const eliminarDocumentoSaludMiembro = conInvalidacion(eliminarDocumentoSaludMiembroDirecto, [], ['salud-documentos:']);

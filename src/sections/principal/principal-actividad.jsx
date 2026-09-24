@@ -15,6 +15,7 @@ import { actividadParaPintar } from 'src/utils/everest/presentacion.mjs';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
+import { CapaDeEsqueleto, useFondoCargado } from 'src/components/esqueleto-de-medios';
 
 import { MarcaDeEjemplo } from './marca-de-ejemplo';
 import { useTonosDeMarca } from './use-tonos-de-marca';
@@ -64,6 +65,10 @@ export function PrincipalProximaActividad({ actividad: recibida, diseno, puedeEd
   const actividad = actividadParaPintar(recibida);
   const foto = actividad.fondo ? actividad.fondo.url : tarjeta.foto;
   const esVideo = actividad.fondo ? actividad.fondo.tipo === 'video' : tarjeta.esVideo;
+  // Esqueleto mientras no se sabe si hay fondo o mientras la foto baja. El video
+  // lleva el suyo propio (la onda del `main` sobre el `<video>`).
+  const fotoLista = useFondoCargado(foto, { esVideo });
+  const cargandoFondo = (!actividad.fondo && tarjeta.buscando) || !fotoLista;
   const colorTexto = diseno?.colorTexto ?? 'rgba(255,255,255,.88)';
   const letraDelTexto = letraDelDiseno(diseno, { tamano: 'tamanoTexto' });
 
@@ -96,9 +101,13 @@ export function PrincipalProximaActividad({ actividad: recibida, diseno, puedeEd
         // Sin foto, el fondo elegido en el Designer (con dos tonos, degradado).
         ...(!foto && fondoDelDiseno(diseno, { angulo: 160 })),
         ...radioDelDiseno(diseno),
+        // La capa del esqueleto va con `zIndex: -1`: encima del fondo de la
+        // tarjeta y debajo del texto, que se lee mientras tanto.
+        isolation: 'isolate',
       }}
     >
       {foto && esVideo && <FondoEnVideo src={foto} navy={NAVY} varAlpha={varAlpha} />}
+      {!(foto && esVideo) && <CapaDeEsqueleto visible={cargandoFondo} sx={{ zIndex: -1 }} />}
 
       {/* AIRE ENTRE LAS CUATRO COSAS QUE HAY QUE LEER. Iban pegadas —medio paso
           entre una y otra— y la tarjeta se leia como un bloque de texto. Los

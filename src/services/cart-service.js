@@ -1,11 +1,12 @@
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { COLECCIONES_COMERCIO, obtenerIdUsuarioComercio } from 'src/utils/firestore-commerce';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { CARRITO_DEFAULT, crearDocumentoCarrito, mapearCarritoFirestoreAEstado } from 'src/models/cart-model';
 
-export const obtenerCarritoUsuario = async (user) => {
+const obtenerCarritoUsuarioSinCache = async (user) => {
   if (!isFirebaseConfigured || !FIRESTORE) {
     return { ...CARRITO_DEFAULT };
   }
@@ -25,7 +26,7 @@ export const obtenerCarritoUsuario = async (user) => {
   return mapearCarritoFirestoreAEstado(snapshot.data());
 };
 
-export const guardarCarritoUsuario = async ({ user, state }) => {
+const guardarCarritoUsuarioDirecto = async ({ user, state }) => {
   if (!isFirebaseConfigured || !FIRESTORE) {
     return mapearCarritoFirestoreAEstado(crearDocumentoCarrito({ user, state }));
   }
@@ -48,7 +49,7 @@ export const guardarCarritoUsuario = async ({ user, state }) => {
   return mapearCarritoFirestoreAEstado(cartDoc);
 };
 
-export const limpiarCarritoUsuario = async (user) => {
+const limpiarCarritoUsuarioDirecto = async (user) => {
   if (!isFirebaseConfigured || !FIRESTORE) {
     return { ...CARRITO_DEFAULT };
   }
@@ -64,7 +65,7 @@ export const limpiarCarritoUsuario = async (user) => {
   return mapearCarritoFirestoreAEstado(emptyCart);
 };
 
-export const eliminarCarritoUsuario = async (user) => {
+const eliminarCarritoUsuarioDirecto = async (user) => {
   if (!isFirebaseConfigured || !FIRESTORE) return;
 
   const usuarioId = obtenerIdUsuarioComercio(user);
@@ -73,3 +74,15 @@ export const eliminarCarritoUsuario = async (user) => {
   const cartRef = doc(FIRESTORE, COLECCIONES_COMERCIO.carritos, usuarioId);
   await deleteDoc(cartRef);
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerCarritoUsuario = conCache('carrito:obtenerCarritoUsuario', obtenerCarritoUsuarioSinCache);
+export const guardarCarritoUsuario = conInvalidacion(guardarCarritoUsuarioDirecto, ['carrito:']);
+export const limpiarCarritoUsuario = conInvalidacion(limpiarCarritoUsuarioDirecto, ['carrito:']);
+export const eliminarCarritoUsuario = conInvalidacion(eliminarCarritoUsuarioDirecto, ['carrito:']);

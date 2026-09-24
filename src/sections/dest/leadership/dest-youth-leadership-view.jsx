@@ -8,7 +8,6 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
-import Skeleton from '@mui/material/Skeleton';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -31,7 +30,9 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 
+import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { DivisionOptionContent } from 'src/sections/common/division-option-content';
+import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigrama';
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
@@ -206,43 +207,6 @@ const convertirDiseno = (diseno = {}, convertir) => ({
     to: convertir(vinculo.to),
   })),
 });
-
-// EL ESQUELETO MIENTRAS LLEGA EL DISENO.
-//
-// El cuadro no se pinta hasta saber donde va cada caja: con las posiciones de
-// partida primero y las guardadas despues, se veia el organigrama saltar de un
-// sitio a otro al recargar. Se ensena esto y se cambia una sola vez.
-//
-// Tiene la forma del cuadro —una caja arriba, una fila de tres, otra sola y una
-// fila ancha— para que el cambio no de tirones.
-function CuadroCargando() {
-  const caja = (ancho = 200) => (
-    <Skeleton variant="rounded" width={ancho} height={116} sx={{ borderRadius: 1.5 }} />
-  );
-
-  return (
-    <Stack spacing={4} alignItems="center" sx={{ py: 6, width: 1 }}>
-      <Skeleton variant="text" width={240} height={28} />
-
-      {caja()}
-
-      <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', justifyContent: 'center' }}>
-        {caja()}
-        {caja()}
-        {caja()}
-      </Stack>
-
-      {caja()}
-
-      <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', justifyContent: 'center' }}>
-        {caja()}
-        {caja()}
-        {caja()}
-        {caja()}
-      </Stack>
-    </Stack>
-  );
-}
 
 // ----------------------------------------------------------------------
 
@@ -482,7 +446,20 @@ export function DestYouthLeadershipView() {
     layoutEditor.hiddenConnections.length > 0 ||
     layoutEditor.extraConnections.length > 0;
   const containerMinHeight = 760 + layoutEditor.containerHeightOffset;
-  const connectorWatchKey = `${divisionId}:${layoutEditor.editMode}:${JSON.stringify(layoutEditor.connectionGroups)}:${JSON.stringify(layoutEditor.hiddenConnections)}:${JSON.stringify(layoutEditor.extraConnections)}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
+  // Todo el arbol centrado como un grupo (ver el hook): se suma al arrastre.
+  const desplazamientoX = useCentrarOrganigrama({
+    containerRef,
+    pan,
+    pausado: layoutEditor.editMode,
+    claves: [
+      zoom,
+      JSON.stringify(layoutEditor.nodeOffsets),
+      layoutStorage.cargando,
+      containerMinHeight,
+      divisionId,
+    ],
+  });
+  const connectorWatchKey = `${divisionId}:${layoutEditor.editMode}:${JSON.stringify(layoutEditor.connectionGroups)}:${JSON.stringify(layoutEditor.hiddenConnections)}:${JSON.stringify(layoutEditor.extraConnections)}:${pan.x + desplazamientoX}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
 
   const structureTitle = destNombreCompleto
     ? `${destNombreCompleto} · ${division?.nombre ?? ''}`
@@ -658,7 +635,7 @@ export function DestYouthLeadershipView() {
             top: 16,
             right: 16,
             zIndex: 20,
-            display: layoutStorage.cargando ? 'none' : 'flex',
+            display: layoutStorage.cargando || leadership.cargando ? 'none' : 'flex',
           }}
         >
           <Box
@@ -710,14 +687,14 @@ export function DestYouthLeadershipView() {
           </Box>
         </Stack>
 
-        {layoutStorage.cargando && <CuadroCargando />}
+        {(layoutStorage.cargando || leadership.cargando) && <OrganigramaCargando />}
 
         <Box
           sx={{
             // Ni pintado ni ocupando sitio hasta tener el diseno: si solo se
             // ocultara, el esqueleto quedaria descolocado por el hueco.
-            display: layoutStorage.cargando ? 'none' : 'block',
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            display: layoutStorage.cargando || leadership.cargando ? 'none' : 'block',
+            transform: `translate(${pan.x + desplazamientoX}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: 'top center',
             transition: isDragging ? 'none' : 'transform 120ms ease-out',
           }}
@@ -763,7 +740,7 @@ export function DestYouthLeadershipView() {
 
         {canManageLayout && (
           <LeadershipLayoutEditor
-            pan={pan}
+            pan={{ ...pan, x: pan.x + desplazamientoX }}
             zoom={zoom}
             chartWidth={1360}
             editor={layoutEditor}

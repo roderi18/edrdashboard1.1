@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -100,6 +101,10 @@ export async function registrarFotoEntidadSubida({
     },
     { merge: true }
   );
+  // Las listas llevan la foto dentro (regiones, secciones, destacamentos): toda
+  // lectura guardada puede traer la de antes.
+  invalidarLecturas();
+  avisarAOtrasSesiones('fotos:', 'regiones:', 'secciones:', 'destacamentos:', 'principal-tarjeta:');
 
   const cacheKey = getFotosCacheKey({ tipoEntidad, tipoFoto });
   const fotosEnCache = fotosPrincipalesCache.get(cacheKey);
@@ -388,6 +393,8 @@ export function obtenerFotosPrincipalesEnCache({ tipoEntidad, tipoFoto = 'perfil
   return fotosPrincipalesCache.get(getFotosCacheKey({ tipoEntidad, tipoFoto })) || null;
 }
 
+// Pasa por la caché de lecturas: cada lista y cada organigrama pedía TODAS las
+// fotos de su tipo en cada visita. Subir una foto la invalida.
 export async function obtenerFotosPrincipalesPorEntidad({ tipoEntidad, tipoFoto = 'perfil' }) {
   if (!isFirebaseConfigured || !FIRESTORE) {
     return {};
@@ -395,6 +402,12 @@ export async function obtenerFotosPrincipalesPorEntidad({ tipoEntidad, tipoFoto 
 
   if (!tipoEntidad) return {};
 
+  return leerConCache(`fotos:${getFotosCacheKey({ tipoEntidad, tipoFoto })}`, () =>
+    leerFotosPrincipales({ tipoEntidad, tipoFoto })
+  );
+}
+
+async function leerFotosPrincipales({ tipoEntidad, tipoFoto }) {
   const snapshot = await getDocs(
     query(collection(FIRESTORE, COLLECTION_NAME), where('tipoEntidad', '==', tipoEntidad))
   );

@@ -10,6 +10,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { getMemberById } from 'src/services/member-service';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 import {
@@ -257,7 +259,7 @@ const buildTemplateAwardLink = ({ templateId, templateName, route }) => {
   };
 };
 
-export const listarPlantillasCertificados = async () => {
+const listarPlantillasCertificadosSinCache = async () => {
   const templates = await readCollections(
     COLECCION_PLANTILLAS_CERTIFICADOS,
     COLECCION_PLANTILLAS_CERTIFICADOS_LEGACY
@@ -268,7 +270,7 @@ export const listarPlantillasCertificados = async () => {
   );
 };
 
-export const guardarPlantillaCertificado = async ({ template, user } = {}) => {
+const guardarPlantillaCertificadoDirecto = async ({ template, user } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !FIREBASE_STORAGE) {
     throw new Error('Firebase no esta configurado para guardar plantillas.');
   }
@@ -333,7 +335,7 @@ export const guardarPlantillaCertificado = async ({ template, user } = {}) => {
   return normalizeTemplateForUi(document);
 };
 
-export const eliminarPlantillaCertificado = async (template) => {
+const eliminarPlantillaCertificadoDirecto = async (template) => {
   if (!isFirebaseConfigured || !FIRESTORE || !template?.id) return;
 
   const storagePath =
@@ -353,7 +355,7 @@ export const eliminarPlantillaCertificado = async (template) => {
   ]);
 };
 
-export const listarLotesCertificados = async () => {
+const listarLotesCertificadosSinCache = async () => {
   const batches = await readCollections(
     COLECCION_LOTES_CERTIFICADOS,
     COLECCION_LOTES_CERTIFICADOS_LEGACY
@@ -364,7 +366,7 @@ export const listarLotesCertificados = async () => {
   );
 };
 
-export const guardarLoteCertificados = async ({
+const guardarLoteCertificadosDirecto = async ({
   batch,
   certificateFiles = [],
   user,
@@ -502,7 +504,7 @@ export const guardarLoteCertificados = async ({
   return normalizeBatchForUi(batchDoc);
 };
 
-export const guardarCertificadoAscensoManual = async ({
+const guardarCertificadoAscensoManualDirecto = async ({
   idMiembro,
   sistema,
   context,
@@ -605,7 +607,7 @@ export const guardarCertificadoAscensoManual = async ({
   };
 };
 
-export const buscarCertificadosPorLote = async (batchId) => {
+const buscarCertificadosPorLoteSinCache = async (batchId) => {
   if (!isFirebaseConfigured || !FIRESTORE || !batchId) return [];
 
   const [spanishSnapshot, legacySnapshot] = await Promise.all([
@@ -627,7 +629,7 @@ export const buscarCertificadosPorLote = async (batchId) => {
   );
 };
 
-export const listarEstadosCertificados = async (scopeId) => {
+const listarEstadosCertificadosSinCache = async (scopeId) => {
   if (!isFirebaseConfigured || !FIRESTORE || !scopeId) return [];
 
   const [spanishSnapshot, legacySnapshot] = await Promise.all([
@@ -652,7 +654,7 @@ export const listarEstadosCertificados = async (scopeId) => {
   );
 };
 
-export const guardarEstadoCertificado = async ({ scopeId, member, status, user } = {}) => {
+const guardarEstadoCertificadoDirecto = async ({ scopeId, member, status, user } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !scopeId || !member?.id || !status) {
     throw new Error('Firebase no esta configurado para guardar el estado.');
   }
@@ -680,3 +682,20 @@ export const guardarEstadoCertificado = async ({ scopeId, member, status, user }
 
   return normalizeStatusForUi(document);
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarPlantillasCertificados = conCache('certificados:listarPlantillasCertificados', listarPlantillasCertificadosSinCache);
+export const listarLotesCertificados = conCache('certificados:listarLotesCertificados', listarLotesCertificadosSinCache);
+export const buscarCertificadosPorLote = conCache('certificados:buscarCertificadosPorLote', buscarCertificadosPorLoteSinCache);
+export const listarEstadosCertificados = conCache('certificados:listarEstadosCertificados', listarEstadosCertificadosSinCache);
+export const guardarPlantillaCertificado = conInvalidacion(guardarPlantillaCertificadoDirecto, [], ['certificados:']);
+export const eliminarPlantillaCertificado = conInvalidacion(eliminarPlantillaCertificadoDirecto, [], ['certificados:']);
+export const guardarLoteCertificados = conInvalidacion(guardarLoteCertificadosDirecto, [], ['certificados:']);
+export const guardarCertificadoAscensoManual = conInvalidacion(guardarCertificadoAscensoManualDirecto, [], ['certificados:']);
+export const guardarEstadoCertificado = conInvalidacion(guardarEstadoCertificadoDirecto, [], ['certificados:']);

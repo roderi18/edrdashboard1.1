@@ -12,6 +12,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { MemberEditLayout } from 'src/sections/member/layout/member-edit-layout';
+import { OrganizationalTabSkeleton } from 'src/sections/common/organizational-tab-skeleton';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { PERMISOS, puedeModificar } from 'src/auth/permissions';
@@ -23,8 +24,10 @@ import { MemberCreateEditForm } from '../member-create-edit-form';
 export function MemberEditView({ member: currentMember }) {
   const { user, loading } = useAuthContext();
 
+  // Mientras se resuelve la sesión, el esqueleto de la ficha: con `null` la
+  // pestaña se quedaba en blanco.
   if (loading) {
-    return null;
+    return <OrganizationalTabSkeleton />;
   }
 
   const isMemberSession = user?.role === 'member';

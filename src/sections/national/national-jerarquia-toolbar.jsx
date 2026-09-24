@@ -1,16 +1,14 @@
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
-import InputLabel from '@mui/material/InputLabel';
-import FormControl from '@mui/material/FormControl';
 import Autocomplete from '@mui/material/Autocomplete';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { normalizeText } from 'src/utils/normalize-text';
 
 import { Iconify } from 'src/components/iconify';
+
+import { FiltroBuscable } from './filtro-buscable';
 
 // ----------------------------------------------------------------------
 // LA BARRA DE LA PESTAÑA JERARQUÍA.
@@ -20,10 +18,6 @@ import { Iconify } from 'src/components/iconify';
 // sola opción (no casillas). Los demás controles de la lista —posición, estructura,
 // vista panel/grid— no tienen sentido sobre un organigrama y no se pintan.
 // ----------------------------------------------------------------------
-
-// Sin la palabra "Consejo Nacional" el desplegable no tendría cómo volver al
-// organigrama de la nación una vez elegida una región o sección.
-const NIVEL_CONSEJO_NACIONAL = '';
 
 export function NationalJerarquiaToolbar({
   opcionesBusqueda,
@@ -101,21 +95,15 @@ export function NationalJerarquiaToolbar({
         )}
       />
 
-      <FormControl sx={{ minWidth: 240, width: { xs: 1, md: 'auto' } }}>
-        <InputLabel>Nivel organizacional</InputLabel>
-        <Select
-          value={nivelValor}
-          label="Nivel organizacional"
-          onChange={(event) => onCambiarNivel(event.target.value)}
-        >
-          <MenuItem value={NIVEL_CONSEJO_NACIONAL}>Consejo Nacional</MenuItem>
-          {nivelOpciones.map((opcion) => (
-            <MenuItem key={opcion.value} value={opcion.value}>
-              {opcion.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      {/* Una sola opción y con buscador, como los filtros de la lista. Sin opción
+          "Consejo Nacional": era el mismo organigrama que "Consejo Ejecutivo". */}
+      <FiltroBuscable
+        label="Nivel organizacional"
+        options={nivelOpciones}
+        value={nivelValor}
+        onChange={onCambiarNivel}
+        sx={{ minWidth: 280, width: { xs: 1, md: 'auto' } }}
+      />
     </Box>
   );
 }

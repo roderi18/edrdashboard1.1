@@ -12,6 +12,8 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { OrganizationalTabSkeleton } from 'src/sections/common/organizational-tab-skeleton';
+
 import { useAuthContext } from 'src/auth/hooks';
 import { can, PERMISOS } from 'src/auth/permissions';
 
@@ -26,8 +28,10 @@ export function MemberCreateView() {
   // el destacamento viene en la direccion para no obligar a buscarlo a mano.
   const destIdInicial = searchParams.get('destId') || '';
 
+  // Mientras se resuelve la sesión, el esqueleto de la ficha: con `null` la
+  // pestaña se quedaba en blanco.
   if (loading) {
-    return null;
+    return <OrganizationalTabSkeleton />;
   }
 
   // Crear miembros exige permiso real: los admin de seccion/region no lo tienen.

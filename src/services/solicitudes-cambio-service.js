@@ -9,6 +9,7 @@ import {
   collection,
 } from 'firebase/firestore';
 
+import { conCache , conInvalidacion, invalidarLecturas } from 'src/utils/cache-de-lecturas.mjs';
 import {
   isOficinaNacional,
   puedeAprobarCambiosDeOrganizacion,
@@ -196,7 +197,7 @@ const registrarEnHistorial = async ({
  *
  * @returns {{ estado: string, idSolicitud: string|null, idAuditoria: string }}
  */
-export async function proponerCambio({
+async function proponerCambioDirecto({
   ambito,
   entidad = {},
   cambios = [],
@@ -259,6 +260,9 @@ export async function proponerCambio({
   if (!necesitaAprobacion) {
     if (typeof aplicar === 'function') {
       await aplicar();
+      // Todo cambio aplicado pasa por aquí: lo guardado en la caché de lecturas
+      // (listas, directivas, fotos) ya no es lo de ahora.
+      invalidarLecturas();
     }
 
     return {
@@ -316,7 +320,7 @@ export async function proponerCambio({
   };
 }
 
-export async function obtenerSolicitudesCambio({ estado = ESTADOS_CAMBIO.pendiente } = {}) {
+async function obtenerSolicitudesCambioSinCache({ estado = ESTADOS_CAMBIO.pendiente } = {}) {
   asegurarFirebase();
 
   const solicitudesRef = collection(FIRESTORE, COLECCION_SOLICITUDES_CAMBIO);
@@ -350,7 +354,7 @@ export async function obtenerSolicitudesCambio({ estado = ESTADOS_CAMBIO.pendien
  * es un mapa anidado y consultarlo en Firestore obligaria a un indice nuevo por
  * cada combinacion.
  */
-export async function obtenerSolicitudesPendientesPorEntidad({ tipo, id, ambitos = null } = {}) {
+async function obtenerSolicitudesPendientesPorEntidadSinCache({ tipo, id, ambitos = null } = {}) {
   if (!tipo || id == null || id === '') return [];
 
   const idBuscado = String(id);
@@ -371,7 +375,7 @@ export async function obtenerSolicitudesPendientesPorEntidad({ tipo, id, ambitos
   });
 }
 
-export async function obtenerSolicitudCambio(idSolicitud) {
+async function obtenerSolicitudCambioSinCache(idSolicitud) {
   asegurarFirebase();
 
   const snapshot = await getDoc(doc(FIRESTORE, COLECCION_SOLICITUDES_CAMBIO, String(idSolicitud)));
@@ -406,7 +410,7 @@ export const esSuPropiaSolicitud = (solicitud = {}, usuario = {}) => {
  * Con una excepcion que no depende del rol: la propia. Rechazarla si se puede
  * —retirar lo que uno mando no es firmarselo—, pero aprobarla no.
  */
-export async function resolverSolicitudCambio(
+async function resolverSolicitudCambioDirecto(
   idSolicitud,
   { estado, usuario = {}, comentario = '', aplicar = null } = {}
 ) {
@@ -451,6 +455,7 @@ export async function resolverSolicitudCambio(
 
   if (estado === ESTADOS_CAMBIO.aprobada && typeof aplicar === 'function') {
     await aplicar(solicitud);
+    invalidarLecturas();
   }
 
   await updateDoc(doc(FIRESTORE, COLECCION_SOLICITUDES_CAMBIO, String(idSolicitud)), {
@@ -493,7 +498,7 @@ export async function resolverSolicitudCambio(
  * Queda en Historial igual que cualquier otro movimiento, y se avisa a quienes
  * la tenian pendiente de revisar para que no la revisen.
  */
-export async function cancelarSolicitudCambio(idSolicitud, { usuario = {}, motivo = '' } = {}) {
+async function cancelarSolicitudCambioDirecto(idSolicitud, { usuario = {}, motivo = '' } = {}) {
   asegurarFirebase();
 
   const solicitud = await obtenerSolicitudCambio(idSolicitud);
@@ -583,3 +588,17 @@ const notificarResolucionAlSolicitante = async ({
     idsDestinatarios: [destinatario],
   });
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerSolicitudesCambio = conCache('solicitudes:obtenerSolicitudesCambio', obtenerSolicitudesCambioSinCache);
+export const obtenerSolicitudesPendientesPorEntidad = conCache('solicitudes:obtenerSolicitudesPendientesPorEntidad', obtenerSolicitudesPendientesPorEntidadSinCache);
+export const obtenerSolicitudCambio = conCache('solicitudes:obtenerSolicitudCambio', obtenerSolicitudCambioSinCache);
+export const proponerCambio = conInvalidacion(proponerCambioDirecto, [], ['solicitudes:']);
+export const resolverSolicitudCambio = conInvalidacion(resolverSolicitudCambioDirecto, [], ['solicitudes:']);
+export const cancelarSolicitudCambio = conInvalidacion(cancelarSolicitudCambioDirecto, [], ['solicitudes:']);

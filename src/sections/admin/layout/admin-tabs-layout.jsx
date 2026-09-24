@@ -18,6 +18,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { PantallaDeListaCargando } from 'src/components/pantalla-cargando';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -103,8 +104,10 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
     });
   }, [tabValue]);
 
+  // Mientras se resuelve la sesión, el esqueleto de la pantalla: con `null` se
+  // quedaba en blanco y parecía congelada.
   if (loading) {
-    return null;
+    return <PantallaDeListaCargando />;
   }
 
   // El bloqueo va en el LAYOUT y no en cada pagina: asi cubre todo lo que cuelga

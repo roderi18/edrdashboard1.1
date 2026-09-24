@@ -263,6 +263,12 @@ export const BLOQUES_EXPLORA = Object.freeze([
     nombre: 'Accesos rápidos',
     grupo: GRUPOS_DE_BLOQUES.inicio,
     sanear: sanearAccesosRapidos,
+    // RETIRADO. La portada ya no pinta los accesos rápidos (ni hay interruptor en
+    // Ajustes), pero el Designer seguía ofreciendo editarlos y publicarlos sin
+    // que cambiara nada. Se queda la definición —y su saneado— para no romper lo
+    // que ya estuviera publicado (el lector lo sigue saneando); no sale en el
+    // Designer.
+    retirado: true,
   }),
   bloque({
     id: 'proxima-actividad',
@@ -317,3 +323,6 @@ export const bloquePorId = (id) => BLOQUES_EXPLORA.find((item) => item.id === id
 /** Los bloques que se guardan en el documento publicado de esa pantalla. */
 export const bloquesPublicablesDe = (pantalla) =>
   BLOQUES_EXPLORA.filter((item) => item.pantalla === pantalla && !item.externo);
+
+/** Los que ofrece el Designer: todos menos los retirados. */
+export const BLOQUES_DEL_DESIGNER = Object.freeze(BLOQUES_EXPLORA.filter((item) => !item.retirado));

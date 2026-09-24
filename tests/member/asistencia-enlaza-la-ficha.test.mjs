@@ -8,16 +8,16 @@ const asistencia = fs.readFileSync(
   'utf8'
 );
 
-test('desde asistencia se llega a la ficha del miembro, y sin subrayado', () => {
-  assert.match(asistencia, /function AttendanceMemberProfileLink/);
-  assert.match(asistencia, /component=\{RouterLink\}/);
-  assert.match(asistencia, /href=\{paths\.dashboard\.level\.member\.edit\(memberId\)\}/);
-  assert.match(asistencia, /underline="none"/);
-  assert.doesNotMatch(asistencia, /underline="always"/);
-});
-
-test('sin id no se envuelve en un enlace', () => {
-  assert.match(asistencia, /if \(!memberId\) \{\s*\n\s*return children;/);
+// PASAR LISTA NO SACA DE LA PANTALLA.
+//
+// Hasta el 20/09/2026 la foto y el nombre de cada fila llevaban a la ficha del
+// miembro. Se quitaron a propósito en el commit a78da36c (se borró el enlace y
+// se renombró el componente). Estos tests vigilan que no vuelvan sin querer; a
+// la ficha se llega desde Miembros. Si se decide recuperarlos, se cambia aquí.
+test('en asistencia la foto y el nombre no son enlaces a la ficha', () => {
+  assert.doesNotMatch(asistencia, /function AttendanceMemberProfileLink/);
+  assert.doesNotMatch(asistencia, /paths\.dashboard\.level\.member\.edit\(/);
+  assert.match(asistencia, /function AttendanceMemberName\(\{ name, sx \}\)/);
 });
 
 test('en el movil los recuadros del resumen ponen la palabra al lado del numero', () => {
@@ -29,14 +29,9 @@ test('en el movil los recuadros del resumen ponen la palabra al lado del numero'
   assert.match(asistencia, /Comparación/);
 });
 
-test('la foto y el nombre enlazan, en la lista y en el resumen del dia', () => {
-  const enlacesAlPerfil = asistencia.match(/<AttendanceMemberProfileLink/g) || [];
-  const enlacesDeNombre = asistencia.match(/<AttendanceMemberNameLink/g) || [];
+test('el nombre sale igual en la lista y en el resumen del dia, sin enlace', () => {
+  const nombres = asistencia.match(/<AttendanceMemberName /g) || [];
 
-  // Dos fotos (lista y resumen) mas los dos nombres, que reusan el mismo enlace.
-  assert.equal(enlacesAlPerfil.length, 3);
-  assert.equal(enlacesDeNombre.length, 2);
-
-  assert.match(asistencia, /memberId=\{miembro\.id\}[\s\S]{0,400}?<Avatar/);
-  assert.match(asistencia, /memberId=\{memberId\}[\s\S]{0,400}?<Avatar/);
+  assert.equal(nombres.length, 2);
+  assert.doesNotMatch(asistencia, /<AttendanceMemberProfileLink|<AttendanceMemberNameLink/);
 });

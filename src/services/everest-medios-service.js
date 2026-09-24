@@ -3,6 +3,7 @@ import { ref, listAll, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { bloquePorId, bloquesPublicablesDe } from 'src/utils/everest/bloques.mjs';
 import { TOPE_DE_VIDEO_EN_MB, TIPOS_DE_VIDEO_ADMITIDOS } from 'src/utils/firebase-photos';
 import { PANTALLAS_EXPLORA, CARPETA_MEDIOS_EXPLORA } from 'src/utils/everest/colecciones.mjs';
@@ -50,7 +51,7 @@ const tipoDeArchivo = (archivo) =>
  * Sube el fondo de un bloque. Devuelve `{ url, tipo }` para guardar en el
  * borrador, con `tipo` 'imagen' o 'video'.
  */
-export async function subirMedioDeBloque({ idBloque, archivo, aceptaVideo = false, usuario }) {
+async function subirMedioDeBloqueDirecto({ idBloque, archivo, aceptaVideo = false, usuario }) {
   if (!isFirebaseConfigured || !FIREBASE_STORAGE) {
     throw new Error('Firebase Storage no está configurado.');
   }
@@ -136,7 +137,7 @@ const marcaDelNombre = (nombre) => Number(String(nombre).split(/[.-]/)[0]) || 0;
  * `[{ url, tipo, idBloque, nombre, subidoEn }]`, lo mas nuevo primero.
  * `tipos` filtra (la bienvenida solo admite imagenes).
  */
-export async function listarBibliotecaDeMedios({ usuario, tipos = ['imagen', 'video'] } = {}) {
+async function listarBibliotecaDeMediosSinCache({ usuario, tipos = ['imagen', 'video'] } = {}) {
   if (!isFirebaseConfigured || !FIREBASE_STORAGE) return [];
 
   if (!isAdminGlobal(usuario)) {
@@ -176,3 +177,13 @@ export async function listarBibliotecaDeMedios({ usuario, tipos = ['imagen', 'vi
 
   return conDireccion.filter((archivo) => archivo.url);
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarBibliotecaDeMedios = conCache('everest-medios:listarBibliotecaDeMedios', listarBibliotecaDeMediosSinCache);
+export const subirMedioDeBloque = conInvalidacion(subirMedioDeBloqueDirecto, ['everest-medios:']);

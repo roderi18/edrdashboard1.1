@@ -18,6 +18,9 @@ import { toast } from 'src/components/snackbar';
 // administrador global.
 // ----------------------------------------------------------------------
 
+// Se reexporta para que cada organigrama lo tome junto al hook que lo usa.
+export { entidadesDeDisenoDe } from 'src/utils/directiva-cuatrienios.mjs';
+
 export function useLeadershipLayoutStorage({
   editor,
   nivel,

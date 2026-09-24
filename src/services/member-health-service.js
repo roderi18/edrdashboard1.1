@@ -9,6 +9,8 @@ import {
   collection,
 } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 
@@ -235,7 +237,7 @@ const mapMedicamentosToForm = (documents = []) => {
   };
 };
 
-export const obtenerSaludMiembro = async (idMiembros, { secciones = null } = {}) => {
+const obtenerSaludMiembroSinCache = async (idMiembros, { secciones = null } = {}) => {
   const normalizedId = normalizeIdMiembros(idMiembros);
 
   if (!isFirebaseConfigured || !FIRESTORE || !normalizedId) return {};
@@ -292,7 +294,7 @@ export const obtenerSaludMiembro = async (idMiembros, { secciones = null } = {})
   };
 };
 
-export const guardarInformacionMedicaBasicaMiembro = async ({
+const guardarInformacionMedicaBasicaMiembroDirecto = async ({
   idMiembros,
   codigoMiembro,
   data,
@@ -328,7 +330,7 @@ export const guardarInformacionMedicaBasicaMiembro = async ({
   return payload;
 };
 
-export const guardarAlergiasMiembro = async ({ idMiembros, codigoMiembro, data, usuario }) => {
+const guardarAlergiasMiembroDirecto = async ({ idMiembros, codigoMiembro, data, usuario }) => {
   const base = await getBasePayload({
     coleccion: COLECCION_ALERGIAS_MIEMBROS,
     idMiembros,
@@ -358,7 +360,7 @@ export const guardarAlergiasMiembro = async ({ idMiembros, codigoMiembro, data, 
   return payload;
 };
 
-export const guardarCondicionesMedicasMiembro = async ({
+const guardarCondicionesMedicasMiembroDirecto = async ({
   idMiembros,
   codigoMiembro,
   data,
@@ -395,7 +397,7 @@ export const guardarCondicionesMedicasMiembro = async ({
   return payload;
 };
 
-export const guardarMedicamentosMiembro = async ({ idMiembros, codigoMiembro, data, usuario }) => {
+const guardarMedicamentosMiembroDirecto = async ({ idMiembros, codigoMiembro, data, usuario }) => {
   const existingSnapshot = await getDocs(
     query(
       collection(FIRESTORE, COLECCION_MEDICAMENTOS_MIEMBROS),
@@ -500,7 +502,7 @@ export const guardarMedicamentosMiembro = async ({ idMiembros, codigoMiembro, da
   return validMedications;
 };
 
-export const guardarSaludMiembro = async ({ idMiembros, codigoMiembro, data, usuario }) => {
+const guardarSaludMiembroDirecto = async ({ idMiembros, codigoMiembro, data, usuario }) => {
   const normalizedId = normalizeIdMiembros(idMiembros);
 
   if (!isFirebaseConfigured || !FIRESTORE) {
@@ -547,3 +549,17 @@ export const guardarSaludMiembro = async ({ idMiembros, codigoMiembro, data, usu
     console.error('[member health] member history failed', error);
   });
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerSaludMiembro = conCache('salud:obtenerSaludMiembro', obtenerSaludMiembroSinCache);
+export const guardarInformacionMedicaBasicaMiembro = conInvalidacion(guardarInformacionMedicaBasicaMiembroDirecto, [], ['salud:']);
+export const guardarAlergiasMiembro = conInvalidacion(guardarAlergiasMiembroDirecto, [], ['salud:']);
+export const guardarCondicionesMedicasMiembro = conInvalidacion(guardarCondicionesMedicasMiembroDirecto, [], ['salud:']);
+export const guardarMedicamentosMiembro = conInvalidacion(guardarMedicamentosMiembroDirecto, [], ['salud:']);
+export const guardarSaludMiembro = conInvalidacion(guardarSaludMiembroDirecto, [], ['salud:']);

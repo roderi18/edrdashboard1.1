@@ -1456,6 +1456,8 @@ export function ProfilePostItem({
       {comment.imageUrl && (
         <Box
           component="img"
+          // Onda del esqueleto hasta que llega (`esqueleto-de-medios`).
+          data-esqueleto
           loading="lazy"
           decoding="async"
           src={comment.imageUrl}

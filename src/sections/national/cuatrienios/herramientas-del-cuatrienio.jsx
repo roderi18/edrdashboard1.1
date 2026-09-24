@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Menu from '@mui/material/Menu';
 import Button from '@mui/material/Button';
@@ -13,9 +13,17 @@ import Autocomplete from '@mui/material/Autocomplete';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
-import { ocupanteHistorico, integrantesDeEntidad } from 'src/utils/directiva-cuatrienios.mjs';
+import {
+  ocupanteHistorico,
+  integrantesDeEntidad,
+  oficialesDelCuatrienio,
+} from 'src/utils/directiva-cuatrienios.mjs';
 
-import { obtenerIntegrantesDelCuatrienio } from 'src/services/directiva-cuatrienios-service';
+import { useLecturasVivas } from 'src/lib/avisos-de-lecturas';
+import {
+  obtenerIntegrantesDelCuatrienio,
+  integrantesGuardadosDelCuatrienio,
+} from 'src/services/directiva-cuatrienios-service';
 import {
   restaurarFotosDelCuatrienio,
   tomarFotoDeLaDirectivaActual,
@@ -50,10 +58,22 @@ const VISTA_ORGANIGRAMA = {
   seccional: SectionalLeadershipView,
 };
 
+// Una sola lista vacía: una nueva en cada render movía los `useMemo` de la tabla.
+const SIN_INTEGRANTES = [];
+
 /** Integrantes guardados de un cuatrienio; sin cuatrienio no lee nada. */
 export function useIntegrantesDelCuatrienio(cuatrienio) {
   const [integrantes, setIntegrantes] = useState([]);
   const [cargando, setCargando] = useState(Boolean(cuatrienio));
+  // De qué cuatrienio son los `integrantes` que hay. Al cambiar de cuatrienio,
+  // el primer render aún traía los del anterior con `cargando` en falso (el
+  // efecto que lo pone en verdadero llega después): la tabla pintaba un instante
+  // la directiva vieja bajo el título nuevo.
+  const [leidoDe, setLeidoDe] = useState('');
+  // Lo mismo, para `recargar`: releer el cuatrienio que ya está a la vista (tras
+  // un aviso de otra sesión o una edición) no vuelve a enseñar el esqueleto.
+  const leidoDeRef = useRef('');
+  leidoDeRef.current = leidoDe;
 
   const recargar = useCallback(async () => {
     if (!cuatrienio) {
@@ -62,24 +82,52 @@ export function useIntegrantesDelCuatrienio(cuatrienio) {
       return;
     }
 
-    setCargando(true);
+    // LO YA LEIDO SE PINTA AL MOMENTO (caché de lecturas del servicio). Antes
+    // cada vuelta a un cuatrienio volvia a pedir la coleccion a Firestore y
+    // enseñaba el esqueleto aunque se hubiera visto hacia un momento.
+    const guardados = integrantesGuardadosDelCuatrienio(cuatrienio);
+
+    if (guardados) {
+      setIntegrantes(guardados);
+      setLeidoDe(cuatrienio);
+    } else if (leidoDeRef.current !== cuatrienio) {
+      setCargando(true);
+    }
 
     try {
-      setIntegrantes(await obtenerIntegrantesDelCuatrienio(cuatrienio));
+      const leidos = await obtenerIntegrantesDelCuatrienio(cuatrienio);
+      setIntegrantes(leidos);
+      setLeidoDe(cuatrienio);
     } catch (error) {
       console.error('[directiva-cuatrienios] no se pudo leer el cuatrienio', error);
-      toast.error('No se pudo leer la directiva de ese cuatrienio.');
-      setIntegrantes([]);
+      // Con lo guardado a la vista, un fallo al releer no la vacia.
+      if (!guardados && leidoDeRef.current !== cuatrienio) {
+        toast.error('No se pudo leer la directiva de ese cuatrienio.');
+        setIntegrantes([]);
+        setLeidoDe(cuatrienio);
+      }
     } finally {
       setCargando(false);
     }
   }, [cuatrienio]);
 
+  // Otra sesión cambió la memoria de un cuatrienio: se relee sola.
+  const cambios = useLecturasVivas(['cuatrienio:']);
+
   useEffect(() => {
     recargar();
-  }, [recargar]);
+  }, [recargar, cambios]);
 
-  return { integrantes, cargando, recargar };
+  const aunNoLeido = Boolean(cuatrienio) && leidoDe !== cuatrienio;
+  // Lo guardado se entrega ya en el primer render del cambio, sin esperar al
+  // efecto: si no, asomaba un parpadeo de esqueleto aun teniéndolo.
+  const guardados = aunNoLeido ? integrantesGuardadosDelCuatrienio(cuatrienio) : null;
+
+  return {
+    integrantes: guardados || (aunNoLeido ? SIN_INTEGRANTES : integrantes),
+    cargando: guardados ? false : cargando || aunNoLeido,
+    recargar,
+  };
 }
 
 /**
@@ -199,6 +247,8 @@ export function useHerramientasDelCuatrienio({ cuatrienio, integrantes, usuario,
         nombreEntidad: nombre,
         cuatrienio,
         obtenerOcupante: (nodeId) => ocupanteHistorico(filas, nivel, nodeId),
+        // El grupo de Oficiales de la Nacional, para la tarjeta "Oficiales Especiales".
+        oficiales: oficialesDelCuatrienio(filas),
       };
     },
     [integrantes, cuatrienio]
@@ -249,7 +299,7 @@ export function useHerramientasDelCuatrienio({ cuatrienio, integrantes, usuario,
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          {VistaOrganigrama && <VistaOrganigrama historico={organigrama} />}
+          {VistaOrganigrama && <VistaOrganigrama historico={organigrama} embebido />}
         </DialogContent>
       </Dialog>
 

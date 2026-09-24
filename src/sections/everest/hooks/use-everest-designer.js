@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 import { campanasDe } from 'src/utils/everest/campanas.mjs';
 import { PANTALLAS_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 import { publicacionDeVersion } from 'src/utils/everest/versiones.mjs';
-import { bloquePorId, BLOQUES_EXPLORA } from 'src/utils/everest/bloques.mjs';
+import { bloquePorId, BLOQUES_DEL_DESIGNER } from 'src/utils/everest/bloques.mjs';
 import { destinoDeVuelta, estadosDeLosBloques } from 'src/utils/everest/estado-del-bloque.mjs';
 
 import { obtenerAnaliticasDePortada } from 'src/services/everest-analiticas-service';
@@ -53,7 +53,7 @@ const PANTALLA = PANTALLAS_EXPLORA.principal;
 
 export const ESPERA_AUTOGUARDADO_MS = 1500;
 
-const PRIMER_BLOQUE = BLOQUES_EXPLORA[0].id;
+const PRIMER_BLOQUE = BLOQUES_DEL_DESIGNER[0].id;
 
 /** Una copia del mapa sin ese bloque. */
 const sinBloque = (mapa, idBloque) =>

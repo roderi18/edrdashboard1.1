@@ -33,6 +33,8 @@ import { Form, Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
+import { OrganizationalTabSkeleton } from 'src/sections/common/organizational-tab-skeleton';
+
 // ----------------------------------------------------------------------
 // Padre, madre o tutor.
 //
@@ -433,6 +435,12 @@ export function MemberEditParentsForm({
       setGuardandoBorrado(false);
     }
   };
+
+  // Hasta leer los tutores, esqueleto: el formulario salía vacío y se llenaba
+  // después, y parecía que no había nadie registrado.
+  if (cargando) {
+    return <OrganizationalTabSkeleton />;
+  }
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>

@@ -2,9 +2,12 @@
 
 import { m } from 'framer-motion';
 import { usePopover } from 'minimal-shared/hooks';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Badge from '@mui/material/Badge';
+import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
+import Skeleton from '@mui/material/Skeleton';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
@@ -20,20 +23,62 @@ import { varTap, varHover, transitionTap } from 'src/components/animate';
 
 import { usePresenceStatuses } from 'src/sections/chat/hooks/use-presence-status';
 
+import { cargarContactosDelDestacamento } from './contactos-del-destacamento';
+
 // ----------------------------------------------------------------------
 
-export function ContactsPopover({ data = [], sx, ...other }) {
+// Los contactos se piden al abrir (o al pasar por encima del botón, para que al
+// pulsar ya estén). Antes los calculaba el layout en cada arranque con el padrón
+// entero. `data`, si se pasa, manda (compatibilidad).
+export function ContactsPopover({ data: datosDados, usuario, sx, ...other }) {
   const { open, anchorEl, onClose, onOpen } = usePopover();
+  const [contactos, setContactos] = useState(null);
+  const pedidoRef = useRef(null);
 
-  const presenceStatuses = usePresenceStatuses(data.map((contact) => contact.idMiembros ?? contact.id));
+  const pedirContactos = useCallback(() => {
+    if (datosDados || pedidoRef.current) return;
+
+    pedidoRef.current = cargarContactosDelDestacamento(usuario)
+      .then(setContactos)
+      .catch((error) => {
+        console.error('Error cargando contactos del destacamento:', error);
+        setContactos([]);
+      });
+  }, [datosDados, usuario]);
+
+  // Otra cuenta, otros contactos.
+  useEffect(() => {
+    pedidoRef.current = null;
+    setContactos(null);
+  }, [usuario]);
+
+  const data = datosDados ?? contactos ?? [];
+  const cargando = !datosDados && contactos === null;
+
+  // La presencia (escuchas en vivo) solo mientras el popover está abierto: antes
+  // se escuchaba a todo el destacamento desde el arranque.
+  const presenceStatuses = usePresenceStatuses(
+    open ? data.map((contact) => contact.idMiembros ?? contact.id) : []
+  );
 
   const renderMenuList = () => (
     <CustomPopover open={open} anchorEl={anchorEl} onClose={onClose}>
       <Typography variant="h6" sx={{ p: 1.5 }}>
-        Contactos <span>({data.length})</span>
+        Contactos {!cargando && <span>({data.length})</span>}
       </Typography>
 
       <Scrollbar sx={{ height: 320, width: 320 }}>
+        {cargando && (
+          <Stack spacing={1.5} sx={{ p: 1 }}>
+            {[0, 1, 2, 3, 4].map((fila) => (
+              <Stack key={fila} direction="row" spacing={1.5} alignItems="center">
+                <Skeleton variant="circular" width={40} height={40} />
+                <Skeleton variant="text" sx={{ flex: 1 }} />
+              </Stack>
+            ))}
+          </Stack>
+        )}
+
         <MenuList>
           {data.map((contact) => {
             const presence = presenceStatuses[String(contact.idMiembros ?? contact.id)] ?? {
@@ -77,7 +122,12 @@ export function ContactsPopover({ data = [], sx, ...other }) {
         whileHover={varHover(1.04)}
         transition={transitionTap()}
         aria-label="Contacts button"
-        onClick={onOpen}
+        onPointerEnter={pedirContactos}
+        onFocus={pedirContactos}
+        onClick={(event) => {
+          pedirContactos();
+          onOpen(event);
+        }}
         sx={[
           (theme) => ({ ...(open && { bgcolor: theme.vars.palette.action.selected }) }),
           ...(Array.isArray(sx) ? sx : [sx]),

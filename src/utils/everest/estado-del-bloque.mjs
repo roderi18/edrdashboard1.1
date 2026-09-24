@@ -15,7 +15,7 @@
 // ----------------------------------------------------------------------
 
 import { esObjeto } from './saneado.mjs';
-import { bloquePorId, BLOQUES_EXPLORA } from './bloques.mjs';
+import { bloquePorId, BLOQUES_DEL_DESIGNER } from './bloques.mjs';
 import { resolverPortada, ORIGEN_DEL_BLOQUE } from './portada.mjs';
 import { DISENO_DE_FABRICA, sanearPublicacion } from './publicacion.mjs';
 
@@ -92,7 +92,7 @@ export function estadoDelBloque({ idBloque, publicado, borradores, fabrica = {} 
 
 /** El estado de todos los bloques, en el orden del registro. */
 export const estadosDeLosBloques = ({ publicado, borradores, fabrica }) =>
-  BLOQUES_EXPLORA.map((bloque) =>
+  BLOQUES_DEL_DESIGNER.map((bloque) =>
     estadoDelBloque({ idBloque: bloque.id, publicado, borradores, fabrica })
   );
 

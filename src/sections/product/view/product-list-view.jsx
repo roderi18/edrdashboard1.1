@@ -38,6 +38,8 @@ import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { useToolbarSettings, CustomGridActionsCellItem } from 'src/components/custom-data-grid';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 
+import { ProductItemSkeleton } from 'src/sections/product/product-skeleton';
+
 import { useAuthContext } from 'src/auth/hooks';
 
 import { StoreHeader } from '../store-header';
@@ -583,7 +585,22 @@ export function ProductListView() {
                 </Card>
 
                 {productsLoading ? (
-                  <EmptyContent title="Cargando productos..." />
+                  // La rejilla de siempre con tarjetas en esqueleto, no un texto:
+                  // "Cargando productos..." dejaba la pantalla vacía.
+                  <Box
+                    sx={{
+                      gap: 2.5,
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: 'repeat(2, 1fr)',
+                        sm: 'repeat(3, 1fr)',
+                        md: 'repeat(3, 1fr)',
+                        lg: 'repeat(4, 1fr)',
+                      },
+                    }}
+                  >
+                    <ProductItemSkeleton itemCount={8} />
+                  </Box>
                 ) : !mobileData.length ? (
                   <EmptyContent title="No se encontraron resultados" />
                 ) : (

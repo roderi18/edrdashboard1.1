@@ -124,8 +124,10 @@ test('la lista trae todos los bloques, en el orden del registro, aunque lleguen 
 
   assert.deepEqual(
     estados.map((estado) => estado.idBloque),
-    BLOQUES_EXPLORA.map((bloque) => bloque.id)
+    // Los retirados (accesos rápidos) no se ofrecen: la portada ya no los pinta.
+    BLOQUES_EXPLORA.filter((bloque) => !bloque.retirado).map((bloque) => bloque.id)
   );
+  assert.ok(!estados.some((estado) => estado.idBloque === 'accesos-rapidos'));
   estados
     .filter((estado) => estado.estado !== ESTADOS_DEL_BLOQUE.externo)
     .forEach((estado) => assert.equal(estado.estado, ESTADOS_DEL_BLOQUE.original, estado.idBloque));

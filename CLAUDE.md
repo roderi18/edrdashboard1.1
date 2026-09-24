@@ -132,6 +132,12 @@ Suite que lo cubre: `npm run test:acceso`.
   hora). El nativo cambia de aspecto y de orden de campos en cada sistema, y
   dejaba dos formas distintas de escribir una fecha en la misma pantalla. El
   `LocalizationProvider` ya está puesto en `src/app/layout.jsx`.
+- **Todo lo nuevo se siente instantáneo** (detalle en `PROJECT_GUIDELINES.md` §2):
+  esqueleto al instante (`loading.jsx` en cada ruta, nunca `null` ni "Cargando..."),
+  responde al pulsar, carga diferida (`next/dynamic`/`import()` para lo pesado,
+  nada de `@react-pdf/renderer` arriba en una pantalla) y caché
+  (`conCache`/`conInvalidacion` de `src/utils/cache-de-lecturas.mjs`). Datos de
+  personas, solo en memoria; cerrar sesión los borra todos.
 - Código de servidor probable → `.mjs`, para importarlo desde `node --test`.
 - Tests en español, nombrados por el comportamiento, con encabezado que explica
   qué se rompía. Importan el **código real** vía `tests/soporte/resolver-alias-src.mjs`.

@@ -7,6 +7,7 @@ import {
   collection,
 } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import {
   ahoraTimestamp,
   timestampToIsoString,
@@ -167,7 +168,7 @@ export const normalizeProductReview = (review = {}, user = {}) => ({
   replies: normalizeReplies(review.replies ?? review.respuestas),
 });
 
-export const listarResenasProductoFirestore = async (productId, baseReviews = []) => {
+const listarResenasProductoFirestoreSinCache = async (productId, baseReviews = []) => {
   if (!productId) return [];
 
   if (!isFirebaseConfigured || !FIRESTORE) {
@@ -184,7 +185,7 @@ export const listarResenasProductoFirestore = async (productId, baseReviews = []
   return mergeReviews(baseReviews, firestoreReviews);
 };
 
-export const crearResenaProductoFirestore = async (productId, review, user) => {
+const crearResenaProductoFirestoreDirecto = async (productId, review, user) => {
   const nextReview = normalizeProductReview(review, user);
 
   if (!productId || !isFirebaseConfigured || !FIRESTORE) {
@@ -202,7 +203,7 @@ export const crearResenaProductoFirestore = async (productId, review, user) => {
   return nextReview;
 };
 
-export const actualizarVotoResenaProductoFirestore = async (
+const actualizarVotoResenaProductoFirestoreDirecto = async (
   productId,
   reviewId,
   user,
@@ -251,7 +252,7 @@ export const actualizarVotoResenaProductoFirestore = async (
   return nextReviews;
 };
 
-export const responderResenaProductoFirestore = async (
+const responderResenaProductoFirestoreDirecto = async (
   productId,
   reviewId,
   reply = {},
@@ -321,3 +322,15 @@ export const buildProductReviewStats = (reviews = []) => {
 
   return { ratings, totalRatings, totalReviews };
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarResenasProductoFirestore = conCache('tienda-resenas:listarResenasProductoFirestore', listarResenasProductoFirestoreSinCache);
+export const crearResenaProductoFirestore = conInvalidacion(crearResenaProductoFirestoreDirecto, [], ['tienda-resenas:']);
+export const actualizarVotoResenaProductoFirestore = conInvalidacion(actualizarVotoResenaProductoFirestoreDirecto, [], ['tienda-resenas:']);
+export const responderResenaProductoFirestore = conInvalidacion(responderResenaProductoFirestoreDirecto, [], ['tienda-resenas:']);

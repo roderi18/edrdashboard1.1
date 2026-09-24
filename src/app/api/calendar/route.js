@@ -5,7 +5,6 @@ import {
   guardarActividadCalendario,
   eliminarActividadCalendario,
   obtenerActividadesCalendario,
-  sembrarActividadesCalendario,
   actualizarActividadCalendario,
 } from 'src/utils/firebase-calendar';
 
@@ -22,12 +21,6 @@ export async function GET() {
 
 export async function POST(request) {
   const body = await request.json().catch(() => ({}));
-
-  if (body.sembrar === true) {
-    const total = await sembrarActividadesCalendario();
-
-    return Response.json({ ok: true, total });
-  }
 
   const id = await guardarActividadCalendario(body.eventData || body);
 

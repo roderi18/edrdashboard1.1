@@ -1,9 +1,10 @@
+import { responderConEtag } from 'src/utils/respuesta-con-etag.mjs';
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { UPSTREAM_KEYS, fetchUpstreamText, invalidateUpstream } from 'src/utils/upstream-cache';
 
 import { exigirAdministradorGlobalRest } from 'src/server/sesion-rest.mjs';
 
-export async function GET() {
+export async function GET(request) {
     try {
         // Secciones e iglesias en paralelo (antes iban en serie) y cacheadas.
         //
@@ -69,7 +70,8 @@ export async function GET() {
             };
         });
 
-        return Response.json(normalizeApiResponse({ ...data, data: newData }));
+        // Con huella: si no cambió, 304 y el navegador usa su copia.
+        return responderConEtag(request, normalizeApiResponse({ ...data, data: newData }));
     } catch (error) {
         // CON EL MOTIVO. Antes salia un 'Error fetching sectionals' pelado y en
         // el navegador solo se leia "Error al obtener seccionales": ni si el

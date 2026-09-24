@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
+import { valorGuardado } from 'src/utils/cache-de-lecturas.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
   buildOrgIndex,
@@ -20,12 +21,14 @@ import { getDestsApi } from 'src/services/dest-service';
 import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
+import { useLecturasVivas } from 'src/lib/avisos-de-lecturas';
 import { getSectionals } from 'src/services/sectional-service';
 import { getNivelesARetirar, DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import {
   esNivelDeConsejo,
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
+  asignacionesDirectivaGuardadas,
   obtenerAsignacionesDirectivaMiembros,
   desactivarAsignacionesDirectivaPorNivel,
 } from 'src/services/directivas-organizacionales-service';
@@ -80,6 +83,33 @@ const esperar = (ms) =>
 const findPositionByNode = (nivel, nodeId) =>
   buscarPosicionPorNodo(DIRECTIVA_POSITIONS, nivel, nodeId);
 
+const conFotos = (memberRows, fotos) =>
+  (Array.isArray(memberRows) ? memberRows : []).map((member) => ({
+    ...member,
+    avatarUrl: fotos?.[String(member?.id)]?.urlFoto || member?.avatarUrl || '',
+  }));
+
+// Lo que `load` pide, si ya está entero en la caché de lecturas (mismas claves
+// que usan los servicios). Con ello el organigrama se pinta en el primer render
+// al volver a él, sin esqueleto ni casillas "Vacante" de paso.
+const datosDeHoyGuardados = () => {
+  const memberRows = valorGuardado('miembros:');
+  const dests = valorGuardado('destacamentos:false');
+  const churches = valorGuardado('iglesias:');
+  const sectionals = valorGuardado('secciones:false');
+  const regionals = valorGuardado('regiones:true');
+  const fotos = valorGuardado('fotos:miembro|perfil');
+
+  if ([memberRows, dests, churches, sectionals, regionals, fotos].some((v) => v === undefined)) {
+    return null;
+  }
+
+  return {
+    members: conFotos(memberRows, fotos),
+    orgIndex: buildOrgIndex({ dests, churches, sectionals, regionals }),
+  };
+};
+
 export function useLeadershipAssignments({
   nivel,
   idEntidad,
@@ -94,10 +124,25 @@ export function useLeadershipAssignments({
   // Administrador Global, dejaba el cambio PENDIENTE de aprobacion y la casilla
   // volvia a su estado anterior: se anunciaba "removido" y reaparecia la persona.
   const { user } = useAuthContext();
-  const [members, setMembers] = useState([]);
-  const [orgIndex, setOrgIndex] = useState(() => buildOrgIndex({}));
+  const [guardadoAlMontar] = useState(() => (conDatosDeHoy ? datosDeHoyGuardados() : null));
+  const [members, setMembers] = useState(() => guardadoAlMontar?.members || []);
+  const [orgIndex, setOrgIndex] = useState(
+    () => guardadoAlMontar?.orgIndex || buildOrgIndex({})
+  );
+  const [miembrosListos, setMiembrosListos] = useState(() => Boolean(guardadoAlMontar));
   // Asignaciones activas de esta directiva, indexadas por idPosicionDirectiva.
-  const [assignments, setAssignments] = useState({});
+  const [assignments, setAssignments] = useState(() => {
+    const guardadas = conDatosDeHoy ? asignacionesDirectivaGuardadas({ nivel, idEntidad }) : null;
+
+    return guardadas ? indexarAsignacionesPorPosicion(guardadas) : {};
+  });
+  // De qué directiva son las `assignments` que hay: al cambiar de entidad, las
+  // de la anterior no pueden pintarse bajo el nombre de la nueva.
+  const [asignacionesDe, setAsignacionesDe] = useState(() =>
+    conDatosDeHoy && asignacionesDirectivaGuardadas({ nivel, idEntidad })
+      ? `${nivel}:${idEntidad || ''}`
+      : ''
+  );
   // Cargos de consejo de OTRAS entidades: quien figure aqui no puede recibir uno
   // en esta directiva.
   const [asignacionesDeConsejo, setAsignacionesDeConsejo] = useState([]);
@@ -109,6 +154,9 @@ export function useLeadershipAssignments({
   // Solo esta en alto durante la espera de `RETARDO_ASIGNACION_MS`, no mientras
   // se escribe: la escritura va por detras y no bloquea la interfaz.
   const [isSaving, setIsSaving] = useState(false);
+  // Sube cuando otra sesión cambia personas o directivas: se relee solo.
+  const cambiosDeMiembros = useLecturasVivas(['miembros:', 'fotos:']);
+  const cambiosDeDirectiva = useLecturasVivas(['directiva:']);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,13 +177,9 @@ export function useLeadershipAssignments({
 
       if (cancelled) return;
 
-      setMembers(
-        (Array.isArray(memberRows) ? memberRows : []).map((member) => ({
-          ...member,
-          avatarUrl: fotos[String(member?.id)]?.urlFoto || member?.avatarUrl || '',
-        }))
-      );
+      setMembers(conFotos(memberRows, fotos));
       setOrgIndex(buildOrgIndex({ dests, churches, sectionals, regionals }));
+      setMiembrosListos(true);
     };
 
     load();
@@ -143,7 +187,7 @@ export function useLeadershipAssignments({
     return () => {
       cancelled = true;
     };
-  }, [conDatosDeHoy]);
+  }, [conDatosDeHoy, cambiosDeMiembros]);
 
   const loadAssignments = useCallback(async () => {
     if (!conDatosDeHoy) return;
@@ -152,6 +196,7 @@ export function useLeadershipAssignments({
     const rows = await obtenerAsignacionesDirectiva({ nivel, idEntidad }).catch(() => []);
 
     setAssignments(indexarAsignacionesPorPosicion(rows));
+    setAsignacionesDe(`${nivel}:${idEntidad || ''}`);
 
     // Cargos de consejo FUERA de esta directiva. Nadie sirve en dos consejos a la
     // vez, asi que quien ya este en uno tiene que salir deshabilitado aqui: el
@@ -173,7 +218,10 @@ export function useLeadershipAssignments({
           )
       )
     );
-  }, [nivel, idEntidad, conDatosDeHoy]);
+    // `cambiosDeDirectiva` no se lee dentro: está para releer cuando otra sesión
+    // asigna o quita a alguien.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nivel, idEntidad, conDatosDeHoy, cambiosDeDirectiva]);
 
   useEffect(() => {
     loadAssignments();
@@ -533,7 +581,16 @@ export function useLeadershipAssignments({
     setNodoARemover(null);
   }, [getAssignedMember, guardar, nodoARemover]);
 
+  // Mientras falten las personas o las asignaciones de ESTA directiva, el árbol
+  // enseña su esqueleto: antes salía entero con "Vacante" y se llenaba después.
+  const sinEntidad = !idEntidad && nivel !== 'nacional';
+  const cargando =
+    conDatosDeHoy &&
+    !sinEntidad &&
+    (!miembrosListos || asignacionesDe !== `${nivel}:${idEntidad || ''}`);
+
   return {
+    cargando,
     members,
     memberOptions,
     getAssignedMember,

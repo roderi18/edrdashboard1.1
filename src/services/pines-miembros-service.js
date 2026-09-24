@@ -1,3 +1,4 @@
+import { conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { construirPinesAsignados } from 'src/utils/pines-perfil.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -22,7 +23,7 @@ const describir = (lista = []) =>
   (Array.isArray(lista) ? lista : []).map((entrada) => String(entrada?.id ?? entrada)).join(', ') ||
   'Ninguno';
 
-export async function guardarPinesDeMiembro({
+async function guardarPinesDeMiembroDirecto({
   idMiembros,
   anteriores = [],
   elegidos = [],
@@ -49,7 +50,7 @@ export async function guardarPinesDeMiembro({
   return pines;
 }
 
-export async function guardarOrdenDePines({ orden = [], anterior = [], usuario = {} }) {
+async function guardarOrdenDePinesDirecto({ orden = [], anterior = [], usuario = {} }) {
   asegurarFirebase();
 
   const antes = anterior.join(', ');
@@ -68,3 +69,13 @@ export async function guardarOrdenDePines({ orden = [], anterior = [], usuario =
 
   return orden;
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const guardarPinesDeMiembro = conInvalidacion(guardarPinesDeMiembroDirecto, [], ['pines:']);
+export const guardarOrdenDePines = conInvalidacion(guardarOrdenDePinesDirecto, [], ['pines:']);

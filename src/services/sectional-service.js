@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore';
 
 import { getOwnRegionIdsForUser } from 'src/utils/member-access';
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
 import {
     registrarFotoEntidadSubida,
@@ -52,6 +53,9 @@ const escribirSeccion = async (sectional) => {
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(sectional),
     });
+    // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+    invalidarLecturas();
+    avisarAOtrasSesiones('secciones:');
 
     const texto = await res.text();
 
@@ -130,50 +134,54 @@ function mapApiSectionalToUI(sectional) {
 
 export const getCachedSectionals = () => getStorageCollection(SECTIONALS_STORAGE_KEY) || [];
 
-export const getSectionals = async ({ includePhotos = true } = {}) => {
-    try {
-        const res = await fetch('/api/sectional/');
-
-        if (!res.ok) {
-            // El motivo lo manda la ruta (upstream caido, o los 9 segundos de
-            // corte agotados). Sin el, en consola solo se leia "Error al obtener
-            // seccionales" y no habia forma de saber cual de los dos fue.
-            const detalle = await res
-                .json()
-                .then((cuerpo) => cuerpo?.message || cuerpo?.error || '')
-                .catch(() => '');
-
-            throw new Error(
-                detalle
-                    ? `Error al obtener seccionales: ${detalle}`
-                    : `Error al obtener seccionales (${res.status})`
-            );
+// Lo leído se reparte desde la caché de lecturas (ver `cache-de-lecturas.mjs`).
+export const getSectionals = ({ includePhotos = true } = {}) =>
+    leerConCache(`secciones:${includePhotos}`, () => leerSeccionales({ includePhotos })).catch(
+        (error) => {
+            console.error('getSectionals error:', error);
+            return getCachedSectionals();
         }
+    );
 
-        const response = await res.json();
+async function leerSeccionales({ includePhotos }) {
+    const res = await fetch('/api/sectional/');
 
-        const data = response.data || response.Data || response;
+    if (!res.ok) {
+        // El motivo lo manda la ruta (upstream caido, o los 9 segundos de
+        // corte agotados). Sin el, en consola solo se leia "Error al obtener
+        // seccionales" y no habia forma de saber cual de los dos fue.
+        const detalle = await res
+            .json()
+            .then((cuerpo) => cuerpo?.message || cuerpo?.error || '')
+            .catch(() => '');
 
-        const mappedSectionals = Array.isArray(data)
-            ? data.map(mapApiSectionalToUI)
-            : [];
-        const photosBySectionalId = includePhotos
-            ? await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'seccion' })
-            : {};
-
-        const resolvedSectionals = mappedSectionals.map((sectional) => ({
-            ...sectional,
-            avatarUrl: photosBySectionalId[String(sectional.id)]?.urlFoto || sectional.avatarUrl || null,
-        }));
-
-        setStorageCollection(SECTIONALS_STORAGE_KEY, resolvedSectionals);
-
-        return resolvedSectionals;
-    } catch (error) {
-        console.error('getSectionals error:', error);
-        return getCachedSectionals();
+        throw new Error(
+            detalle
+                ? `Error al obtener seccionales: ${detalle}`
+                : `Error al obtener seccionales (${res.status})`
+        );
     }
-};
+
+    const response = await res.json();
+
+    const data = response.data || response.Data || response;
+
+    const mappedSectionals = Array.isArray(data)
+        ? data.map(mapApiSectionalToUI)
+        : [];
+    const photosBySectionalId = includePhotos
+        ? await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'seccion' })
+        : {};
+
+    const resolvedSectionals = mappedSectionals.map((sectional) => ({
+        ...sectional,
+        avatarUrl: photosBySectionalId[String(sectional.id)]?.urlFoto || sectional.avatarUrl || null,
+    }));
+
+    setStorageCollection(SECTIONALS_STORAGE_KEY, resolvedSectionals);
+
+    return resolvedSectionals;
+}
 
 export const getSectionalById = async (id) => {
     const sectionals = await getSectionals();
@@ -283,6 +291,9 @@ const crearSeccionEnLaApi = async (payload) => {
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
+    // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+    invalidarLecturas();
+    avisarAOtrasSesiones('secciones:');
 
     if (!res.ok) {
         const texto = await res.text();
@@ -359,6 +370,9 @@ export const deleteSectional = async (id, { usuario, antes = null } = {}) => {
         // Global. Sin esta cabecera, el propio administrador se llevaria un 401.
         headers: await authHeaders(),
     });
+    // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+    invalidarLecturas();
+    avisarAOtrasSesiones('secciones:');
     const text = await res.text();
 
     if (!res.ok) {

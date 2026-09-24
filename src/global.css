@@ -22,14 +22,8 @@
 /* scrollbar */
 @import './components/scrollbar/styles.css';
 
-/* map */
-@import './components/map/styles.css';
-
-/* lightbox */
-@import './components/lightbox/styles.css';
-
-/* chart */
-@import './components/chart/styles.css';
+/* El mapa, el visor de imágenes y las gráficas importan su CSS desde su propio
+   componente: aquí viajaban a todas las pantallas aunque ninguna los usara. */
 
 /** **************************************
 * Baseline

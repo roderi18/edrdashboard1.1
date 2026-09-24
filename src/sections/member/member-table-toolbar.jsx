@@ -1,4 +1,3 @@
-import { pdf } from '@react-pdf/renderer';
 import { useState, useCallback } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
 
@@ -27,7 +26,6 @@ import { MemberDownloadDialog } from './member-download-dialog';
 import { MemberUploadProgressDialog } from './member-upload-progress-dialog';
 import {
   downloadMembersCsv,
-  MembersPdfDocument,
   applyDownloadFilters,
   getFilterOptionLabel,
   getFilterOptionValue,
@@ -118,7 +116,9 @@ export function MemberTableToolbar({
   );
 
   const downloadMembersPdf = async (membersToDownload) => {
-    const blob = await pdf(<MembersPdfDocument members={membersToDownload} />).toBlob();
+    // La librería de PDF se carga aquí, al pulsar, no con la lista.
+    const { generarPdfDeMiembros } = await import('./member-pdf-document');
+    const blob = await generarPdfDeMiembros(membersToDownload);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 

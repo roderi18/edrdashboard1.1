@@ -59,6 +59,7 @@ export function MobileQuickNav({
   unreadChats = 0,
   layoutQuery = 'lg',
   collapseOnRoutes = [],
+  hiddenOnRoutes = [],
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -147,6 +148,10 @@ export function MobileQuickNav({
     router.push(paths.dashboard.principal);
   };
 
+  // En el chat la barra no se pinta: la pantalla es para la conversacion y la
+  // caja de escribir baja hasta el borde. Se decide aqui, despues de los hooks.
+  if (hiddenOnRoutes.some((route) => rutaActiva(pathname, route))) return null;
+
   return (
     <Box
       sx={(theme) => ({
@@ -170,10 +175,10 @@ export function MobileQuickNav({
         elevation={0}
         sx={(theme) => ({
           p: 0.5,
-          left: expanded ? 0 : 'calc(12.5% - 30px)',
+          left: expanded ? 0 : 'calc(12.5% - 27px)',
           bottom: 0,
-          width: expanded ? '100%' : 60,
-          height: expanded ? 72 : 60,
+          width: expanded ? '100%' : 54,
+          height: expanded ? 72 : 54,
           display: 'flex',
           position: 'absolute',
           overflow: 'hidden',
@@ -231,8 +236,8 @@ export function MobileQuickNav({
                 gap: expanded ? 0.25 : 0,
                 minWidth: 0,
                 borderRadius: '999px',
-                flex: expanded ? '1 1 0' : isHome ? '0 0 50px' : '0 0 0px',
-                width: expanded ? 'auto' : isHome ? 50 : 0,
+                flex: expanded ? '1 1 0' : isHome ? '0 0 44px' : '0 0 0px',
+                width: expanded ? 'auto' : isHome ? 44 : 0,
                 opacity: expanded || isHome ? 1 : 0,
                 overflow: 'hidden',
                 visibility: expanded || isHome ? 'visible' : 'hidden',

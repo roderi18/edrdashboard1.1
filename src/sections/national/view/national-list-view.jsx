@@ -34,6 +34,7 @@ import {
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
+import { useLecturasVivas } from 'src/lib/avisos-de-lecturas';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import { ID_CUATRIENIO_LISTADO } from 'src/catalogs/directiva-2022-2026.mjs';
@@ -62,6 +63,7 @@ import {
   TablePaginationCustom,
 } from 'src/components/table';
 
+import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 import { SelectorDeCuatrienio } from 'src/sections/national/cuatrienios/selector-de-cuatrienio';
@@ -217,8 +219,11 @@ const construirHrefDirectiva = ({ nivel, idEntidad }) => {
   return construirRuta(id);
 };
 
+// Ámbito de la directiva nacional en la lista y en el filtro de la Jerarquía.
+const NIVEL_CONSEJO_EJECUTIVO = 'Consejo Ejecutivo';
+
 const construirAmbito = ({ nivel, idEntidad, seccionesPorId, regionesPorId }) => {
-  if (nivel === 'nacional') return 'Consejo Ejecutivo';
+  if (nivel === 'nacional') return NIVEL_CONSEJO_EJECUTIVO;
 
   const id = String(idEntidad || '');
 
@@ -243,12 +248,11 @@ const POSICION_EX_COMANDANTE = 'ex-comandante-nacional';
 // detras de los cargos: los provisionales, los oficiales y los ex comandantes.
 const ORDEN_SIN_CASILLA = { directiva: 1000, oficiales: 2000, ex_comandantes: 3000 };
 
-// Alto del organigrama embebido en la pestaña Jerarquía: una ventana fija que se
-// recorre en vertical con el arrastre, para que NO ocupe toda la pantalla. El
-// ancho no se toca.
-const ALTURA_JERARQUIA = '70vh';
-
 const RUTA_LISTA = paths.dashboard.level.national.root;
+// Las herramientas de la memoria (cargar listado, fotos, guardar) son acciones
+// secundarias: en negrita pesaban tanto como el título de la directiva.
+const SIN_NEGRITA = { fontWeight: 'fontWeightRegular' };
+
 const rutaDelCuatrienio = (id, vigente) =>
   id === vigente ? RUTA_LISTA : `${RUTA_LISTA}?cuatrienio=${id}`;
 
@@ -266,12 +270,25 @@ export function NationalListView() {
   const ultimoCerrado =
     [...CUATRIENIOS].reverse().find((item) => esCuatrienioCerrado(item.id))?.id || vigente;
   const pedido = searchParams.get('cuatrienio');
-  const cuatrienio = CUATRIENIOS.some((item) => item.id === pedido)
+  const cuatrienioDeLaUrl = CUATRIENIOS.some((item) => item.id === pedido)
     ? pedido
     : searchParams.get('vista') === 'cuatrienios'
       ? ultimoCerrado
       : vigente;
+
+  // EL CAMBIO SE VE AL PULSAR, NO AL LLEGAR LA URL. `router.replace` tarda en
+  // devolver el `?cuatrienio=` nuevo y, mientras, la pantalla seguía con la
+  // directiva anterior y el menú cerrado: parecía congelada. Lo elegido manda al
+  // momento (título, tabla y árbol); la URL solo lo alcanza después. Un
+  // cuatrienio ya leído sale al instante; uno nuevo, con su esqueleto.
+  const [elegido, setElegido] = useState('');
+  const cuatrienio = elegido || cuatrienioDeLaUrl;
   const esMemoria = cuatrienio !== vigente;
+
+  useEffect(() => {
+    // La URL ya llegó (o se volvió atrás con el navegador): manda ella.
+    setElegido('');
+  }, [cuatrienioDeLaUrl]);
 
   const { user } = useAuthContext();
   // La memoria la editan el Administrador Global y la Oficina Nacional; las
@@ -311,6 +328,11 @@ export function NationalListView() {
   const [fotosPorMiembro, setFotosPorMiembro] = useState(() => ({}));
   const [exComandantes, setExComandantes] = useState([]);
   const [telefonosDirectiva, setTelefonosDirectiva] = useState(() => ({}));
+  // La directiva de hoy tampoco tenía esqueleto: hasta que llegaban las
+  // lecturas la tabla decía "Sin datos" y luego se llenaba.
+  const [cargandoHoy, setCargandoHoy] = useState(true);
+  // Otra sesión asignó, quitó o cambió a alguien: la lista se relee sola.
+  const cambiosDeHoy = useLecturasVivas(['directiva:', 'miembros:', 'cuatrienio:']);
 
   useEffect(() => {
     let cancelado = false;
@@ -361,6 +383,7 @@ export function NationalListView() {
       );
 
       setAllMembers(Array.isArray(miembros) ? miembros : []);
+      setCargandoHoy(false);
       setNationalAssignments(
         (Array.isArray(asignaciones) ? asignaciones : []).filter((asignacion) =>
           NIVELES_DE_LA_LISTA.includes(asignacion?.nivel)
@@ -403,7 +426,7 @@ export function NationalListView() {
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [cambiosDeHoy]);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
@@ -613,6 +636,32 @@ export function NationalListView() {
   // es lo que la lista uso para construir el enlace al organigrama: preguntarlo
   // aqui otra vez seria una segunda regla que se desincroniza de la primera.
   const nivelesElegidos = currentFilters.nationalOrganizationalLevel;
+
+  // TODAS LAS REGIONES Y SECCIONES, AUNQUE SU DIRECTIVA ESTE VACIA.
+  //
+  // El desplegable salia solo de las filas de la lista, asi que una seccion o
+  // region sin nadie asignado no se podia elegir y su organigrama —justo el que
+  // hay que rellenar— no se veia nunca. Se completa con el catalogo, con el mismo
+  // texto de ambito que llevan las filas (`construirAmbito`), para que el filtro y
+  // la busqueda por nombre sigan hablando el mismo idioma. Solo en la directiva de
+  // hoy: la de un cuatrienio guardado solo tiene las entidades que se guardaron.
+  const entidadesDelCatalogo = useMemo(() => {
+    if (esMemoria) return [];
+
+    const deUnNivel = (nivel, porId) =>
+      Array.from(porId.keys()).map((id) => ({
+        nivel,
+        id,
+        nombre: porId.get(id) || '',
+        ambito: construirAmbito({ nivel, idEntidad: id, seccionesPorId, regionesPorId }),
+      }));
+
+    return [
+      ...deUnNivel('regional', regionesPorId),
+      ...deUnNivel('seccional', seccionesPorId),
+    ].filter((entidad) => entidad.nombre);
+  }, [esMemoria, regionesPorId, seccionesPorId]);
+
   const entidadDeLaJerarquia =
     nivelesElegidos.length === 1
       ? (() => {
@@ -620,8 +669,17 @@ export function NationalListView() {
             (row) => row.nationalOrganizationalLevel === nivelesElegidos[0]
           );
 
-          return fila
-            ? { nivel: fila.level, id: fila.entityId, nombre: fila.entityNombre || '' }
+          if (fila) {
+            return { nivel: fila.level, id: fila.entityId, nombre: fila.entityNombre || '' };
+          }
+
+          // Sin nadie asignado no hay fila: la entidad sale del catalogo.
+          const delCatalogo = entidadesDelCatalogo.find(
+            (entidad) => entidad.ambito === nivelesElegidos[0]
+          );
+
+          return delCatalogo
+            ? { nivel: delCatalogo.nivel, id: delCatalogo.id, nombre: delCatalogo.nombre }
             : null;
         })()
       : null;
@@ -691,7 +749,7 @@ export function NationalListView() {
   );
   // El desplegable de la Jerarquía es de una sola opción: el primer (y único)
   // nivel elegido, o vacío para el Consejo Nacional.
-  const nivelValorJerarquia = nivelesElegidos[0] || '';
+  const nivelValorJerarquia = nivelesElegidos[0] || NIVEL_CONSEJO_EJECUTIVO;
   const distinctPositions = getAvailableOptionsFromData({
     inputData: tableData,
     property: 'nationalXMemberPosition',
@@ -712,6 +770,27 @@ export function NationalListView() {
     inputData: tableData,
     property: 'nationalOrganizationalLevel',
   }).sort(
+    (a, b) =>
+      ordenNivelOrganizacional(a.value) - ordenNivelOrganizacional(b.value) ||
+      a.label.localeCompare(b.label, 'es')
+  );
+  // El desplegable de la Jerarquía: los niveles de la lista más las regiones y
+  // secciones del catálogo que aún no tienen a nadie (ver `entidadesDelCatalogo`).
+  // El de la lista no cambia: filtrar filas por una sección vacía no daría nada.
+  const nivelesDeLaJerarquia = [
+    // El Consejo Ejecutivo siempre, aunque la lista no traiga a nadie suyo: es la
+    // opción que vuelve al organigrama de la nación.
+    ...(distinctOrganizationalLevels.some((opcion) => opcion.value === NIVEL_CONSEJO_EJECUTIVO)
+      ? []
+      : [{ value: NIVEL_CONSEJO_EJECUTIVO, label: NIVEL_CONSEJO_EJECUTIVO }]),
+    ...distinctOrganizationalLevels,
+    ...entidadesDelCatalogo
+      .filter(
+        (entidad) =>
+          !distinctOrganizationalLevels.some((opcion) => opcion.value === entidad.ambito)
+      )
+      .map((entidad) => ({ value: entidad.ambito, label: entidad.ambito })),
+  ].sort(
     (a, b) =>
       ordenNivelOrganizacional(a.value) - ordenNivelOrganizacional(b.value) ||
       a.label.localeCompare(b.label, 'es')
@@ -813,7 +892,11 @@ export function NationalListView() {
 
   const darDeBaja = esMemoria ? quitarDeLaMemoria : darDeBajaAsignaciones;
 
+  const cargandoLista = esMemoria ? memoria.cargando : cargandoHoy;
+
   const cambiarCuatrienio = (id) => {
+    if (id === cuatrienio) return;
+    setElegido(id);
     filters.resetState();
     table.onResetPage();
     table.onSelectAllRows(false, []);
@@ -866,6 +949,7 @@ export function NationalListView() {
                   <>
                     <Button
                       variant="outlined"
+                      sx={SIN_NEGRITA}
                       startIcon={<Iconify icon="solar:import-bold" />}
                       onClick={herramientas.importar}
                     >
@@ -873,6 +957,7 @@ export function NationalListView() {
                     </Button>
                     <Button
                       variant="outlined"
+                      sx={SIN_NEGRITA}
                       disabled={Boolean(herramientas.actualizandoFotos)}
                       startIcon={
                         herramientas.actualizandoFotos ? (
@@ -904,6 +989,7 @@ export function NationalListView() {
                 {!esMemoria && (
                   <Button
                     variant="outlined"
+                    sx={SIN_NEGRITA}
                     disabled={Boolean(herramientas.tomandoFoto)}
                     startIcon={
                       herramientas.tomandoFoto ? (
@@ -983,24 +1069,29 @@ export function NationalListView() {
                 <NationalJerarquiaToolbar
                   opcionesBusqueda={opcionesBusquedaJerarquia}
                   onSeleccionarMiembro={seleccionarMiembroJerarquia}
-                  nivelOpciones={distinctOrganizationalLevels}
+                  nivelOpciones={nivelesDeLaJerarquia}
                   nivelValor={nivelValorJerarquia}
                   onCambiarNivel={cambiarNivelJerarquia}
                 />
 
+                {/* Sin `alturaMaxima`: con la ventana fija de 70vh el arbol se
+                    cortaba por abajo al 100 %. El organigrama toma el alto de su
+                    diseño, igual que en su propia pantalla, y se ve completo. */}
                 <Box sx={{ p: { xs: 1, md: 2.5 }, pt: 0 }}>
-                  {nivelDeLaJerarquia === 'seccional' ? (
+                  {cargandoLista ? (
+                    <OrganigramaCargando />
+                  ) : nivelDeLaJerarquia === 'seccional' ? (
                     esMemoria ? (
                       <SectionalLeadershipView
                         historico={historicoDeLaJerarquia}
-                        alturaMaxima={ALTURA_JERARQUIA}
+                        embebido
                         resaltarMiembroId={resaltado?.id}
                         resaltarToken={resaltado?.token}
                       />
                     ) : (
                       <SectionalLeadershipView
                         idSeccion={entidadDeLaJerarquia.id}
-                        alturaMaxima={ALTURA_JERARQUIA}
+                        embebido
                         resaltarMiembroId={resaltado?.id}
                         resaltarToken={resaltado?.token}
                       />
@@ -1009,14 +1100,14 @@ export function NationalListView() {
                     esMemoria ? (
                       <RegionalLeadershipView
                         historico={historicoDeLaJerarquia}
-                        alturaMaxima={ALTURA_JERARQUIA}
+                        embebido
                         resaltarMiembroId={resaltado?.id}
                         resaltarToken={resaltado?.token}
                       />
                     ) : (
                       <RegionalLeadershipView
                         idRegion={entidadDeLaJerarquia.id}
-                        alturaMaxima={ALTURA_JERARQUIA}
+                        embebido
                         resaltarMiembroId={resaltado?.id}
                         resaltarToken={resaltado?.token}
                       />
@@ -1024,7 +1115,7 @@ export function NationalListView() {
                   ) : esMemoria ? (
                     <NationalLeadershipView
                       historico={historicoDeLaJerarquia}
-                      alturaMaxima={ALTURA_JERARQUIA}
+                      embebido
                       resaltarMiembroId={resaltado?.id}
                       resaltarToken={resaltado?.token}
                     />
@@ -1033,7 +1124,7 @@ export function NationalListView() {
                     // no se asignan, agregan ni eliminan desde la lista.
                     <NationalLeadershipView
                       gestionarOficialesEspeciales={false}
-                      alturaMaxima={ALTURA_JERARQUIA}
+                      embebido
                       resaltarMiembroId={resaltado?.id}
                       resaltarToken={resaltado?.token}
                     />
@@ -1083,7 +1174,7 @@ export function NationalListView() {
                     />
 
                     <CompactEntityListView
-                      loading={esMemoria && memoria.cargando}
+                      loading={cargandoLista}
                       rows={dataFiltered.slice(
                         table.page * table.rowsPerPage,
                         table.page * table.rowsPerPage + table.rowsPerPage
@@ -1129,7 +1220,11 @@ export function NationalListView() {
           </Card>
 
           {vista === 'lista' && displayMode !== 'panel' && (
-            <NationalCardList nationals={dataFiltered} canManage={canManage} />
+            <NationalCardList
+              nationals={dataFiltered}
+              canManage={canManage}
+              loading={cargandoLista}
+            />
           )}
         </>
       </DashboardContent>

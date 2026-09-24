@@ -1,6 +1,12 @@
+import { leerConCache } from 'src/utils/cache-de-lecturas.mjs';
+
 import { authHeaders } from './member-service';
 
-export async function obtenerTelefonosDirectivaActual() {
+// Por la caché de lecturas: la lista nacional lo pedía en cada visita.
+export const obtenerTelefonosDirectivaActual = () =>
+  leerConCache('directiva:telefonos', leerTelefonosDirectivaActual);
+
+async function leerTelefonosDirectivaActual() {
   const response = await fetch('/api/national/directiva-phones/', {
     headers: await authHeaders(),
     cache: 'no-store',

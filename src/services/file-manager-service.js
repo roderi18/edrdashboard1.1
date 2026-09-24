@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 
 import { uploadFilesToStorage } from 'src/utils/firebase-file-storage';
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -71,7 +72,7 @@ export const mapearArchivoGestorFirestoreAUi = (data = {}) => ({
   contentType: data.tipoMime || '',
 });
 
-export const listarArchivosGestorFirestore = async () => {
+const listarArchivosGestorFirestoreSinCache = async () => {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
   const snapshot = await getDocs(collection(FIRESTORE, COLECCION_GESTOR_ARCHIVOS));
@@ -81,7 +82,7 @@ export const listarArchivosGestorFirestore = async () => {
   );
 };
 
-export const subirArchivosGestorFirestore = async ({ files = [], parentId = null, user = {} } = {}) => {
+const subirArchivosGestorFirestoreDirecto = async ({ files = [], parentId = null, user = {} } = {}) => {
   assertCanManageFileManager(user);
 
   if (!isFirebaseConfigured || !FIRESTORE) {
@@ -142,7 +143,7 @@ export const subirArchivosGestorFirestore = async ({ files = [], parentId = null
   return documents.map(mapearArchivoGestorFirestoreAUi);
 };
 
-export const eliminarArchivoGestorFirestore = async (file, user = {}) => {
+const eliminarArchivoGestorFirestoreDirecto = async (file, user = {}) => {
   assertCanManageFileManager(user);
 
   const fileId = typeof file === 'string' ? file : file?.id;
@@ -167,7 +168,7 @@ export const eliminarArchivoGestorFirestore = async (file, user = {}) => {
   await deleteDoc(doc(FIRESTORE, COLECCION_GESTOR_ARCHIVOS, String(fileId)));
 };
 
-export const renombrarArchivoGestorFirestore = async (file, newBaseName, user = {}) => {
+const renombrarArchivoGestorFirestoreDirecto = async (file, newBaseName, user = {}) => {
   assertCanManageFileManager(user);
 
   const fileId = typeof file === 'string' ? file : file?.id;
@@ -250,3 +251,15 @@ export const renombrarArchivoGestorFirestore = async (file, newBaseName, user = 
     modifiedAt,
   };
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarArchivosGestorFirestore = conCache('documentos:listarArchivosGestorFirestore', listarArchivosGestorFirestoreSinCache);
+export const subirArchivosGestorFirestore = conInvalidacion(subirArchivosGestorFirestoreDirecto, ['documentos:']);
+export const eliminarArchivoGestorFirestore = conInvalidacion(eliminarArchivoGestorFirestoreDirecto, ['documentos:']);
+export const renombrarArchivoGestorFirestore = conInvalidacion(renombrarArchivoGestorFirestoreDirecto, ['documentos:']);

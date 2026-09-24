@@ -214,7 +214,8 @@ export function ExportTableButton({
             rows,
             columns: currentPdfColumns,
             fondoDeFila,
-            documento: renderPdfDocument ? renderPdfDocument(rows) : null,
+            // Puede ser asíncrono: quien trae su propio documento lo carga al pulsar.
+            documento: renderPdfDocument ? await renderPdfDocument(rows) : null,
             fileName: getExportFileName(fileNamePrefix, 'pdf'),
           });
         }

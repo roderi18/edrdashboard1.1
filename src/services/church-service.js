@@ -1,3 +1,5 @@
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
+
 import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
@@ -75,6 +77,9 @@ export const createChurchApi = async (data) => {
         body: JSON.stringify(payload),
         cache: 'no-store',
     });
+    // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+    invalidarLecturas();
+    avisarAOtrasSesiones('iglesias:');
 
     const text = await res.text();
 
@@ -116,6 +121,9 @@ export const updateChurchApi = async (data) => {
         }),
         cache: 'no-store',
     });
+    // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+    invalidarLecturas();
+    avisarAOtrasSesiones('iglesias:');
 
     const text = await res.text();
     let parsed = null;
@@ -135,44 +143,42 @@ export const updateChurchApi = async (data) => {
     return parsed ?? { raw: text };
 };
 
-export const getChurches = async () => {
-    try {
-        const res = await fetch('/api/churches/', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json, text/plain, */*',
-            },
-            cache: 'no-store',
-        });
-
-        const text = await res.text();
-
-        if (!text || text.startsWith('<')) {
-            console.error('Respuesta inválida al obtener iglesias:', text);
-            return [];
-        }
-
-        let parsed = null;
-
-        try {
-            parsed = JSON.parse(text);
-        } catch (error) {
-            console.error('Error parseando iglesias:', error);
-            return [];
-        }
-
-        const rows = Array.isArray(parsed)
-            ? parsed
-            : Array.isArray(parsed?.data)
-                ? parsed.data
-                : Array.isArray(parsed?.Data)
-                    ? parsed.Data
-                    : [];
-
-        return rows.map(mapApiChurchesToUI);
-    } catch (error) {
+// Lo leído se reparte desde la caché de lecturas (ver `cache-de-lecturas.mjs`).
+// Una respuesta rota LANZA dentro de la lectura: devolver [] la guardaba como
+// si no hubiera iglesias y se quedaba así para todas las pantallas.
+export const getChurches = () =>
+    leerConCache('iglesias:', leerIglesias).catch((error) => {
         console.error('Error cargando iglesias:', error);
         return [];
+    });
+
+async function leerIglesias() {
+    const res = await fetch('/api/churches/', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json, text/plain, */*',
+        },
+        // Sin `no-store`: la ruta responde con ETag y el navegador guarda la copia
+        // para preguntar "¿sigue igual?" y recibir un 304 vacío si no cambió.
+        cache: 'no-cache',
+    });
+
+    const text = await res.text();
+
+    if (!text || text.startsWith('<')) {
+        throw new Error(`Respuesta inválida al obtener iglesias: ${String(text).slice(0, 120)}`);
     }
-};
+
+    const parsed = JSON.parse(text);
+
+    const rows = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.data)
+            ? parsed.data
+            : Array.isArray(parsed?.Data)
+                ? parsed.Data
+                : [];
+
+    return rows.map(mapApiChurchesToUI);
+}

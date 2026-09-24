@@ -101,6 +101,129 @@ de 17 s** porque su plan gratuito serializa la concurrencia. Por eso:
 **Regla**: no añadas una llamada al upstream fuera de `fetchUpstreamText` sin una
 razón escrita.
 
+### En el navegador: caché de lecturas y esqueleto al pulsar ✅
+
+Los niveles organizacionales deben sentirse rápidos. Dos piezas:
+
+- **`src/utils/cache-de-lecturas.mjs`** (`leerConCache`): las lecturas de los
+  servicios (regiones, secciones, destacamentos, iglesias, miembros, fotos,
+  asignaciones y diseño de directiva, cuatrienios, teléfonos) se reparten desde
+  memoria de la pestaña. Lo de menos de 60 s sale tal cual; lo más viejo sale al
+  momento y se relee por detrás; dos pedidos a la vez comparten petición.
+  **Toda escritura invalida** (`invalidarLecturas`): los `fetch` de escritura de
+  los servicios, los lotes de directivas, subir foto, y `proponerCambio` /
+  `resolverSolicitudCambio` al aplicar. Cambiar de cuenta la vacía. La función de
+  lectura debe **lanzar** ante un fallo: lo que devuelve se guarda como bueno.
+  Test: `tests/directivas/cache-de-lecturas.test.mjs`.
+- **`loading.jsx` en cada ruta y pestaña de `/dashboard/level/*`**
+  (`src/sections/common/nivel-organizacional-cargando.jsx`): el App Router lo
+  precarga y lo enseña en el mismo clic. Los organigramas no se pintan hasta tener
+  diseño y ocupantes (`OrganigramaCargando`), en vez de salir en "Vacante".
+
+**Regla**: una lectura nueva de estos módulos pasa por `leerConCache`, y una
+escritura nueva invalida; una ruta nueva bajo `/dashboard/level/` trae su
+`loading.jsx`.
+
+### Toda la aplicación: caché, esqueletos y carga diferida ✅
+
+Lo de arriba se extendió a toda la aplicación:
+
+- **Servicios**: salud, documentos de salud, tutores, premios/ascenso, historial,
+  tienda (productos, reseñas, favoritos, encabezado), carrito, órdenes, recibos,
+  direcciones, certificados, documentos ministeriales, EXPLORA (publicado,
+  versiones, borradores, medios, analíticas), configuración de avisos, auditoría,
+  combinaciones de roles, sonidos y solicitudes de cambio. Se envuelven al final
+  de cada servicio con `conCache('prefijo:nombre', lecturaSinCache)` y
+  `conInvalidacion(escrituraDirecto, [prefijos])` (`cache-de-lecturas.mjs`). Las
+  escrituras muy frecuentes (analíticas, borradores, historial, carrito) solo
+  invalidan su prefijo; el resto, todo.
+- **Datos sensibles** (salud, tutores, padrón): la caché vive solo en memoria de
+  la pestaña; se pierde al cerrar la aplicación o cambiar de cuenta.
+- **`loading.jsx` en cada ruta real del panel** (`src/components/pantalla-cargando`):
+  lista, rejilla (tienda), detalle, formulario, chat, calendario y editor. Los
+  layouts con comprobaciones (administración, región) pintan esqueleto, nunca
+  `null`. Dentro de las pantallas, filas en esqueleto en vez de "Cargando...".
+- **Fotos, avatares y videos**: el `main` del panel captura sus eventos de carga
+  y les pone la onda del esqueleto hasta que llegan
+  (`src/components/esqueleto-de-medios`). Los fondos CSS de las tarjetas de la
+  portada usan `useFondoCargado` + `CapaDeEsqueleto`. Una `img` que sea foto lleva
+  `data-esqueleto`; los logos con transparencia, no.
+- **`@react-pdf/renderer` nunca se importa arriba en una pantalla.** El documento
+  vive en su archivo (`*-documento.jsx`, `*-pdf.jsx`) y se trae con `import()` al
+  pulsar Descargar/Generar (`download-table-pdf.js` hace lo mismo para las tablas).
+
+- **Otras librerías pesadas, diferidas**: el editor de texto (`src/components/editor`
+  exporta un `Editor` con `next/dynamic`), el visor de imágenes
+  (`src/components/lightbox`: cerrado no pinta nada y la librería se precarga en
+  segundo plano), la cuadrícula de FullCalendar (`src/sections/calendar/calendar-grid.jsx`)
+  y el CSS del mapa, el visor y las gráficas (cada uno lo importa su componente,
+  no `global.css`).
+- **El arranque no pide lo que no pinta**: los contactos del destacamento
+  (`src/layouts/components/contactos-del-destacamento.js`) se piden al abrir el
+  botón —o al pasar por encima—, no al entrar al panel.
+
+### Seguridad de los datos personales (fase 2) ✅
+
+- El padrón (`members`, `leadershipAssignments`) va a `sessionStorage`, no a
+  `localStorage` (`CLAVES_DE_SESION` en `src/utils/storage-service.js`): se borra
+  al cerrar la pestaña. Las copias viejas en `localStorage` se borran solas.
+- **Al cerrar sesión** (`src/auth/limpieza-al-cerrar-sesion.js`, llamado desde
+  `signOut`) se borra: la caché de lecturas (memoria y disco), el padrón de la
+  sesión, las copias del service worker (`*-datos`, `*-paginas`) y la caché de
+  Firestore en disco (`terminate` + `clearIndexedDbPersistence`, y la página se
+  recarga). Antes se espera hasta 3 s a que suba lo pendiente: con un pase de
+  lista sin subir, la caché de Firestore se conserva para no perderlo.
+- Queda en disco mientras la sesión esté abierta: la copia de `/api/members/` del
+  service worker, para pasar lista sin señal. Es la contrapartida elegida.
+
+### Sensación de red social (fase 3) ✅
+
+- **Reabrir al instante**: `PREFIJOS_PERSISTENTES` de `cache-de-lecturas.mjs`
+  (regiones, secciones, destacamentos, iglesias, diseños de organigrama, catálogo
+  y encabezado de la tienda, fondos de la portada) se guardan también en
+  `localStorage` y salen al reabrir; se releen por detrás. **Nunca** datos de
+  personas. Otra cuenta en el mismo navegador empieza de cero
+  (`fijarDuenoDeLasLecturas`, desde `auth-provider`). Test:
+  `tests/directivas/cache-persistente.test.mjs`.
+- **En vivo entre sesiones**: `src/lib/avisos-de-lecturas.js`. Quien escribe suma
+  uno al contador de su tipo de dato en `versiones_lecturas/general` (juntando
+  avisos 1,5 s); las demás sesiones lo escuchan, olvidan ese tipo de dato y las
+  pantallas abiertas se releen (`useLecturasVivas(['directiva:', …])`). Hoy lo
+  usan los organigramas, la lista nacional y sus cuatrienios, Regiones, Secciones,
+  Destacamentos y Aprobaciones. Se avisa siempre con un prefijo concreto, nunca
+  "todo"; lo personal (carrito, direcciones, avisos, analíticas) no se avisa.
+  **Las reglas de `versiones_lecturas` hay que publicarlas** (`firebase deploy
+  --only firestore:rules`); sin ellas no hay avisos y todo sigue como antes.
+- **Precarga**: los enlaces del App Router precargan su `loading.jsx`; lo que
+  navega con `router.push` precarga al pasar por encima (fila de Miembros).
+- **Scroll infinito en el teléfono** en todas las listas en tarjetas
+  (`compact-entity-card-list.jsx`); en pantalla grande, paginación. Las tablas
+  siguen paginadas: el DOM nunca pinta el padrón entero.
+- **Respuesta inmediata al escribir** (optimista): chat, muro (publicar,
+  reaccionar, comentar), asignar/quitar en organigramas, estatus del miembro,
+  favoritos, documentos de salud, selector de cuatrienio y EXPLORA Designer. Los
+  formularios con validación del servidor esperan la respuesta a propósito.
+- **Servidor**: `/api/members`, `/api/dest`, `/api/sectional`, `/api/regional` y
+  `/api/churches` responden con `ETag` (`src/utils/respuesta-con-etag.mjs`):
+  lo que no cambió vuelve como un 304 vacío. `private` + `Vary: Authorization`
+  porque el padrón va acotado por cuenta. Test: `tests/acceso/respuesta-con-etag.test.mjs`.
+  Lo que no se arregla desde aquí: la API .NET sigue sin paginar ni dar "solo lo
+  cambiado desde" (ver `docs/backend-dotnet-checklist.md`).
+
+**Reglas para TODO lo nuevo** (pantalla, pestaña, botón, servicio):
+
+1. **Esqueleto al instante**: toda ruta trae su `loading.jsx`; toda espera dentro
+   de una pantalla, esqueleto con la forma de lo que viene (nunca `null`, un
+   spinner suelto ni "Cargando...").
+2. **Responde al pulsar**: la pantalla cambia en el mismo clic (estado local u
+   optimista); la red va por detrás.
+3. **Carga diferida**: librería pesada o pieza que no se ve al entrar →
+   `next/dynamic` o `import()` al usarla; lo que no se pinta al arrancar, en
+   segundo plano (`requestIdleCallback`) o al abrirlo.
+4. **Caché**: lectura nueva → `conCache`/`leerConCache`; escritura nueva →
+   `conInvalidacion` con el prefijo de su tipo de dato (que además avisa a las
+   demás sesiones). Datos de personas, solo en memoria.
+
 ---
 
 ## 3. Usuarios, roles y permisos

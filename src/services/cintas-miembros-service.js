@@ -1,3 +1,4 @@
+import { conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import {
   configuracionPorCinta,
   normalizarOrdenGlobal,
@@ -17,7 +18,7 @@ import { escribirOrdenDeCintas, escribirCintasDeMiembro } from './cintas-miembro
 // en el acto y queda en Historial qué cintas tenía y cuáles tiene.
 // ----------------------------------------------------------------------
 
-export async function guardarCintasDeMiembro({
+async function guardarCintasDeMiembroDirecto({
   idMiembros,
   anteriores = [],
   elegidas = [],
@@ -78,7 +79,7 @@ export async function guardarCintasDeMiembro({
 // aplica en el acto y queda en Historial el orden de antes y el de después.
 // ----------------------------------------------------------------------
 
-export async function guardarOrdenDeCintas({ orden = [], anterior = [], usuario = {} }) {
+async function guardarOrdenDeCintasDirecto({ orden = [], anterior = [], usuario = {} }) {
   if (!isFirebaseConfigured || !FIRESTORE) {
     throw new Error('Firebase no está configurado.');
   }
@@ -104,3 +105,13 @@ export async function guardarOrdenDeCintas({ orden = [], anterior = [], usuario 
 
   return nuevo;
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const guardarCintasDeMiembro = conInvalidacion(guardarCintasDeMiembroDirecto, [], ['cintas:']);
+export const guardarOrdenDeCintas = conInvalidacion(guardarOrdenDeCintasDirecto, [], ['cintas:']);

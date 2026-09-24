@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Pagination from '@mui/material/Pagination';
@@ -19,6 +19,13 @@ export function CompactEntityCardList({
 }) {
   const theme = useTheme();
   const isLargeScreen = useMediaQuery(theme.breakpoints.up('lg'));
+  // EN EL TELÉFONO, SCROLL INFINITO. Los números de página obligaban a subir,
+  // pulsar y volver a bajar; como en cualquier red social, al acercarse al final
+  // se añade la página siguiente. `page` pasa a ser "cuántas páginas hay
+  // cargadas", así que la vista que la guarda en la URL (Miembros) sigue
+  // devolviendo al mismo sitio al volver atrás. En pantalla grande, paginación.
+  const esTelefono = useMediaQuery(theme.breakpoints.down('md'));
+  const centinelaRef = useRef(null);
   const [internalPage, setInternalPage] = useState(1);
   // Cuando la vista dueña de la lista guarda la pagina (p. ej. en la URL, para
   // que volver atras no devuelva al usuario a la #1) manda ella; si no, la
@@ -47,10 +54,27 @@ export function CompactEntityCardList({
     [isControlled, onPageChange]
   );
 
-  const pageItems = items.slice(
-    (page - 1) * effectiveRowsPerPage,
-    page * effectiveRowsPerPage
-  );
+  const pageItems = esTelefono
+    ? items.slice(0, page * effectiveRowsPerPage)
+    : items.slice((page - 1) * effectiveRowsPerPage, page * effectiveRowsPerPage);
+  const quedanMas = esTelefono && !loading && page < pageCount;
+
+  useEffect(() => {
+    const centinela = centinelaRef.current;
+    if (!quedanMas || !centinela || typeof IntersectionObserver === 'undefined') return undefined;
+
+    // 600 px antes del final: la página siguiente ya está pintada al llegar.
+    const observador = new IntersectionObserver(
+      ([entrada]) => {
+        if (entrada.isIntersecting) handleChangePage(null, page + 1);
+      },
+      { rootMargin: '600px 0px' }
+    );
+
+    observador.observe(centinela);
+
+    return () => observador.disconnect();
+  }, [quedanMas, page, handleChangePage]);
 
   return (
     <Box sx={{ mt: { xs: 2, md: 2.5 } }}>
@@ -66,9 +90,13 @@ export function CompactEntityCardList({
               <CompactEntityCardSkeleton key={index} />
             ))
           : pageItems.map(renderCard)}
+
+        {quedanMas && [0, 1].map((indice) => <CompactEntityCardSkeleton key={`mas-${indice}`} />)}
       </Box>
 
-      {!loading && items.length > effectiveRowsPerPage && (
+      {quedanMas && <Box ref={centinelaRef} aria-hidden sx={{ height: 1 }} />}
+
+      {!esTelefono && !loading && items.length > effectiveRowsPerPage && (
         <Box
           sx={{
             mt: { xs: 2, md: 4 },

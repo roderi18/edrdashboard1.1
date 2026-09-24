@@ -1,10 +1,10 @@
-import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
 import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
-import LinearProgress from '@mui/material/LinearProgress';
 
 import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
@@ -39,17 +39,20 @@ export function CheckoutCart() {
 
   const isCartEmpty = !checkoutState.items.length;
 
+  // Las filas del carrito en esqueleto, no una barra de progreso en un hueco.
   const renderLoading = () => (
-    <Box
-      sx={{
-        height: 340,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <LinearProgress color="inherit" sx={{ width: 1, maxWidth: 320 }} />
-    </Box>
+    <Stack spacing={2.5} sx={{ p: 3 }}>
+      {[0, 1, 2].map((fila) => (
+        <Stack key={fila} direction="row" spacing={2} alignItems="center">
+          <Skeleton variant="rounded" width={64} height={64} />
+          <Stack spacing={0.5} sx={{ flex: 1 }}>
+            <Skeleton variant="text" width="50%" />
+            <Skeleton variant="text" width="30%" />
+          </Stack>
+          <Skeleton variant="rounded" width={88} height={32} />
+        </Stack>
+      ))}
+    </Stack>
   );
 
   const renderEmpty = () => (

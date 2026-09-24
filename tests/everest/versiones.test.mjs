@@ -164,7 +164,7 @@ test('publicar y volver al original escriben su version en el mismo lote', () =>
 test('las versiones se leen por una sola igualdad, sin ordenar en la consulta', () => {
   const servicio = leer('src/services/everest-service.js');
   const lectura = servicio.slice(
-    servicio.indexOf('export async function obtenerVersionesDeBloque')
+    servicio.indexOf('async function obtenerVersionesDeBloqueSinCache')
   );
 
   assert.match(lectura, /where\('clave', '==', claveDeVersion\(pantalla, idBloque\)\)/);

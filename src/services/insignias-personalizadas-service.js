@@ -1,4 +1,5 @@
 import { isAdminGlobal } from 'src/utils/org-level-access';
+import { conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
 import {
   TIPOS_INSIGNIA,
@@ -35,7 +36,7 @@ const SECCION = {
   [TIPOS_INSIGNIA.PIN]: 'pines',
 };
 
-export async function crearInsigniaPersonalizada({ tipo, archivo, nombre, descripcion, usuario }) {
+async function crearInsigniaPersonalizadaDirecto({ tipo, archivo, nombre, descripcion, usuario }) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
   if (!isAdminGlobal(usuario)) {
@@ -98,3 +99,12 @@ export async function crearInsigniaPersonalizada({ tipo, archivo, nombre, descri
 
   return documento;
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const crearInsigniaPersonalizada = conInvalidacion(crearInsigniaPersonalizadaDirecto, [], ['insignias:']);

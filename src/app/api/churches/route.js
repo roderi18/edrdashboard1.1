@@ -1,7 +1,8 @@
+import { responderConEtag } from 'src/utils/respuesta-con-etag.mjs';
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { UPSTREAM_KEYS, fetchUpstreamText } from 'src/utils/upstream-cache';
 
-export async function GET() {
+export async function GET(request) {
     try {
         const { text } = await fetchUpstreamText(
             UPSTREAM_KEYS.iglesias,
@@ -19,7 +20,8 @@ export async function GET() {
             );
         }
 
-        return Response.json(normalizeApiResponse(data));
+        // Con huella: si no cambió, 304 y el navegador usa su copia.
+        return responderConEtag(request, normalizeApiResponse(data));
     } catch (error) {
         return Response.json(
             { error: 'Error obteniendo iglesias' },

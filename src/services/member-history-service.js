@@ -12,6 +12,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 export const COLECCION_HISTORIAL_MIEMBROS = 'historialMiembros';
@@ -134,7 +136,7 @@ const mapHistoryDoc = (item) => {
   };
 };
 
-export const crearRegistroHistorialMiembro = async ({
+const crearRegistroHistorialMiembroDirecto = async ({
   idMiembro,
   idMiembros,
   codigoMiembro = '',
@@ -198,7 +200,7 @@ export const crearRegistroHistorialMiembro = async ({
   return registro;
 };
 
-export const registrarCambiosHistorialMiembro = async ({
+const registrarCambiosHistorialMiembroDirecto = async ({
   idMiembro,
   idMiembros,
   codigoMiembro = '',
@@ -245,7 +247,7 @@ export const registrarCambiosHistorialMiembro = async ({
   );
 };
 
-export const listarHistorialMiembro = async (idMiembros, maxRegistros = 100) => {
+const listarHistorialMiembroSinCache = async (idMiembros, maxRegistros = 100) => {
   if (!isFirebaseConfigured || !FIRESTORE || !idMiembros) return [];
 
   const result = await listarHistorialMiembroPagina(idMiembros, { maxRegistros });
@@ -253,7 +255,7 @@ export const listarHistorialMiembro = async (idMiembros, maxRegistros = 100) => 
   return result.registros;
 };
 
-export const listarHistorialMiembroPagina = async (
+const listarHistorialMiembroPaginaSinCache = async (
   idMiembros,
   { maxRegistros = 5, cursor = null } = {}
 ) => {
@@ -296,3 +298,15 @@ export const listarHistorialMiembroPagina = async (
     hayMas: registros.length === maxRegistros && safeTotal > registros.length,
   };
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarHistorialMiembro = conCache('historial:listarHistorialMiembro', listarHistorialMiembroSinCache);
+export const listarHistorialMiembroPagina = conCache('historial:listarHistorialMiembroPagina', listarHistorialMiembroPaginaSinCache);
+export const crearRegistroHistorialMiembro = conInvalidacion(crearRegistroHistorialMiembroDirecto, ['historial:']);
+export const registrarCambiosHistorialMiembro = conInvalidacion(registrarCambiosHistorialMiembroDirecto, ['historial:']);

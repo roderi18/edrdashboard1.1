@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 import { COLECCIONES_EXPLORA } from 'src/utils/everest/colecciones.mjs';
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -72,7 +73,7 @@ const escribir = async (pantalla, datos) => {
  * Una impresion por bloque visto. `vistos` es `[{ idBloque, idCampana? }]`; los ya
  * contados en esta sesion se saltan.
  */
-export async function registrarImpresionesDePortada(pantalla, vistos = []) {
+async function registrarImpresionesDePortadaDirecto(pantalla, vistos = []) {
   const contadas = yaContadas();
   const nuevos = vistos.filter(({ idBloque, idCampana }) => {
     const clave = `${pantalla}:${idCampana || idBloque}`;
@@ -91,7 +92,7 @@ export async function registrarImpresionesDePortada(pantalla, vistos = []) {
 }
 
 /** Una pulsacion en un enlace o boton de un bloque. */
-export async function registrarClicDePortada(pantalla, { idBloque, idCampana }) {
+async function registrarClicDePortadaDirecto(pantalla, { idBloque, idCampana }) {
   await escribir(pantalla, sumando([{ idBloque, idCampana }], 'clics'));
 }
 
@@ -99,7 +100,7 @@ export async function registrarClicDePortada(pantalla, { idBloque, idCampana }) 
  * Lo contado hasta ahora. Solo lo lee el Administrador Global (lo dicen las
  * reglas). Sin datos o sin permiso, vacio: el panel dice "sin datos".
  */
-export async function obtenerAnaliticasDePortada(pantalla) {
+async function obtenerAnaliticasDePortadaSinCache(pantalla) {
   if (!isFirebaseConfigured || !FIRESTORE) return { bloques: {}, campanas: {} };
 
   const documento = await getDoc(referencia(pantalla)).catch(() => null);
@@ -118,3 +119,14 @@ export async function obtenerAnaliticasDePortada(pantalla) {
 
   return { bloques: limpiar(datos.bloques), campanas: limpiar(datos.campanas) };
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerAnaliticasDePortada = conCache('everest-analiticas:obtenerAnaliticasDePortada', obtenerAnaliticasDePortadaSinCache);
+export const registrarImpresionesDePortada = conInvalidacion(registrarImpresionesDePortadaDirecto, ['everest-analiticas:']);
+export const registrarClicDePortada = conInvalidacion(registrarClicDePortadaDirecto, ['everest-analiticas:']);

@@ -103,9 +103,13 @@ export const CARGOS_DIRECTIVA = Object.freeze([
       regional: 'Secretario Regional',
       seccional: 'Secretario Seccional',
     },
-    // La nacional no tiene casilla de secretario en su organigrama: se guarda
-    // igual y sale en la lista, no en el dibujo.
-    nodos: { regional: 'secretario-regional', seccional: 'secretario-regional' },
+    // La nacional estreno casilla de secretario en la fila del Consejo Ejecutivo;
+    // antes solo salia en la lista.
+    nodos: {
+      nacional: 'secretario-nacional',
+      regional: 'secretario-regional',
+      seccional: 'secretario-regional',
+    },
   },
   {
     id: 'produccion',
@@ -528,9 +532,20 @@ export const ocupanteHistorico = (integrantesDeLaDirectiva = [], nivel, nodeId) 
 
   if (!posicion) return null;
 
-  const integrante = (Array.isArray(integrantesDeLaDirectiva) ? integrantesDeLaDirectiva : []).find(
-    (fila) => fila?.idPosicionDirectiva && fila.idPosicionDirectiva === posicion.idCargo
-  );
+  const filas = Array.isArray(integrantesDeLaDirectiva) ? integrantesDeLaDirectiva : [];
+  const integrante =
+    filas.find(
+      (fila) => fila?.idPosicionDirectiva && fila.idPosicionDirectiva === posicion.idCargo
+    ) ||
+    // Una fila guardada cuando su cargo aun no tenia casilla (el Secretario
+    // Nacional de 2022-2026) lleva la posicion vacia: se reconoce por el cargo.
+    // Sin esto habria que reescribir la memoria para que saliera en el arbol.
+    filas.find(
+      (fila) =>
+        !fila?.idPosicionDirectiva &&
+        fila?.grupo === GRUPOS_CUATRIENIO.directiva &&
+        posicionDelCargo(nivel, fila.cargo) === posicion.idCargo
+    );
 
   if (!integrante) return null;
 
@@ -591,3 +606,45 @@ export const conCargosPermanentes = (asignaciones = [], permanente = null) => {
     },
   ];
 };
+
+// ----------------------------------------------------------------------
+// UN SOLO DISEÑO DE ORGANIGRAMA PARA TODOS LOS CUATRIENIOS.
+//
+// Se probo guardar el diseño de cada cuatrienio aparte (`…-cuatrienio-2022-2026`)
+// y los arboles se separaron: lo que se colocaba en la directiva pasada no
+// aparecia en la actual y al reves, cuando es el mismo organigrama con otras
+// personas. Ahora cualquier cambio de diseño —desde la directiva de hoy o desde
+// una anterior— se guarda en la entidad de siempre y se ve en todas. Solo
+// cambian los ocupantes. El documento viejo del cuatrienio ya no se lee.
+// Se deja la funcion para que las vistas sigan pidiendo aqui su entidad de
+// diseño: si un dia hubiera que volver a separarlos, es un solo sitio.
+// ----------------------------------------------------------------------
+export const entidadesDeDisenoDe = ({ idEntidad } = {}) => ({ idEntidad, idEntidadRespaldo: '' });
+
+// ----------------------------------------------------------------------
+// LOS OFICIALES DE LA NACIONAL DE UN CUATRIENIO, PARA LA TARJETA DE GRUPO.
+//
+// Son un grupo, no casillas: en 2022-2026 once personas se quedaban fuera del
+// arbol porque ninguna casilla las nombraba. La tarjeta "Oficiales Especiales"
+// del organigrama nacional las reune; esto las da con la misma forma que un
+// ocupante (`ocupanteHistorico`), foto congelada incluida, y por nombre.
+// ----------------------------------------------------------------------
+export const oficialesDelCuatrienio = (integrantesDeLaDirectiva = []) =>
+  (Array.isArray(integrantesDeLaDirectiva) ? integrantesDeLaDirectiva : [])
+    .filter((fila) => fila?.grupo === GRUPOS_CUATRIENIO.oficiales)
+    .map((fila) => {
+      const id = fila.idMiembros ? String(fila.idMiembros) : '';
+
+      return {
+        id,
+        idMiembros: id,
+        nombres: fila.nombres || '',
+        apellidos: fila.apellidos || '',
+        name: nombreCompleto(fila),
+        codigoMiembro: fila.codigoMiembro || '',
+        avatarUrl: fila.fotoUrl || '',
+        cargo: fila.cargoNombre || 'Oficial de la Nacional',
+        historico: true,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'));

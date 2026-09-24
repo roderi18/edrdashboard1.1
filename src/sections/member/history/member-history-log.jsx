@@ -27,6 +27,7 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomPopover } from 'src/components/custom-popover';
 import { useTable, TableHeadCustom, TablePaginationCustom } from 'src/components/table';
+import { FilasDeListaCargando, FilasDeTablaCargando } from 'src/components/pantalla-cargando';
 
 const TABLE_HEAD = [
   { id: 'fecha', label: 'Fecha', width: 120, sx: { pl: 3 } },
@@ -422,13 +423,19 @@ export function MemberHistoryLog({ memberId, memberName, logs = [], demoLogs = [
         </Box>
       ))}
 
-      {!dataInPage.length && (
-        <Box sx={{ py: 6, textAlign: 'center', gridColumn: '1 / -1' }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {loadingPage ? 'Cargando historial...' : 'No hay registros con esos filtros.'}
-          </Typography>
-        </Box>
-      )}
+      {!dataInPage.length &&
+        (loadingPage ? (
+          // Esqueleto en vez de "Cargando historial...".
+          <Box sx={{ gridColumn: '1 / -1' }}>
+            <FilasDeListaCargando filas={4} />
+          </Box>
+        ) : (
+          <Box sx={{ py: 6, textAlign: 'center', gridColumn: '1 / -1' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              No hay registros con esos filtros.
+            </Typography>
+          </Box>
+        ))}
     </Box>
   );
 
@@ -473,15 +480,18 @@ export function MemberHistoryLog({ memberId, memberName, logs = [], demoLogs = [
               </TableRow>
             ))}
 
-            {!dataInPage.length && (
-              <TableRow>
-                <TableCell colSpan={5} sx={{ py: 6, textAlign: 'center' }}>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {loadingPage ? 'Cargando historial...' : 'No hay registros con esos filtros.'}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
+            {!dataInPage.length &&
+              (loadingPage ? (
+                <FilasDeTablaCargando filas={5} columnas={5} />
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} sx={{ py: 6, textAlign: 'center' }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      No hay registros con esos filtros.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ))}
           </TableBody>
         </Table>
       </Scrollbar>

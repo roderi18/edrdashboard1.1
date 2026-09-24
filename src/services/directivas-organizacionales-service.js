@@ -9,6 +9,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { leerConCache, valorGuardado, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
   canManageRegionLeadership,
   canManageSectionLeadership,
@@ -397,6 +398,8 @@ export async function guardarCatalogoCargosDirectiva(cargos = CARGOS_DIRECTIVA_B
   });
 
   await batch.commit();
+  invalidarLecturas(CLAVE_DIRECTIVA);
+  avisarAOtrasSesiones(CLAVE_DIRECTIVA);
 
   registrarAuditoriaSilenciosa({
     modulo: 'cargos_liderazgos',
@@ -540,6 +543,8 @@ export async function guardarDirectivaOrganizacional({
       merge: true,
     })
     .commit();
+  invalidarLecturas(CLAVE_DIRECTIVA);
+  avisarAOtrasSesiones(CLAVE_DIRECTIVA);
 
   registrarAuditoriaSilenciosa({
     modulo: 'cargos_liderazgos',
@@ -569,7 +574,7 @@ const mapearDocumentos = (snapshot) =>
     ...documentSnapshot.data(),
   }));
 
-export async function obtenerAsignacionesDirectiva({
+async function leerAsignacionesDirectiva({
   nivel,
   idEntidad,
   incluirInactivas = false,
@@ -590,7 +595,7 @@ export async function obtenerAsignacionesDirectiva({
   return mapearDocumentos(snapshot);
 }
 
-export async function obtenerAsignacionesDirectivaPorMiembro({
+async function leerAsignacionesDirectivaPorMiembro({
   idMiembro,
   incluirInactivas = false,
 } = {}) {
@@ -613,7 +618,7 @@ export async function obtenerAsignacionesDirectivaPorMiembro({
   return mapearDocumentos(snapshot);
 }
 
-export async function obtenerAsignacionesDirectivaMiembros({ incluirInactivas = false } = {}) {
+async function leerAsignacionesDirectivaMiembros({ incluirInactivas = false } = {}) {
   asegurarFirebaseDirectivas();
 
   // Esta si recorre la coleccion: alimenta la columna "Posicion" de la lista de
@@ -626,6 +631,32 @@ export async function obtenerAsignacionesDirectivaMiembros({ incluirInactivas = 
 
   return mapearDocumentos(snapshot).filter((asignacion) => asignacion.idMiembro);
 }
+
+// LAS LECTURAS PASAN POR LA CACHE DE LECTURAS (`cache-de-lecturas.mjs`): el
+// organigrama, la lista y cada pestaña volvían a pedir lo mismo a Firestore y el
+// árbol salía con "Vacante" un momento en cada visita. Las escrituras de abajo
+// invalidan (`invalidarLecturas('directiva:')`).
+const CLAVE_DIRECTIVA = 'directiva:';
+
+export const obtenerAsignacionesDirectiva = ({ nivel, idEntidad, incluirInactivas = false } = {}) =>
+  leerConCache(
+    `${CLAVE_DIRECTIVA}asignaciones:${nivel}:${idEntidad || ''}:${incluirInactivas}`,
+    () => leerAsignacionesDirectiva({ nivel, idEntidad, incluirInactivas })
+  );
+
+export const obtenerAsignacionesDirectivaPorMiembro = ({ idMiembro, incluirInactivas = false } = {}) =>
+  leerConCache(`${CLAVE_DIRECTIVA}por-miembro:${idMiembro || ''}:${incluirInactivas}`, () =>
+    leerAsignacionesDirectivaPorMiembro({ idMiembro, incluirInactivas })
+  );
+
+export const obtenerAsignacionesDirectivaMiembros = ({ incluirInactivas = false } = {}) =>
+  leerConCache(`${CLAVE_DIRECTIVA}miembros:${incluirInactivas}`, () =>
+    leerAsignacionesDirectivaMiembros({ incluirInactivas })
+  );
+
+/** Lo ya leído de las asignaciones de una directiva, sin pedir nada (primer render). */
+export const asignacionesDirectivaGuardadas = ({ nivel, idEntidad, incluirInactivas = false } = {}) =>
+  valorGuardado(`${CLAVE_DIRECTIVA}asignaciones:${nivel}:${idEntidad || ''}:${incluirInactivas}`);
 
 export async function guardarAsignacionDirectiva({
   nivel,
@@ -900,7 +931,11 @@ export async function guardarAsignacionDirectiva({
       codigoMiembro,
       fotoMiembro,
     },
-    aplicar: () => batch.commit(),
+    aplicar: async () => {
+      await batch.commit();
+      invalidarLecturas(CLAVE_DIRECTIVA);
+  avisarAOtrasSesiones(CLAVE_DIRECTIVA);
+    },
   });
 
   if (resultado.estado === ESTADOS_CAMBIO.pendiente) {
@@ -981,6 +1016,8 @@ export async function desactivarAsignacionesDirectivaPorNivel({
   });
 
   await batch.commit();
+  invalidarLecturas(CLAVE_DIRECTIVA);
+  avisarAOtrasSesiones(CLAVE_DIRECTIVA);
 
   return aDesactivar.length;
 }
@@ -1026,6 +1063,8 @@ export async function desactivarAsignacionesDirectivaDelMiembro({
   });
 
   await batch.commit();
+  invalidarLecturas(CLAVE_DIRECTIVA);
+  avisarAOtrasSesiones(CLAVE_DIRECTIVA);
 
   return asignaciones.length;
 }
@@ -1038,7 +1077,7 @@ export async function desactivarAsignacionesDirectivaDelMiembro({
 // recargar. Se guarda por nivel + entidad, igual que la directiva.
 // ----------------------------------------------------------------------
 
-export async function obtenerDisenoDirectiva({ nivel, idEntidad } = {}) {
+async function leerDisenoDirectiva({ nivel, idEntidad } = {}) {
   asegurarFirebaseDirectivas();
 
   if (!nivel) return null;
@@ -1068,6 +1107,15 @@ export async function obtenerDisenoDirectiva({ nivel, idEntidad } = {}) {
         : {},
   };
 }
+
+export const obtenerDisenoDirectiva = ({ nivel, idEntidad } = {}) =>
+  leerConCache(`${CLAVE_DIRECTIVA}diseno:${nivel}:${idEntidad || ''}`, () =>
+    leerDisenoDirectiva({ nivel, idEntidad })
+  );
+
+/** Diseño ya leído, o `undefined` si aún no se ha pedido (`null` = no hay diseño). */
+export const disenoDirectivaGuardado = ({ nivel, idEntidad } = {}) =>
+  valorGuardado(`${CLAVE_DIRECTIVA}diseno:${nivel}:${idEntidad || ''}`);
 
 export async function guardarDisenoDirectiva({
   nivel,
@@ -1165,6 +1213,8 @@ export async function guardarDisenoDirectiva({
   await writeBatch(FIRESTORE)
     .set(doc(FIRESTORE, COLECCION_DISENOS_DIRECTIVA, idDiseno), diseno, { merge: true })
     .commit();
+  invalidarLecturas(CLAVE_DIRECTIVA);
+  avisarAOtrasSesiones(CLAVE_DIRECTIVA);
 
   registrarAuditoriaSilenciosa({
     modulo: 'cargos_liderazgos',

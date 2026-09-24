@@ -6,6 +6,7 @@ import { isAdminGlobal } from 'src/utils/org-level-access';
 import { bloquePorId } from 'src/utils/everest/bloques.mjs';
 import { comunicadosNuevos } from 'src/utils/everest/avisos.mjs';
 import { COLECCIONES_EXPLORA } from 'src/utils/everest/colecciones.mjs';
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { campanasDe, prepararCampana } from 'src/utils/everest/campanas.mjs';
 import {
   resolverPortada,
@@ -71,7 +72,7 @@ const asegurarPuedePublicar = (usuario) => {
  * hay nada publicado" de "no se pudo leer": la portada, que con una red caida no
  * debe tirar la copia buena y volver a lo de fabrica.
  */
-export async function obtenerPublicado(pantalla, { lanzarSiFalla = false } = {}) {
+async function obtenerPublicadoSinCache(pantalla, { lanzarSiFalla = false } = {}) {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
   try {
@@ -158,7 +159,7 @@ const avisarComunicados = async ({ comunicados, audiencia, usuario }) => {
  * `avisar` (solo comunicados): manda a la campana los comunicados que no estaban.
  * `avisados` en lo devuelto dice cuantos se avisaron.
  */
-export async function publicarBloque({
+async function publicarBloqueDirecto({
   pantalla,
   idBloque,
   contenido,
@@ -217,7 +218,7 @@ export async function publicarBloque({
 }
 
 /** Quita lo publicado de un bloque: vuelve a pintarse el del codigo. */
-export async function volverBloqueAlOriginal({ pantalla, idBloque, usuario }) {
+async function volverBloqueAlOriginalDirecto({ pantalla, idBloque, usuario }) {
   asegurarPuedePublicar(usuario);
 
   const bloque = bloquePorId(idBloque);
@@ -263,7 +264,7 @@ export async function volverBloqueAlOriginal({ pantalla, idBloque, usuario }) {
  *
  * LANZA si no se pudo leer: el panel tiene que decirlo, no enseñar "sin versiones".
  */
-export async function obtenerVersionesDeBloque({ pantalla, idBloque, usuario }) {
+async function obtenerVersionesDeBloqueSinCache({ pantalla, idBloque, usuario }) {
   asegurarPuedePublicar(usuario);
 
   const resultado = await getDocs(
@@ -299,7 +300,7 @@ const describirCampana = (campana) => {
  *
  * `avisar` (solo comunicados): el aviso sale al programarla, a quien va dirigida.
  */
-export async function programarCampana({
+async function programarCampanaDirecto({
   pantalla,
   idBloque,
   nombre,
@@ -363,7 +364,7 @@ export async function programarCampana({
 }
 
 /** Quita una campaña: su bloque vuelve a lo publicado o a lo de fabrica. */
-export async function quitarCampanaProgramada({ pantalla, idCampana, usuario }) {
+async function quitarCampanaProgramadaDirecto({ pantalla, idCampana, usuario }) {
   asegurarPuedePublicar(usuario);
 
   const anterior = await obtenerPublicado(pantalla, { lanzarSiFalla: true });
@@ -395,3 +396,17 @@ export async function quitarCampanaProgramada({ pantalla, idCampana, usuario }) 
     aplicar: () => quitarCampana(pantalla, idCampana),
   });
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerPublicado = conCache('everest:obtenerPublicado', obtenerPublicadoSinCache);
+export const obtenerVersionesDeBloque = conCache('everest:obtenerVersionesDeBloque', obtenerVersionesDeBloqueSinCache);
+export const publicarBloque = conInvalidacion(publicarBloqueDirecto, [], ['everest:']);
+export const volverBloqueAlOriginal = conInvalidacion(volverBloqueAlOriginalDirecto, [], ['everest:']);
+export const programarCampana = conInvalidacion(programarCampanaDirecto, [], ['everest:']);
+export const quitarCampanaProgramada = conInvalidacion(quitarCampanaProgramadaDirecto, [], ['everest:']);

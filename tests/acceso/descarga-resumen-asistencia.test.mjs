@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 const leer = (relativa) => fs.readFileSync(relativa, 'utf8');
 
 const PANTALLA = leer('src/sections/attendance/view/attendance-quick-view.jsx');
-const PDF = leer('src/utils/download-table-pdf.jsx');
+const PDF = leer('src/utils/download-table-pdf-documento.jsx');
 const BOTON = leer('src/components/export-table-button/export-table-button.jsx');
 
 // ----------------------------------------------------------------------

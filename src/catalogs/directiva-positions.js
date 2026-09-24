@@ -454,6 +454,21 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     nombreCargoPadre: 'Consejo Ejecutivo',
     orden: 14,
   }),
+  // SECRETARIO NACIONAL, con casilla propia en la fila del Consejo Ejecutivo.
+  // Antes no tenia sitio en el organigrama y el de 2022-2026 solo salia en la
+  // lista. Sin cargo en la API (no hay id para el); se asigna como los Oficiales
+  // Especiales. `orden` 36: el primero libre, porque forma parte del id de la
+  // asignacion y los anteriores ya estan emitidos.
+  createPosition({
+    idCargo: 'nacional-secretario-nacional',
+    nivel: DIRECTIVA_LEVELS.nacional,
+    nombreCargo: 'Secretario Nacional',
+    idNodoDiagrama: 'secretario-nacional',
+    idCargoPadre: 'nacional-consejo-ejecutivo',
+    idNodoPadre: 'consejo-ejecutivo',
+    nombreCargoPadre: 'Consejo Ejecutivo',
+    orden: 36,
+  }),
   ...Array.from({ length: 20 }, (_, indice) => {
     const numero = indice + 1;
     const idNodoDiagrama = `oficial-especial-${numero}`;

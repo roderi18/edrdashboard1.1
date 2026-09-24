@@ -27,6 +27,7 @@ import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { detectFileFormat } from 'src/components/file-thumbnail';
+import { FilasDeListaCargando } from 'src/components/pantalla-cargando';
 import { useTable, rowInPage, getComparator } from 'src/components/table';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -396,7 +397,10 @@ export function FileManagerView() {
         </Stack>
 
         {storageLoading ? (
-          <EmptyContent filled title="Cargando archivos..." sx={{ py: 10 }} />
+          // Filas en esqueleto en vez de "Cargando archivos...".
+          <Box sx={{ borderRadius: 2, bgcolor: 'background.neutral' }}>
+            <FilasDeListaCargando filas={6} />
+          </Box>
         ) : notFound ? (
           <EmptyContent filled sx={{ py: 10 }} />
         ) : (

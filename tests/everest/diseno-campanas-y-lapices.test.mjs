@@ -182,11 +182,14 @@ test('un diseño publicado roto tumba el bloque a lo de fabrica, como un conteni
 test('cada tarjeta lee su diseño y la portada se lo pasa', () => {
   const vista = leer('src/sections/principal/view/principal-home-view.jsx');
 
-  bloquesPublicablesDe('principal').forEach(({ id }) => {
-    const acceso = /^[a-z]+$/.test(id) ? `portada.${id}` : `portada\\['${id}'\\]`;
+  // Los retirados (accesos rápidos) ya no se pintan en la portada.
+  bloquesPublicablesDe('principal')
+    .filter(({ retirado }) => !retirado)
+    .forEach(({ id }) => {
+      const acceso = /^[a-z]+$/.test(id) ? `portada.${id}` : `portada\\['${id}'\\]`;
 
-    assert.match(vista, new RegExp(`diseno=\\{${acceso}\\.diseno\\}`), id);
-  });
+      assert.match(vista, new RegExp(`diseno=\\{${acceso}\\.diseno\\}`), id);
+    });
 });
 
 // ----------------------------------------------------------------------
@@ -333,8 +336,9 @@ test('cada tarjeta de la portada lleva el lapiz al Designer para el Administrado
   bloquesPublicablesDe('principal').forEach(({ id }) => {
     assert.match(componentes, new RegExp(`data-everest-bloque="${id}"`), id);
   });
-  // Nueve bloques en la vista, cada uno con su permiso de editar.
-  assert.equal(vista.match(/puedeEditar=\{esAdministradorGlobal\}/g)?.length, 9);
+  // Ocho bloques en la vista, cada uno con su permiso de editar: eran nueve hasta
+  // que se quitaron los accesos rápidos de la portada (bloque `retirado`).
+  assert.equal(vista.match(/puedeEditar=\{esAdministradorGlobal\}/g)?.length, 8);
   assert.match(componentes, /<LapizDelDesigner/);
 });
 
@@ -426,7 +430,7 @@ test('el aviso nunca tumba la publicacion y va a toda la organizacion', () => {
 test('la biblioteca lee la carpeta everest/ de Storage, solo para el Administrador Global', () => {
   const servicio = leer('src/services/everest-medios-service.js');
   const biblioteca = servicio.slice(
-    servicio.indexOf('export async function listarBibliotecaDeMedios')
+    servicio.indexOf('async function listarBibliotecaDeMediosSinCache')
   );
 
   assert.match(biblioteca, /if \(!isAdminGlobal\(usuario\)\)/);

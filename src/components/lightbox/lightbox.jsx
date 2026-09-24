@@ -1,5 +1,7 @@
 'use client';
 
+import './styles.css';
+
 import { mergeClasses } from 'minimal-shared/utils';
 import ReactLightbox, { useLightboxState } from 'yet-another-react-lightbox';
 

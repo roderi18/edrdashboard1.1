@@ -28,10 +28,16 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 
+import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
+import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigrama';
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
-import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
 import { GLOW_JERARQUIA_SX, useResaltarMiembro } from 'src/sections/common/use-resaltar-miembro';
+import { OficialesEspecialesGrupo } from 'src/sections/national/leadership/oficiales-especiales-grupo';
+import {
+  entidadesDeDisenoDe,
+  useLeadershipLayoutStorage,
+} from 'src/sections/common/use-leadership-layout-storage';
 import {
   LeadershipNodeAvatar,
   getMemberDisplayName,
@@ -63,7 +69,8 @@ const MIN_ZOOM = 0.7;
 const MAX_ZOOM = 1.4;
 const ZOOM_STEP = 0.1;
 const DEFAULT_ZOOM = 1;
-const DEFAULT_PAN = { x: 18, y: -6 };
+// x: 0 porque el centrado lo mide `useCentrarOrganigrama`; antes era un ajuste a ojo.
+const DEFAULT_PAN = { x: 0, y: -6 };
 const DEFAULT_CONTAINER_HEIGHT_OFFSET = -480;
 const DEFAULT_NODE_OFFSETS = {
   'asambleas-de-dios': { x: 0, y: 11 },
@@ -118,6 +125,7 @@ function NationalLeadershipNode({
   guardandoDiseno = false,
   puedeEliminarOficialEspecial = false,
   onEliminarOficialEspecial,
+  oficialesDelGrupo = [],
 }) {
   const menuActions = usePopover();
   const isRootNode = depth === undefined;
@@ -161,7 +169,7 @@ function NationalLeadershipNode({
           </MenuItem>
         )}
 
-        {canManage && (
+        {canManage && !esNodoComitesEspeciales && (
           <MenuItem
             onClick={() => {
               menuActions.onClose();
@@ -174,7 +182,7 @@ function NationalLeadershipNode({
           </MenuItem>
         )}
 
-        {canManage && miembroAsignado && (
+        {canManage && !esNodoComitesEspeciales && miembroAsignado && (
           <MenuItem
             onClick={() => {
               menuActions.onClose();
@@ -241,30 +249,37 @@ function NationalLeadershipNode({
           <Iconify icon="eva:more-horizontal-fill" />
         </IconButton>
 
-        <Box
-          sx={{
-            mr: 2,
-            mb: 2,
-            width: 48,
-            height: 48,
-            display: 'block',
-            borderRadius: '50%',
-          }}
-        >
-          <LeadershipNodeAvatar identity={identity} />
-        </Box>
+        {esNodoComitesEspeciales ? (
+          // Un grupo, no un cargo: caras, cuántos son y "Ver más" (ver el componente).
+          <OficialesEspecialesGrupo personas={oficialesDelGrupo} />
+        ) : (
+          <>
+            <Box
+              sx={{
+                mr: 2,
+                mb: 2,
+                width: 48,
+                height: 48,
+                display: 'block',
+                borderRadius: '50%',
+              }}
+            >
+              <LeadershipNodeAvatar identity={identity} />
+            </Box>
 
-        <LeadershipMemberNameLink identity={identity} miembroAsignado={miembroAsignado} />
+            <LeadershipMemberNameLink identity={identity} miembroAsignado={miembroAsignado} />
 
-        <Typography
-          variant="caption"
-          component="div"
-          noWrap
-          title={role}
-          sx={{ color: 'text.secondary' }}
-        >
-          {role}
-        </Typography>
+            <Typography
+              variant="caption"
+              component="div"
+              noWrap
+              title={role}
+              sx={{ color: 'text.secondary' }}
+            >
+              {role}
+            </Typography>
+          </>
+        )}
 
         {(esNodoOficialEspecial || esNodoComitesEspeciales) &&
           puedeAgregarOficialEspecial && (
@@ -294,6 +309,14 @@ function NationalLeadershipNode({
                   height: 28,
                   border: '1px solid',
                   borderColor: 'divider',
+                  // En la tarjeta de grupo va en la esquina: debajo la hacia mas
+                  // alta que sus vecinas de fila.
+                  ...(esNodoComitesEspeciales && {
+                    mt: 0,
+                    right: 12,
+                    bottom: 12,
+                    position: 'absolute',
+                  }),
                 }}
               >
                 <Iconify icon="solar:add-circle-bold" width={18} />
@@ -327,6 +350,9 @@ export function NationalLeadershipView({
   // Jerarquía: sin esto ocupaba toda la pantalla vertical. El ancho no se toca; se
   // navega en vertical con el arrastre de siempre.
   alturaMaxima = null,
+  // Dentro de la tarjeta de la pestaña Jerarquía: el ancho extra del diseño
+  // (`containerWidthOffset`) sacaba los bordes laterales fuera de la tarjeta.
+  embebido = false,
   // Miembro a resaltar tras una búsqueda por nombre: su casilla brilla unos
   // segundos y se trae al centro. `resaltarToken` fuerza el efecto aunque se
   // repita el mismo nombre.
@@ -338,7 +364,10 @@ export function NationalLeadershipView({
   // Global resuelven. Solo el Administrador Global modifica el diseño visual.
   const canManageLeadership =
     !historico && (canManageNationalLeadership(user) || isOficinaNacional(user));
-  const canManageLayout = !historico && canManageDirectiva(user);
+  // El diseño (el lápiz) también en una directiva anterior: solo recoloca
+  // casillas y se guarda aparte (`entidadesDeDisenoDe`); los ocupantes de un
+  // cuatrienio guardado siguen sin tocarse desde aquí.
+  const canManageLayout = canManageDirectiva(user);
   const esAdministradorGlobal =
     isAdminGlobal(user) ||
     canManageDirectiva(user) ||
@@ -372,9 +401,9 @@ export function NationalLeadershipView({
   const layoutStorage = useLeadershipLayoutStorage({
     editor: layoutEditor,
     nivel: 'nacional',
-    idEntidad: '',
+    ...entidadesDeDisenoDe({ idEntidad: '', historico }),
     nombreEntidad: 'Directiva Nacional',
-    canManage: canManageOfficialStructure,
+    canManage: canManageOfficialStructure || canManageLayout,
     defaultNodeOffsets: DEFAULT_NODE_OFFSETS,
     defaultContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
     defaultCustomNodeCounts: { oficialesEspeciales: 1 },
@@ -403,9 +432,28 @@ export function NationalLeadershipView({
   const [oficialEspecialPendienteEliminar, setOficialEspecialPendienteEliminar] = useState(null);
   const [eliminandoOficialEspecial, setEliminandoOficialEspecial] = useState(false);
   const diagramaNacional = useMemo(
-    () => obtenerDiagramaNacionalConOficiales(idsOficialesEspeciales),
-    [idsOficialesEspeciales]
+    () => obtenerDiagramaNacionalConOficiales(historico ? [] : idsOficialesEspeciales),
+    [historico, idsOficialesEspeciales]
   );
+  // Quienes van en la tarjeta "Oficiales Especiales": en una directiva anterior,
+  // su grupo de Oficiales de la Nacional (que no tiene casillas; por eso el
+  // diagrama historico va sin la cadena de Oficial Especial); hoy, los que ocupan
+  // esas casillas. Sin repetir a nadie.
+  const oficialesDelGrupo = useMemo(() => {
+    const vistos = new Set();
+
+    return [
+      ...(historico?.oficiales || []),
+      ...idsOficialesEspeciales.map((id) => obtenerOcupante(id)).filter(Boolean),
+    ].filter((persona) => {
+      const clave = String(persona.id || persona.idMiembros || persona.name || '');
+
+      if (!clave || vistos.has(clave)) return false;
+      vistos.add(clave);
+
+      return true;
+    });
+  }, [historico, idsOficialesEspeciales, obtenerOcupante]);
   const zoomPercentage = useMemo(() => Math.round(zoom * 100), [zoom]);
   const containerMinHeight = 680 + layoutEditor.containerHeightOffset;
   // Embebido en la pestaña Jerarquía: el contenedor deja de crecer con el diagrama
@@ -575,7 +623,17 @@ export function NationalLeadershipView({
     layoutEditor.connectionGroups.length > 0 ||
     layoutEditor.hiddenConnections.length > 0 ||
     layoutEditor.extraConnections.length > 0;
-  const connectorWatchKey = `${layoutEditor.editMode}:${JSON.stringify(layoutEditor.connectionGroups)}:${JSON.stringify(layoutEditor.hiddenConnections)}:${JSON.stringify(layoutEditor.extraConnections)}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
+  // Sin diseño o sin ocupantes todavía, el árbol no se pinta: salía con las
+  // posiciones de partida y todo en "Vacante", y se recolocaba y llenaba después.
+  const cargandoArbol = layoutStorage.cargando || leadership.cargando;
+  // Todo el arbol centrado como un grupo (ver el hook): se suma al arrastre.
+  const desplazamientoX = useCentrarOrganigrama({
+    containerRef,
+    pan,
+    pausado: layoutEditor.editMode,
+    claves: [zoom, JSON.stringify(layoutEditor.nodeOffsets), cargandoArbol, containerMinHeight, cantidadOficialesEspeciales],
+  });
+  const connectorWatchKey = `${layoutEditor.editMode}:${JSON.stringify(layoutEditor.connectionGroups)}:${JSON.stringify(layoutEditor.hiddenConnections)}:${JSON.stringify(layoutEditor.extraConnections)}:${pan.x + desplazamientoX}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}:${cargandoArbol}`;
 
   useEffect(() => {
     setZoom(DEFAULT_ZOOM);
@@ -709,7 +767,7 @@ export function NationalLeadershipView({
           userSelect: 'none',
           touchAction: 'none',
           ...getLeadershipEditGridSx(layoutEditor.editMode),
-          ...getLeadershipContainerWidthSx(layoutEditor.containerWidthOffset),
+          ...(embebido ? {} : getLeadershipContainerWidthSx(layoutEditor.containerWidthOffset)),
           ...getLeadershipConnectorOverrideSx(connectorLayerActive),
           '& button, & a, & input, & textarea, & select, & [role="button"]': {
             cursor: 'pointer',
@@ -733,6 +791,7 @@ export function NationalLeadershipView({
             top: 16,
             right: 16,
             zIndex: 20,
+            display: cargandoArbol ? 'none' : 'flex',
             pointerEvents: 'auto',
           }}
         >
@@ -865,9 +924,13 @@ export function NationalLeadershipView({
           </Box>
         </Stack>
 
+        {cargandoArbol && <OrganigramaCargando />}
+
         <Box
           sx={{
-            '--chart-pan-x': `${pan.x}px`,
+            // Ni pintado ni ocupando sitio hasta tener diseño y ocupantes.
+            display: cargandoArbol ? 'none' : undefined,
+            '--chart-pan-x': `${pan.x + desplazamientoX}px`,
             '--chart-pan-y': `${pan.y}px`,
             '--chart-zoom': zoom,
             width: 1440,
@@ -941,6 +1004,7 @@ export function NationalLeadershipView({
                   cantidadOficialesEspeciales < 20
                 }
                 guardandoDiseno={layoutStorage.guardando}
+                oficialesDelGrupo={oficialesDelGrupo}
                 puedeEliminarOficialEspecial={canManageOfficialStructure}
                 onEliminarOficialEspecial={
                   canManageOfficialStructure ? solicitarEliminarOficialEspecial : undefined
@@ -951,7 +1015,7 @@ export function NationalLeadershipView({
         </Box>
 
         <LeadershipLayoutConnectorLayer
-          active={connectorLayerActive}
+          active={connectorLayerActive && !cargandoArbol}
           watchKey={connectorWatchKey}
           connections={connections}
           containerRef={containerRef}
@@ -968,7 +1032,7 @@ export function NationalLeadershipView({
 
         {canManageLayout && (
           <LeadershipLayoutEditor
-            pan={pan}
+            pan={{ ...pan, x: pan.x + desplazamientoX }}
             zoom={zoom}
             chartWidth={1440}
             title="Directiva Nacional"

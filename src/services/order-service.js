@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 
 import { ESTADO_SOLICITADA } from 'src/utils/solicitud-producto.mjs';
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 import { ID_TIENDA_VIRTUAL, idConversacionConTienda } from 'src/utils/chat-tienda-virtual.mjs';
 import {
@@ -168,7 +169,7 @@ const actualizarItemsEvaluacion = ({ items = [], estado, razon = '', user = {} }
     };
   });
 
-export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) => {
+const crearOrdenFirestoreDirecto = async ({ user, checkoutState, paymentData }) => {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
   const baseTimestamp = Date.now();
@@ -271,7 +272,7 @@ export const crearOrdenFirestore = async ({ user, checkoutState, paymentData }) 
 // nada; y no vacia el carrito de la persona, que puede tener otras cosas.
 // ----------------------------------------------------------------------
 
-export const crearSolicitudProductoFirestore = async ({ user, item }) => {
+const crearSolicitudProductoFirestoreDirecto = async ({ user, item }) => {
   if (!isFirebaseConfigured || !FIRESTORE || !item) return null;
 
   const orderId = `orden-${Date.now()}`;
@@ -338,14 +339,14 @@ export const crearSolicitudProductoFirestore = async ({ user, item }) => {
   return { order: mapearOrdenFirestoreAUi({ id: orderId, ...orderDoc }) };
 };
 
-export const listarOrdenesFirestore = async () => {
+const listarOrdenesFirestoreSinCache = async () => {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
   const snapshot = await getDocs(ordersCollection());
   return snapshot.docs.map((item) => mapearOrdenFirestoreAUi({ id: item.id, ...item.data() }));
 };
 
-export const listarOrdenesUsuarioFirestore = async (user) => {
+const listarOrdenesUsuarioFirestoreSinCache = async (user) => {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
   const usuarioId = obtenerIdUsuarioComercio(user);
@@ -358,7 +359,7 @@ export const listarOrdenesUsuarioFirestore = async (user) => {
   return snapshot.docs.map((item) => mapearOrdenFirestoreAUi({ id: item.id, ...item.data() }));
 };
 
-export const obtenerOrdenFirestorePorId = async (orderId) => {
+const obtenerOrdenFirestorePorIdSinCache = async (orderId) => {
   if (!isFirebaseConfigured || !FIRESTORE || !orderId) return null;
 
   const snapshot = await getDoc(doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, String(orderId)));
@@ -377,7 +378,7 @@ export const obtenerOrdenFirestorePorId = async (orderId) => {
   return mapearOrdenFirestoreAUi({ id: snapshot.id, ...snapshot.data() });
 };
 
-export const cambiarEstadoOrdenFirestore = async ({ orderId, nextStatus, user }) => {
+const cambiarEstadoOrdenFirestoreDirecto = async ({ orderId, nextStatus, user }) => {
   if (!isFirebaseConfigured || !FIRESTORE || !orderId) return null;
 
   const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, String(orderId));
@@ -474,7 +475,7 @@ export const cambiarEstadoOrdenFirestore = async ({ orderId, nextStatus, user })
   return mapearOrdenFirestoreAUi({ id: snapshot.id, ...nextData });
 };
 
-export const evaluarOrdenRestringidaFirestore = async ({
+const evaluarOrdenRestringidaFirestoreDirecto = async ({
   orderId,
   accion,
   razon = '',
@@ -606,7 +607,7 @@ export const evaluarOrdenRestringidaFirestore = async ({
   return mapearOrdenFirestoreAUi({ id: snapshot.id, ...updatedData });
 };
 
-export const cargarArchivosFaltantesOrdenFirestore = async ({
+const cargarArchivosFaltantesOrdenFirestoreDirecto = async ({
   orderId,
   archivos = [],
   user,
@@ -842,8 +843,26 @@ const actualizarArchivoAdjuntoOrdenFirestore = async ({
   return mapearOrdenFirestoreAUi({ id: snapshot.id, ...nextData });
 };
 
-export const eliminarArchivoAdjuntoOrdenFirestore = ({ orderId, archivo, user }) =>
+const eliminarArchivoAdjuntoOrdenFirestoreDirecto = ({ orderId, archivo, user }) =>
   actualizarArchivoAdjuntoOrdenFirestore({ orderId, archivo, user, action: 'remove' });
 
-export const restaurarArchivoAdjuntoOrdenFirestore = ({ orderId, archivo, user }) =>
+const restaurarArchivoAdjuntoOrdenFirestoreDirecto = ({ orderId, archivo, user }) =>
   actualizarArchivoAdjuntoOrdenFirestore({ orderId, archivo, user, action: 'restore' });
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarOrdenesFirestore = conCache('ordenes:listarOrdenesFirestore', listarOrdenesFirestoreSinCache);
+export const listarOrdenesUsuarioFirestore = conCache('ordenes:listarOrdenesUsuarioFirestore', listarOrdenesUsuarioFirestoreSinCache);
+export const obtenerOrdenFirestorePorId = conCache('ordenes:obtenerOrdenFirestorePorId', obtenerOrdenFirestorePorIdSinCache);
+export const crearOrdenFirestore = conInvalidacion(crearOrdenFirestoreDirecto, [], ['ordenes:']);
+export const crearSolicitudProductoFirestore = conInvalidacion(crearSolicitudProductoFirestoreDirecto, [], ['ordenes:']);
+export const cambiarEstadoOrdenFirestore = conInvalidacion(cambiarEstadoOrdenFirestoreDirecto, [], ['ordenes:']);
+export const evaluarOrdenRestringidaFirestore = conInvalidacion(evaluarOrdenRestringidaFirestoreDirecto, [], ['ordenes:']);
+export const cargarArchivosFaltantesOrdenFirestore = conInvalidacion(cargarArchivosFaltantesOrdenFirestoreDirecto, [], ['ordenes:']);
+export const eliminarArchivoAdjuntoOrdenFirestore = conInvalidacion(eliminarArchivoAdjuntoOrdenFirestoreDirecto, [], ['ordenes:']);
+export const restaurarArchivoAdjuntoOrdenFirestore = conInvalidacion(restaurarArchivoAdjuntoOrdenFirestoreDirecto, [], ['ordenes:']);

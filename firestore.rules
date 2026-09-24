@@ -1381,6 +1381,15 @@ service cloud.firestore {
     // de unos 2 kB metida como texto. Lo lee cualquiera que entre —el buscador
     // esta en la cabecera de todas las pantallas— y lo escribe SOLO quien
     // administra la tienda, que es quien publica los productos.
+    // Los avisos de "esto cambió" entre sesiones (`src/lib/avisos-de-lecturas.js`):
+    // un solo documento con un contador por tipo de dato. Quien escribe algo suma
+    // uno; las demás sesiones lo escuchan y releen solo eso. No lleva datos de
+    // nadie: solo nombres de listas y números.
+    match /versiones_lecturas/{documento} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esUsuarioDelSistema() && documento == 'general';
+    }
+
     match /indice_buscador/{documento} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal() || esAdministradorDeTienda();
@@ -1687,6 +1696,7 @@ service cloud.firestore {
         && coleccion != 'solicitudes_acceso_dispensa_medica'
         && coleccion != 'solicitudes_cambio'
         && coleccion != 'solicitudes_cambio_miembro'
+        && coleccion != 'versiones_lecturas'
         && esUsuarioDelSistema();
     }
   }

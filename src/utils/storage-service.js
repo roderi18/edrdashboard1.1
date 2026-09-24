@@ -5,12 +5,35 @@
 
 const memoryCache = new Map();
 
+// DATOS PERSONALES, SOLO MIENTRAS DURA LA SESIÓN DE LA PESTAÑA.
+//
+// El padrón (teléfono, dirección, fecha de nacimiento, correo) se guardaba en
+// `localStorage`, que no se borra nunca: en un teléfono compartido o perdido lo
+// leía el siguiente que abriera el navegador, aunque se hubiera cerrado sesión.
+// Estas claves van a `sessionStorage`, que se borra al cerrar la pestaña o la
+// aplicación, y `borrarDatosDeSesion` las vacía al cerrar sesión. Las listas sin
+// datos personales (regiones, secciones, destacamentos) siguen en `localStorage`
+// para que la aplicación abra al momento.
+export const CLAVES_DE_SESION = new Set(['members', 'leadershipAssignments']);
+
+const almacenDe = (key) => (CLAVES_DE_SESION.has(key) ? sessionStorage : localStorage);
+
 let storageListenerReady = false;
 
 const ensureStorageListener = () => {
     if (storageListenerReady || typeof window === 'undefined') return;
 
     storageListenerReady = true;
+
+    // Las copias que quedaron en `localStorage` de antes de este cambio se
+    // borran la primera vez: eran justo los datos que no deben quedarse.
+    CLAVES_DE_SESION.forEach((key) => {
+        try {
+            localStorage.removeItem(key);
+        } catch {
+            // Almacenamiento bloqueado: no hay nada que borrar.
+        }
+    });
 
     window.addEventListener('storage', (event) => {
         if (event.key === null) {
@@ -31,7 +54,7 @@ const readAndParse = (key) => {
     let raw;
 
     try {
-        raw = localStorage.getItem(key);
+        raw = almacenDe(key).getItem(key);
     } catch {
         // Modo privado o almacenamiento bloqueado por el navegador.
         return [];
@@ -52,7 +75,7 @@ const readAndParse = (key) => {
         console.warn(`[storage] "${key}" tenia un JSON invalido; se descarta.`, error);
 
         try {
-            localStorage.removeItem(key);
+            almacenDe(key).removeItem(key);
         } catch {
             // Si tampoco se puede limpiar, basta con devolver la coleccion vacia.
         }
@@ -89,7 +112,7 @@ export function setStorageCollection(key, data) {
     memoryCache.set(key, data);
 
     try {
-        localStorage.setItem(key, JSON.stringify(data));
+        almacenDe(key).setItem(key, JSON.stringify(data));
     } catch (error) {
         // Cuota agotada o almacenamiento bloqueado (modo privado). El espejo en
         // memoria ya quedo actualizado, asi que la sesion actual sigue funcionando;
@@ -122,4 +145,20 @@ export function deleteItem(key, id) {
     setStorageCollection(key, updated);
 
     return updated;
+}
+
+/** Al cerrar sesión: fuera los datos personales de memoria y de `sessionStorage`. */
+export function borrarDatosDeSesion() {
+    if (typeof window === 'undefined') return;
+
+    CLAVES_DE_SESION.forEach((key) => {
+        memoryCache.delete(key);
+
+        try {
+            sessionStorage.removeItem(key);
+            localStorage.removeItem(key);
+        } catch {
+            // Almacenamiento bloqueado: no hay nada que borrar.
+        }
+    });
 }

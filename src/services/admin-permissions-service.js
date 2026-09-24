@@ -1,5 +1,7 @@
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
+import { conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 
@@ -68,7 +70,7 @@ const getAdminDocId = (admin = {}) =>
 const getRoleDocId = (admin = {}) =>
   String(admin.idMiembros || admin.memberId || admin.codigoMiembro || admin.memberCode || '').trim();
 
-export async function guardarPermisosAdministrador({
+async function guardarPermisosAdministradorDirecto({
   administrador = {},
   permisos = {},
   usuario = {},
@@ -118,3 +120,12 @@ export async function guardarPermisosAdministrador({
 
   return normalizedPermissions;
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const guardarPermisosAdministrador = conInvalidacion(guardarPermisosAdministradorDirecto, [], ['admin-permisos:']);

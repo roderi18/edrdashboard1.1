@@ -1,6 +1,8 @@
 import useSWR from 'swr';
 import { useMemo, useState, useEffect } from 'react';
 
+import { valorGuardado } from 'src/utils/cache-de-lecturas.mjs';
+
 import { fetcher, endpoints } from 'src/lib/axios';
 import { listarProductosFirestore, resolverProductoCombinadoPorId } from 'src/services/product-service';
 
@@ -14,16 +16,22 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
+// La misma clave que `conCache` da a `listarProductosFirestore()` (sin argumentos).
+const CLAVE_PRODUCTOS = 'tienda-productos:listarProductosFirestore:[]';
+
 export function useGetProducts() {
-  const [resolvedProducts, setResolvedProducts] = useState([]);
-  const [productsLoading, setProductsLoading] = useState(true);
+  // Lo ya leído en esta pestaña se pinta en el primer render: volver a la tienda
+  // no pasa otra vez por el esqueleto (se relee por detrás si es viejo).
+  const [resolvedProducts, setResolvedProducts] = useState(
+    () => valorGuardado(CLAVE_PRODUCTOS) || []
+  );
+  const [productsLoading, setProductsLoading] = useState(() => !valorGuardado(CLAVE_PRODUCTOS));
   const [productsError, setProductsError] = useState(null);
 
   useEffect(() => {
     let active = true;
 
     const loadProducts = async () => {
-      setProductsLoading(true);
       setProductsError(null);
 
       try {

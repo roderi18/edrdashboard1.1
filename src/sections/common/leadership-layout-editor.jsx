@@ -12,6 +12,8 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import GlobalStyles from '@mui/material/GlobalStyles';
 
+import { factoresDelArrastre } from 'src/utils/organigrama-arrastre.mjs';
+
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
@@ -19,6 +21,55 @@ import { Iconify } from 'src/components/iconify';
 const EMPTY_OFFSET = { x: 0, y: 0 };
 
 const getSafeId = (id) => String(id || 'node').replace(/[^a-zA-Z0-9_-]/g, '-');
+
+const claseDeArrastre = (id) => `leadership-edit-node-${getSafeId(id)}`;
+
+// La tarjeta que pertenece a este <li> (no la de una hija, que vive mas abajo).
+const tarjetaDelLi = (li) =>
+  Array.from(li.querySelectorAll('[data-leadership-node-id]')).find(
+    (elemento) => elemento.closest('li') === li
+  ) || null;
+
+// QUIEN ARRASTRA A QUIEN, leido del arbol pintado: una casilla arrastra a sus
+// hijas directas solo si su desplazamiento va en su <li> (la raiz lo lleva en la
+// propia tarjeta y no arrastra a nadie). Ver `factoresDelArrastre`.
+function mapaDeArrastre(tarjetaAgarrada, marcados) {
+  let ambito = tarjetaAgarrada;
+
+  // El organigrama entero: el <ul> mas alto que contiene a la tarjeta.
+  for (let ul = ambito.parentElement?.closest('ul'); ul; ul = ul.parentElement?.closest('ul')) {
+    ambito = ul;
+  }
+
+  const padreDe = new Map();
+
+  marcados.forEach((id) => {
+    const tarjeta = ambito.querySelector(`[data-leadership-node-id="${CSS.escape(String(id))}"]`);
+    const li = tarjeta?.closest('li');
+
+    if (!li) return;
+
+    const liPadre = li.parentElement?.closest('li');
+    const idPadre = liPadre && tarjetaDelLi(liPadre)?.getAttribute('data-leadership-node-id');
+
+    if (idPadre && liPadre.classList.contains(claseDeArrastre(idPadre))) {
+      padreDe.set(id, idPadre);
+    }
+
+    if (!li.classList.contains(claseDeArrastre(id))) return;
+
+    li.querySelectorAll(':scope > ul > li').forEach((liHija) => {
+      const idHija = tarjetaDelLi(liHija)?.getAttribute('data-leadership-node-id');
+
+      if (idHija) padreDe.set(idHija, id);
+    });
+  });
+
+  return padreDe;
+}
+
+// Cuantos pasos guarda Ctrl + Z.
+const PASOS_PARA_DESHACER = 50;
 const hasOffsetValue = (offset) => Boolean(offset?.x || offset?.y);
 
 export const getLeadershipNodeKey = (node) =>
@@ -151,6 +202,53 @@ export function useLeadershipLayoutEditor({
   // El tirador del que se esta arrastrando ahora mismo: { nodeId, esquina }.
   const [arrastreDeVinculo, setArrastreDeVinculo] = useState(null);
 
+  // CTRL + Z. Cada cambio del diseño guarda antes una foto de como estaba; deshacer
+  // vuelve a la ultima. Las fotos viven solo en esta visita: al cargar o guardar
+  // el diseño se empieza de cero.
+  const historialRef = useRef([]);
+  const [pasosParaDeshacer, setPasosParaDeshacer] = useState(0);
+  const disenoActualRef = useRef(null);
+  const origenVinculoRef = useRef(null);
+  const arrastreDeVinculoRef = useRef(null);
+
+  disenoActualRef.current = {
+    nodeOffsets,
+    containerHeightOffset,
+    containerWidthOffset,
+    connectionGroups,
+    hiddenConnections,
+    extraConnections,
+  };
+  origenVinculoRef.current = origenVinculo;
+  arrastreDeVinculoRef.current = arrastreDeVinculo;
+
+  const guardarParaDeshacer = useCallback(() => {
+    historialRef.current = [...historialRef.current, disenoActualRef.current].slice(
+      -PASOS_PARA_DESHACER
+    );
+    setPasosParaDeshacer(historialRef.current.length);
+  }, []);
+  // El arrastre de casillas guarda desde su manejador, que no cambia de identidad.
+  const guardarParaDeshacerRef = useRef(guardarParaDeshacer);
+
+  guardarParaDeshacerRef.current = guardarParaDeshacer;
+
+  const deshacer = useCallback(() => {
+    const anterior = historialRef.current[historialRef.current.length - 1];
+
+    if (!anterior) return;
+
+    historialRef.current = historialRef.current.slice(0, -1);
+    setPasosParaDeshacer(historialRef.current.length);
+    setNodeOffsets(anterior.nodeOffsets);
+    setContainerHeightOffset(anterior.containerHeightOffset);
+    setContainerWidthOffset(anterior.containerWidthOffset);
+    setConnectionGroups(anterior.connectionGroups);
+    setHiddenConnections(anterior.hiddenConnections);
+    setExtraConnections(anterior.extraConnections);
+    setSelectedConnections([]);
+  }, []);
+
   const toggleEditMode = useCallback(() => {
     setEditMode((currentValue) => !currentValue);
     // Al cerrar el lapiz no queda nada marcado: al volver a abrirlo, arrastrar
@@ -203,15 +301,23 @@ export function useLeadershipLayoutEditor({
         return;
       }
 
+      // CADA CASILLA POR SU CUENTA. Se mueven solo las marcadas; las que cuelgan
+      // de ellas se compensan para quedarse quietas (ver `factoresDelArrastre`).
+      // Para mover un grupo, Ctrl + clic en cada una.
+      const factores = factoresDelArrastre(marcados, mapaDeArrastre(event.currentTarget, marcados));
+
       nodeDragRef.current = {
         id: node.id,
         startX: event.clientX,
         startY: event.clientY,
-        // El punto de partida de CADA una de las marcadas: se mueven todas la
-        // misma distancia, cada una desde donde estaba.
-        inicioPorNodo: marcados.reduce(
-          (acc, id) => ({ ...acc, [id]: nodeOffsets[id] ?? EMPTY_OFFSET }),
-          {}
+        guardadoParaDeshacer: false,
+        // El punto de partida de cada casilla tocada y hacia donde va: +1 con el
+        // puntero, -1 en contra para quedarse quieta.
+        inicioPorNodo: Object.fromEntries(
+          Object.entries(factores).map(([id, factor]) => [
+            id,
+            { inicio: nodeOffsets[id] ?? EMPTY_OFFSET, factor },
+          ])
         ),
       };
 
@@ -236,13 +342,19 @@ export function useLeadershipLayoutEditor({
     const avanceX = event.clientX - dragState.startX;
     const avanceY = event.clientY - dragState.startY;
 
+    // Un arrastre entero es UN paso de Ctrl + Z, y solo si de verdad se movio.
+    if (!dragState.guardadoParaDeshacer && (avanceX || avanceY)) {
+      dragState.guardadoParaDeshacer = true;
+      guardarParaDeshacerRef.current?.();
+    }
+
     setNodeOffsets((currentOffsets) => {
       const siguientes = { ...currentOffsets };
 
-      Object.entries(dragState.inicioPorNodo).forEach(([id, inicio]) => {
+      Object.entries(dragState.inicioPorNodo).forEach(([id, { inicio, factor }]) => {
         siguientes[id] = {
-          x: Math.round(inicio.x + avanceX),
-          y: Math.round(inicio.y + avanceY),
+          x: Math.round(inicio.x + factor * avanceX),
+          y: Math.round(inicio.y + factor * avanceY),
         };
       });
 
@@ -288,15 +400,23 @@ export function useLeadershipLayoutEditor({
     []
   );
 
-  const resizeContainer = useCallback((delta) => {
-    setContainerHeightOffset((currentValue) => Math.max(-520, currentValue + delta));
-  }, []);
+  const resizeContainer = useCallback(
+    (delta) => {
+      guardarParaDeshacer();
+      setContainerHeightOffset((currentValue) => Math.max(-520, currentValue + delta));
+    },
+    [guardarParaDeshacer]
+  );
 
   // No baja de 0: en negativo el cuadro seria mas estrecho que su columna, que
   // es justo lo contrario de lo que se busca.
-  const resizeContainerWidth = useCallback((delta) => {
-    setContainerWidthOffset((currentValue) => Math.max(0, currentValue + delta));
-  }, []);
+  const resizeContainerWidth = useCallback(
+    (delta) => {
+      guardarParaDeshacer();
+      setContainerWidthOffset((currentValue) => Math.max(0, currentValue + delta));
+    },
+    [guardarParaDeshacer]
+  );
 
   // Pulsar una linea la marca o la desmarca. Unir es un boton aparte: asi se
   // juntan tantas como haga falta de una vez, y pulsar por error no deshace nada.
@@ -313,6 +433,8 @@ export function useLeadershipLayoutEditor({
 
   const unirSeleccionadas = useCallback(
     (orientacion = 'horizontal') => {
+      if (selectedConnections.length >= 2) guardarParaDeshacer();
+
       setConnectionGroups((grupos) => {
         if (selectedConnections.length < 2) return grupos;
 
@@ -332,11 +454,13 @@ export function useLeadershipLayoutEditor({
 
       setSelectedConnections([]);
     },
-    [selectedConnections]
+    [selectedConnections, guardarParaDeshacer]
   );
 
   const separarConexion = useCallback((id) => {
     if (!id) return;
+
+    guardarParaDeshacer();
 
     setConnectionGroups((grupos) =>
       grupos
@@ -345,14 +469,16 @@ export function useLeadershipLayoutEditor({
         .filter((grupo) => grupo.ids.length > 1)
     );
     setSelectedConnections((actuales) => actuales.filter((clave) => clave !== id));
-  }, []);
+  }, [guardarParaDeshacer]);
 
   const separarGrupoDe = useCallback((id) => {
     if (!id) return;
 
+    guardarParaDeshacer();
+
     setConnectionGroups((grupos) => grupos.filter((grupo) => !grupo.ids.includes(id)));
     setSelectedConnections([]);
-  }, []);
+  }, [guardarParaDeshacer]);
 
   const grupoDeConexion = useCallback(
     (id) => connectionGroups.find((grupo) => grupo.ids.includes(id)) || null,
@@ -362,6 +488,7 @@ export function useLeadershipLayoutEditor({
   // Sube o baja una linea dentro de su barra. En vertical ese orden es el de
   // arriba abajo, asi que es lo que decide cual queda encima.
   const moverEnGrupo = useCallback((id, direccion) => {
+    guardarParaDeshacer();
     setConnectionGroups((grupos) =>
       grupos.map((grupo) => {
         const indice = grupo.ids.indexOf(id);
@@ -376,7 +503,7 @@ export function useLeadershipLayoutEditor({
         return { ...grupo, ids };
       })
     );
-  }, []);
+  }, [guardarParaDeshacer]);
 
   // Quitar una linea del cuadro. Sale tambien de cualquier barra en la que
   // estuviera: una linea que no se dibuja no puede estar unida a otras.
@@ -386,6 +513,8 @@ export function useLeadershipLayoutEditor({
   // del arbol, asi que el vinculo seguia dibujandose igual.
   const desvincularConexion = useCallback((id) => {
     if (!id) return;
+
+    guardarParaDeshacer();
 
     let eraAMano = false;
 
@@ -408,17 +537,19 @@ export function useLeadershipLayoutEditor({
         .filter((grupo) => grupo.ids.length > 1)
     );
     setSelectedConnections((actuales) => actuales.filter((clave) => clave !== id));
-  }, []);
+  }, [guardarParaDeshacer]);
 
   const revincularConexion = useCallback((id) => {
+    guardarParaDeshacer();
     setHiddenConnections((actuales) => actuales.filter((clave) => clave !== id));
-  }, []);
+  }, [guardarParaDeshacer]);
 
   const quitarVinculoAMano = useCallback((from, to) => {
+    guardarParaDeshacer();
     setExtraConnections((actuales) =>
       actuales.filter((vinculo) => !(vinculo.from === from && vinculo.to === to))
     );
-  }, []);
+  }, [guardarParaDeshacer]);
 
   // Vincular dos casillas va en dos pasos: se marca el origen y despues el
   // destino. Marcar el mismo dos veces lo cancela.
@@ -427,6 +558,9 @@ export function useLeadershipLayoutEditor({
       setOrigenVinculo(null);
       return;
     }
+
+    // Solo el segundo clic crea la linea: ese es el paso que se deshace.
+    if (origenVinculoRef.current && origenVinculoRef.current !== nodeId) guardarParaDeshacer();
 
     setOrigenVinculo((origen) => {
       if (!origen) return nodeId;
@@ -438,7 +572,7 @@ export function useLeadershipLayoutEditor({
 
       return null;
     });
-  }, []);
+  }, [guardarParaDeshacer]);
 
   // ARRASTRAR DE UNA ESQUINA A OTRA. Se agarra el circulito de una tarjeta y se
   // suelta en el de otra: ahi queda la linea, saliendo y entrando justo por esas
@@ -466,6 +600,10 @@ export function useLeadershipLayoutEditor({
   }, [arrastreDeVinculo]);
 
   const soltarArrastreDeVinculo = useCallback((nodeId, lado) => {
+    const origenActual = arrastreDeVinculoRef.current;
+
+    if (origenActual && nodeId && origenActual.nodeId !== nodeId) guardarParaDeshacer();
+
     setArrastreDeVinculo((origen) => {
       // Soltar en el aire, o en la misma tarjeta, no crea nada.
       if (!origen || !nodeId || origen.nodeId === nodeId) return null;
@@ -479,13 +617,35 @@ export function useLeadershipLayoutEditor({
 
       return null;
     });
-  }, []);
+  }, [guardarParaDeshacer]);
 
   const cambiarOrientacionDe = useCallback((id, orientacion) => {
+    guardarParaDeshacer();
     setConnectionGroups((grupos) =>
       grupos.map((grupo) => (grupo.ids.includes(id) ? { ...grupo, orientacion } : grupo))
     );
-  }, []);
+  }, [guardarParaDeshacer]);
+
+  // Ctrl + Z (o Cmd + Z) con el lapiz abierto. No se roba el atajo a un campo de
+  // texto, donde deshace lo escrito.
+  useEffect(() => {
+    if (!editMode) return undefined;
+
+    const alPulsar = (event) => {
+      const esDeshacer =
+        (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key?.toLowerCase() === 'z';
+      const enCampo = event.target?.closest?.('input, textarea, [contenteditable="true"]');
+
+      if (!esDeshacer || enCampo) return;
+
+      event.preventDefault();
+      deshacer();
+    };
+
+    window.addEventListener('keydown', alPulsar);
+
+    return () => window.removeEventListener('keydown', alPulsar);
+  }, [editMode, deshacer]);
 
   // Hidrata el diagrama con el diseno guardado en Firestore.
   const applyLayout = useCallback(
@@ -499,6 +659,10 @@ export function useLeadershipLayoutEditor({
       customNodeCounts: cantidadesNodos,
       customNodeLists: listasNodos,
     } = {}) => {
+      // Un diseño recien leido o recien guardado es el nuevo punto de partida.
+      historialRef.current = [];
+      setPasosParaDeshacer(0);
+
       if (offsets && typeof offsets === 'object') {
         setNodeOffsets(offsets);
       }
@@ -570,6 +734,8 @@ export function useLeadershipLayoutEditor({
       toggleEditMode,
       getNodeEditProps,
       getNodeTreeClassName,
+      deshacer,
+      pasosParaDeshacer,
     }),
     [
       editMode,
@@ -606,6 +772,8 @@ export function useLeadershipLayoutEditor({
       arrastreDeVinculo,
       empezarArrastreDeVinculo,
       soltarArrastreDeVinculo,
+      deshacer,
+      pasosParaDeshacer,
     ]
   );
 }
@@ -732,10 +900,23 @@ export function LeadershipLayoutOffsetStyles({ editor, lineStyles }) {
       };
     }
 
+    // EL <li> MOVIDO NO SE QUEDA CON EL CLIC; SOLO LAS TARJETAS.
+    //
+    // Al desplazar una casilla se mueve su <li> entero: un bloque invisible tan
+    // alto como la fila, que queda por encima de sus vecinas. El Capellán
+    // Nacional, movido 440 px a la izquierda, tapaba asi al Secretario Nacional
+    // y no se podia agarrar ni pulsar su nombre. El <li> deja pasar el puntero y
+    // cada tarjeta (con sus puntos de enlace dentro) lo recupera.
+    offsetStyles['[data-leadership-node-id]'] = {
+      ...offsetStyles['[data-leadership-node-id]'],
+      pointerEvents: 'auto',
+    };
+
     Object.entries(editor.nodeOffsets).forEach(([id, offset]) => {
       offsetStyles[`.${editor.getNodeTreeClassName({ id })}`] = {
         transform: `translate(${offset.x}px, ${offset.y}px)`,
         zIndex: editor.selectedNode?.id === id ? 3 : 1,
+        pointerEvents: 'none',
       };
     });
 
@@ -1185,7 +1366,14 @@ export function LeadershipLayoutConnectorLayer({
         height: 1,
         position: 'absolute',
         overflow: 'visible',
-        pointerEvents: editMode ? 'auto' : 'none',
+        // LA CAPA NUNCA SE QUEDA CON EL CLIC; SOLO SUS LINEAS.
+        //
+        // Con el lapiz abierto la capa pasaba a 'auto': el <svg> cubre el cuadro
+        // entero y queda por encima del arbol, asi que se tragaba cada pulsacion
+        // y no se podia arrastrar ninguna tarjeta ni agarrar sus puntos de
+        // enlace, solo pulsar lineas. Cada trazo ya declara `pointerEvents:
+        // 'stroke'`, que el SVG respeta aunque la capa diga 'none'.
+        pointerEvents: 'none',
       }}
     >
       {/* La linea que se esta trazando: a rayas y en el color de acento, para
@@ -1455,6 +1643,35 @@ export function LeadershipLayoutEditor({
                   </IconButton>
                 </Tooltip>
               )}
+
+              <Tooltip title="Deshacer (Ctrl + Z)">
+                <span>
+                  <IconButton
+                    size="small"
+                    aria-label="Deshacer el último cambio"
+                    disabled={!editor.pasosParaDeshacer}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={editor.deshacer}
+                    sx={{ width: 22, height: 22 }}
+                  >
+                    <Iconify width={14} icon="solar:restart-bold" sx={{ transform: 'scaleX(-1)' }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+
+              {/* Cerrar = salir de la edición, igual que el lápiz: el panel no se
+                  esconde solo, porque sin él no se ve qué está marcado. */}
+              <Tooltip title="Cerrar la edición visual">
+                <IconButton
+                  size="small"
+                  aria-label="Cerrar la edición visual"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={editor.toggleEditMode}
+                  sx={{ width: 22, height: 22 }}
+                >
+                  <Iconify width={14} icon="mingcute:close-line" />
+                </IconButton>
+              </Tooltip>
             </Stack>
 
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>

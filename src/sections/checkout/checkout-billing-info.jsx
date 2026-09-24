@@ -2,8 +2,8 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
 import CardHeader from '@mui/material/CardHeader';
-import LinearProgress from '@mui/material/LinearProgress';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -12,9 +12,12 @@ import { Iconify } from 'src/components/iconify';
 export function CheckoutBillingInfo({ checkoutState, onChangeStep, loading, sx, ...other }) {
   const { billing } = checkoutState;
 
+  // La dirección en esqueleto, no una barra de progreso.
   const renderLoading = () => (
-    <Box sx={{ height: 104, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <LinearProgress color="inherit" sx={{ width: 1, maxWidth: 120 }} />
+    <Box sx={{ height: 104 }}>
+      <Skeleton variant="text" width="40%" />
+      <Skeleton variant="text" width="80%" />
+      <Skeleton variant="text" width="30%" />
     </Box>
   );
 

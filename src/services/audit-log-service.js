@@ -11,6 +11,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -140,7 +142,7 @@ export async function registrarAuditoriaSilenciosa(payload = {}) {
   }
 }
 
-export async function listarAuditoriaSistema({ maxRegistros = 150 } = {}) {
+async function listarAuditoriaSistemaSinCache({ maxRegistros = 150 } = {}) {
   if (!isFirebaseConfigured || !FIRESTORE) {
     return [];
   }
@@ -164,7 +166,7 @@ export async function listarAuditoriaSistema({ maxRegistros = 150 } = {}) {
   }
 }
 
-export async function eliminarAuditoriaTemporalPrueba() {
+async function eliminarAuditoriaTemporalPruebaDirecto() {
   if (!isFirebaseConfigured || !FIRESTORE) {
     return 0;
   }
@@ -181,3 +183,13 @@ export async function eliminarAuditoriaTemporalPrueba() {
 
   return snapshot.docs.length;
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarAuditoriaSistema = conCache('auditoria:listarAuditoriaSistema', listarAuditoriaSistemaSinCache);
+export const eliminarAuditoriaTemporalPrueba = conInvalidacion(eliminarAuditoriaTemporalPruebaDirecto, ['auditoria:']);

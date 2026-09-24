@@ -23,7 +23,6 @@ import {
   CustomToolbarFilterButton,
 } from 'src/components/custom-data-grid';
 
-import { ProductPriceListPdfDocument } from './product-price-list-pdf';
 import { ProductTableFiltersResult } from './product-table-filters-result';
 import { construirLibroListaDePrecios } from './product-price-list-workbook';
 
@@ -218,13 +217,19 @@ export function ProductTableToolbar({
         title="TIENDA ERRD"
         buttonLabel="Descargar"
         fileNamePrefix="tienda-errd-precios"
-        renderPdfDocument={(filas) => (
-          <ProductPriceListPdfDocument
-            title="TIENDA ERRD"
-            anio={String(new Date().getFullYear())}
-            rows={filas}
-          />
-        )}
+        // El documento (y con él la librería de PDF) se carga al pulsar: importado
+        // arriba viajaba con la lista de la tienda aunque nadie descargara nada.
+        renderPdfDocument={async (filas) => {
+          const { ProductPriceListPdfDocument } = await import('./product-price-list-pdf');
+
+          return (
+            <ProductPriceListPdfDocument
+              title="TIENDA ERRD"
+              anio={String(new Date().getFullYear())}
+              rows={filas}
+            />
+          );
+        }}
         buildExcelBlob={(filas) =>
           construirLibroListaDePrecios({
             title: 'TIENDA ERRD',

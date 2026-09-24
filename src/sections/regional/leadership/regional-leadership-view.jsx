@@ -26,10 +26,15 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 
+import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
+import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigrama';
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
-import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
 import { GLOW_JERARQUIA_SX, useResaltarMiembro } from 'src/sections/common/use-resaltar-miembro';
+import {
+  entidadesDeDisenoDe,
+  useLeadershipLayoutStorage,
+} from 'src/sections/common/use-leadership-layout-storage';
 import {
   LeadershipNodeAvatar,
   getMemberDisplayName,
@@ -61,7 +66,8 @@ const MIN_ZOOM = 0.7;
 const MAX_ZOOM = 1.4;
 const ZOOM_STEP = 0.1;
 const DEFAULT_ZOOM = 1.1;
-const DEFAULT_PAN = { x: -24, y: 19 };
+// x: 0 porque el centrado lo mide `useCentrarOrganigrama`; antes era un ajuste a ojo.
+const DEFAULT_PAN = { x: 0, y: 19 };
 const DEFAULT_NODE_OFFSETS = {
   'titulo-estructura-regional': { x: 13, y: 3 },
   'directiva-regional': { x: -6, y: 11 },
@@ -240,6 +246,9 @@ export function RegionalLeadershipView({
   // Ver `NationalLeadershipView`: alto máximo embebido y miembro a resaltar tras
   // una búsqueda por nombre en la pestaña Jerarquía.
   alturaMaxima = null,
+  // Dentro de la tarjeta de la pestaña Jerarquía: el ancho extra del diseño
+  // (`containerWidthOffset`) sacaba los bordes laterales fuera de la tarjeta.
+  embebido = false,
   resaltarMiembroId = null,
   resaltarToken = null,
 } = {}) {
@@ -252,7 +261,10 @@ export function RegionalLeadershipView({
   // (`params.id` vacio en la pestaña Jerarquia) el Coordinador Regional se quedaba
   // sin permiso en su propia region.
   const canManageLeadership = !historico && canManageRegionLeadership(user, regionalId);
-  const canManageLayout = !historico && canManageDirectiva(user);
+  // El diseño (el lápiz) también en una directiva anterior: solo recoloca
+  // casillas y se guarda aparte (`entidadesDeDisenoDe`); los ocupantes de un
+  // cuatrienio guardado siguen sin tocarse desde aquí.
+  const canManageLayout = canManageDirectiva(user);
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
@@ -275,7 +287,7 @@ export function RegionalLeadershipView({
   const layoutStorage = useLeadershipLayoutStorage({
     editor: layoutEditor,
     nivel: 'regional',
-    idEntidad: regionalId,
+    ...entidadesDeDisenoDe({ idEntidad: regionalId, historico }),
     nombreEntidad: regionalName,
     canManage: canManageLayout,
     defaultNodeOffsets: DEFAULT_NODE_OFFSETS,
@@ -322,7 +334,17 @@ export function RegionalLeadershipView({
     layoutEditor.connectionGroups.length > 0 ||
     layoutEditor.hiddenConnections.length > 0 ||
     layoutEditor.extraConnections.length > 0;
-  const connectorWatchKey = `${layoutEditor.editMode}:${JSON.stringify(layoutEditor.connectionGroups)}:${JSON.stringify(layoutEditor.hiddenConnections)}:${JSON.stringify(layoutEditor.extraConnections)}:${pan.x}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}`;
+  // Sin diseño o sin ocupantes todavía, el árbol no se pinta: salía con las
+  // posiciones de partida y todo en "Vacante", y se recolocaba y llenaba después.
+  const cargandoArbol = layoutStorage.cargando || leadership.cargando;
+  // Todo el arbol centrado como un grupo (ver el hook): se suma al arrastre.
+  const desplazamientoX = useCentrarOrganigrama({
+    containerRef,
+    pan,
+    pausado: layoutEditor.editMode,
+    claves: [zoom, JSON.stringify(layoutEditor.nodeOffsets), cargandoArbol, containerMinHeight],
+  });
+  const connectorWatchKey = `${layoutEditor.editMode}:${JSON.stringify(layoutEditor.connectionGroups)}:${JSON.stringify(layoutEditor.hiddenConnections)}:${JSON.stringify(layoutEditor.extraConnections)}:${pan.x + desplazamientoX}:${pan.y}:${zoom}:${containerMinHeight}:${JSON.stringify(layoutEditor.nodeOffsets)}:${cargandoArbol}`;
 
   useEffect(() => {
     setZoom(DEFAULT_ZOOM);
@@ -489,7 +511,7 @@ export function RegionalLeadershipView({
           userSelect: 'none',
           touchAction: 'none',
           ...getLeadershipEditGridSx(layoutEditor.editMode),
-          ...getLeadershipContainerWidthSx(layoutEditor.containerWidthOffset),
+          ...(embebido ? {} : getLeadershipContainerWidthSx(layoutEditor.containerWidthOffset)),
           ...getLeadershipConnectorOverrideSx(connectorLayerActive),
           '& button, & a, & input, & textarea, & select, & [role="button"]': {
             cursor: 'pointer',
@@ -513,6 +535,7 @@ export function RegionalLeadershipView({
             top: 16,
             right: 16,
             zIndex: 20,
+            display: cargandoArbol ? 'none' : 'flex',
             pointerEvents: 'auto',
           }}
         >
@@ -645,9 +668,13 @@ export function RegionalLeadershipView({
           </Box>
         </Stack>
 
+        {cargandoArbol && <OrganigramaCargando />}
+
         <Box
           sx={{
-            '--chart-pan-x': `${pan.x}px`,
+            // Ni pintado ni ocupando sitio hasta tener diseño y ocupantes.
+            display: cargandoArbol ? 'none' : undefined,
+            '--chart-pan-x': `${pan.x + desplazamientoX}px`,
             '--chart-pan-y': `${pan.y}px`,
             '--chart-zoom': zoom,
             width: 1180,
@@ -709,7 +736,7 @@ export function RegionalLeadershipView({
         </Box>
 
         <LeadershipLayoutConnectorLayer
-          active={connectorLayerActive}
+          active={connectorLayerActive && !cargandoArbol}
           watchKey={connectorWatchKey}
           connections={connections}
           containerRef={containerRef}
@@ -726,7 +753,7 @@ export function RegionalLeadershipView({
 
         {canManageLayout && (
           <LeadershipLayoutEditor
-            pan={pan}
+            pan={{ ...pan, x: pan.x + desplazamientoX }}
             zoom={zoom}
             chartWidth={1180}
             editor={layoutEditor}

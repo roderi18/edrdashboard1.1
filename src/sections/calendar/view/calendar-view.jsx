@@ -1,11 +1,6 @@
 'use client';
 
-import Calendar from '@fullcalendar/react';
-import listPlugin from '@fullcalendar/list';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import esLocale from '@fullcalendar/core/locales/es';
-import interactionPlugin from '@fullcalendar/interaction';
+import dynamic from 'next/dynamic';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useMemo, useState, useEffect, useCallback, startTransition } from 'react';
 
@@ -13,6 +8,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Skeleton from '@mui/material/Skeleton';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
@@ -37,6 +33,12 @@ import { useAuthContext } from 'src/auth/hooks';
 import { CalendarRoot } from '../styles';
 import { useEvent } from '../hooks/use-event';
 import { CalendarForm } from '../calendar-form';
+// FullCalendar llega aparte (ver `calendar-grid.jsx`): la pantalla no lo espera.
+const CalendarioGrid = dynamic(() => import('../calendar-grid').then((m) => m.CalendarioGrid), {
+  ssr: false,
+  loading: () => <Skeleton variant="rounded" sx={{ height: { xs: 480, md: 640 } }} />,
+});
+
 import { useCalendar } from '../hooks/use-calendar';
 import { CalendarToolbar } from '../calendar-toolbar';
 import { CalendarFilters } from '../calendar-filters';
@@ -204,6 +206,7 @@ export function CalendarView() {
 
   const {
     calendarRef,
+    syncView,
     /********/
     view,
     title,
@@ -588,14 +591,13 @@ export function CalendarView() {
               ]}
             />
 
-            <Calendar
+            <CalendarioGrid
               weekends
               editable
               droppable
               selectable
               allDayMaintainDuration
               eventResizableFromStart
-              locale={esLocale}
               firstDay={1}
               aspectRatio={3}
               dayMaxEvents={3}
@@ -625,7 +627,8 @@ export function CalendarView() {
                 day: 'Día',
                 list: 'Agenda',
               }}
-              ref={calendarRef}
+              calendarRef={calendarRef}
+              alMontar={syncView}
               initialView={view}
               events={dataFiltered}
               select={onSelectRange}
@@ -643,7 +646,6 @@ export function CalendarView() {
                   onResizeEvent(arg, handleUpdateEvent);
                 });
               }}
-              plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
             />
           </CalendarRoot>
         </Card>

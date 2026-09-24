@@ -40,6 +40,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
+import { useLecturasVivas } from 'src/lib/avisos-de-lecturas';
 import { _roles, REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
 import {
   getSectionals,
@@ -328,6 +329,9 @@ export function SectionalListView({ regionalId = null }) {
     [updateFilters, table]
   );
 
+  // Otra sesión cambió secciones, directivas o personas: la lista se relee sola.
+  const cambiosVivos = useLecturasVivas(['secciones:', 'directiva:', 'miembros:']);
+
   useEffect(() => {
     async function loadData() {
       const cachedSectionals = getCachedSectionals();
@@ -403,7 +407,7 @@ export function SectionalListView({ regionalId = null }) {
     }
 
     loadData();
-  }, [user, restrictSections]);
+  }, [user, restrictSections, cambiosVivos]);
 
   useEffect(() => {
     if (hasAppliedUrlFilter.current) return;

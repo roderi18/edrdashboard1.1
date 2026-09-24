@@ -1,8 +1,9 @@
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { canManageStoreProducts } from 'src/utils/member-access';
+import { conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import {
-  validarCategoriaProductoNueva,
   slugificarCategoriaProducto,
+  validarCategoriaProductoNueva,
   documentoDeCategoriaProductoNueva,
 } from 'src/utils/producto-categorias-personalizadas.mjs';
 
@@ -19,7 +20,7 @@ import { existeCategoriaProducto, escribirCategoriaProducto } from './producto-c
 // `tienda`), se aplica al momento y queda en Historial quién la añadió.
 // ----------------------------------------------------------------------
 
-export async function crearCategoriaProducto({ nombre, usuario }) {
+async function crearCategoriaProductoDirecto({ nombre, usuario }) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
   if (!canManageStoreProducts(usuario) && !isAdminGlobal(usuario)) {
@@ -54,3 +55,12 @@ export async function crearCategoriaProducto({ nombre, usuario }) {
 
   return { value: id, label: documento.nombre };
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const crearCategoriaProducto = conInvalidacion(crearCategoriaProductoDirecto, [], ['tienda-categorias:']);

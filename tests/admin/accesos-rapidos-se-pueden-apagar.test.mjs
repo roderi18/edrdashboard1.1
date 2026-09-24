@@ -8,54 +8,35 @@ import assert from 'node:assert/strict';
 register(new URL('../soporte/resolver-alias-src.mjs', import.meta.url));
 
 // ----------------------------------------------------------------------
-// LOS CUATRO ACCESOS RAPIDOS DE LA PANTALLA PRINCIPAL SE PUEDEN APAGAR.
+// LOS ACCESOS RAPIDOS DE LA PANTALLA PRINCIPAL SE RETIRARON.
 //
 // "Registrar actividad", "Proxima actividad", "Mis insignias" y "Capacitacion"
-// son atajos a sitios que tambien estan en el menu. Quien no los use los quita
-// desde el panel de ajustes, debajo de "Barra y cabecera".
-//
-// Un ajuste nuevo no esta en los ajustes YA GUARDADOS de cada navegador. La
-// ausencia de la clave también debe significar "apagado": solo aparecen cuando
-// el usuario los activa de forma expresa.
+// eran atajos a sitios que tambien estan en el menu, y se podian apagar desde
+// Ajustes. El 20/09/2026 (commit 8bdfaf66) se quitaron de la portada y el
+// interruptor de Ajustes. Qué se rompía después: EXPLORA Designer seguía
+// ofreciendo editar y publicar el bloque, sin que cambiara nada en pantalla. El
+// bloque quedó `retirado`: se conserva (y se sanea) lo ya publicado, pero no se
+// pinta ni sale en el Designer.
 // ----------------------------------------------------------------------
 
 const { defaultSettings } = await import('src/components/settings/settings-config.js');
+const { bloquePorId, BLOQUES_DEL_DESIGNER } = await import('src/utils/everest/bloques.mjs');
 
 const leer = (relativa) => fs.readFileSync(path.join(process.cwd(), relativa), 'utf8');
 
 const VISTA = leer('src/sections/principal/view/principal-home-view.jsx');
 const PANEL = leer('src/components/settings/drawer/settings-drawer.jsx');
 
-test('vienen apagados', () => {
-  assert.equal(defaultSettings.accesosRapidos, false);
+test('la portada ya no pinta los accesos rapidos', () => {
+  assert.doesNotMatch(VISTA, /<PrincipalAccesos/);
 });
 
-// La regla, ejecutada tal cual la escribe la pantalla.
-const accesosVisibles = (ajustes) => ajustes.accesosRapidos === true;
-
-test('solo se muestran si alguien los activo', () => {
-  assert.equal(accesosVisibles({ accesosRapidos: false }), false);
-  assert.equal(accesosVisibles({ accesosRapidos: true }), true);
-  // Ajustes guardados antes de que existiera la clave.
-  assert.equal(accesosVisibles({}), false);
+test('Ajustes ya no tiene el interruptor ni el valor guardado', () => {
+  assert.equal('accesosRapidos' in defaultSettings, false);
+  assert.doesNotMatch(PANEL, /Accesos rápidos/);
 });
 
-test('la pantalla Principal los esconde con esa misma regla', () => {
-  assert.match(VISTA, /settings\.state\.accesosRapidos === true/);
-  // Los accesos llegan del lector de la portada desde EXPLORA Designer (fase 2);
-  // el interruptor sigue decidiendo si salen o no.
-  assert.match(
-    VISTA,
-    /\{accesosVisibles && \(\s*<PrincipalAccesos\s+accesos=\{portada\['accesos-rapidos'\]\.contenido\}/
-  );
-});
-
-test('el interruptor esta en el panel de ajustes, debajo de "Barra y cabecera"', () => {
-  assert.match(PANEL, /title="Accesos rápidos"/);
-  assert.match(PANEL, /settings\.setState\(\{ accesosRapidos: !accesosVisibles \}\)/);
-
-  const orden = PANEL.indexOf('{visibility.navBlanco && renderNavBlanco()}');
-  const despues = PANEL.indexOf('{visibility.accesosRapidos && renderAccesosRapidos()}');
-
-  assert.ok(orden > 0 && despues > orden);
+test('el bloque esta retirado: se conserva, pero el Designer no lo ofrece', () => {
+  assert.equal(bloquePorId('accesos-rapidos')?.retirado, true);
+  assert.ok(!BLOQUES_DEL_DESIGNER.some((bloque) => bloque.id === 'accesos-rapidos'));
 });

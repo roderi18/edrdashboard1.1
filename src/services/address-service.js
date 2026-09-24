@@ -10,6 +10,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import {
   TEXTO_SIN_TELEFONO,
   TEXTO_SIN_DIRECCION,
@@ -165,7 +166,7 @@ export const asegurarDireccionesBaseUsuario = async ({
   return baseDirections;
 };
 
-export const cargarDireccionesUsuarioFirestore = async (user) => {
+const cargarDireccionesUsuarioFirestoreSinCache = async (user) => {
   if (!user) return [];
 
   const [members, dests, churches] = await Promise.all([getMembers(), getDestsApi(), getChurches()]);
@@ -191,7 +192,7 @@ export const cargarDireccionesUsuarioFirestore = async (user) => {
   }));
 };
 
-export const listarDireccionesUsuario = async (user) => {
+const listarDireccionesUsuarioSinCache = async (user) => {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
   const usuarioId = obtenerIdUsuarioComercio(user);
@@ -204,7 +205,7 @@ export const listarDireccionesUsuario = async (user) => {
   return snapshot.docs.map((item) => mapearDireccionFirestoreAUi({ id: item.id, ...item.data() }));
 };
 
-export const guardarDireccionUsuario = async ({ user, address, addressId = null }) => {
+const guardarDireccionUsuarioDirecto = async ({ user, address, addressId = null }) => {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
   const usuarioId = obtenerIdUsuarioComercio(user);
@@ -253,7 +254,7 @@ export const guardarDireccionUsuario = async ({ user, address, addressId = null 
   return mapearDireccionFirestoreAUi({ id: directionId, ...directionDoc });
 };
 
-export const marcarDireccionPredeterminadaUsuario = async ({ user, addressId }) => {
+const marcarDireccionPredeterminadaUsuarioDirecto = async ({ user, addressId }) => {
   if (!isFirebaseConfigured || !FIRESTORE) return;
 
   const usuarioId = obtenerIdUsuarioComercio(user);
@@ -278,8 +279,21 @@ export const marcarDireccionPredeterminadaUsuario = async ({ user, addressId }) 
   await batch.commit();
 };
 
-export const eliminarDireccionUsuario = async (addressId) => {
+const eliminarDireccionUsuarioDirecto = async (addressId) => {
   if (!isFirebaseConfigured || !FIRESTORE || !addressId) return;
 
   await deleteDoc(doc(FIRESTORE, COLECCIONES_COMERCIO.direcciones, String(addressId)));
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const cargarDireccionesUsuarioFirestore = conCache('direcciones:cargarDireccionesUsuarioFirestore', cargarDireccionesUsuarioFirestoreSinCache);
+export const listarDireccionesUsuario = conCache('direcciones:listarDireccionesUsuario', listarDireccionesUsuarioSinCache);
+export const guardarDireccionUsuario = conInvalidacion(guardarDireccionUsuarioDirecto, ['direcciones:']);
+export const marcarDireccionPredeterminadaUsuario = conInvalidacion(marcarDireccionPredeterminadaUsuarioDirecto, ['direcciones:']);
+export const eliminarDireccionUsuario = conInvalidacion(eliminarDireccionUsuarioDirecto, ['direcciones:']);

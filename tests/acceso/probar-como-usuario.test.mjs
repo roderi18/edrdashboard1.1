@@ -9,7 +9,9 @@ test('el acceso como otro usuario queda restringido al Administrador Global auto
 
   assert.match(ruta, /puedeUsarSelectorDeRol\(decodificado\.email\)/);
   assert.match(ruta, /perfilGlobalActivo/);
-  assert.match(ruta, /Solo rdpr18@gmail.com como Administrador Global/);
+  // Desde 9855dad8 hay dos cuentas autorizadas (`ADMIN_ROLE_SWITCH_EMAILS`); el
+  // servidor lo repite con el correo del token y exige el perfil global activo.
+  assert.match(ruta, /Solo las cuentas Administrador Global autorizadas pueden usar esta función\./);
 });
 
 test('emite la sesión real del miembro sin tocar sus credenciales', async () => {

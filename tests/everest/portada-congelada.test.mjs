@@ -249,10 +249,10 @@ test('los archivos de las tarjetas en Storage no se pueden borrar', () => {
 // ----------------------------------------------------------------------
 
 // Que componente recibe que bloque. Cambiar un bloque de sitio es cambiar la
-// portada, asi que tambien se clava.
+// portada, asi que tambien se clava. Los accesos rápidos no están: se quitaron
+// de la portada a propósito (commit 8bdfaf66) y el bloque quedó `retirado`.
 const QUE_PINTA_CADA_BLOQUE = {
   bienvenida: /resumen=\{portada\.bienvenida\.contenido\}/,
-  'accesos-rapidos': /<PrincipalAccesos\s+accesos=\{portada\['accesos-rapidos'\]\.contenido\}/,
   'proxima-actividad': /actividad=\{portada\['proxima-actividad'\]\.contenido\}/,
   'mi-progreso': /progreso=\{portada\['mi-progreso'\]\.contenido\}/,
   historias: /historias=\{portada\.historias\.contenido\}/,

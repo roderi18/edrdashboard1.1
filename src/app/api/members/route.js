@@ -1,3 +1,4 @@
+import { responderConEtag } from 'src/utils/respuesta-con-etag.mjs';
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import {
   UPSTREAM_KEYS,
@@ -217,7 +218,9 @@ export async function GET(req) {
 
     const visibles = permitidos ?? rows;
 
-    return Response.json({
+    // Con huella: si el padrón de esta cuenta no cambió, 304 y el navegador usa
+    // su copia (privada: ver `respuesta-con-etag`).
+    return responderConEtag(req, {
       data: visibles.map((member) => withCalculatedDivision(member, divisions)),
     });
   } catch (error) {

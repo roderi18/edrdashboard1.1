@@ -42,6 +42,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
 import { getChurches } from 'src/services/church-service';
 import { getRegionals } from 'src/services/regional-service';
+import { useLecturasVivas } from 'src/lib/avisos-de-lecturas';
 import { getSectionals } from 'src/services/sectional-service';
 import { getDests, getDestsApi, deleteDestApi } from 'src/services/dest-service';
 import { obtenerAsignacionesDirectivaMiembros } from 'src/services/directivas-organizacionales-service';
@@ -388,6 +389,9 @@ export function DestListView({ sectionalId = null }) {
     // columna del coordinador se quedaria con lo que hubiera en el primer render.
   }, [members, churches, sectionals, regionals, user, tableLoading, coordinadorPorDestacamento, fotosMiembros]);
 
+  // Otra sesión cambió destacamentos, directivas o personas: se relee solo.
+  const cambiosVivos = useLecturasVivas(['destacamentos:', 'directiva:', 'miembros:']);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -425,7 +429,7 @@ export function DestListView({ sectionalId = null }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [cambiosVivos]);
 
   const filters = useSetState({ name: '', sectionalName: [], regionalName: 'all' });
   const searchParams = useSearchParams();

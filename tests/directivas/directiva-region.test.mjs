@@ -136,7 +136,8 @@ test('las pantallas separan propuesta y edicion visual', () => {
   // proponen en las secciones de su region y su alcance no trae ids de seccion
   // (ver `tests/acceso/region-propone-en-sus-secciones.test.mjs`).
   assert.match(seccion, /canManageSectionLeadership\(user, sectionalId, \{/);
-  assert.match(region, /canManageRegionLeadership\(user, params\?\.id\)/);
+  // `regionalId`: su id de ruta o el que le pasa la pestaña Jerarquia (`idRegion`).
+  assert.match(region, /canManageRegionLeadership\(user, regionalId\)/);
   assert.match(seccion, /canManage: canManageLayout/);
   assert.match(region, /canManage: canManageLayout/);
 });

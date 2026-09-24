@@ -22,6 +22,7 @@ import { getSectionals } from 'src/services/sectional-service';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { OrganizationalTabSkeleton } from 'src/sections/common/organizational-tab-skeleton';
 import { OrganizationalProfileNavigation } from 'src/sections/common/organizational-profile-navigation';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -135,10 +136,15 @@ export function RegionalEditLayout({ children, ...other }) {
     },
   ];
 
-  // Mientras no se sabe no se pinta nada: pintar la ficha y quitarla despues
-  // seria enseñar justo lo que no se puede ver.
+  // Mientras no se sabe no se pinta la ficha: pintarla y quitarla despues seria
+  // enseñar justo lo que no se puede ver. Pero tampoco un hueco en blanco, que
+  // parecia congelada: el esqueleto no enseña nada de la region.
   if (puedeEntrar === null) {
-    return <DashboardContent {...other} />;
+    return (
+      <DashboardContent {...other}>
+        <OrganizationalTabSkeleton />
+      </DashboardContent>
+    );
   }
 
   if (!puedeEntrar) {

@@ -3,6 +3,7 @@ import { useRef, useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
+import { leerConCache, valorGuardado } from 'src/utils/cache-de-lecturas.mjs';
 
 // ----------------------------------------------------------------------
 // LA IMAGEN DE FONDO DE UNA TARJETA DE LA PANTALLA PRINCIPAL.
@@ -31,33 +32,43 @@ const CLASE_FONDO_EN_VIDEO = 'fondo-en-video';
  * `aceptaVideo` lo pide la tarjeta que sabe pintar un video de fondo. Sin el, un
  * video guardado no se pintaria bien como imagen, asi que no se toma por video.
  */
+// Por la caché de lecturas: al volver a la portada el fondo sale al momento, sin
+// pasar otra vez por el degradado ni por el esqueleto.
+const claveDeTarjeta = (idTarjeta) => `principal-tarjeta:${idTarjeta}`;
+
 export function useImagenDeTarjeta(idTarjeta, { aceptaVideo = false } = {}) {
-  const [foto, setFoto] = useState('');
-  const [esVideo, setEsVideo] = useState(false);
+  // `undefined` mientras no se sabe si hay foto (la tarjeta enseña su esqueleto);
+  // `null` si no la hay (el degradado de siempre).
+  const [registro, setRegistro] = useState(() => valorGuardado(claveDeTarjeta(idTarjeta)));
 
   useEffect(() => {
     let cancelado = false;
 
-    obtenerFotoPrincipal({
-      tipoEntidad: TIPO_DE_ENTIDAD,
-      idEntidad: idTarjeta,
-      tipoFoto: 'portada',
-    })
-      .then((registro) => {
-        if (cancelado) return;
-        setFoto(registro?.urlFoto || '');
-        setEsVideo(aceptaVideo && registro?.tipoMedio === 'video');
+    leerConCache(claveDeTarjeta(idTarjeta), async () =>
+      (await obtenerFotoPrincipal({
+        tipoEntidad: TIPO_DE_ENTIDAD,
+        idEntidad: idTarjeta,
+        tipoFoto: 'portada',
+      })) ?? null
+    )
+      .then((leido) => {
+        if (!cancelado) setRegistro(leido ?? null);
       })
       .catch(() => {
         // Sin foto se pinta el degradado de siempre: no hay nada que avisar.
+        if (!cancelado) setRegistro(null);
       });
 
     return () => {
       cancelado = true;
     };
-  }, [idTarjeta, aceptaVideo]);
+  }, [idTarjeta]);
 
-  return { foto, esVideo };
+  return {
+    foto: registro?.urlFoto || '',
+    esVideo: aceptaVideo && registro?.tipoMedio === 'video',
+    buscando: registro === undefined,
+  };
 }
 
 // ----------------------------------------------------------------------

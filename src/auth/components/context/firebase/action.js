@@ -17,9 +17,13 @@ import {
   createUserWithEmailAndPassword as _createUserWithEmailAndPassword,
 } from 'firebase/auth';
 
+import { paths } from 'src/routes/paths';
+
 import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { borrarBorradoresDeFormulario } from 'src/components/hook-form/use-form-draft';
+
+import { antesDeCerrar, despuesDeCerrar } from 'src/auth/limpieza-al-cerrar-sesion';
 
 // ----------------------------------------------------------------------
 
@@ -208,7 +212,18 @@ export const signOut = async () => {
     console.warn('[auth] no se pudieron limpiar los borradores', error);
   }
 
+  // Nada de la persona se queda en el equipo (ver `limpieza-al-cerrar-sesion`).
+  const pendientes = await antesDeCerrar();
+
   await _signOut(ensureFirebaseAuth());
+
+  const { necesitaRecargar } = await despuesDeCerrar(pendientes);
+
+  // Firestore quedó cerrado para borrar su caché: la pantalla de entrada se
+  // carga de cero, que es lo que hace falta para abrirlo otra vez.
+  if (necesitaRecargar && typeof window !== 'undefined') {
+    window.location.replace(paths.auth.firebase.signIn);
+  }
 };
 
 /** **************************************

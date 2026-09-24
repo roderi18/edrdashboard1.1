@@ -584,7 +584,7 @@ test('la version anterior se guarda para poder volver a ella', () => {
 
   // Revertir no es una puerta trasera: entra por el mismo guardado, asi que
   // queda en Historial con su autor.
-  assert.match(servicio, /export async function revertirEncabezadoTienda/);
+  assert.match(servicio, /async function revertirEncabezadoTiendaDirecto/);
   assert.match(servicio, /return guardarEncabezadoTienda\(actual\.anterior, usuario\);/);
   // Y volver de fabrica no borra la foto: quitarla es otra decision.
   assert.match(servicio, /fotoUrl: actual\.fotoUrl,/);

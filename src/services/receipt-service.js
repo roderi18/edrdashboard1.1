@@ -1,5 +1,6 @@
 import { doc, query, where, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { COLECCIONES_COMERCIO, obtenerIdUsuarioComercio } from 'src/utils/firestore-commerce';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -17,7 +18,7 @@ import {
 
 const receiptsCollection = () => collection(FIRESTORE, COLECCIONES_COMERCIO.recibos);
 
-export const guardarReciboFirestore = async ({
+const guardarReciboFirestoreDirecto = async ({
   user,
   receiptId,
   orderId,
@@ -71,14 +72,14 @@ export const guardarReciboFirestore = async ({
   return receipt;
 };
 
-export const listarRecibosFirestore = async () => {
+const listarRecibosFirestoreSinCache = async () => {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
   const snapshot = await getDocs(receiptsCollection());
   return snapshot.docs.map((item) => mapearReciboFirestoreAUi({ id: item.id, ...item.data() }));
 };
 
-export const obtenerReciboFirestorePorId = async (receiptId) => {
+const obtenerReciboFirestorePorIdSinCache = async (receiptId) => {
   if (!isFirebaseConfigured || !FIRESTORE || !receiptId) return null;
 
   const snapshot = await getDoc(doc(FIRESTORE, COLECCIONES_COMERCIO.recibos, String(receiptId)));
@@ -87,7 +88,7 @@ export const obtenerReciboFirestorePorId = async (receiptId) => {
   return mapearReciboFirestoreAUi({ id: snapshot.id, ...snapshot.data() });
 };
 
-export const listarRecibosUsuarioFirestore = async (user) => {
+const listarRecibosUsuarioFirestoreSinCache = async (user) => {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
   const usuarioId = obtenerIdUsuarioComercio(user);
@@ -100,7 +101,7 @@ export const listarRecibosUsuarioFirestore = async (user) => {
   return snapshot.docs.map((item) => mapearReciboFirestoreAUi({ id: item.id, ...item.data() }));
 };
 
-export const actualizarEstadoReciboFirestore = async (receiptId, estado, user = {}) => {
+const actualizarEstadoReciboFirestoreDirecto = async (receiptId, estado, user = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !receiptId) return null;
 
   const receiptRef = doc(FIRESTORE, COLECCIONES_COMERCIO.recibos, String(receiptId));
@@ -136,7 +137,7 @@ export const actualizarEstadoReciboFirestore = async (receiptId, estado, user = 
   return mapearReciboFirestoreAUi({ id: snapshot.id, ...nextDoc });
 };
 
-export const actualizarReciboFirestore = async (receiptId, data = {}, user = {}) => {
+const actualizarReciboFirestoreDirecto = async (receiptId, data = {}, user = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !receiptId) return null;
 
   const receiptRef = doc(FIRESTORE, COLECCIONES_COMERCIO.recibos, String(receiptId));
@@ -207,3 +208,17 @@ export const actualizarReciboFirestore = async (receiptId, data = {}, user = {})
 
   return receipt;
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarRecibosFirestore = conCache('recibos:listarRecibosFirestore', listarRecibosFirestoreSinCache);
+export const obtenerReciboFirestorePorId = conCache('recibos:obtenerReciboFirestorePorId', obtenerReciboFirestorePorIdSinCache);
+export const listarRecibosUsuarioFirestore = conCache('recibos:listarRecibosUsuarioFirestore', listarRecibosUsuarioFirestoreSinCache);
+export const guardarReciboFirestore = conInvalidacion(guardarReciboFirestoreDirecto, [], ['recibos:']);
+export const actualizarEstadoReciboFirestore = conInvalidacion(actualizarEstadoReciboFirestoreDirecto, [], ['recibos:']);
+export const actualizarReciboFirestore = conInvalidacion(actualizarReciboFirestoreDirecto, [], ['recibos:']);

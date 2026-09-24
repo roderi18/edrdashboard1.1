@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 
 import { normalizarEstatusMiembro } from 'src/utils/estatus-miembro.mjs';
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
 
 import { AUTH } from 'src/lib/firebase';
@@ -181,64 +182,49 @@ export function mapApiMemberToUI(member) {
 // MEMBERS
 // ------------------------------------------------------------
 
-// Caché en memoria con TTL corto + dedup de llamadas en vuelo: muchas vistas y
+// Caché de lecturas compartida (`cache-de-lecturas.mjs`): muchas vistas y
 // formularios llaman getMembers() casi a la vez y cada llamada re-descargaba la
-// lista completa. Las mutaciones (create/update/delete/import) invalidan para
-// que los flujos que releen justo despues de escribir sigan viendo datos
-// frescos.
-const MEMBERS_CACHE_TTL_MS = 30_000;
-
-let membersCachePromise = null;
-let membersCacheExpiresAt = 0;
+// lista completa. Antes caducaba a los 30 s y la siguiente pantalla volvía a
+// esperar a la API; ahora lo viejo se entrega al momento y se relee por detrás.
+// Las mutaciones (create/update/delete/import) invalidan para que los flujos que
+// releen justo despues de escribir sigan viendo datos frescos.
+const CLAVE_MIEMBROS = 'miembros:';
 
 export function invalidateMembersCache() {
-  membersCachePromise = null;
-  membersCacheExpiresAt = 0;
+  invalidarLecturas(CLAVE_MIEMBROS);
 }
 
 async function fetchMembersFresh() {
-  try {
-    const res = await fetch('/api/members/', { headers: await authHeaders() });
+  const res = await fetch('/api/members/', { headers: await authHeaders() });
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(`Error al obtener miembros (${res.status}): ${body || res.statusText}`);
-    }
-
-    const response = await res.json();
-
-    const data = response.data || response.Data || response.items || response;
-    const apiMembers = Array.isArray(data) ? data.map(mapApiMemberToUI) : [];
-    // El servidor es autoritativo: puede filtrar por alcance del usuario, así que
-    // NO fusionamos con el localStorage previo (arrastraría miembros fuera de
-    // alcance de una sesión anterior). El espejo local queda acotado a lo que el
-    // servidor devolvió para este usuario.
-    const scopedMembers = mergeMembersById(apiMembers);
-
-    setStorageCollection(MEMBERS_KEY, scopedMembers);
-
-    return scopedMembers;
-  } catch (error) {
-    console.error('ERROR FETCH ERROR:', error);
-    // No dejar cacheado el fallback: la proxima llamada reintenta el fetch.
-    invalidateMembersCache();
-    return getStorageCollection(MEMBERS_KEY) || [];
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Error al obtener miembros (${res.status}): ${body || res.statusText}`);
   }
+
+  const response = await res.json();
+
+  const data = response.data || response.Data || response.items || response;
+  const apiMembers = Array.isArray(data) ? data.map(mapApiMemberToUI) : [];
+  // El servidor es autoritativo: puede filtrar por alcance del usuario, así que
+  // NO fusionamos con el localStorage previo (arrastraría miembros fuera de
+  // alcance de una sesión anterior). El espejo local queda acotado a lo que el
+  // servidor devolvió para este usuario.
+  const scopedMembers = mergeMembersById(apiMembers);
+
+  setStorageCollection(MEMBERS_KEY, scopedMembers);
+
+  return scopedMembers;
 }
 
 export async function getMembers() {
-  const now = Date.now();
-
-  if (!membersCachePromise || membersCacheExpiresAt <= now) {
-    membersCachePromise = fetchMembersFresh();
-    membersCacheExpiresAt = now + MEMBERS_CACHE_TTL_MS;
-  }
-
-  const members = await membersCachePromise;
-
-  // Copia superficial: los callers pueden ordenar/filtrar in place sin
-  // contaminar la lista cacheada.
-  return members.slice();
+  // `leerConCache` ya entrega una copia: los callers pueden ordenar/filtrar in
+  // place sin contaminar la lista cacheada. Un fallo no queda guardado: la
+  // proxima llamada reintenta el fetch.
+  return leerConCache(CLAVE_MIEMBROS, fetchMembersFresh).catch((error) => {
+    console.error('ERROR FETCH ERROR:', error);
+    return getStorageCollection(MEMBERS_KEY) || [];
+  });
 }
 
 export async function getMemberById(id) {
@@ -260,6 +246,9 @@ export async function createMemberApi(payload, { usuario } = {}) {
     headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
+  // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+  invalidarLecturas();
+  avisarAOtrasSesiones('miembros:');
 
   const text = await res.text();
 
@@ -295,6 +284,9 @@ export async function updateMemberApi(payload, { usuario, antes = null } = {}) {
     headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
+  // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+  invalidarLecturas();
+  avisarAOtrasSesiones('miembros:');
 
   const text = await res.text();
   const response = text ? JSON.parse(text) : {};
@@ -335,6 +327,9 @@ export async function deleteMember(memberId, { usuario, antes = null } = {}) {
     method: 'DELETE',
     headers: await authHeaders(),
   });
+  // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+  invalidarLecturas();
+  avisarAOtrasSesiones('miembros:');
   const text = await res.text();
 
   invalidateMembersCache();

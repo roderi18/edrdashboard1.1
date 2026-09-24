@@ -12,6 +12,8 @@ import {
 
 import { paths } from 'src/routes/paths';
 
+import { conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { crearNotificacionAdmin } from 'src/services/notification-service';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
@@ -150,7 +152,7 @@ export const estaPermisoAccesoSaludVigente = (solicitud = {}, now = Date.now()) 
   return Number.isFinite(expiresAt) && expiresAt > now;
 };
 
-export async function crearSolicitudAccesoSalud({ member = {}, usuario = {}, justificacion = '' }) {
+async function crearSolicitudAccesoSaludDirecto({ member = {}, usuario = {}, justificacion = '' }) {
   asegurarFirebase();
 
   if (!esMiembroMenorDeEdad(member)) {
@@ -272,7 +274,7 @@ export async function obtenerEstadoAccesoSalud({ member = {}, usuario = {} }) {
   };
 }
 
-export async function consumirPermisoAccesoSaludUnaVez(idSolicitud, usuario = {}) {
+async function consumirPermisoAccesoSaludUnaVezDirecto(idSolicitud, usuario = {}) {
   asegurarFirebase();
   if (!idSolicitud) return false;
 
@@ -312,7 +314,7 @@ export async function consumirPermisoAccesoSaludUnaVez(idSolicitud, usuario = {}
   return consumido;
 }
 
-export async function resolverSolicitudAccesoSalud({
+async function resolverSolicitudAccesoSaludDirecto({
   idSolicitud,
   decision,
   duracion = '',
@@ -427,3 +429,14 @@ export const formatearTiempoRestanteAccesoSalud = (permiso = {}, now = Date.now(
   if (!days) return `${totalHours} hora${totalHours === 1 ? '' : 's'}`;
   return `${days} día${days === 1 ? '' : 's'}${hours ? ` y ${hours} hora${hours === 1 ? '' : 's'}` : ''}`;
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const crearSolicitudAccesoSalud = conInvalidacion(crearSolicitudAccesoSaludDirecto, [], ['salud-acceso:']);
+export const resolverSolicitudAccesoSalud = conInvalidacion(resolverSolicitudAccesoSaludDirecto, [], ['salud-acceso:']);
+export const consumirPermisoAccesoSaludUnaVez = conInvalidacion(consumirPermisoAccesoSaludUnaVezDirecto, [], ['salud-acceso:']);

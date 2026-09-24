@@ -1,5 +1,7 @@
 import { paths } from 'src/routes/paths';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { getMembers } from 'src/services/member-service';
 import { crearNotificacionAdmin } from 'src/services/notification-service';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
@@ -61,7 +63,7 @@ const obtenerCoordinadoresDestacamento = async (idDestacamento) => {
  *
  * Devuelve los IDS DE CUENTA, que es lo que entienden las notificaciones.
  */
-export const obtenerCuentasDeCoordinadores = async (idDestacamento) => {
+const obtenerCuentasDeCoordinadoresSinCache = async (idDestacamento) => {
   const destId = Number(idDestacamento) || null;
 
   if (!destId) return [];
@@ -121,7 +123,7 @@ export const describirCoordinadores = (listado = []) => ({
  * `nombre` e `idMiembros` siguen siendo los del titular: de ahi salen el mensaje
  * de confirmacion y el registro en Historial.
  */
-export const obtenerCoordinadorDestacamentoInfo = async (idDestacamento) => {
+const obtenerCoordinadorDestacamentoInfoSinCache = async (idDestacamento) => {
   const destId = Number(idDestacamento) || null;
 
   if (!destId) return null;
@@ -171,7 +173,7 @@ export const obtenerCoordinadorDestacamentoInfo = async (idDestacamento) => {
 // Envía la solicitud de acceso a la información del miembro a los Coordinadores de
 // Destacamento (titular y asistente). Devuelve el nombre del coordinador titular
 // y cuántas notificaciones se enviaron.
-export async function solicitarAccesoInformacionMiembro({
+async function solicitarAccesoInformacionMiembroDirecto({
   member = {},
   usuario = {},
   justificacion = '',
@@ -248,3 +250,14 @@ export async function solicitarAccesoInformacionMiembro({
 
   return { enviadas, nombreCoordinador, nombresCoordinadores };
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerCuentasDeCoordinadores = conCache('acceso-info:obtenerCuentasDeCoordinadores', obtenerCuentasDeCoordinadoresSinCache);
+export const obtenerCoordinadorDestacamentoInfo = conCache('acceso-info:obtenerCoordinadorDestacamentoInfo', obtenerCoordinadorDestacamentoInfoSinCache);
+export const solicitarAccesoInformacionMiembro = conInvalidacion(solicitarAccesoInformacionMiembroDirecto, [], ['acceso-info:']);

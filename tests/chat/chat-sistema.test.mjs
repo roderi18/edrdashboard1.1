@@ -122,7 +122,13 @@ test('las reglas: nadie lleva el 20003, nadie le abre conversacion ni le escribe
 
   assert.match(reglas, /&& request\.auth\.token\.idMiembros != 20003;/);
   assert.match(reglas, /&& !\(20003 in request\.resource\.data\.participantesIds\)/);
-  assert.match(reglas, /&& !\(20003 in conversacion\(idConversacion\)\.participantesIds\)/);
+  // A Sistema no se le contesta. Única excepción (f3642a99): el grupo
+  // "ADMINISTRADORES GLOBALES" también recibe avisos de Sistema, y entre ellos,
+  // siendo Administradores Globales, sí pueden escribirse.
+  assert.match(
+    reglas,
+    /!\(20003 in conversacion\(idConversacion\)\.participantesIds\)\s*\|\|\s*\(\s*conversacion\(idConversacion\)\.tipoConversacion == 'GRUPAL'\s*&& conversacion\(idConversacion\)\.nombreGrupo == 'ADMINISTRADORES GLOBALES'\s*&& esAdministradorGlobal\(\)/
+  );
   assert.match(leer('storage.rules'), /&& idMiembroChat\(\) != 20003;/);
 });
 

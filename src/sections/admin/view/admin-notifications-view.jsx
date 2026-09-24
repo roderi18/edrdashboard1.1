@@ -29,6 +29,7 @@ import {
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { ContenidoDeListaCargando } from 'src/components/pantalla-cargando';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -442,13 +443,8 @@ export function AdminNotificationsView() {
   );
 
   if (loading) {
-    return (
-      <Card sx={{ p: 3 }}>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Cargando configuracion de notificaciones...
-        </Typography>
-      </Card>
-    );
+    // La lista en esqueleto, no un texto de "Cargando...".
+    return <ContenidoDeListaCargando />;
   }
 
   return (

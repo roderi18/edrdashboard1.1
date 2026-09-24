@@ -1,5 +1,7 @@
 'use client';
 
+import './styles.css';
+
 import { lazy, Suspense } from 'react';
 import { mergeClasses } from 'minimal-shared/utils';
 

@@ -7,6 +7,7 @@ import { onIdTokenChanged, signOut as _signOut } from 'firebase/auth';
 import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
+import { fijarDuenoDeLasLecturas } from 'src/utils/cache-de-lecturas.mjs';
 import { ENTIDADES_DE_PRUEBA, leerSimulacionDeRoles } from 'src/utils/simulacion-roles';
 import {
   buildMemberSessionUser,
@@ -414,6 +415,11 @@ export function AuthProvider({ children }) {
 
   const syncUserSession = useCallback(
     async (authUser) => {
+      // De quién es lo guardado en la caché de lecturas: los miembros y las
+      // listas salen acotados al alcance de cada cuenta, así que otra cuenta en
+      // el mismo navegador empieza de cero (memoria y disco).
+      fijarDuenoDeLasLecturas(authUser?.uid || null);
+
       // RED DE SEGURIDAD. Esta funcion es la unica que apaga `loading`, y la
       // pantalla espera a que lo haga: si algo de aqui dentro no vuelve —una
       // promesa que no resuelve, no que falle—, el usuario se queda mirando

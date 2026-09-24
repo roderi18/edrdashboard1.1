@@ -14,6 +14,8 @@ import {
 
 import { paths } from 'src/routes/paths';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { getMemberById } from 'src/services/member-service';
 import { crearNotificacionAdmin } from 'src/services/notification-service';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
@@ -79,7 +81,7 @@ const getCoordinators = async (idDestacamento) => {
 
 const mapSnapshot = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 
-export async function crearSolicitudCambioEstadoAscenso({
+async function crearSolicitudCambioEstadoAscensoDirecto({
   memberId,
   context = {},
   metadata = {},
@@ -190,7 +192,7 @@ export async function crearSolicitudCambioEstadoAscenso({
   return payload;
 }
 
-export async function obtenerSolicitudCambioEstadoAscenso(idSolicitud) {
+async function obtenerSolicitudCambioEstadoAscensoSinCache(idSolicitud) {
   ensureFirebase();
   if (!idSolicitud) return null;
   const snapshot = await getDoc(
@@ -199,7 +201,7 @@ export async function obtenerSolicitudCambioEstadoAscenso(idSolicitud) {
   return snapshot.exists() ? mapSnapshot(snapshot) : null;
 }
 
-export async function resolverSolicitudCambioEstadoAscenso({
+async function resolverSolicitudCambioEstadoAscensoDirecto({
   idSolicitud,
   decision,
   user = {},
@@ -347,3 +349,14 @@ export async function resolverSolicitudCambioEstadoAscenso({
 
   return { ...request, ...resolution };
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerSolicitudCambioEstadoAscenso = conCache('ascenso-estado:obtenerSolicitudCambioEstadoAscenso', obtenerSolicitudCambioEstadoAscensoSinCache);
+export const crearSolicitudCambioEstadoAscenso = conInvalidacion(crearSolicitudCambioEstadoAscensoDirecto, [], ['ascenso-estado:']);
+export const resolverSolicitudCambioEstadoAscenso = conInvalidacion(resolverSolicitudCambioEstadoAscensoDirecto, [], ['ascenso-estado:']);

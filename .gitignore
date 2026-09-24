@@ -45,3 +45,6 @@ scripts/**/*.log
 
 # npm, no yarn: con yarn.lock Firebase App Hosting no compila (PROJECT_GUIDELINES.md §10)
 yarn.lock
+
+# Copias que dejan los scripts de limpieza antes de borrar (datos reales).
+scripts/respaldo-*.json

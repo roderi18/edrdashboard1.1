@@ -1,3 +1,4 @@
+import { conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { configuracionDeMedallas, construirMedallasAsignadas } from 'src/utils/medallas-perfil.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -18,7 +19,7 @@ const asegurarFirebase = () => {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 };
 
-export async function guardarMedallasDeMiembro({
+async function guardarMedallasDeMiembroDirecto({
   idMiembros,
   anteriores = [],
   elegidas = [],
@@ -55,7 +56,7 @@ export async function guardarMedallasDeMiembro({
   return medallas;
 }
 
-export async function guardarOrdenDeMedallas({ orden = [], anterior = [], usuario = {} }) {
+async function guardarOrdenDeMedallasDirecto({ orden = [], anterior = [], usuario = {} }) {
   asegurarFirebase();
 
   const antes = anterior.join(', ');
@@ -78,3 +79,13 @@ export async function guardarOrdenDeMedallas({ orden = [], anterior = [], usuari
 
   return orden;
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const guardarMedallasDeMiembro = conInvalidacion(guardarMedallasDeMiembroDirecto, [], ['medallas:']);
+export const guardarOrdenDeMedallas = conInvalidacion(guardarOrdenDeMedallasDirecto, [], ['medallas:']);

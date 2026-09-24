@@ -1,5 +1,6 @@
 import { getDoc } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { sanearDiseno, DISENO_POR_DEFECTO } from 'src/utils/store-header-design.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -111,7 +112,7 @@ const conAnterior = (datos) => ({
 });
 
 /** Los textos guardados, o los de por defecto. Nunca lanza: es la portada. */
-export async function obtenerEncabezadoTienda() {
+async function obtenerEncabezadoTiendaSinCache() {
   if (!isFirebaseConfigured || !FIRESTORE) {
     return ENCABEZADO_TIENDA_POR_DEFECTO;
   }
@@ -126,7 +127,7 @@ export async function obtenerEncabezadoTienda() {
  * no es una decision que nadie quiera tomar sin querer. La FOTO si se puede
  * dejar en blanco: es quitarla, y la portada vuelve al degradado.
  */
-export async function guardarEncabezadoTienda(
+async function guardarEncabezadoTiendaDirecto(
   { titulo, subtitulo, fotoUrl, disposicion, pieTitulo, disenoAvanzado } = {},
   usuario = {}
 ) {
@@ -220,7 +221,7 @@ export const DESTINOS_REVERSION = {
  * veces devuelve donde se estaba, que es lo que espera quien se equivoco al
  * revertir.
  */
-export async function revertirEncabezadoTienda(destino, usuario = {}) {
+async function revertirEncabezadoTiendaDirecto(destino, usuario = {}) {
   const actual = await obtenerEncabezadoTienda();
 
   if (destino === DESTINOS_REVERSION.fabrica) {
@@ -242,3 +243,14 @@ export async function revertirEncabezadoTienda(destino, usuario = {}) {
 
   return guardarEncabezadoTienda(actual.anterior, usuario);
 }
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerEncabezadoTienda = conCache('tienda-encabezado:obtenerEncabezadoTienda', obtenerEncabezadoTiendaSinCache);
+export const guardarEncabezadoTienda = conInvalidacion(guardarEncabezadoTiendaDirecto, [], ['tienda-encabezado:']);
+export const revertirEncabezadoTienda = conInvalidacion(revertirEncabezadoTiendaDirecto, [], ['tienda-encabezado:']);

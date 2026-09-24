@@ -24,6 +24,7 @@ import {
 } from 'src/services/notification-settings-service';
 
 import { toast } from 'src/components/snackbar';
+import { AccountSectionSkeleton } from 'src/components/account/account-section-skeleton';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -50,6 +51,9 @@ export function AccountNotifications({ sx, ...other }) {
   const rol = esAdministrador(user) ? 'admin' : 'usuario';
 
   const [preferencias, setPreferencias] = useState({});
+  // Hasta leer las preferencias, esqueleto: con `{}` los interruptores salían con
+  // los valores por defecto y cambiaban de posición al llegar las de verdad.
+  const [preferenciasLeidas, setPreferenciasLeidas] = useState(false);
   const [estadoPush, setEstadoPush] = useState({ cargando: true, compatible: false, permiso: 'default', habilitadas: false });
   const preferenciasCambios = useRef(0);
   const preferenciasVersion = useRef(new Map());
@@ -70,6 +74,7 @@ export function AccountNotifications({ sx, ...other }) {
         if (!activo) return;
 
         const locales = Object.fromEntries(preferenciasLocales.current);
+        setPreferenciasLeidas(true);
         setPreferencias(
           preferenciasCambios.current === cantidadCambiosInicial
             ? leidas
@@ -81,6 +86,7 @@ export function AccountNotifications({ sx, ...other }) {
       })
       .catch((error) => {
         console.error('[notificaciones] no se pudieron leer las preferencias', error);
+        if (activo) setPreferenciasLeidas(true);
       });
 
     return () => {
@@ -220,6 +226,10 @@ export function AccountNotifications({ sx, ...other }) {
       }
     });
   };
+
+  if (idUsuario && !preferenciasLeidas) {
+    return <AccountSectionSkeleton variant="history" sx={sx} {...other} />;
+  }
 
   return (
     <Card

@@ -11,6 +11,8 @@ import {
 
 import { paths } from 'src/routes/paths';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+
 import { getMemberById } from 'src/services/member-service';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
@@ -148,7 +150,7 @@ const findDefaultLink = (values) => {
   return DEFAULT_AWARD_CERTIFICATE_LINKS.find((link) => linkMatches(link, values)) || null;
 };
 
-export const buscarVinculoCertificadoAscenso = async ({
+const buscarVinculoCertificadoAscensoSinCache = async ({
   idPlantilla = '',
   nombrePlantilla = '',
   idCurso = '',
@@ -179,7 +181,7 @@ export const buscarVinculoCertificadoAscenso = async ({
   return defaultLink ? normalizeLink(defaultLink) : null;
 };
 
-export const guardarVinculoCertificadoAscenso = async (vinculo) => {
+const guardarVinculoCertificadoAscensoDirecto = async (vinculo) => {
   if (!isFirebaseConfigured || !FIRESTORE || !vinculo?.id) return vinculo;
 
   const document = normalizeLink(vinculo);
@@ -228,7 +230,7 @@ const getCertificateForProgress = (certificado = {}) => {
   };
 };
 
-export const guardarProgresoAscensoMiembro = async ({
+const guardarProgresoAscensoMiembroDirecto = async ({
   member,
   idMiembro,
   codigoMiembro,
@@ -404,7 +406,7 @@ export const guardarProgresoAscensoMiembro = async ({
   return document;
 };
 
-export const listarProgresoAscensoMiembro = async (idMiembro) => {
+const listarProgresoAscensoMiembroSinCache = async (idMiembro) => {
   if (!isFirebaseConfigured || !FIRESTORE || !idMiembro) return [];
 
   const snapshot = await getDocs(
@@ -483,7 +485,7 @@ export const combinarProgresoAscensoEnCache = (idMiembro, progressList = []) => 
   return setAwardsProgressCache(idMiembro, { status, data });
 };
 
-export const sincronizarProgresoAscensoFirebase = async (idMiembro) => {
+const sincronizarProgresoAscensoFirebaseDirecto = async (idMiembro) => {
   const progressList = await listarProgresoAscensoMiembro(idMiembro);
   const result = combinarProgresoAscensoEnCache(idMiembro, progressList);
 
@@ -492,7 +494,7 @@ export const sincronizarProgresoAscensoFirebase = async (idMiembro) => {
   return result;
 };
 
-export const listarFavoritosAscensoMiembro = async (idMiembro) => {
+const listarFavoritosAscensoMiembroSinCache = async (idMiembro) => {
   if (!isFirebaseConfigured || !FIRESTORE || !idMiembro) return {};
 
   const snap = await getDoc(
@@ -506,7 +508,7 @@ export const listarFavoritosAscensoMiembro = async (idMiembro) => {
   return data.elementos || data.items || {};
 };
 
-export const guardarFavoritoAscensoMiembro = async ({
+const guardarFavoritoAscensoMiembroDirecto = async ({
   idMiembro,
   itemId,
   favorito,
@@ -566,3 +568,18 @@ export const guardarFavoritoAscensoMiembro = async ({
 
   return payload;
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarProgresoAscensoMiembro = conCache('ascenso:listarProgresoAscensoMiembro', listarProgresoAscensoMiembroSinCache);
+export const listarFavoritosAscensoMiembro = conCache('ascenso:listarFavoritosAscensoMiembro', listarFavoritosAscensoMiembroSinCache);
+export const buscarVinculoCertificadoAscenso = conCache('ascenso:buscarVinculoCertificadoAscenso', buscarVinculoCertificadoAscensoSinCache);
+export const guardarVinculoCertificadoAscenso = conInvalidacion(guardarVinculoCertificadoAscensoDirecto, [], ['ascenso:']);
+export const guardarProgresoAscensoMiembro = conInvalidacion(guardarProgresoAscensoMiembroDirecto, [], ['ascenso:']);
+export const sincronizarProgresoAscensoFirebase = conInvalidacion(sincronizarProgresoAscensoFirebaseDirecto, [], ['ascenso:']);
+export const guardarFavoritoAscensoMiembro = conInvalidacion(guardarFavoritoAscensoMiembroDirecto, [], ['ascenso:']);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -20,7 +20,6 @@ import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 
@@ -28,6 +27,7 @@ import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
+import { useLecturasVivas } from 'src/lib/avisos-de-lecturas';
 import { aprobarSolicitud, rechazarSolicitud } from 'src/services/aplicar-solicitud-service';
 import {
   esSuPropiaSolicitud,
@@ -37,6 +37,7 @@ import {
 import { toast } from 'src/components/snackbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { PantallaDeListaCargando } from 'src/components/pantalla-cargando';
 
 // El MISMO dialogo con el que el Coordinador de Destacamento revisa los cambios
 // de un miembro: se rechaza campo a campo y se aprueba lo que queda. Aqui vale
@@ -168,8 +169,13 @@ export function AprobacionesView() {
 
   const puedeResolver = puedeAprobarCambiosDeOrganizacion(user);
 
+  // Otra sesión propuso o resolvió algo: la bandeja se relee sola. El esqueleto
+  // sale solo la primera vez; después se actualiza sin tapar lo que se ve.
+  const cambiosVivos = useLecturasVivas(['solicitudes:']);
+  const yaCargadoRef = useRef(false);
+
   const cargar = useCallback(async () => {
-    setCargando(true);
+    if (!yaCargadoRef.current) setCargando(true);
 
     try {
       setSolicitudes(
@@ -179,6 +185,7 @@ export function AprobacionesView() {
       console.error('[aprobaciones] no se pudieron cargar las solicitudes', error);
       toast.error('No se pudieron cargar las solicitudes pendientes.');
     } finally {
+      yaCargadoRef.current = true;
       setCargando(false);
     }
   }, []);
@@ -189,7 +196,7 @@ export function AprobacionesView() {
     } else if (!loading) {
       setCargando(false);
     }
-  }, [loading, puedeResolver, cargar]);
+  }, [loading, puedeResolver, cargar, cambiosVivos]);
 
   const resolver = async (solicitud, accion, comentarioTexto = '', payload = null) => {
     setEnCurso(solicitud.id);
@@ -264,13 +271,8 @@ export function AprobacionesView() {
   };
 
   if (loading || cargando) {
-    return (
-      <DashboardContent>
-        <Stack sx={{ alignItems: 'center', py: 8 }}>
-          <CircularProgress />
-        </Stack>
-      </DashboardContent>
-    );
+    // La pantalla en esqueleto, no un spinner en medio.
+    return <PantallaDeListaCargando />;
   }
 
   if (!puedeResolver) {

@@ -1,5 +1,7 @@
 'use client';
 
+import './styles.css';
+
 import { lazy, Suspense } from 'react';
 
 import NoSsr from '@mui/material/NoSsr';

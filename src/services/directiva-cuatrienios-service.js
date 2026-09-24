@@ -1,7 +1,8 @@
-import { doc, query, where, getDocs, getDoc, deleteDoc, collection, writeBatch } from 'firebase/firestore';
+import { doc, query, where, getDoc, getDocs, deleteDoc, collection, writeBatch } from 'firebase/firestore';
 
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
 import { puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
+import { leerConCache, valorGuardado, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
   cargoPorId,
   permanenciaDe,
@@ -94,7 +95,19 @@ const aDocumento = (integrante = {}, usuario = {}) => {
 // Lectura.
 // ----------------------------------------------------------------------
 
-export async function obtenerIntegrantesDelCuatrienio(cuatrienio) {
+// Las lecturas pasan por la caché de lecturas: volver a un cuatrienio ya visto
+// lo pinta al momento. Todas las escrituras de este archivo van por
+// `proponerCambio`, que la invalida al aplicar.
+const claveDelCuatrienio = (cuatrienio) => `cuatrienio:integrantes:${cuatrienio}`;
+
+export const obtenerIntegrantesDelCuatrienio = (cuatrienio) =>
+  leerConCache(claveDelCuatrienio(cuatrienio), () => leerIntegrantesDelCuatrienio(cuatrienio));
+
+/** Integrantes ya leídos de un cuatrienio, o `undefined` (para el primer render). */
+export const integrantesGuardadosDelCuatrienio = (cuatrienio) =>
+  valorGuardado(claveDelCuatrienio(cuatrienio));
+
+async function leerIntegrantesDelCuatrienio(cuatrienio) {
   asegurar();
 
   const snapshot = await getDocs(
@@ -121,7 +134,9 @@ export async function obtenerIntegranteDelCuatrienioPorId(cuatrienio, idIntegran
 
 // Todos los que conservan algo para siempre. La lista nacional los usa para que
 // los ex comandantes salgan siempre en el Consejo Ejecutivo.
-export async function obtenerPermanentes() {
+export const obtenerPermanentes = () => leerConCache('cuatrienio:permanentes', leerPermanentes);
+
+async function leerPermanentes() {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
   const snapshot = await getDocs(collection(FIRESTORE, COLECCION_PERMANENTES));
@@ -253,6 +268,9 @@ export async function guardarIntegrantes({
     },
   });
 
+  // Las demás sesiones releen la memoria del cuatrienio (ver `avisos-de-lecturas`).
+  avisarAOtrasSesiones('cuatrienio:');
+
   notificarCambioDirectivaHistorica({ mensaje: texto, cuatrienio, usuario }).catch((error) => {
     console.warn('[directiva-cuatrienios] no se pudo avisar del cambio', error);
   });
@@ -295,6 +313,9 @@ export async function quitarIntegrante({ integrante, usuario }) {
       await recalcularPermanentes([integrante.idMiembros]);
     },
   });
+
+  // Las demás sesiones releen la memoria del cuatrienio (ver `avisos-de-lecturas`).
+  avisarAOtrasSesiones('cuatrienio:');
 
   notificarCambioDirectivaHistorica({
     mensaje: texto,

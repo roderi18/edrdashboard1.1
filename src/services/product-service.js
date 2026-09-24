@@ -11,19 +11,20 @@ import {
 import { COLECCIONES_COMERCIO } from 'src/utils/firestore-commerce';
 import { miniaturaDesdeArchivo } from 'src/utils/miniatura-buscador';
 import { uploadOptimizedImages } from 'src/utils/firebase-image-storage';
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import {
   aplicarResumenResenas,
   agruparResumenPorProducto,
 } from 'src/utils/resumen-resenas-producto.mjs';
-
-import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
-import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
-import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
 import {
   formatearCodigoProducto,
   prefijoDeCategoriaProducto,
   siguienteNumeroCodigoProducto,
 } from 'src/utils/producto-codigo.mjs';
+
+import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
+import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
 
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
 import { guardarProductoEnIndice } from './buscador-indice-service';
@@ -128,7 +129,7 @@ const getProductCreatedAtTime = (product) => {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 };
 
-export const listarProductosFirestore = async () => {
+const listarProductosFirestoreSinCache = async () => {
   if (!isFirebaseConfigured || !FIRESTORE) return [];
 
   // Las resenas se leen junto a los productos: el resumen guardado en cada
@@ -198,7 +199,7 @@ export const listarProductosCombinados = async (productosRemotos = []) => {
   });
 };
 
-export const obtenerProductoFirestorePorId = async (productId) => {
+const obtenerProductoFirestorePorIdSinCache = async (productId) => {
   if (!isFirebaseConfigured || !FIRESTORE || !productId) return null;
 
   const snapshot = await getDoc(doc(FIRESTORE, COLECCIONES_COMERCIO.productos, String(productId)));
@@ -220,7 +221,7 @@ export const resolverProductoCombinadoPorId = async ({ productId, productoRemoto
   return firestoreProduct || productoRemoto || null;
 };
 
-export const guardarProductoFirestore = async (data, { publish = true, user = {} } = {}) => {
+const guardarProductoFirestoreDirecto = async (data, { publish = true, user = {} } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
   const productId = data?.id || `producto-${Date.now()}`;
@@ -412,7 +413,7 @@ export const guardarProductoFirestore = async (data, { publish = true, user = {}
   };
 };
 
-export const guardarSnapshotProductoFirestore = async (product) => {
+const guardarSnapshotProductoFirestoreDirecto = async (product) => {
   if (!isFirebaseConfigured || !FIRESTORE || !product?.id) return null;
 
   const productRef = doc(FIRESTORE, COLECCIONES_COMERCIO.productos, String(product.id));
@@ -438,7 +439,7 @@ export const guardarSnapshotProductoFirestore = async (product) => {
   return mapearProductoFirestoreAUi({ id: product.id, ...productDoc });
 };
 
-export const actualizarPublicacionProductoFirestore = async (productId, publish, user = {}) => {
+const actualizarPublicacionProductoFirestoreDirecto = async (productId, publish, user = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !productId) return null;
 
   const productRef = doc(FIRESTORE, COLECCIONES_COMERCIO.productos, String(productId));
@@ -490,7 +491,7 @@ export const actualizarPublicacionProductoFirestore = async (productId, publish,
   return updatedProduct;
 };
 
-export const eliminarProductoFirestore = async (productId, user = {}) => {
+const eliminarProductoFirestoreDirecto = async (productId, user = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !productId) return;
 
   const productRef = doc(FIRESTORE, COLECCIONES_COMERCIO.productos, String(productId));
@@ -513,3 +514,17 @@ export const eliminarProductoFirestore = async (productId, user = {}) => {
     realizadoPor: user,
   });
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const listarProductosFirestore = conCache('tienda-productos:listarProductosFirestore', listarProductosFirestoreSinCache);
+export const obtenerProductoFirestorePorId = conCache('tienda-productos:obtenerProductoFirestorePorId', obtenerProductoFirestorePorIdSinCache);
+export const guardarProductoFirestore = conInvalidacion(guardarProductoFirestoreDirecto, [], ['tienda-productos:']);
+export const guardarSnapshotProductoFirestore = conInvalidacion(guardarSnapshotProductoFirestoreDirecto, [], ['tienda-productos:']);
+export const actualizarPublicacionProductoFirestore = conInvalidacion(actualizarPublicacionProductoFirestoreDirecto, [], ['tienda-productos:']);
+export const eliminarProductoFirestore = conInvalidacion(eliminarProductoFirestoreDirecto, [], ['tienda-productos:']);

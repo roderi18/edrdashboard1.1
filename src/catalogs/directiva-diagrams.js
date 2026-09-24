@@ -52,39 +52,51 @@ export const NATIONAL_LEADERSHIP_DATA = {
         // —sin "Vacante" y sin menu de asignar— en vez de como una casilla que
         // invita a poner a alguien dentro.
         ...createNode('consejo-nacional', '', [
-        createNode('director-nacional', 'Director Nacional', [
-          // De IZQUIERDA A DERECHA POR RANGO. El Sub-Director Nacional encabeza
-          // la fila: es el segundo de la direccion, por encima de los
-          // coordinadores funcionales, y quedaba en segundo lugar solo porque el
-          // `orden` del catalogo lo situa despues de Adiestramiento.
-          //
-          // Ese `orden` NO se toca: forma parte del id del documento de asignacion
-          // (nivel_entidad_posicion_division_orden), asi que cambiarlo dejaria
-          // huerfanas las asignaciones ya guardadas. El orden visual lo decide
-          // este arbol; el del catalogo solo identifica.
-          createNode('consejo-ejecutivo', 'Consejo Ejecutivo', [
-            createNode('sub-director-nacional', 'Sub-Director Nacional'),
-            createNode(
-              'coordinador-nacional-adiestramiento',
-              'Coordinador Nacional de Adiestramiento',
-              [
+          createNode('director-nacional', 'Director Nacional', [
+            // De IZQUIERDA A DERECHA POR RANGO. El Sub-Director Nacional encabeza
+            // la fila: es el segundo de la direccion, por encima de los
+            // coordinadores funcionales, y quedaba en segundo lugar solo porque el
+            // `orden` del catalogo lo situa despues de Adiestramiento.
+            //
+            // Ese `orden` NO se toca: forma parte del id del documento de asignacion
+            // (nivel_entidad_posicion_division_orden), asi que cambiarlo dejaria
+            // huerfanas las asignaciones ya guardadas. El orden visual lo decide
+            // este arbol; el del catalogo solo identifica.
+            // Tambien caja de estructura, como el Consejo Nacional de arriba: es el
+            // cuerpo del que cuelgan los coordinadores, no una casilla con "Vacante".
+            // El id no cambia: el catalogo de posiciones lo usa como padre.
+            {
+              ...createNode('consejo-ejecutivo', '', [
+                createNode('sub-director-nacional', 'Sub-Director Nacional'),
                 createNode(
-                  'oficiales-adiestramientos-especiales',
-                  'Oficiales de Adiestramientos Especiales'
+                  'coordinador-nacional-adiestramiento',
+                  'Coordinador Nacional de Adiestramiento',
+                  [
+                    createNode(
+                      'oficiales-adiestramientos-especiales',
+                      'Oficiales de Adiestramientos Especiales'
+                    ),
+                  ]
                 ),
-              ]
-            ),
-            createNode('coordinador-nacional-promocion', 'Coordinador Nacional de Promoción'),
-            createNode('coordinador-nacional-produccion', 'Coordinador Nacional de Producción'),
-            createNode('coordinador-nacional-programa', 'Coordinador Nacional de Programa'),
-            createNode('comites-especiales', 'Comités Especiales', [
-              crearCadenaOficialesEspeciales(20),
-            ]),
+                createNode('coordinador-nacional-promocion', 'Coordinador Nacional de Promoción'),
+                createNode('coordinador-nacional-produccion', 'Coordinador Nacional de Producción'),
+                createNode('coordinador-nacional-programa', 'Coordinador Nacional de Programa'),
+                // Justo antes de Oficiales Especiales, en la misma fila.
+                createNode('secretario-nacional', 'Secretario Nacional'),
+                createNode('comites-especiales', 'Comités Especiales', [
+                  crearCadenaOficialesEspeciales(20),
+                ]),
+              ]),
+              name: 'Consejo Ejecutivo',
+              avatarUrl: '/watermark.webp',
+              isDivision: true,
+            },
+            createNode('capellan-nacional', 'Capellán Nacional'),
           ]),
-          createNode('capellan-nacional', 'Capellán Nacional'),
         ]),
-        ]),
-        name: 'Consejo Ejecutivo',
+        // "Consejo Nacional": el cuerpo entero. "Consejo Ejecutivo" es la casilla de
+        // debajo, y con los dos nombres iguales parecian la misma cosa repetida.
+        name: 'Consejo Nacional',
         // La caja de estructura lleva el sello de la casa (watermark), no la "O"
         // de EXPLORA: es la marca de agua unica de las jerarquias y los niveles.
         avatarUrl: '/watermark.webp',
@@ -139,13 +151,13 @@ export const REGIONAL_LEADERSHIP_DATA = {
   // Directiva Regional, no un cargo que alguien ocupe.
   ...createNode('consejo-ejecutivo', '', [
     createNode('directiva-regional', 'Directiva Regional', [
-    createNode('sub-director-regional', 'Sub-Director Regional'),
-    createNode('coordinador-adiestramiento', 'Coordinador de Adiestramiento'),
-    createNode('coordinador-promocion', 'Coordinador de Promoción'),
-    createNode('coordinador-produccion', 'Coordinador de Producción'),
-    createNode('coordinador-programa', 'Coordinador de Programa'),
-    createNode('secretario-regional', 'Secretario Regional'),
-  ]),
+      createNode('sub-director-regional', 'Sub-Director Regional'),
+      createNode('coordinador-adiestramiento', 'Coordinador de Adiestramiento'),
+      createNode('coordinador-promocion', 'Coordinador de Promoción'),
+      createNode('coordinador-produccion', 'Coordinador de Producción'),
+      createNode('coordinador-programa', 'Coordinador de Programa'),
+      createNode('secretario-regional', 'Secretario Regional'),
+    ]),
     createNode('capellan-regional', 'Capellán Regional'),
   ]),
   name: 'Consejo Ejecutivo',

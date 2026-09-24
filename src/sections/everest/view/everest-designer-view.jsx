@@ -7,7 +7,6 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
-import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -19,6 +18,7 @@ import { ESTADOS_DEL_BLOQUE } from 'src/utils/everest/estado-del-bloque.mjs';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
+import { EditorCargando } from 'src/components/pantalla-cargando';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -205,9 +205,8 @@ export function EverestDesignerView() {
           )}
 
           {designer.cargando && !designer.estados.length ? (
-            <Stack alignItems="center" sx={{ py: 8 }}>
-              <CircularProgress />
-            </Stack>
+            // La forma del Designer (bloques y vista previa), no un spinner.
+            <EditorCargando />
           ) : (
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 4, lg: 3 }}>

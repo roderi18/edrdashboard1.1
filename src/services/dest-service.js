@@ -1,3 +1,4 @@
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import { getOwnRegionIdsForUser, getOwnSectionIdsForUser } from 'src/utils/member-access';
 import {
     saveItem,
@@ -162,87 +163,92 @@ export function getDests() {
     return getStorageCollection(DESTS_STORAGE_KEY) || [];
 }
 
-export async function getDestsApi({ includePhotos = true } = {}) {
-    try {
-        const res = await fetch('/api/dest/');
-
-        const text = await res.text();
-
-        let parsed;
-        try {
-            parsed = JSON.parse(text);
-        } catch {
-            console.error('❌ DEST NO JSON:', text);
-            throw new Error('La lista de destacamentos no vino en el formato esperado');
-        }
-
-        // UN ERROR DEL SERVIDOR NO ES UNA LISTA VACIA.
-        //
-        // Sin esto, un 500 o el corte de los 9 segundos devolvia el cuerpo del
-        // error —un objeto, no un arreglo—, se mapeaba a cero destacamentos y
-        // ESO se guardaba encima del espejo local. El desplegable de Asistencia
-        // quedaba en blanco ("Selecciona un destacamento") y el cargo del
-        // usuario se quedaba sin numero, aunque la lista completa siguiera
-        // guardada en el telefono un instante antes.
-        if (!res.ok) {
-            const detalle = parsed?.message || parsed?.error || '';
-
-            throw new Error(
-                detalle
-                    ? `Error al obtener destacamentos: ${detalle}`
-                    : `Error al obtener destacamentos (${res.status})`
-            );
-        }
-
-        const data = parsed?.data || parsed?.Data || parsed;
-
-        if (!Array.isArray(data)) {
-            throw new Error('La lista de destacamentos no vino en el formato esperado');
-        }
-
-        const mappedDests = data.map(mapApiDestToUI);
-        const photosByDestId = includePhotos
-            ? await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'destacamento' })
-            : {};
-        const localDests = getDests();
-        const localDestsById = new Map(
-            localDests
-                .filter((dest) => dest?.id)
-                .map((dest) => [String(dest.id), dest])
-        );
-
-        const resolvedDests = mappedDests.map((dest) => {
-            const localDest = localDestsById.get(String(dest.id));
-
-            return {
-                ...dest,
-                coordinatorId: localDest?.coordinatorId ?? dest.coordinatorId ?? null,
-                // Para las listas, donde la cara se pinta a 40 px: la foto entera
-                // se bajaba en cada fila de la lista de miembros.
-                avatarMiniaturaUrl:
-                    photosByDestId[String(dest.id)]?.urlFotoMiniatura ||
-                    photosByDestId[String(dest.id)]?.urlFoto ||
-                    localDest?.avatarMiniaturaUrl ||
-                    null,
-                avatarUrl:
-                    photosByDestId[String(dest.id)]?.urlFoto ||
-                    localDest?.avatarUrl ||
-                    dest.avatarUrl ||
-                    null,
-            };
-        });
-
-        setStorageCollection(DESTS_STORAGE_KEY, resolvedDests);
-
-        return resolvedDests;
-    } catch (error) {
+// Lo leído se reparte desde la caché de lecturas (ver `cache-de-lecturas.mjs`).
+export function getDestsApi({ includePhotos = true } = {}) {
+    return leerConCache(`destacamentos:${includePhotos}`, () =>
+        leerDestacamentos({ includePhotos })
+    ).catch((error) => {
         console.error('❌ ERROR DEST API:', error);
 
         // Lo ultimo que se descargo, como hacen miembros y seccionales. En el
         // movil la red se cae a mitad de camino a menudo, y quedarse sin la
         // lista deja la pantalla inservible aunque este entera en el telefono.
         return getDests();
+    });
+}
+
+async function leerDestacamentos({ includePhotos }) {
+    const res = await fetch('/api/dest/');
+
+    const text = await res.text();
+
+    let parsed;
+    try {
+        parsed = JSON.parse(text);
+    } catch {
+        console.error('❌ DEST NO JSON:', text);
+        throw new Error('La lista de destacamentos no vino en el formato esperado');
     }
+
+    // UN ERROR DEL SERVIDOR NO ES UNA LISTA VACIA.
+    //
+    // Sin esto, un 500 o el corte de los 9 segundos devolvia el cuerpo del
+    // error —un objeto, no un arreglo—, se mapeaba a cero destacamentos y
+    // ESO se guardaba encima del espejo local. El desplegable de Asistencia
+    // quedaba en blanco ("Selecciona un destacamento") y el cargo del
+    // usuario se quedaba sin numero, aunque la lista completa siguiera
+    // guardada en el telefono un instante antes.
+    if (!res.ok) {
+        const detalle = parsed?.message || parsed?.error || '';
+
+        throw new Error(
+            detalle
+                ? `Error al obtener destacamentos: ${detalle}`
+                : `Error al obtener destacamentos (${res.status})`
+        );
+    }
+
+    const data = parsed?.data || parsed?.Data || parsed;
+
+    if (!Array.isArray(data)) {
+        throw new Error('La lista de destacamentos no vino en el formato esperado');
+    }
+
+    const mappedDests = data.map(mapApiDestToUI);
+    const photosByDestId = includePhotos
+        ? await obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'destacamento' })
+        : {};
+    const localDests = getDests();
+    const localDestsById = new Map(
+        localDests
+            .filter((dest) => dest?.id)
+            .map((dest) => [String(dest.id), dest])
+    );
+
+    const resolvedDests = mappedDests.map((dest) => {
+        const localDest = localDestsById.get(String(dest.id));
+
+        return {
+            ...dest,
+            coordinatorId: localDest?.coordinatorId ?? dest.coordinatorId ?? null,
+            // Para las listas, donde la cara se pinta a 40 px: la foto entera
+            // se bajaba en cada fila de la lista de miembros.
+            avatarMiniaturaUrl:
+                photosByDestId[String(dest.id)]?.urlFotoMiniatura ||
+                photosByDestId[String(dest.id)]?.urlFoto ||
+                localDest?.avatarMiniaturaUrl ||
+                null,
+            avatarUrl:
+                photosByDestId[String(dest.id)]?.urlFoto ||
+                localDest?.avatarUrl ||
+                dest.avatarUrl ||
+                null,
+        };
+    });
+
+    setStorageCollection(DESTS_STORAGE_KEY, resolvedDests);
+
+    return resolvedDests;
 }
 
 export function getDestById(id) {
@@ -383,6 +389,9 @@ export const createDestApi = async (data, { usuario } = {}) => {
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
+    // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+    invalidarLecturas();
+    avisarAOtrasSesiones('destacamentos:');
 
     const text = await res.text();
 
@@ -433,6 +442,9 @@ const escribirDestacamento = async (payload) => {
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
+    // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+    invalidarLecturas();
+    avisarAOtrasSesiones('destacamentos:');
 
     const texto = await res.text();
 
@@ -507,6 +519,9 @@ export const deleteDestApi = async (id, { usuario, antes = null } = {}) => {
         // Global. Sin esta cabecera, el propio administrador se llevaria un 401.
         headers: await authHeaders(),
     });
+    // Lo escrito deja vieja cualquier lectura guardada (regiones, listas, fotos...).
+    invalidarLecturas();
+    avisarAOtrasSesiones('destacamentos:');
     const text = await res.text();
 
     if (!res.ok) {

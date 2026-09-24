@@ -13,14 +13,13 @@ import { usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
-import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { setModuloActivo, moduloDesdeRuta } from 'src/utils/modulo-activo';
 import { canManageStoreProducts, filterDashboardNavDataByUser } from 'src/utils/member-access';
 
 import { _notifications } from 'src/_mock';
 import { useGetLabels } from 'src/actions/mail';
-import { getMembers } from 'src/services/member-service';
 import { useCargarSonidosDeAviso } from 'src/actions/sonidos';
+import { iniciarAvisosDeLecturas } from 'src/lib/avisos-de-lecturas';
 import { useGetDashboardChatSummary } from 'src/actions/chat-summary';
 import {
   marcarNotificacionComoLeida,
@@ -33,6 +32,11 @@ import {
 import { Logo } from 'src/components/logo';
 import { Label } from 'src/components/label';
 import { useSettingsContext } from 'src/components/settings';
+import {
+  manejadoresDeMedios,
+  useMediosYaCargados,
+  esqueletoDeMediosSx,
+} from 'src/components/esqueleto-de-medios';
 
 import { buzonesQueAtiende } from 'src/sections/chat/utils/buzones-del-chat';
 
@@ -102,7 +106,9 @@ const agregarIndicadoresMensajes = (
   }));
 
 const LOCAL_REPORT_NOTIFICATIONS_KEY = 'dashboard_post_report_notifications';
-const MOBILE_QUICK_NAV_COLLAPSE_ROUTES = [paths.dashboard.chat];
+// En el chat del celular la barra de Inicio, Chats… no sale: tapaba la caja de
+// escribir y obligaba a dejar un hueco abajo.
+const MOBILE_QUICK_NAV_HIDDEN_ROUTES = [paths.dashboard.chat];
 
 const obtenerNotificacionesReportesLocales = () => {
   if (typeof window === 'undefined') return [];
@@ -130,7 +136,6 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const isMailRoute = pathname?.startsWith(paths.dashboard.mail);
 
   const { user } = useAuthContext();
-  const [contactosDelDestacamento, setContactosDelDestacamento] = useState([]);
   const [cargaSecundariaLista, setCargaSecundariaLista] = useState(false);
   // La cuenta administrativa de siempre (admin001) llega con `role: 'admin'`;
   // una sesion que es administrativa por ocupar un cargo, no.
@@ -172,79 +177,23 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     };
   }, []);
 
-  useEffect(() => {
-    if (!cargaSecundariaLista) return undefined;
-
-    let vigente = true;
-
-    const cargarContactos = async () => {
-      try {
-        const miembros = await getMembers();
-        if (!vigente) return;
-
-        const idMiembroActual = String(user?.idMiembros ?? user?.memberId ?? user?.id ?? '');
-        const miembroActual = miembros.find((miembro) =>
-          [miembro?.id, miembro?.idMiembros, miembro?.memberId, miembro?.codigoMiembro].some(
-            (id) => String(id ?? '') === idMiembroActual
-          )
-        );
-        const idDestacamento = String(
-          miembroActual?.destId ??
-            miembroActual?.idDestacamento ??
-            miembroActual?.destacamentoId ??
-            user?.destId ??
-            user?.idDestacamento ??
-            user?.alcance?.destacamentos?.[0] ??
-            ''
-        );
-
-        if (!idDestacamento) {
-          setContactosDelDestacamento([]);
-          return;
-        }
-
-        setContactosDelDestacamento(
-          miembros
-            .filter((miembro) => {
-              const mismoDestacamento = String(
-                miembro?.destId ?? miembro?.idDestacamento ?? miembro?.destacamentoId ?? ''
-              ) === idDestacamento;
-              const esLaPersonaActual = [
-                miembro?.id,
-                miembro?.idMiembros,
-                miembro?.memberId,
-                miembro?.codigoMiembro,
-              ].some((id) => String(id ?? '') === idMiembroActual);
-
-              return mismoDestacamento && !esLaPersonaActual;
-            })
-            .map((miembro) => ({
-              ...miembro,
-              id: miembro.id ?? miembro.idMiembros ?? miembro.memberId,
-              idMiembros: miembro.idMiembros ?? miembro.id ?? miembro.memberId,
-              name:
-                getMemberFullName(miembro) ||
-                miembro.name ||
-                [miembro.nombres, miembro.apellidos].filter(Boolean).join(' ') ||
-                'Miembro',
-              avatarUrl: miembro.avatarUrl || miembro.photoURL || miembro.urlFoto || '',
-            }))
-        );
-      } catch (error) {
-        console.error('Error cargando contactos del destacamento:', error);
-        if (vigente) setContactosDelDestacamento([]);
-      }
-    };
-
-    cargarContactos();
-    return () => {
-      vigente = false;
-    };
-  }, [cargaSecundariaLista, user]);
+  // Los contactos del destacamento ya no se calculan aquí al arrancar: pedían el
+  // padrón entero en segundo plano en cada entrada al panel, aunque nadie abriera
+  // el botón. Ahora los pide `ContactsPopover` al abrirse (o al pasar por encima).
 
   // Los sonidos de aviso, listos antes del primer mensaje. Se leen una vez por
   // sesion: los eligio el Administrador Global y valen para toda la aplicacion.
   useCargarSonidosDeAviso(cargaSecundariaLista);
+
+  // Avisos en vivo entre sesiones (ver `avisos-de-lecturas`): lo que otro cambia
+  // se relee solo en las pantallas abiertas. Arranca con la carga secundaria para
+  // no competir con la primera pintura.
+  const uidDeLaSesion = user?.uid;
+  useEffect(() => {
+    if (!cargaSecundariaLista || !uidDeLaSesion) return undefined;
+
+    return iniciarAvisosDeLecturas();
+  }, [cargaSecundariaLista, uidDeLaSesion]);
 
   // Un solo resumen para la persona y todos sus buzones. Fuera de /chat no se
   // abren listeners de conversaciones ni se publica presencia: el contador se
@@ -616,7 +565,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           />
 
           {/** @slot Contacts popover */}
-          <ContactsPopover data={contactosDelDestacamento} />
+          <ContactsPopover usuario={user} />
 
           {/** @slot Settings button */}
           <SettingsButton />
@@ -699,7 +648,23 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
   const renderFooter = () => null;
 
-  const renderMain = () => <MainSection {...slotProps?.main}>{children}</MainSection>;
+  // Las fotos que ya llegaron cargadas (caché del navegador) no esperan evento.
+  useMediosYaCargados('main');
+
+  // Toda foto, avatar o video del panel lleva la onda del esqueleto hasta cargar
+  // (ver `esqueleto-de-medios`): los eventos de carga se capturan aquí.
+  const renderMain = () => (
+    <MainSection
+      {...slotProps?.main}
+      {...manejadoresDeMedios}
+      sx={[
+        esqueletoDeMediosSx,
+        ...(Array.isArray(slotProps?.main?.sx) ? slotProps.main.sx : [slotProps?.main?.sx]),
+      ]}
+    >
+      {children}
+    </MainSection>
+  );
 
   return (
     <LayoutSection
@@ -738,7 +703,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       <MobileQuickNav
         unreadChats={chatsSinLeer}
         layoutQuery={layoutQuery}
-        collapseOnRoutes={MOBILE_QUICK_NAV_COLLAPSE_ROUTES}
+        hiddenOnRoutes={MOBILE_QUICK_NAV_HIDDEN_ROUTES}
       />
       <ProbarComoUsuarioDialog
         open={probarComoUsuario.value}

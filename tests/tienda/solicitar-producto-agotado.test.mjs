@@ -101,8 +101,8 @@ test('sin existencias el boton dice "Solicitar producto" y no se queda gris', ()
 
 test('una solicitud no descuenta inventario, no genera recibo y no vacia el carrito', () => {
   const servicio = leer('src/services/order-service.js');
-  const inicio = servicio.indexOf('export const crearSolicitudProductoFirestore');
-  const fin = servicio.indexOf('export const listarOrdenesFirestore');
+  const inicio = servicio.indexOf('const crearSolicitudProductoFirestoreDirecto');
+  const fin = servicio.indexOf('const listarOrdenesFirestoreSinCache');
   const crearSolicitud = servicio.slice(inicio, fin);
 
   assert.ok(inicio > 0, 'falta crearSolicitudProductoFirestore');

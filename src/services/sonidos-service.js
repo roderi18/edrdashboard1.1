@@ -1,5 +1,6 @@
 import { getDoc } from 'firebase/firestore';
 
+import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import {
   AVISOS,
   SIN_SONIDO,
@@ -42,7 +43,7 @@ export const depurarEleccion = (guardado) => {
   );
 };
 
-export async function obtenerSonidosDeAviso() {
+async function obtenerSonidosDeAvisoSinCache() {
   if (!isFirebaseConfigured || !FIRESTORE) return eleccionPorDefecto();
 
   const guardado = await getDoc(referenciaDeLosSonidos()).catch(() => null);
@@ -53,7 +54,7 @@ export async function obtenerSonidosDeAviso() {
 const nombreDelSonido = (clave) =>
   clave === SIN_SONIDO ? 'Sin sonido' : (sonidoPorClave(clave)?.nombre ?? clave);
 
-export async function guardarSonidosDeAviso(eleccion, usuario = {}) {
+async function guardarSonidosDeAvisoDirecto(eleccion, usuario = {}) {
   if (!isFirebaseConfigured || !FIRESTORE) {
     throw new Error('Firebase no está configurado.');
   }
@@ -112,3 +113,13 @@ export const guardarCopiaLocal = (eleccion) => {
     // Ventana privada: se pierde al recargar y no pasa nada, Firestore manda.
   }
 };
+
+// ----------------------------------------------------------------------
+// CACHÉ DE LECTURAS (`src/utils/cache-de-lecturas.mjs`): lo leído se reparte
+// desde la memoria de la pestaña y cada escritura lo invalida. Antes cada
+// visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
+// al cerrar la aplicación, también lo sensible (salud, tutores).
+// ----------------------------------------------------------------------
+
+export const obtenerSonidosDeAviso = conCache('sonidos:obtenerSonidosDeAviso', obtenerSonidosDeAvisoSinCache);
+export const guardarSonidosDeAviso = conInvalidacion(guardarSonidosDeAvisoDirecto, ['sonidos:']);
