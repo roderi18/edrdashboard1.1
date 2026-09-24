@@ -76,7 +76,14 @@ export function MobileQuickNav({
     if (collapseOnThisRoute) return undefined;
 
     const handleScroll = () => {
-      const currentScrollY = Math.max(window.scrollY, 0);
+      // AL LLEGAR AL FINAL, LA BARRA SE QUEDA CONTRAIDA.
+      //
+      // En el iPhone el rebote del final pasa del maximo y vuelve: esa vuelta
+      // parecia un desplazamiento hacia arriba y la abria sola. Se recorta la
+      // posicion al maximo real, asi el rebote no cuenta y solo la abre un
+      // arrastre de verdad.
+      const maxScrollY = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
+      const currentScrollY = Math.min(Math.max(window.scrollY, 0), maxScrollY);
       const delta = currentScrollY - lastScrollY.current;
 
       if (currentScrollY <= 24) {
@@ -89,7 +96,9 @@ export function MobileQuickNav({
         if (scrollDistance.current > 24) {
           scrollDistance.current = 0;
           setExpanded(false);
-        } else if (scrollDistance.current < -16) {
+        } else if (scrollDistance.current < -48) {
+          // 48 px y no 16: al soltar el dedo al final, el ajuste de la barra de
+          // Safari movia la pagina unos pixeles hacia arriba y bastaba para abrirla.
           scrollDistance.current = 0;
           setExpanded(true);
         }

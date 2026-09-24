@@ -104,6 +104,10 @@ const HeaderRoot = styled(AppBar, {
 
   return {
     zIndex: 'var(--layout-header-zIndex)',
+    // La cabecera se estira por debajo de la barra de estado (viewportFit
+    // 'cover' en src/app/layout.jsx): su fondo la cubre y los iconos quedan
+    // debajo de la hora. En pantallas sin muesca vale 0 y no cambia nada.
+    paddingTop: 'env(safe-area-inset-top)',
     ...(!disableOffset && { '&::before': bgStyles }),
     ...(!disableElevation && { '&::after': shadowStyles }),
   };

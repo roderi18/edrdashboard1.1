@@ -8,6 +8,13 @@ const MuiDrawer = {
     paper: {
       variants: [
         {
+          // Con la pagina detras de la barra de estado, el menu y los paneles
+          // laterales empezaban debajo de la hora y su primera fila no se tocaba.
+          props: (props) =>
+            props.variant === 'temporary' && ['left', 'right'].includes(props.anchor ?? 'left'),
+          style: { paddingTop: 'env(safe-area-inset-top)' },
+        },
+        {
           props: (props) => props.variant === 'temporary' && props.anchor === 'left',
           style: ({ theme }) => ({
             ...theme.mixins.paperStyles(theme),

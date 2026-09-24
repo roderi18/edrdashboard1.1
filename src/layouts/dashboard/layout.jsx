@@ -51,6 +51,7 @@ import { MenuButton } from '../components/menu-button';
 import { AccountDrawer } from '../components/account-drawer';
 import { SettingsButton } from '../components/settings-button';
 import { ContactsPopover } from '../components/contacts-popover';
+import { useBarraDeEstadoDeLaCabecera } from './use-barra-de-estado';
 import { WorkspacesPopover } from '../components/workspaces-popover';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 import { NotificationsDrawer } from '../components/notifications-drawer';
@@ -305,6 +306,8 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     settings.state.navLayout,
     navEnBlanco
   );
+
+  useBarraDeEstadoDeLaCabecera(`${pathname}|${JSON.stringify(settings.state)}`);
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
   const probarComoUsuario = useBoolean();

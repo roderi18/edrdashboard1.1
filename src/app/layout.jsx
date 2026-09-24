@@ -35,6 +35,13 @@ const AuthProvider =
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
+  // LA APP SE PINTA DETRAS DE LA BARRA DE ESTADO (hora, bateria, wifi).
+  //
+  // Sin `cover` el telefono reservaba esa franja y la rellenaba de un color
+  // liso encima de la cabecera. Con `cover` la pagina llega hasta arriba y cada
+  // pieza que toca el borde superior se aparta con env(safe-area-inset-top):
+  // la cabecera, los paneles laterales y los dialogos a pantalla completa.
+  viewportFit: 'cover',
   // LA BARRA DE ESTADO SE TINE CON EL TEMA QUE SE ESTA VIENDO.
   //
   // Era un solo color, asi que la app se ponia oscura y arriba quedaba la
@@ -66,7 +73,9 @@ export const metadata = {
   ],
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    // Transparente en el iPhone con la app instalada: con 'default' iOS ponia
+    // una franja blanca opaca encima de la cabecera.
+    statusBarStyle: 'black-translucent',
     title: CONFIG.appName,
   },
 };
