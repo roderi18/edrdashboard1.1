@@ -223,16 +223,32 @@ export function useChatRealtimeSync({
         syncRealtimeMessages(conversationId, changes, { allowInsert }).catch((error) => {
           console.error('[chat] no se pudo aplicar el cambio de mensaje en tiempo real', error);
         });
+        // LA PRIMERA FOTO NO SE REVALIDA. Es lo que ya hay: la conversacion se
+        // acaba de pedir al abrirla. Antes cada una de las tres escuchas (mensajes,
+        // recibos, conversacion) volvia a pedirla al suscribirse: tres peticiones
+        // de 0,6-0,8 s por abrir un chat.
+        if (allowInsert) revalidateConversation();
         messagesInitializedRef.current = true;
-        revalidateConversation();
       },
       (error) => {
         console.error('[chat] error en el listener de mensajes', error);
       }
     );
-    const unsubscribeReceipts = onSnapshot(receiptsQuery, revalidateConversation, (error) => {
-      console.error('[chat] error en el listener de recibos', error);
-    });
+    let primeraFotoDeRecibos = true;
+    const unsubscribeReceipts = onSnapshot(
+      receiptsQuery,
+      () => {
+        if (primeraFotoDeRecibos) {
+          primeraFotoDeRecibos = false;
+          return;
+        }
+
+        revalidateConversation();
+      },
+      (error) => {
+        console.error('[chat] error en el listener de recibos', error);
+      }
+    );
 
     const unsubscribeConversation = onSnapshot(
       conversationRef,
@@ -251,8 +267,10 @@ export function useChatRealtimeSync({
         ]);
 
         if (revision !== conversationRevisionRef.current) {
+          const esPrimeraFoto = conversationRevisionRef.current === '';
+
           conversationRevisionRef.current = revision;
-          revalidateConversation();
+          if (!esPrimeraFoto) revalidateConversation();
         }
 
         const publishTypingState = () => {

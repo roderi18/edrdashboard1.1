@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import {
   doc,
@@ -1213,7 +1214,7 @@ async function getConversations(
   };
 }
 
-async function getUnreadSummary(viewerIdMiembros, chatStore) {
+async function getUnreadSummary(viewerIdMiembros, chatStore, { fases = null } = {}) {
   const viewerId = toNumberOrNull(viewerIdMiembros);
 
   if (!viewerId) {
@@ -1224,6 +1225,7 @@ async function getUnreadSummary(viewerIdMiembros, chatStore) {
     };
   }
 
+  const inicioConsulta = performance.now();
   const conversations = await chatStore.runQuery({
     collectionId: COLECCION_CONVERSACIONES,
     filters: [
@@ -1231,6 +1233,10 @@ async function getUnreadSummary(viewerIdMiembros, chatStore) {
       { field: 'participantesIds', op: 'array-contains', value: viewerId },
     ],
   });
+  if (fases) {
+    fases[`consulta:${viewerId}`] = Math.round(performance.now() - inicioConsulta);
+    fases[`conversaciones:${viewerId}`] = conversations.length;
+  }
   const unreadByConversation = {};
 
   conversations.forEach((conversation) => {
@@ -1242,19 +1248,25 @@ async function getUnreadSummary(viewerIdMiembros, chatStore) {
   });
 
   // De paso, lo que lleva demasiado tiempo sin contestar en este buzon. Es un
-  // extra: si falla, el contador se devuelve igual.
+  // extra y va DESPUES de responder (`after`): antes se esperaba aqui dentro y
+  // costaba 2,5-2,8 s por buzon —perfiles, avatar, comprobar y escribir avisos,
+  // push—, una vez por minuto. Esa peticion tardaba 5 s, y con la red lenta
+  // llegaba a 11 s y acababa en 500: el contador de no leidos parecia colgado.
+  // Ahora el contador sale en lo que tarda la consulta (100-300 ms).
   const buzonDelResumen = buzonPorIdMiembros(viewerId);
 
   if (buzonDelResumen) {
-    await avisarDeLoQueNadieContesta(buzonDelResumen, conversations).catch((error) => {
-      console.warn(
-        JSON.stringify({
-          event: 'chat_notification_error',
-          stage: 'buzon_sin_responder',
-          ...toSafeChatErrorMetric(error),
-        })
-      );
-    });
+    after(() =>
+      avisarDeLoQueNadieContesta(buzonDelResumen, conversations).catch((error) => {
+        console.warn(
+          JSON.stringify({
+            event: 'chat_notification_error',
+            stage: 'buzon_sin_responder',
+            ...toSafeChatErrorMetric(error),
+          })
+        );
+      })
+    );
   }
 
   return {
@@ -2396,6 +2408,20 @@ export async function GET(req) {
       ];
 
       if (requestedIdentityIds.length) {
+        // DIAGNOSTICO: cuanto se va en cada paso (autenticar el buzon, leer sus
+        // conversaciones, revisar lo que nadie contesta). Solo se escribe si la
+        // peticion pasa de un segundo.
+        const fases = {};
+        const inicioFases = performance.now();
+        const medir = async (nombre, tarea) => {
+          const inicio = performance.now();
+          try {
+            return await tarea();
+          } finally {
+            fases[nombre] = Math.round(performance.now() - inicio);
+          }
+        };
+
         const summaries = await Promise.all(
           requestedIdentityIds.map(async (requestedId) => {
             let summaryActor = chatActor;
@@ -2408,13 +2434,21 @@ export async function GET(req) {
               // una consulta válida por aparecer en el parámetro.
               if (!requestedMailbox) return null;
 
-              summaryActor = await autenticarActorDelChat(req, requestedId);
+              summaryActor = await medir(`autenticar:${requestedId}`, () =>
+                autenticarActorDelChat(req, requestedId)
+              );
               assertChatPermission(summaryActor, CHAT_PERMISSIONS.VIEW);
             }
 
-            return getUnreadSummary(summaryActor.idMiembros, createChatStore(summaryActor));
+            return medir(`resumen:${requestedId}`, () =>
+              getUnreadSummary(summaryActor.idMiembros, createChatStore(summaryActor), { fases })
+            );
           })
         );
+
+        if (performance.now() - inicioFases > 1000) {
+          console.info(JSON.stringify({ event: 'chat_unread_fases', fases }));
+        }
         const validSummaries = summaries.filter(Boolean);
         const unreadByConversation = Object.assign(
           {},
@@ -2451,18 +2485,22 @@ export async function GET(req) {
       }
 
       assertConversationParticipant(conversation, chatActor);
-      await updateConversationReceipt({
-        conversationId,
-        conversation,
-        chatActor,
-        chatStore,
-      });
+
+      // EN PARALELO. El recibo de "entregado" y los mensajes no dependen el uno
+      // del otro, y se hacian en fila: abrir una conversacion sumaba la lectura
+      // y la escritura del recibo antes de empezar a preparar los mensajes.
+      const [, conversationUi] = await Promise.all([
+        updateConversationReceipt({
+          conversationId,
+          conversation,
+          chatActor,
+          chatStore,
+        }),
+        conversationToUi(conversation, null, viewerIdMiembros, chatStore),
+      ]);
 
       return Response.json({
-        conversation: await conQuienContesto(
-          await conversationToUi(conversation, null, viewerIdMiembros, chatStore),
-          chatActor
-        ),
+        conversation: await conQuienContesto(conversationUi, chatActor),
       });
     }
 
@@ -2504,6 +2542,17 @@ export async function GET(req) {
     return Response.json({ message: 'Endpoint de chat inválido.' }, { status: 400 });
   } catch (error) {
     operationError = error;
+    // DIAGNOSTICO: el registro `chat_request` solo guarda un codigo generico
+    // (CHAT_INTERNAL_ERROR) y asi no habia forma de saber que fallo. El detalle
+    // va solo al log del servidor, nunca en la respuesta.
+    console.warn(
+      JSON.stringify({
+        event: 'chat_error_detalle',
+        requestId: operation.requestId,
+        mensaje: String(error?.message ?? error).slice(0, 300),
+        codigo: error?.code ?? null,
+      })
+    );
     return buildChatErrorResponse(error, operation.requestId, 'No se pudo procesar el chat.');
   } finally {
     operation.finish({ error: operationError });
