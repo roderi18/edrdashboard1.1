@@ -620,6 +620,14 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       backgroundImage: 'var(--layout-header-bg-image)',
       color: 'var(--layout-header-text)',
       '&::before': { display: 'none' },
+      // AL BAJAR, LA FRANJA DE LA HORA SE VUELVE TRANSPARENTE (iPhone). La
+      // cabecera se estira bajo la barra de estado con `padding-top:
+      // env(safe-area-inset-top)` y su navy cubria la hora, el wifi y la isla.
+      // Con `background-clip: content-box` el fondo se queda en la cabecera y el
+      // contenido se ve pasar por detras de la barra de estado, como en las
+      // apps nativas. Arriba del todo sigue navy. Sin muesca (safe-area 0) no
+      // cambia nada; en Android la franja la pinta el sistema (`theme-color`).
+      '&[data-desplazado="si"]': { backgroundClip: 'content-box' },
       // Los iconos y su texto. `color: inherit` no basta: los `IconButton` del
       // tema declaran el suyo.
       '& .MuiIconButton-root': { color: 'var(--layout-header-text-secondary)' },

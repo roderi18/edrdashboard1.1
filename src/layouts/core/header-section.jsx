@@ -31,6 +31,9 @@ export function HeaderSection({
       disableOffset={disableOffset}
       disableElevation={disableElevation}
       className={mergeClasses([layoutClasses.header, className])}
+      // Para que cada layout pueda cambiar la cabecera al bajar (p. ej. dejar
+      // transparente la franja de la barra de estado del iPhone).
+      data-desplazado={isOffset ? 'si' : undefined}
       sx={[
         (theme) => ({
           ...(isOffset && {
