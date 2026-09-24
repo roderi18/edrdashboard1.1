@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { merge } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useEffect } from 'react';
@@ -39,6 +40,7 @@ import {
 } from 'src/components/esqueleto-de-medios';
 
 import { buzonesQueAtiende } from 'src/sections/chat/utils/buzones-del-chat';
+import { useNoLeidosEnVivo } from 'src/sections/chat/hooks/use-no-leidos-en-vivo';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { puedeUsarSelectorDeRol } from 'src/auth/permissions/admin-role-switch-policy';
@@ -62,7 +64,10 @@ import { NotificationsDrawer } from '../components/notifications-drawer';
 import { RoleCombinationPopover } from '../components/role-combination-popover';
 import { SesionComoUsuarioBanner } from '../components/sesion-como-usuario-banner';
 import { ProbarComoUsuarioDialog } from '../components/probar-como-usuario-dialog';
-import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
+import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
+
+// La lista de chats y los contactos, precargados en segundo plano (ver el archivo).
+const PrecargaDelChat = dynamic(() => import('src/sections/chat/precarga-del-chat'), { ssr: false });
 import {
   navDataDesarrollo,
   conEverestDesigner,
@@ -195,19 +200,33 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     return iniciarAvisosDeLecturas();
   }, [cargaSecundariaLista, uidDeLaSesion]);
 
-  // Un solo resumen para la persona y todos sus buzones. Fuera de /chat no se
-  // abren listeners de conversaciones ni se publica presencia: el contador se
-  // repasa cada minuto y el tiempo real completo vive en la pantalla de chat.
+  // Un solo contador para la persona y todos sus buzones. Fuera de /chat solo
+  // se escucha lo justo para contarlo (una consulta por identidad, sin mensajes
+  // ni presencia); el tiempo real completo sigue viviendo en la pantalla de chat.
   const buzonesQueAtiendo = useMemo(() => buzonesQueAtiende(user), [user]);
   const mailboxIds = useMemo(
     () => buzonesQueAtiendo.map((buzon) => buzon.idMiembros),
     [buzonesQueAtiendo]
   );
-  const { unreadByConversation } = useGetDashboardChatSummary({
+  // EL NÚMERO SALE DE LA ESCUCHA EN VIVO (`useNoLeidosEnVivo`): se mueve al
+  // instante y sin preguntar al servidor. El resumen del servidor se queda:
+  //   - hasta que la escucha está lista, o si falla (reglas, sin red);
+  //   - y siempre para quien atiende buzones, porque esa consulta de cada minuto
+  //     es lo que dispara los avisos de "lleva una hora sin respuesta" (no hay
+  //     tareas programadas). Quien no atiende buzones deja de consultarlo.
+  const idsDelContador = useMemo(
+    () => [chatMemberId, ...mailboxIds].filter(Boolean),
+    [chatMemberId, mailboxIds]
+  );
+  const noLeidosEnVivo = useNoLeidosEnVivo(idsDelContador, chatSummaryEnabled);
+  const { unreadByConversation: noLeidosDelServidor } = useGetDashboardChatSummary({
     memberId: chatMemberId,
     mailboxIds,
-    enabled: chatSummaryEnabled,
+    enabled: chatSummaryEnabled && (!noLeidosEnVivo.listo || mailboxIds.length > 0),
   });
+  const unreadByConversation = noLeidosEnVivo.listo
+    ? noLeidosEnVivo.unreadByConversation
+    : noLeidosDelServidor;
 
   const activeChatId = isChatRoute ? searchParams.get('id') : null;
   const chatsSinLeer = Object.keys(unreadByConversation).filter(
@@ -663,6 +682,8 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       ]}
     >
       {children}
+
+      {chatSummaryEnabled && !isChatRoute && <PrecargaDelChat idMiembros={chatMemberId} />}
     </MainSection>
   );
 

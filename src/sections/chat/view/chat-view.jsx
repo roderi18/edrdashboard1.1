@@ -42,7 +42,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { ChatNav } from '../chat-nav';
 import { ChatLayout } from '../layout';
 import { ChatRoom } from '../chat-room';
-import { rutaDelChat } from '../utils/ruta-del-chat';
+import { irAlChat } from '../utils/ruta-del-chat';
 import { ChatMessageList } from '../chat-message-list';
 import { ChatMessageInput } from '../chat-message-input';
 import { ChatHeaderDetails } from '../chat-header-details';
@@ -188,7 +188,7 @@ export function ChatView() {
       // quitarlo —si no, seguiria viendose la conversacion anterior—, pero si no
       // lo hay, navegar a la misma direccion volvia a montar la pantalla entera
       // y las caras de la lista parpadeaban por nada.
-      if (selectedConversationId) router.replace(rutaDelChat({ bandeja }));
+      if (selectedConversationId) irAlChat(router, { bandeja }, { reemplazar: true });
     },
     [bandeja, router, selectedConversationId]
   );
@@ -197,7 +197,7 @@ export function ChatView() {
     (clave) => {
       setRecipients([]);
       startTransition(() => {
-        router.push(rutaDelChat({ bandeja: clave }));
+        irAlChat(router, { bandeja: clave });
       });
     },
     [router]
@@ -229,7 +229,7 @@ export function ChatView() {
   useEffect(() => {
     if (!selectedConversationId && !sharedMessageParam && !buzonParaEscribir) {
       startTransition(() => {
-        router.push(rutaDelChat({ bandeja }));
+        irAlChat(router, { bandeja });
       });
     }
   }, [
@@ -253,14 +253,14 @@ export function ChatView() {
       : '';
 
     if (idExistente && conversations.byId[idExistente]) {
-      router.replace(rutaDelChat({ id: idExistente }));
+      irAlChat(router, { id: idExistente }, { reemplazar: true });
       return;
     }
 
     setRecipients([
       contactoDeBuzon(buzonParaEscribir, avataresDeBuzones.get(buzonParaEscribir.clave)),
     ]);
-    router.replace(rutaDelChat());
+    irAlChat(router, {}, { reemplazar: true });
   }, [
     avataresDeBuzones,
     buzonActual,
@@ -366,7 +366,7 @@ export function ChatView() {
         );
 
         if (creada?.conversation?.id) {
-          router.push(rutaDelChat({ id: creada.conversation.id, bandeja }));
+          irAlChat(router, { id: creada.conversation.id, bandeja });
         }
 
         return;
@@ -402,7 +402,7 @@ export function ChatView() {
     if (!selectedConversationId) return;
 
     await leaveGroup(selectedConversationId, currentContact.idMiembros);
-    startTransition(() => router.push(rutaDelChat({ bandeja })));
+    startTransition(() => irAlChat(router, { bandeja }));
   }, [currentContact.idMiembros, bandeja, router, selectedConversationId]);
 
   const handleSetGroupAdministrator = useCallback(

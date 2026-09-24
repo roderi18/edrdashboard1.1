@@ -11,6 +11,7 @@ import { useGetChatUnreadSummary } from 'src/actions/chat';
 import { TemblorDeAviso } from 'src/components/temblor-de-aviso';
 
 import { useAvatarDeBuzon } from './hooks/use-buzones-del-chat';
+import { useNoLeidosEnVivo } from './hooks/use-no-leidos-en-vivo';
 
 // ----------------------------------------------------------------------
 // LAS BANDEJAS DEL CHAT, EN CIRCULOS (pantalla pequeña).
@@ -78,7 +79,17 @@ function useArrastreHorizontal() {
 // Es un componente aparte porque cuenta con un gancho, y los ganchos no pueden
 // ir dentro de un bucle.
 function CirculoDeBandeja({ nombre, foto, idMiembros, vibraSiHayPendientes = false, onPulsar }) {
-  const { unreadConversationCount: pendientes } = useGetChatUnreadSummary(idMiembros, true);
+  // El número sale de la escucha en vivo (al instante); el resumen del servidor
+  // solo mientras no está lista o si falla. Los avisos de "sin respuesta" los
+  // sigue disparando el resumen del panel, que para los buzones no se quita.
+  const enVivo = useNoLeidosEnVivo([idMiembros]);
+  const { unreadConversationCount: delServidor } = useGetChatUnreadSummary(
+    idMiembros,
+    !enVivo.listo
+  );
+  const pendientes = enVivo.listo
+    ? Object.keys(enVivo.unreadByConversation).length
+    : delServidor;
 
   return (
     <Tooltip title={`Ir a ${nombre}`}>

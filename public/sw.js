@@ -1,4 +1,11 @@
-const VERSION = 'edr-pwa-v4';
+const VERSION = 'edr-pwa-v5';
+
+// EN DESARROLLO NO SE INTERCEPTA NADA. Los bundles de `/_next/static/` se guardan
+// "para siempre" porque en produccion llevan una huella en el nombre; en `next
+// dev` NO cambian de nombre al editar, y el service worker seguia sirviendo el
+// codigo viejo: los cambios no se veian hasta borrar la cache a mano. Las
+// notificaciones push siguen funcionando igual.
+const ES_DESARROLLO = ['localhost', '127.0.0.1'].includes(self.location.hostname);
 const STATIC_CACHE = `${VERSION}-static`;
 const DATOS_CACHE = `${VERSION}-datos`;
 const PAGINAS_CACHE = `${VERSION}-paginas`;
@@ -69,6 +76,8 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (ES_DESARROLLO) return;
+
   const { request } = event;
 
   if (request.method !== 'GET') {

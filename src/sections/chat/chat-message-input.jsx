@@ -36,7 +36,7 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { SelectorDeEmojis } from 'src/components/emoji/selector-de-emojis';
 
-import { rutaDelChat } from './utils/ruta-del-chat';
+import { irAlChat } from './utils/ruta-del-chat';
 import { pesoDeArchivo } from './utils/peso-de-archivo.mjs';
 import { useBuzonesDelChat } from './hooks/use-buzones-del-chat';
 import { initialConversation } from './utils/initial-conversation';
@@ -639,12 +639,12 @@ function CajaDeEscribir({
           currentContact.idMiembros
         );
         onConversationCreated?.(res.conversation);
-        router.push(rutaDelChat({ id: res.conversation.id, bandeja }));
+        irAlChat(router, { id: res.conversation.id, bandeja });
       }
 
       if (createdEmptyConversationId) {
         onConversationCreated?.(latestServerConversation ?? createdConversationData);
-        router.push(rutaDelChat({ id: createdEmptyConversationId, bandeja }));
+        irAlChat(router, { id: createdEmptyConversationId, bandeja });
       }
 
       onClearReply?.();
@@ -685,7 +685,7 @@ function CajaDeEscribir({
 
         if (!discarded?.discarded) {
           onConversationCreated?.(latestServerConversation ?? createdConversationData);
-          router.push(rutaDelChat({ id: createdEmptyConversationId, bandeja }));
+          irAlChat(router, { id: createdEmptyConversationId, bandeja });
         } else if (uploadsCreatedThisAttempt.length) {
           await deleteUploadedFilesFromStorage(uploadsCreatedThisAttempt).catch(() => undefined);
           const discardedPaths = new Set(

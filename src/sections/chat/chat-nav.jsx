@@ -20,8 +20,8 @@ import { Scrollbar } from 'src/components/scrollbar';
 
 import { ToggleButton } from './styles';
 import { ChatNavItem } from './chat-nav-item';
+import { irAlChat } from './utils/ruta-del-chat';
 import { ChatNavAccount } from './chat-nav-account';
-import { rutaDelChat } from './utils/ruta-del-chat';
 import { ChatNavItemSkeleton } from './chat-skeleton';
 import { ChatAvatarDeBuzon } from './chat-avatar-de-buzon';
 import { ChatBandejasAvatares } from './chat-bandejas-avatares';
@@ -132,7 +132,7 @@ export function ChatNav({
       currentId: selectedConversationId,
     });
 
-    if (conversationId) router.push(rutaDelChat({ id: conversationId, bandeja }));
+    if (conversationId) irAlChat(router, { id: conversationId, bandeja });
   }, [bandeja, conversations, router, selectedConversationId]);
 
   useEffect(() => {
@@ -157,7 +157,7 @@ export function ChatNav({
     async (result) => {
       handleClickAwaySearch();
 
-      const linkTo = (id) => router.push(rutaDelChat({ id, bandeja }));
+      const linkTo = (id) => irAlChat(router, { id, bandeja });
       const resultId = String(result.id);
 
       if (conversationsInFlightRef.current.has(resultId)) return;
@@ -250,7 +250,7 @@ export function ChatNav({
       onClickResult={handleClickResult}
       onClickConversationResult={(conversation) => {
         handleClickAwaySearch();
-        router.push(rutaDelChat({ id: conversation.id, bandeja }));
+        irAlChat(router, { id: conversation.id, bandeja });
       }}
     />
   );
@@ -337,11 +337,19 @@ export function ChatNav({
 
       <Box sx={{ p: 2.5, pt: 0 }}>{!collapseDesktop && renderSearchInput()}</Box>
 
-      {contactsError && !collapseDesktop ? (
-        <Alert severity="error" sx={{ mx: 2.5 }}>
-          {contactsError.message || 'No se pudieron cargar los contactos.'}
+      {/* UN FALLO DE CONTACTOS YA NO TAPA LAS CONVERSACIONES. Los contactos
+          salen del padrón (API .NET); si esa API no responde, antes la lista
+          entera se cambiaba por "No se pudo procesar el chat" aunque las
+          conversaciones —que viven en Firestore— hubieran llegado bien. Ahora
+          se avisa arriba, en pequeño, y la lista sigue: solo buscar contactos
+          nuevos queda pendiente. */}
+      {contactsError && !collapseDesktop && (
+        <Alert severity="warning" sx={{ mx: 2.5, mb: 1, py: 0 }}>
+          No se pudieron cargar los contactos para buscar. Tus conversaciones siguen aquí.
         </Alert>
-      ) : loading ? (
+      )}
+
+      {loading ? (
         renderLoading()
       ) : (
         <Scrollbar sx={{ pb: 1 }}>

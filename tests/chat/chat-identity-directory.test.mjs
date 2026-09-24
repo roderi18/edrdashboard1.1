@@ -86,6 +86,15 @@ test('extrae listas de las variantes conocidas del proveedor', () => {
 });
 
 test('carga el directorio con límite temporal y valida la respuesta HTTP', async () => {
+  // Sin ninguna copia buena todavía, un error de la API sigue su camino.
+  await assert.rejects(
+    getChatMemberDirectory({
+      useCache: false,
+      fetchImpl: async () => new Response('{}', { status: 503 }),
+    }),
+    /HTTP 503/
+  );
+
   let requestInit = null;
   const result = await getChatMemberDirectory({
     useCache: false,
@@ -101,12 +110,17 @@ test('carga el directorio con límite temporal y valida la respuesta HTTP', asyn
   assert.deepEqual(result, members);
   assert.equal(requestInit.cache, 'no-store');
   assert.ok(requestInit.signal instanceof AbortSignal);
+});
 
-  await assert.rejects(
-    getChatMemberDirectory({
-      useCache: false,
-      fetchImpl: async () => new Response('{}', { status: 503 }),
-    }),
-    /HTTP 503/
-  );
+// SI LA API .NET SE CAE, EL CHAT SIGUE. Qué se rompía: con Somee sin arrancar
+// ("HTTP Error 500.30"), los contactos y el buscador del chat devolvían 500 y la
+// pantalla decía "No se pudo procesar el chat". Con una copia buena previa, el
+// directorio se sirve de ella.
+test('con la API caída, el directorio sale de la última copia buena', async () => {
+  const result = await getChatMemberDirectory({
+    useCache: false,
+    fetchImpl: async () => new Response('<html>HTTP Error 500.30</html>', { status: 500 }),
+  });
+
+  assert.deepEqual(result, members);
 });

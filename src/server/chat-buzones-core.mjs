@@ -167,6 +167,20 @@ const idMiembrosDelResponsable = (claims = {}, perfiles = []) => {
  * a nombre del buzon, y con `responsable`: la persona de verdad que contesto,
  * para dejar constancia sin que el miembro la vea.
  */
+// El `uid` que dice traer un token, SIN verificarlo. Solo sirve para adelantar
+// lecturas en el servidor: nada de lo leído se usa hasta que `verifyIdToken`
+// confirma que el token es auténtico y es de ese mismo `uid`.
+const uidSinVerificar = (token) => {
+  try {
+    const [, cuerpo] = String(token).split('.');
+    const datos = JSON.parse(Buffer.from(cuerpo, 'base64url').toString('utf8'));
+
+    return String(datos?.user_id ?? datos?.sub ?? '').trim();
+  } catch {
+    return '';
+  }
+};
+
 export const crearAutenticadorDeBuzon = ({
   buzon,
   verifyIdToken,
@@ -193,6 +207,24 @@ export const crearAutenticadorDeBuzon = ({
       });
     }
 
+    // EN PARALELO, SIN BAJAR LA GUARDIA. Antes iba en fila: verificar el token,
+    // leer los perfiles, pedir el token del buzón (~600 ms la primera vez, y el
+    // contador de no leídos esperaba a dos buzones). Ahora las tres cosas
+    // arrancan a la vez, pero:
+    //   - los perfiles adelantados solo valen si el token verificado es de ese
+    //     mismo uid (si no, se leen otra vez con el bueno);
+    //   - el token del buzón solo se entrega tras comprobar el cargo.
+    const uidAdelantado = uidSinVerificar(token);
+    const perfilesAdelantados = uidAdelantado
+      ? Promise.resolve()
+          .then(() => cargarPerfiles({ uid: uidAdelantado, claims: {} }))
+          .catch(() => null)
+      : Promise.resolve(null);
+    const tokenDelBuzon = Promise.resolve().then(() => obtenerTokenDeBuzon());
+    // Si al final no se entrega (token malo, sin cargo), que su fallo no quede
+    // como promesa rechazada sin atender.
+    tokenDelBuzon.catch(() => {});
+
     let claims;
 
     try {
@@ -216,7 +248,8 @@ export const crearAutenticadorDeBuzon = ({
       });
     }
 
-    const perfiles = await cargarPerfiles({ uid, claims });
+    const adelantados = uid === uidAdelantado ? await perfilesAdelantados : null;
+    const perfiles = adelantados ?? (await cargarPerfiles({ uid, claims }));
 
     if (!puedeAtenderBuzon(buzon, { claims, perfiles })) {
       throw new ChatAuthorizationError(
@@ -231,7 +264,7 @@ export const crearAutenticadorDeBuzon = ({
       idMiembros: buzon.idMiembros,
       profile: {},
       claims: { idMiembros: buzon.idMiembros },
-      token: await obtenerTokenDeBuzon(),
+      token: await tokenDelBuzon,
       buzon: buzon.clave,
       esBuzonCompartido: true,
       esTiendaVirtual: buzon.clave === 'tienda',

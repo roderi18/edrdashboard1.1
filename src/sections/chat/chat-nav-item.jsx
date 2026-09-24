@@ -13,12 +13,12 @@ import { useRouter } from 'src/routes/hooks';
 
 import { fToNow } from 'src/utils/format-time';
 
-import { clickConversation } from 'src/actions/chat';
+import { clickConversation, precargarConversacion } from 'src/actions/chat';
 
 import { Iconify } from 'src/components/iconify';
 
+import { irAlChat } from './utils/ruta-del-chat';
 import { getNavItem } from './utils/get-nav-item';
-import { rutaDelChat } from './utils/ruta-del-chat';
 
 // ----------------------------------------------------------------------
 
@@ -49,15 +49,17 @@ export function ChatNavItem({
     (presence) => presence.status && presence.status !== 'offline'
   );
 
+  const precargar = useCallback(() => {
+    precargarConversacion(conversation.id, currentContact.idMiembros);
+  }, [conversation.id, currentContact.idMiembros]);
+
   const handleClickConversation = useCallback(() => {
     if (!mdUp) {
       onCloseMobile();
     }
 
-    const redirectPath = rutaDelChat({ id: conversation.id, bandeja });
-
     startTransition(() => {
-      router.push(redirectPath);
+      irAlChat(router, { id: conversation.id, bandeja });
     });
 
     clickConversation(conversation.id, currentContact.idMiembros).catch((error) => {
@@ -100,6 +102,11 @@ export function ChatNavItem({
     <Box component="li" sx={{ display: 'flex' }}>
       <ListItemButton
         onClick={handleClickConversation}
+        // Al pasar por encima (o al tocar, antes de soltar) se adelanta la
+        // conversación: al abrirla, los mensajes ya están y salen al instante.
+        onPointerEnter={precargar}
+        onTouchStart={precargar}
+        onFocus={precargar}
         sx={{
           py: 1.5,
           px: 2.5,

@@ -467,3 +467,56 @@ test('el circulo de un buzon se repasa solo, y quien abre ve su contador al mome
     /endpoint: 'mark-as-seen'[\s\S]*?mutate\(\(key\) => isChatUnreadSummaryKey\(key\)\)/
   );
 });
+
+// ----------------------------------------------------------------------
+// AUTENTICAR EL BUZÓN EN PARALELO, SIN BAJAR LA GUARDIA.
+//
+// Qué se rompía: verificar el token, leer los perfiles y pedir el token del
+// buzón iban en fila (~600 ms, y el contador de no leídos esperaba a dos
+// buzones). Ahora arrancan a la vez; estos tests vigilan que el atajo no abra
+// nada: los perfiles adelantados con el uid que DICE traer el token no valen si
+// el token verificado es de otra persona, y el token del buzón no se entrega
+// sin el cargo.
+// ----------------------------------------------------------------------
+
+const jwtFalso = (uid) =>
+  `x.${Buffer.from(JSON.stringify({ user_id: uid })).toString('base64url')}.y`;
+
+test('los perfiles adelantados de otro uid no se usan: se leen otra vez con el verificado', async () => {
+  const leidos = [];
+  const actor = await crearAutenticadorDeBuzon({
+    buzon: BUZON_OFICINA_NACIONAL,
+    // El token dice "uid-intruso", pero verificado es de "uid-ana".
+    verifyIdToken: async () => ({ uid: 'uid-ana' }),
+    cargarPerfiles: async ({ uid }) => {
+      leidos.push(uid);
+      return uid === 'uid-ana'
+        ? [perfil('usuarios_roles', { rolId: 'oficina_nacional', nombre: 'Ana', idMiembros: 90 })]
+        : [perfil('usuarios_roles', { rolId: 'administrador_global', nombre: 'Intruso' })];
+    },
+    obtenerTokenDeBuzon: async () => 'token-de-oficina',
+  })({ headers: new Headers({ authorization: `Bearer ${jwtFalso('uid-intruso')}` }) });
+
+  assert.deepEqual(leidos, ['uid-intruso', 'uid-ana']);
+  assert.equal(actor.responsable.nombre, 'Ana');
+  assert.equal(actor.responsable.esAdministradorGlobal, false);
+});
+
+test('sin el cargo, el token del buzón no se entrega aunque ya se hubiera pedido', async () => {
+  let pedido = false;
+
+  await assert.rejects(
+    crearAutenticadorDeBuzon({
+      buzon: BUZON_OFICINA_NACIONAL,
+      verifyIdToken: async () => ({ uid: 'uid-sin-cargo' }),
+      cargarPerfiles: async () => [perfil('usuarios_roles', { rolId: 'miembro' })],
+      obtenerTokenDeBuzon: async () => {
+        pedido = true;
+        return 'token-de-oficina';
+      },
+    })({ headers: new Headers({ authorization: `Bearer ${jwtFalso('uid-sin-cargo')}` }) })
+  );
+
+  // Se pidió en paralelo, pero la petición se rechazó sin devolverlo.
+  assert.equal(pedido, true);
+});

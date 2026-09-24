@@ -1,7 +1,7 @@
 import { keyBy } from 'es-toolkit';
-import useSWR, { mutate } from 'swr';
 import useSWRInfinite from 'swr/infinite';
 import { useMemo, useCallback } from 'react';
+import useSWR, { mutate, preload } from 'swr';
 
 import { esBuzonCompartido } from 'src/utils/chat-buzones.mjs';
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
@@ -110,7 +110,10 @@ export function useGetChatUnreadSummary(idMiembros, enabled = true) {
 
 // ----------------------------------------------------------------------
 
-export function useGetConversations(idMiembros, enabled = true) {
+// `precarga`: la usa el panel para dejar la lista lista antes de entrar al chat
+// (ver `precarga-del-chat.jsx`). Solo llena la caché: sin repaso cada 45 s ni al
+// volver a la ventana, que eso ya lo hace la pantalla de chat cuando se abre.
+export function useGetConversations(idMiembros, enabled = true, { precarga = false } = {}) {
   const getKey = useCallback(
     (pageIndex, previousPageData) => {
       if (!enabled || !idMiembros) return null;
@@ -133,7 +136,8 @@ export function useGetConversations(idMiembros, enabled = true) {
 
   const { data, size, setSize, isLoading, error, isValidating } = useSWRInfinite(getKey, fetcher, {
     ...swrOptions,
-    refreshInterval: enabled && enableServer ? CHAT_CONVERSATIONS_REFRESH_INTERVAL : 0,
+    ...(precarga && { revalidateOnFocus: false, revalidateOnReconnect: false }),
+    refreshInterval: enabled && enableServer && !precarga ? CHAT_CONVERSATIONS_REFRESH_INTERVAL : 0,
     revalidateFirstPage: true,
   });
 
@@ -163,13 +167,24 @@ export function useGetConversations(idMiembros, enabled = true) {
 
 // ----------------------------------------------------------------------
 
+const claveDeConversacion = (conversationId, idMiembros) => [
+  CHAT_ENDPOINT,
+  { params: { conversationId: `${conversationId}`, endpoint: 'conversation', idMiembros } },
+];
+
+/**
+ * Adelanta una conversación (al pasar por encima o tocarla): al abrirla, los
+ * mensajes ya están en la caché y salen al instante. SWR no la vuelve a pedir si
+ * ya hay una petición en marcha para la misma clave.
+ */
+export function precargarConversacion(conversationId, idMiembros) {
+  if (!conversationId) return;
+
+  preload(claveDeConversacion(conversationId, idMiembros), fetcher).catch(() => {});
+}
+
 export function useGetConversation(conversationId, idMiembros) {
-  const url = conversationId
-    ? [
-        CHAT_ENDPOINT,
-        { params: { conversationId: `${conversationId}`, endpoint: 'conversation', idMiembros } },
-      ]
-    : '';
+  const url = conversationId ? claveDeConversacion(conversationId, idMiembros) : '';
 
   const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
     ...swrOptions,

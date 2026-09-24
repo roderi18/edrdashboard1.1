@@ -2,6 +2,9 @@ const MEMBER_AUTH_DOMAIN = 'exploradores.app';
 const MEMBERS_API_URL = 'https://systexploradores.somee.com/api/Miembros/GetAllMiembros';
 const MEMBER_DIRECTORY_CACHE_TTL_MS = 30_000;
 
+// La última lista que llegó bien, para cuando la API .NET no responde.
+let ultimoDirectorioBueno = null;
+
 let memberDirectoryPromise = null;
 let memberDirectoryExpiresAt = 0;
 
@@ -84,10 +87,32 @@ export const getChatMemberDirectory = async ({ fetchImpl = fetch, useCache = tru
         throw new Error(`El directorio de miembros respondió HTTP ${response.status}.`);
       }
 
-      return getMemberRowsFromDirectoryPayload(await response.json());
+      const filas = getMemberRowsFromDirectoryPayload(await response.json());
+
+      ultimoDirectorioBueno = filas;
+
+      return filas;
     })().catch((error) => {
       memberDirectoryPromise = null;
       memberDirectoryExpiresAt = 0;
+
+      // SI LA API .NET SE CAE, EL CHAT SIGUE. El directorio sale del padrón de
+      // Somee, que a veces no arranca ("HTTP Error 500.30"): entonces los
+      // contactos y el buscador del chat devolvían 500 y la pantalla decía "No
+      // se pudo procesar el chat". Con la última copia buena se sigue
+      // funcionando (quizá sin las altas de los últimos minutos) y se reintenta
+      // en la siguiente petición. Sin copia previa, el error sigue su camino.
+      if (ultimoDirectorioBueno) {
+        console.warn(
+          JSON.stringify({
+            event: 'chat_directorio_de_reserva',
+            motivo: String(error?.message ?? error).slice(0, 160),
+          })
+        );
+
+        return ultimoDirectorioBueno;
+      }
+
       throw error;
     });
   }
