@@ -8,7 +8,7 @@
     "dev": "next dev -p 3032",
     "start": "next start -p 3032",
     "prebuild": "node scripts/generar-manifiesto-medallas.mjs",
-    "build": "node scripts/next-build.mjs",
+    "build": "next build",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "test:chat-auth": "node --test tests/chat/*.test.mjs",
     "test:directivas": "node --test tests/directivas/*.test.mjs",
@@ -31,7 +31,6 @@
   "engines": {
     "node": ">=22.13.0"
   },
-  "packageManager": "yarn@1.22.22",
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.7",
     "@atlaskit/pragmatic-drag-and-drop-auto-scroll": "^2.1.2",

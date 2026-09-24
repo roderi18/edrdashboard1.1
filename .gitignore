@@ -42,3 +42,6 @@ qa_vehicle_images/
 
 # Local script execution logs
 scripts/**/*.log
+
+# npm, no yarn: con yarn.lock Firebase App Hosting no compila (PROJECT_GUIDELINES.md §10)
+yarn.lock

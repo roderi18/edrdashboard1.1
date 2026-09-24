@@ -819,7 +819,7 @@ sesión. El upstream lento produce `El servidor de datos no respondió en Ns.`
 ## 8. Instalación, ejecución y pruebas
 
 ```bash
-npm install          # o yarn install
+npm install          # npm, no yarn: ver §10 (Firebase App Hosting)
 npm run dev          # http://localhost:3032
 npm run build
 npm start            # puerto 3032
@@ -906,6 +906,16 @@ hay que volver a desplegar.
 ---
 
 ## 10. Despliegue
+
+**Firebase App Hosting** ✅ (`apphosting.yaml`, backend `explora`, rama `main`):
+cada push a `main` publica en https://explora--systexploradores.us-central1.hosted.app.
+Variables públicas en el yaml; `FIREBASE_SERVICE_ACCOUNT` y
+`WEB_PUSH_VAPID_PRIVATE_KEY` son secretos de Cloud Secret Manager.
+
+⚠️ **npm, no yarn.** Con `yarn.lock` el buildpack instala en `/layers` y deja
+`node_modules` como enlace fuera del proyecto: Turbopack lo rechaza ("Symlink
+node_modules is invalid") y con webpack el build tardaba ~12 min y agotaba la
+memoria. No vuelvas a subir un `yarn.lock`.
 
 **Netlify** ✅ (`netlify.toml`): build `yarn build`, publish `.next`,
 `NODE_VERSION=22.13.0`, `AWS_LAMBDA_JS_RUNTIME=nodejs22.x`.
