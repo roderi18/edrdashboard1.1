@@ -6,8 +6,7 @@ import Button from '@mui/material/Button';
 import TableCell from '@mui/material/TableCell';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
-import { toast } from 'src/components/snackbar';
-
+import { subirCertificadoDesdeInput } from 'src/sections/member/awards/utils/subir-certificado';
 import { CertificateActionCell } from 'src/sections/member/awards/components/certificate/CertificateActionCell';
 import {
   StatusSelectCell,
@@ -150,29 +149,8 @@ export function AwardsActionCells({
           type="file"
           hidden
           disabled={readOnly}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-
-            reader.onload = () => {
-              actions.uploadCertificate({
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                fileBase64: reader.result,
-                uploadedAt: new Date().toISOString(),
-              });
-              toast.success('Documento cargado exitosamente.');
-            };
-
-            reader.onerror = () => {
-              toast.error('No se pudo leer el documento. Intentalo de nuevo.');
-            };
-
-            reader.readAsDataURL(file);
-          }}
+          // Validar, subir y avisar solo cuando está guardado (`subir-certificado.js`).
+          onChange={(e) => subirCertificadoDesdeInput(e, actions)}
         />
 
         <CertificateActionCell

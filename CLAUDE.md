@@ -104,6 +104,18 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    Tests: `tests/directivas/directiva-cuatrienios.test.mjs`,
    `tests/acceso/director-nacional-permanente.test.mjs`.
 
+13. **Premios del miembro: una sola tarjeta de insignia.** Toda carpeta de premios
+   (la última de su rama, en Sistema de Ascenso y Academia) se pinta en cuadrícula
+   por defecto con la tarjeta de `awards-insignia-item.jsx`: insignia por NOMBRE
+   desde `public/sistemaAscenso` (`src/utils/insignias-de-premios.mjs`), check verde
+   con certificado y amarillo sin él, `x2` de veces ganado, transparencia sin
+   completar. En el Sistema de Ascenso, Ctrl + clic (o pulsación larga en el
+   móvil) y "Completar"/"Quitar completado" por lotes; quitar sigue pidiendo
+   aprobación según el cargo y borra el certificado. Medidas, colores y textos en
+   `TARJETA_INSIGNIA`. Detalle en `docs/premios-tarjeta-de-insignia.md`.
+   Tests: `tests/ascenso/insignias-de-premios.test.mjs`,
+   `tests/ascenso/completar-varios-premios.test.mjs`.
+
 Corazón del alcance: `src/utils/member-access.js` y `src/utils/org-level-access.js`.
 Suite que lo cubre: `npm run test:acceso`.
 

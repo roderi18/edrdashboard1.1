@@ -6,6 +6,8 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
 
+import { esCarpetaDePremios } from 'src/utils/insignias-de-premios.mjs';
+
 import { guardarProgresoAscensoMiembro } from 'src/services/member-awards-service';
 import {
   getAwardsProgressCache,
@@ -22,6 +24,7 @@ import { FileManagerFolderItem } from './awards-manager-folder-item';
 import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
 import { AwardsManagerActionSelected } from './awards-manager-action-selected';
 import { AwardsManagerCreateFolderDialog } from './awards-manager-create-folder-dialog';
+import { imagenDelPremio, HUECO_DE_INSIGNIAS, COLUMNAS_DE_INSIGNIAS } from './awards-insignia-item';
 
 // ----------------------------------------------------------------------
 
@@ -32,6 +35,11 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
   const parentId = table?.parentId;
   const systemSent = table?.systemSent;
   const sectionId = table?.sectionId;
+  // Carpetas de premios con insignia (`src/utils/insignias-de-premios.mjs`): en
+  // cuadrícula cada premio va como tarjeta vertical, todas del mismo alto, con
+  // su insignia y el nombre entero debajo, sin el estado. En la tarjeta normal
+  // el nombre largo se partía a mitad de palabra ("Avanz / ado").
+  const conInsignia = esCarpetaDePremios(parentId, allData);
 
   const currentSystem = table?.systemSent;
 
@@ -226,7 +234,11 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
   //   </>
   // );
 
+  // En las carpetas con insignia la selección se completa con el botón
+  // "Completar" junto al escudo; esta barra (que además solo sabía de Academia)
+  // no se muestra.
   const renderSelectedActions = () =>
+    !conInsignia &&
     !!selected?.length && (
       <AwardsManagerActionSelected
         numSelected={selected.length}
@@ -271,14 +283,17 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
       <Box ref={containerRef}>
         <Box
           sx={{
-            gap: 2.5,
+            gap: conInsignia ? HUECO_DE_INSIGNIAS : 2.5,
             display: 'grid',
-            gridTemplateColumns: {
-              xs: 'repeat(1, 1fr)',
-              sm: 'repeat(2, 1fr)',
-              md: 'repeat(3, 1fr)',
-              lg: 'repeat(4, 1fr)',
-            },
+            // Con insignia, tantas columnas como quepan de tarjetas estrechas.
+            gridTemplateColumns: conInsignia
+              ? COLUMNAS_DE_INSIGNIAS
+              : {
+                  xs: 'repeat(1, 1fr)',
+                  sm: 'repeat(2, 1fr)',
+                  md: 'repeat(3, 1fr)',
+                  lg: 'repeat(4, 1fr)',
+                },
           }}
         >
           {orderedItems.map((item) =>
@@ -298,6 +313,8 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
             ) : (
               <FileManagerFileItem
                 isGridView
+                insignia={conInsignia}
+                modoSeleccion={conInsignia && selected.length > 0}
                 readOnly={readOnly}
                 key={item.id}
                 file={{
@@ -306,6 +323,9 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
                   parentId: parentId ?? item.parentId,
                   systemSent: table.systemSent,
                   sectionId: table.sectionId,
+                  imagenInsignia: conInsignia
+                    ? imagenDelPremio({ ...item, parentId: parentId ?? item.parentId })
+                    : null,
                 }}
                 selected={selected.includes(item.id)}
                 onSelect={() => onSelectItem(item.id)}

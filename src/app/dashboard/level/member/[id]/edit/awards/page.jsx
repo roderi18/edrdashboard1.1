@@ -15,8 +15,7 @@ import {
   getCachedResolvedMemberByIdentifier,
 } from 'src/services/member-context-service';
 
-import { SplashScreen } from 'src/components/loading-screen';
-
+import { AwardsTabSkeleton } from 'src/sections/member/awards/awards-manager-skeleton';
 import { MemberEditAwardsForm } from 'src/sections/member/awards/member-edit-awards-form';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -63,13 +62,9 @@ export default function Page() {
         if (!cancelled) {
           setCurrentMember(member);
         }
-
-        void getResolvedMemberByIdentifier(id, {
-          includeMetadata: true,
-          includePhoto: true,
-        }).then((memberWithPhoto) => {
-          if (!cancelled && memberWithPhoto) setCurrentMember(memberWithPhoto);
-        });
+        // Sin segunda lectura "con foto": la pestaña de premios no la usa (la
+        // cabecera de la ficha ya la trae) y era otra petición al padrón en
+        // cada visita.
       } finally {
         if (!cancelled) {
           setHydrated(true);
@@ -86,12 +81,9 @@ export default function Page() {
     };
   }, [id]);
 
-  if (!hydrated) {
-    return <SplashScreen title="Cargando premios" subtitle="Preparando el historial..." />;
-  }
-
-  if (loading) {
-    return <SplashScreen title="Verificando acceso" subtitle="Casi listo..." />;
+  // Esqueleto con la forma de la pestaña, no una pantalla de "Cargando…".
+  if (!hydrated || loading) {
+    return <AwardsTabSkeleton />;
   }
 
   if (!currentMember) {

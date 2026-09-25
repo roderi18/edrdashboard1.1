@@ -1,5 +1,4 @@
 import dayjs from 'dayjs';
-import { useRouter } from 'next/navigation';
 import { varAlpha } from 'minimal-shared/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { useBoolean, usePopover, useDoubleClick, useCopyToClipboard } from 'minimal-shared/hooks';
@@ -19,6 +18,8 @@ import DialogActions from '@mui/material/DialogActions';
 import TableRow, { tableRowClasses } from '@mui/material/TableRow';
 import TableCell, { tableCellClasses } from '@mui/material/TableCell';
 
+import { esCarpetaDePremios } from 'src/utils/insignias-de-premios.mjs';
+
 import {
   getAwardsProgressCache,
   setAwardsProgressCache,
@@ -35,11 +36,13 @@ import { getFolderIcon } from 'src/sections/member/awards/utils/get-folder-icon'
 import { getCustomFileIcon } from 'src/sections/member/awards/utils/get-file-icon';
 import { useAwardFavorite } from 'src/sections/member/awards/hooks/use-award-favorite';
 import { FileItemActions } from 'src/sections/file-manager/file-manager-file-item-slots';
+import { irACarpeta } from 'src/sections/member/awards/hooks/use-awards-folder-navigation';
 import { DownloadCertificateMenuItem } from 'src/sections/member/awards/components/certificate/DownloadCertificateMenuItem';
 
 import { DefaultRow } from './components/rows/DefaultRow';
 import { FileManagerFileDetails } from './awards-manager-file-details';
 import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
+import { imagenDelPremio, InsigniaDePremio } from './awards-insignia-item';
 import { AcademiaSubRow } from './components/rows/academia/AcademiaSubRow';
 import { getTotalAwards, getCompletedAwards } from '../awards/utils/get-awards-count';
 import { SistemaAscensoRow } from './components/rows/sistema-ascenso/SistemaAscensoRow';
@@ -88,7 +91,6 @@ export function AwardsManagerTableRow({
   }, []);
 
   const theme = useTheme();
-  const router = useRouter();
   const isSistemaAscensoRow = row.id === 'sistema-de-ascenso';
   const isAcademiaMinisterialRow =
     row.type === 'folder' &&
@@ -179,7 +181,7 @@ export function AwardsManagerTableRow({
   const handleClick = useDoubleClick({
     click: () => {
       if (row.type === 'folder') {
-        router.push(`?folder=${row.id}`);
+        irACarpeta(row.id);
         return;
       }
 
@@ -449,6 +451,25 @@ export function AwardsManagerTableRow({
               (() => {
                 // 📄 Archivos (PDF, etc.)
                 if (row.type !== 'folder') {
+                  // Premio de una carpeta de premios: la misma insignia que en la
+                  // cuadrícula (o el icono del PDF si no tiene), con su check.
+                  if (esCarpetaDePremios(row.parentId, allData)) {
+                    return (
+                      <InsigniaDePremio
+                        src={imagenDelPremio(row)}
+                        completado={row.status === 'completado'}
+                        tieneCertificado={row.tieneCertificado}
+                        conTransparencia={false}
+                        // Más grande que el icono de siempre (40), pero el margen
+                        // negativo la mete en el relleno de la celda: la fila
+                        // mide lo mismo.
+                        tamano={56}
+                        tamanoCheck={16}
+                        sx={{ my: -1 }}
+                      />
+                    );
+                  }
+
                   const customPdf = getCustomFileIcon({ id: row.id });
 
                   return customPdf ? (

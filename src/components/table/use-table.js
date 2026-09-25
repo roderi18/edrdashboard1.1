@@ -40,16 +40,16 @@ export function useTable(props) {
     [order, orderBy]
   );
 
-  const onSelectRow = useCallback(
-    (inputValue) => {
-      const newSelected = selected.includes(inputValue)
-        ? selected.filter((value) => value !== inputValue)
-        : [...selected, inputValue];
-
-      setSelected(newSelected);
-    },
-    [selected]
-  );
+  // Actualización funcional y sin depender de `selected`: así la función es
+  // siempre la misma y las tarjetas memorizadas no se repintan todas por cada
+  // clic de selección (y dos clics seguidos nunca parten de una lista vieja).
+  const onSelectRow = useCallback((inputValue) => {
+    setSelected((previos) =>
+      previos.includes(inputValue)
+        ? previos.filter((value) => value !== inputValue)
+        : [...previos, inputValue]
+    );
+  }, []);
 
   const onChangeRowsPerPage = useCallback((event) => {
     setPage(0);

@@ -1,3 +1,4 @@
+import { ref, deleteObject } from 'firebase/storage';
 import {
   doc,
   query,
@@ -5,16 +6,22 @@ import {
   getDoc,
   setDoc,
   getDocs,
+  deleteDoc,
   collection,
   serverTimestamp,
 } from 'firebase/firestore';
 
 import { paths } from 'src/routes/paths';
 
-import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+import {
+  conCache,
+  conInvalidacion,
+  invalidarLecturas,
+  avisarAOtrasSesiones,
+} from 'src/utils/cache-de-lecturas.mjs';
 
 import { getMemberById } from 'src/services/member-service';
-import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 import {
@@ -205,7 +212,16 @@ const resolveMember = async (memberOrId) => {
   return getMemberById(memberOrId).catch(() => null);
 };
 
-const getMemberName = (member = {}) =>
+// `member` puede llegar `null` (el padrón no respondió o no lo tiene) y el valor
+// por defecto solo cubre `undefined`: `null.nombreMiembro` tumbaba TODO guardado
+// de premios mientras la API .NET no contestara.
+const getMemberName = (miembro) => {
+  const member = miembro || {};
+
+  return nombreDeMiembro(member);
+};
+
+const nombreDeMiembro = (member) =>
   member.nombreMiembro ||
   member.memberName ||
   member.fullName ||
@@ -230,7 +246,78 @@ const getCertificateForProgress = (certificado = {}) => {
   };
 };
 
-const guardarProgresoAscensoMiembroDirecto = async ({
+/**
+ * Fecha, veces y certificado del documento de progreso a partir del anterior.
+ *   - `certificado: null` BORRA el certificado; `undefined` deja el que había.
+ *     Antes los dos dejaban el anterior (`certificado || previous`): borrar un
+ *     certificado o quitar un completado no llegaba a Firestore y al recargar
+ *     el certificado volvía.
+ *   - Sin completar no hay fecha de completado (antes se quedaba la de antes).
+ */
+export const camposDelProgreso = ({
+  previous = {},
+  estado,
+  fechaCompletado,
+  vecesCompletado,
+  certificado,
+  now,
+}) => {
+  const certificateForProgress = getCertificateForProgress(certificado);
+  const borrarCertificado = certificado === null;
+  const completado = estado === 'completado';
+  const idsPrevios = previous.idsCertificados || [];
+
+  return {
+    borrarCertificado,
+    certificateForProgress,
+    fechaCompletado: completado ? fechaCompletado || previous.fechaCompletado || now : null,
+    vecesCompletado:
+      typeof vecesCompletado === 'number'
+        ? vecesCompletado
+        : Number(previous.vecesCompletado || (completado ? 1 : 0)),
+    idCertificadoActual: borrarCertificado
+      ? ''
+      : certificateForProgress?.id || previous.idCertificadoActual || '',
+    idsCertificados: certificateForProgress?.id
+      ? Array.from(new Set([...idsPrevios, certificateForProgress.id]))
+      : borrarCertificado
+        ? idsPrevios.filter((id) => String(id) !== String(previous.idCertificadoActual))
+        : idsPrevios,
+    certificadoActual: borrarCertificado
+      ? null
+      : certificateForProgress || previous.certificadoActual || null,
+  };
+};
+
+// LOS GUARDADOS DE UN MISMO PREMIO VAN EN FILA.
+//
+// Cada guardado lee el documento, espera (al miembro, al historial) y lo vuelve a
+// escribir entero. Dos seguidos sobre el mismo premio —quitar el completado y
+// borrar su certificado, o completar y cambiar la fecha— se pisaban: el que
+// terminaba último ganaba, aunque fuera el primero en empezar, y el premio podía
+// quedar "completado" en Firestore después de quitarlo. Ahora el segundo espera
+// al primero; premios distintos siguen guardándose en paralelo.
+const colasDeGuardado = new Map();
+
+export const enColaDelPremio = (clave, tarea) => {
+  const anterior = colasDeGuardado.get(clave) ?? Promise.resolve();
+  const siguiente = anterior.catch(() => null).then(tarea);
+  const cola = siguiente.catch(() => null);
+  colasDeGuardado.set(clave, cola);
+  cola.then(() => {
+    if (colasDeGuardado.get(clave) === cola) colasDeGuardado.delete(clave);
+  });
+
+  return siguiente;
+};
+
+const guardarProgresoAscensoMiembroDirecto = (opciones = {}) =>
+  enColaDelPremio(
+    `${opciones.idMiembro || opciones.member?.id || ''}_${opciones.vinculo?.idItemAscenso || ''}`,
+    () => guardarProgresoEnFirestore(opciones)
+  );
+
+const guardarProgresoEnFirestore = async ({
   member,
   idMiembro,
   codigoMiembro,
@@ -241,6 +328,9 @@ const guardarProgresoAscensoMiembroDirecto = async ({
   vecesCompletado,
   certificado,
   user,
+  // `false` en los lotes: se manda UN aviso con todos (`avisarCambioEstadoEnLote`)
+  // en vez de uno por premio a cada coordinador.
+  avisar = true,
 } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !vinculo?.idItemAscenso) return null;
 
@@ -259,11 +349,15 @@ const guardarProgresoAscensoMiembroDirecto = async ({
   const progressRef = doc(FIRESTORE, COLECCION_PROGRESO_ASCENSO_MIEMBROS, progressId);
   const previousSnap = await getDoc(progressRef).catch(() => null);
   const previous = previousSnap?.exists?.() ? previousSnap.data() : {};
-  const certificateForProgress = getCertificateForProgress(certificado);
-  const nextCertificateIds = certificateForProgress?.id
-    ? Array.from(new Set([...(previous.idsCertificados || []), certificateForProgress.id]))
-    : previous.idsCertificados || [];
   const now = new Date().toISOString();
+  const { borrarCertificado, certificateForProgress, ...campos } = camposDelProgreso({
+    previous,
+    estado,
+    fechaCompletado,
+    vecesCompletado,
+    certificado,
+    now,
+  });
 
   const document = {
     id: progressId,
@@ -278,15 +372,7 @@ const guardarProgresoAscensoMiembroDirecto = async ({
     idGrupo: vinculo.idGrupo || '',
     nombreGrupo: vinculo.nombreGrupo || '',
     estado,
-    fechaCompletado:
-      fechaCompletado || previous.fechaCompletado || (estado === 'completado' ? now : null),
-    vecesCompletado:
-      typeof vecesCompletado === 'number'
-        ? vecesCompletado
-        : Number(previous.vecesCompletado || (estado === 'completado' ? 1 : 0)),
-    idCertificadoActual: certificateForProgress?.id || previous.idCertificadoActual || '',
-    idsCertificados: nextCertificateIds,
-    certificadoActual: certificateForProgress || previous.certificadoActual || null,
+    ...campos,
     actualizadoEn: now,
     actualizadoPor: getCreator(user),
   };
@@ -333,7 +419,23 @@ const guardarProgresoAscensoMiembroDirecto = async ({
     descripcion: `Se actualizó "${vinculo.nombreItemAscenso || vinculo.idItemAscenso}" de ${finalNombreMiembro}: ${previous?.estado ?? 'sin registro'} → ${estado}.`,
     aplicar: () =>
       setDoc(progressRef, { ...document, actualizadoEnServidor: serverTimestamp() }, { merge: true }),
+    lecturasAfectadas: LECTURAS_DEL_PROGRESO,
   });
+
+  // Quitar el certificado lo BORRA, como al aprobar una solicitud
+  // (`award-status-change-request-service`): su ficha en `certificados` y el
+  // archivo. Antes solo se soltaba la referencia y el archivo quedaba huérfano.
+  // El aviso que se confirma ya dice que se eliminará.
+  if (borrarCertificado && previous.idCertificadoActual) {
+    const rutaArchivo =
+      previous.certificadoActual?.rutaPdf || previous.certificadoActual?.pdfPath || '';
+    deleteDoc(doc(FIRESTORE, 'certificados', String(previous.idCertificadoActual))).catch(
+      () => null
+    );
+    if (rutaArchivo && FIREBASE_STORAGE) {
+      deleteObject(ref(FIREBASE_STORAGE, rutaArchivo)).catch(() => null);
+    }
+  }
 
   registrarCambiosHistorialMiembro({
     idMiembro: finalIdMiembro,
@@ -360,7 +462,7 @@ const guardarProgresoAscensoMiembroDirecto = async ({
     certificateForProgress?.id && !(previous.idsCertificados || []).includes(certificateForProgress.id)
   );
 
-  if (cambioEstado || seAgregoCertificado) {
+  if (avisar && (cambioEstado || seAgregoCertificado)) {
     const segmento = encodeURIComponent(finalCodigoMiembro || finalIdMiembro);
     const contexto = [vinculo.nombreDivision, vinculo.nombreGrupo].filter(Boolean).join(' · ');
     const actor = getCreator(user);
@@ -451,6 +553,18 @@ export const combinarProgresoAscensoEnCache = (idMiembro, progressList = []) => 
 
     if (!itemId) return;
 
+    // Lo que ya hay en memoria y es MÁS NUEVO que lo leído se queda: es un cambio
+    // hecho en esta sesión cuyo guardado aún no había llegado a Firestore cuando
+    // se leyó. Antes lo leído lo pisaba y un premio recién completado perdía el
+    // check al volver a la pestaña.
+    const local =
+      progress.sistema === 'sistemaAscenso'
+        ? data.sistemaAscenso?.[progress.idDivision || '']?.[groupId]?.[itemId]
+        : data.academia?.[groupId]?.[itemId];
+    if (local?.updatedAt && progress.actualizadoEn && local.updatedAt > progress.actualizadoEn) {
+      return;
+    }
+
     const node = {
       status: progress.estado || 'no_iniciado',
       completedDate: progress.fechaCompletado || null,
@@ -485,7 +599,19 @@ export const combinarProgresoAscensoEnCache = (idMiembro, progressList = []) => 
   return setAwardsProgressCache(idMiembro, { status, data });
 };
 
-const sincronizarProgresoAscensoFirebaseDirecto = async (idMiembro) => {
+// Traer el progreso es una LECTURA. Antes iba envuelta en `conInvalidacion` sin
+// prefijos: cada vez que alguien abría la pestaña de premios se vaciaba la caché
+// ENTERA de la aplicación (padrón, directivas, fotos…) y se avisaba a las demás
+// sesiones para que vaciaran la suya, y la propia lectura nunca se aprovechaba.
+// Ahora pasa por la caché como cualquier lectura; las escrituras ya la invalidan.
+// `fresco`: para quien acaba de escribir por otra vía (aprobar una solicitud) y
+// necesita lo último, no lo guardado.
+export const sincronizarProgresoAscensoFirebase = async (idMiembro, { fresco = false } = {}) => {
+  if (fresco) {
+    invalidarLecturas('ascenso:');
+    avisarAOtrasSesiones('ascenso:');
+  }
+
   const progressList = await listarProgresoAscensoMiembro(idMiembro);
   const result = combinarProgresoAscensoEnCache(idMiembro, progressList);
 
@@ -580,6 +706,59 @@ export const listarProgresoAscensoMiembro = conCache('ascenso:listarProgresoAsce
 export const listarFavoritosAscensoMiembro = conCache('ascenso:listarFavoritosAscensoMiembro', listarFavoritosAscensoMiembroSinCache);
 export const buscarVinculoCertificadoAscenso = conCache('ascenso:buscarVinculoCertificadoAscenso', buscarVinculoCertificadoAscensoSinCache);
 export const guardarVinculoCertificadoAscenso = conInvalidacion(guardarVinculoCertificadoAscensoDirecto, [], ['ascenso:']);
-export const guardarProgresoAscensoMiembro = conInvalidacion(guardarProgresoAscensoMiembroDirecto, [], ['ascenso:']);
-export const sincronizarProgresoAscensoFirebase = conInvalidacion(sincronizarProgresoAscensoFirebaseDirecto, [], ['ascenso:']);
-export const guardarFavoritoAscensoMiembro = conInvalidacion(guardarFavoritoAscensoMiembroDirecto, [], ['ascenso:']);
+// UN aviso para un lote (completar o quitar varios de una vez): antes cada
+// premio mandaba el suyo a cada coordinador y completar 59 eran 59 avisos.
+export const avisarCambioEstadoEnLote = async ({
+  idMiembro,
+  nombres = [],
+  estadoAnterior,
+  estadoNuevo,
+  idGrupo,
+  user,
+} = {}) => {
+  if (!idMiembro || !nombres.length) return 0;
+
+  // Un aviso nunca puede tumbar el guardado: cualquier fallo se queda aquí.
+  try {
+    return await enviarAvisoDeLote({ idMiembro, nombres, estadoAnterior, estadoNuevo, idGrupo, user });
+  } catch (error) {
+    console.error('[ascenso] no se pudo avisar del lote', error);
+    return 0;
+  }
+};
+
+const enviarAvisoDeLote = async ({ idMiembro, nombres, estadoAnterior, estadoNuevo, idGrupo, user }) => {
+  // Sin miembro en el padrón (no cargó, o no está) el aviso sale igual, con su id.
+  const member = (await resolveMember(idMiembro)) || {};
+  const codigo = member?.memberId || member?.codigoMiembro || idMiembro;
+  const rutaBase = paths.dashboard.level.member.editAwards(encodeURIComponent(codigo));
+  const actor = getCreator(user);
+  const lista = nombres.length > 5 ? `${nombres.slice(0, 5).join(', ')}…` : nombres.join(', ');
+
+  return notificarCambioEstadoSistemaAscenso({
+    member: {
+      ...(member || {}),
+      id: String(idMiembro),
+      idMiembros: String(idMiembro),
+      memberId: codigo,
+      nombreMiembro: getMemberName(member),
+    },
+    actorId: actor.uid || 'sistema',
+    actorIdMiembros: user?.idMiembros ?? user?.id ?? null,
+    actorNombre: actor.nombre,
+    itemNombre: nombres.length === 1 ? nombres[0] : `${nombres.length} premios (${lista})`,
+    estadoAnterior,
+    estadoNuevo,
+    ruta: idGrupo ? `${rutaBase}?folder=${encodeURIComponent(idGrupo)}` : rutaBase,
+  }).catch(() => 0);
+};
+
+// Lo que un guardado de progreso puede dejar viejo: el progreso, el historial
+// del miembro, las solicitudes/auditoría de la puerta de cambios. Antes vaciaba
+// la caché ENTERA (padrón, directivas, fotos…) en cada premio: completar 59 de
+// golpe eran 59 vaciados y la aplicación entera volvía a pedirlo todo.
+export const LECTURAS_DEL_PROGRESO = ['ascenso:', 'ascenso-estado:', 'historial:', 'solicitudes:', 'auditoria:'];
+export const guardarProgresoAscensoMiembro = conInvalidacion(guardarProgresoAscensoMiembroDirecto, LECTURAS_DEL_PROGRESO, ['ascenso:']);
+// Un favorito solo cambia lo de ascenso y el historial del miembro. Antes cada
+// estrella vaciaba la caché ENTERA de la aplicación.
+export const guardarFavoritoAscensoMiembro = conInvalidacion(guardarFavoritoAscensoMiembroDirecto, ['ascenso:', 'historial:'], ['ascenso:']);

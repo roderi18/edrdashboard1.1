@@ -1,6 +1,10 @@
+import { getMemberById } from 'src/services/member-service';
 import { guardarCertificadoAscensoManual } from 'src/services/certificate-service';
-import { guardarProgresoAscensoMiembro } from 'src/services/member-awards-service';
 import { crearSolicitudCambioEstadoAscenso } from 'src/services/award-status-change-request-service';
+import {
+  avisarCambioEstadoEnLote,
+  guardarProgresoAscensoMiembro,
+} from 'src/services/member-awards-service';
 import {
   getAwardsProgressCache,
   setAwardsProgressCache,
@@ -92,16 +96,28 @@ export function createAwardsActions({
     activo: true,
   });
 
-  const persistProgress = (overrides = {}) => {
+  // `certificado`: el del premio, `undefined` para dejar el que haya en Firestore,
+  // o `null` SOLO cuando se pide borrarlo (quitar el completado, eliminar el
+  // certificado). Un premio leído sin certificado vale `null` en memoria y, si
+  // se mandara tal cual, borraría uno que otra persona hubiera subido entretanto.
+  //
+  // Devuelve si llegó a Firestore. Antes el fallo se tragaba en silencio: la
+  // pantalla enseñaba el premio completado aunque la base de datos no lo tuviera.
+  // Quien no mira el resultado sigue igual (no lanza nunca).
+  const persistProgress = (overrides = {}) =>
     guardarProgresoAscensoMiembro({
       idMiembro: memberId,
       vinculo: getVinculo(),
       user,
       ...overrides,
-    }).catch(() => null);
-  };
+    })
+      .then(() => true)
+      .catch((error) => {
+        console.error('[ascenso] no se pudo guardar el progreso', error);
+        return false;
+      });
 
-  const setStatus = (nextStatus, { skipApproval = false } = {}) => {
+  const setStatus = (nextStatus, { skipApproval = false, borrarCertificado = false } = {}) => {
     const now = new Date().toISOString();
     const status = readStatus();
     const data = readData();
@@ -118,7 +134,8 @@ export function createAwardsActions({
         nextTimesCompleted: 0,
         hasCertificate: Boolean(existing.certificate),
       });
-      return;
+      // Pendiente de aprobación: nada se guardó todavía.
+      return Promise.resolve(null);
     }
     const nextNode = {
       ...existing,
@@ -139,11 +156,11 @@ export function createAwardsActions({
     setNode(data, nextNode);
     saveAll(status, data);
 
-    persistProgress({
+    return persistProgress({
       estado: nextStatus,
       fechaCompletado: nextNode.completedDate,
       vecesCompletado: Number(nextNode.timesCompleted || (nextStatus === 'completado' ? 1 : 0)),
-      certificado: nextNode.certificate,
+      certificado: borrarCertificado ? null : nextNode.certificate || undefined,
     });
   };
 
@@ -171,7 +188,7 @@ export function createAwardsActions({
       estado: 'completado',
       fechaCompletado: isoDate,
       vecesCompletado: Number(nextNode.timesCompleted || 1),
-      certificado: nextNode.certificate,
+      certificado: nextNode.certificate || undefined,
     });
   };
 
@@ -198,7 +215,7 @@ export function createAwardsActions({
   };
 
   const uploadCertificate = (certificate) => {
-    if (!certificate) return;
+    if (!certificate) return Promise.resolve(false);
 
     const now = new Date().toISOString();
     const status = readStatus();
@@ -218,11 +235,21 @@ export function createAwardsActions({
       updatedAt: now,
     };
 
+    const estadoAnterior = readStatus();
+    const previoEstado =
+      system === 'academia'
+        ? estadoAnterior.academia?.[context.parentId]?.[context.rowId]
+        : estadoAnterior.sistemaAscenso?.[context.sectionId]?.[context.parentId]?.[context.rowId];
+
     setStatusValue(status, 'completado');
     setNode(data, nextNode);
     saveAll(status, data);
 
-    guardarCertificadoAscensoManual({
+    // Devuelve si llegó a Firebase. Antes el fallo solo iba a la consola y la
+    // pantalla enseñaba el certificado (check verde) aunque no se hubiera
+    // guardado: al recargar desaparecía. Ahora, si falla, se deshace en pantalla
+    // y quien llama avisa.
+    return guardarCertificadoAscensoManual({
       idMiembro: memberId,
       sistema: system,
       context,
@@ -230,11 +257,18 @@ export function createAwardsActions({
       certificate: localCertificate,
       user,
     })
-      .then(mergeSavedCertificate)
+      .then((guardado) => {
+        mergeSavedCertificate(guardado);
+        return true;
+      })
       .catch((error) => {
-        // No silenciar: si el guardado en Firebase falla, el certificado se
-        // perdería al refrescar. Se registra para poder diagnosticarlo.
         console.error('[awards] no se pudo guardar el certificado en Firebase', error);
+        const datos = readData();
+        const estados = readStatus();
+        setNode(datos, existing);
+        setStatusValue(estados, previoEstado || existing.status || 'no_iniciado');
+        saveAll(estados, datos);
+        return false;
       });
   };
 
@@ -295,7 +329,7 @@ export function createAwardsActions({
       estado: nextStatus,
       fechaCompletado: nextNode.completedDate,
       vecesCompletado: safe,
-      certificado: nextNode.certificate,
+      certificado: nextNode.certificate || undefined,
     });
   };
 
@@ -305,9 +339,11 @@ export function createAwardsActions({
       return undefined;
     }
 
+    // Un solo guardado (ver `applyStatusChange`), no dos que se pisen.
     return () => {
-      deleteCertificate();
-      setStatus(nextStatus);
+      const data = readData();
+      setNode(data, { ...getNode(data), certificate: null });
+      setStatus(nextStatus, { borrarCertificado: true });
       onConfirm?.();
     };
   };
@@ -325,10 +361,18 @@ export function createAwardsActions({
   // Aplica el cambio de estado en el acto, sin solicitud de aprobacion. Lo usan
   // el Coordinador de Destacamento y su Asistente: ven el mismo aviso, pero
   // confirman y se aplica (no tienen a quien pedirle permiso).
+  //
+  // Con certificado, UN solo guardado: se quita en memoria y `setStatus` lo manda
+  // (con `certificado: null`) junto al estado. Antes eran dos guardados del mismo
+  // premio a la vez y el de "borrar certificado" (aún completado) podía llegar el
+  // último y dejarlo completado en Firestore.
   const applyStatusChange = ({ nextStatus, removeCertificate = false } = {}) => {
-    if (!nextStatus) return;
-    if (removeCertificate) deleteCertificate();
-    setStatus(nextStatus, { skipApproval: true });
+    if (!nextStatus) return Promise.resolve(null);
+    if (removeCertificate) {
+      const data = readData();
+      setNode(data, { ...getNode(data), certificate: null });
+    }
+    return setStatus(nextStatus, { skipApproval: true, borrarCertificado: removeCertificate });
   };
 
   return {
@@ -341,4 +385,133 @@ export function createAwardsActions({
     requireCertificateDeletion,
     requestStatusChange,
   };
+}
+
+// ----------------------------------------------------------------------
+// CAMBIAR EL ESTADO DE VARIOS PREMIOS DEL SISTEMA DE ASCENSO DE UNA VEZ.
+//
+// Lo mismo que `setStatus` de cada uno (misma forma en memoria y en Firestore,
+// mismo historial), pero en lote: todo se escribe en memoria de una sola vez y
+// se avisa a la pantalla UNA vez —los checks cambian todos a la vez—, y
+// Firestore se guarda en paralelo por detrás. Llamar a `setStatus` por cada
+// premio repintaba la cuadrícula entera tantas veces como premios.
+//   - 'completado': los que ya lo estaban no se tocan (ni su fecha ni sus veces).
+//   - 'no_iniciado' (quitar el completado): solo los completados; se borran su
+//     fecha, sus veces y su certificado, como `applyStatusChange` con
+//     `removeCertificate`. Quien necesite aprobación NO llega aquí: pide la
+//     solicitud (`requestStatusChange`).
+// Devuelve `{ cambiados, fallidos }` cuando Firestore termina.
+// ----------------------------------------------------------------------
+export async function cambiarEstadoPremiosAscenso({ memberId, premios = [], nextStatus, user }) {
+  const completar = nextStatus === 'completado';
+  if (!memberId || !premios.length || !nextStatus) return { cambiados: 0, fallidos: 0 };
+
+  const now = new Date().toISOString();
+  const { status = {}, data = {} } = getAwardsProgressCache(memberId);
+  const pendientes = [];
+
+  premios.forEach(({ sectionId, parentId, rowId, metadata = {} }) => {
+    if (!sectionId || !parentId || !rowId) return;
+    const yaCompletado = status.sistemaAscenso?.[sectionId]?.[parentId]?.[rowId] === 'completado';
+    if (completar === yaCompletado) return;
+
+    status.sistemaAscenso ??= {};
+    status.sistemaAscenso[sectionId] ??= {};
+    status.sistemaAscenso[sectionId][parentId] ??= {};
+    data.sistemaAscenso ??= {};
+    data.sistemaAscenso[sectionId] ??= {};
+    data.sistemaAscenso[sectionId][parentId] ??= {};
+
+    const existing = data.sistemaAscenso[sectionId][parentId][rowId] || {};
+    const nextNode = completar
+      ? {
+          ...existing,
+          status: 'completado',
+          updatedAt: now,
+          completedDate: existing.completedDate || now,
+          timesCompleted: existing.timesCompleted || 1,
+        }
+      : {
+          ...existing,
+          status: nextStatus,
+          updatedAt: now,
+          completedDate: null,
+          timesCompleted: 0,
+          certificate: null,
+        };
+
+    status.sistemaAscenso[sectionId][parentId][rowId] = nextStatus;
+    data.sistemaAscenso[sectionId][parentId][rowId] = nextNode;
+
+    pendientes.push({ sectionId, parentId, rowId, metadata, nextNode });
+  });
+
+  if (!pendientes.length) return { cambiados: 0, fallidos: 0 };
+
+  setAwardsProgressCache(memberId, { status, data });
+  notifyAwardsProgressChanged(memberId);
+
+  // El miembro, una sola vez para todo el lote (cada guardado lo buscaba en el
+  // padrón y copiaba la lista entera). Ya con la pantalla al día.
+  const miembro = (await getMemberById(memberId).catch(() => null)) || undefined;
+
+  const resultados = await Promise.all(
+    pendientes.map(({ sectionId, parentId, rowId, metadata, nextNode }) =>
+      guardarProgresoAscensoMiembro({
+        member: miembro,
+        idMiembro: memberId,
+        vinculo: {
+          id: `sistemaAscenso_${sectionId}_${parentId}_${rowId}`,
+          idItemAscenso: rowId,
+          nombreItemAscenso: metadata.nombreItemAscenso || rowId,
+          sistema: 'sistemaAscenso',
+          idDivision: sectionId,
+          nombreDivision: metadata.nombreDivision || '',
+          idGrupo: parentId,
+          nombreGrupo: metadata.nombreGrupo || parentId,
+          activo: true,
+        },
+        estado: nextStatus,
+        fechaCompletado: nextNode.completedDate,
+        vecesCompletado: Number(nextNode.timesCompleted || 0),
+        certificado: completar ? nextNode.certificate || undefined : null,
+        user,
+        avisar: false,
+      })
+        .then(() => true)
+        .catch((error) => {
+          console.error('[ascenso] no se pudo guardar el progreso', error);
+          return false;
+        })
+    )
+  );
+
+  const fallidos = resultados.filter((ok) => !ok).length;
+
+  // Un solo aviso a los coordinadores con todos los que se guardaron.
+  const guardados = pendientes.filter((_, indice) => resultados[indice]);
+  if (guardados.length) {
+    avisarCambioEstadoEnLote({
+      idMiembro: memberId,
+      nombres: guardados.map(({ metadata, rowId }) => metadata.nombreItemAscenso || rowId),
+      estadoAnterior: completar ? 'no_iniciado' : 'completado',
+      estadoNuevo: nextStatus,
+      idGrupo: guardados[0].parentId,
+      user,
+    });
+  }
+
+  return { cambiados: resultados.length - fallidos, fallidos };
+}
+
+/** Completar varios de una vez (ver `cambiarEstadoPremiosAscenso`). */
+export async function completarPremiosAscenso({ memberId, premios, user }) {
+  const { cambiados, fallidos } = await cambiarEstadoPremiosAscenso({
+    memberId,
+    premios,
+    user,
+    nextStatus: 'completado',
+  });
+
+  return { completados: cambiados, fallidos };
 }

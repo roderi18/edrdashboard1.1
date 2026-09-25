@@ -17,6 +17,15 @@ import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
+// LA CASITA (la barra cerrada): todo su tamaño sale de aquí.
+//   CIRCULO_CERRADO: diámetro del círculo (antes 54).
+//   ICONO_CERRADO: tamaño del icono de la casa dentro del círculo (antes 25 × 1,08).
+// El botón de dentro es el círculo menos su borde y relleno (5 px por lado), y
+// el círculo se centra en el primer hueco de la barra abierta (12,5 %).
+const CIRCULO_CERRADO = 42;
+const ICONO_CERRADO = 22;
+const BOTON_CERRADO = CIRCULO_CERRADO - 10;
+
 const ITEMS = [
   {
     key: 'home',
@@ -175,10 +184,10 @@ export function MobileQuickNav({
         elevation={0}
         sx={(theme) => ({
           p: 0.5,
-          left: expanded ? 0 : 'calc(12.5% - 27px)',
+          left: expanded ? 0 : `calc(12.5% - ${CIRCULO_CERRADO / 2}px)`,
           bottom: 0,
-          width: expanded ? '100%' : 54,
-          height: expanded ? 72 : 54,
+          width: expanded ? '100%' : CIRCULO_CERRADO,
+          height: expanded ? 72 : CIRCULO_CERRADO,
           display: 'flex',
           position: 'absolute',
           overflow: 'hidden',
@@ -212,11 +221,8 @@ export function MobileQuickNav({
           const icon = (
             <Iconify
               icon={item.icon}
-              width={25}
-              sx={{
-                transition: 'transform 220ms ease',
-                transform: !expanded && isHome ? 'scale(1.08)' : 'scale(1)',
-              }}
+              width={!expanded && isHome ? ICONO_CERRADO : 25}
+              sx={{ transition: 'width 220ms ease, height 220ms ease' }}
             />
           );
 
@@ -236,8 +242,8 @@ export function MobileQuickNav({
                 gap: expanded ? 0.25 : 0,
                 minWidth: 0,
                 borderRadius: '999px',
-                flex: expanded ? '1 1 0' : isHome ? '0 0 44px' : '0 0 0px',
-                width: expanded ? 'auto' : isHome ? 44 : 0,
+                flex: expanded ? '1 1 0' : isHome ? `0 0 ${BOTON_CERRADO}px` : '0 0 0px',
+                width: expanded ? 'auto' : isHome ? BOTON_CERRADO : 0,
                 opacity: expanded || isHome ? 1 : 0,
                 overflow: 'hidden',
                 visibility: expanded || isHome ? 'visible' : 'hidden',

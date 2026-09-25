@@ -55,8 +55,15 @@ export function useAwardFavorite({ memberId, item, initialValue = false, user } 
       if (!active) return;
 
       const remote = favorites?.[String(itemId)];
+      // Si se pulsó la estrella mientras llegaba esta lectura, lo pulsado es
+      // más nuevo: antes la lectura vieja lo pisaba y parecía que el clic no
+      // había hecho nada (había que pulsar dos veces).
+      const local = readCachedFavorites(memberId)?.[String(itemId)];
+      const localMasNuevo =
+        local?.actualizadoEn &&
+        (!remote?.actualizadoEn || String(local.actualizadoEn) > String(remote.actualizadoEn));
 
-      if (remote) {
+      if (remote && !localMasNuevo) {
         writeCachedFavorite(memberId, itemId, remote);
         setFavorited(Boolean(remote.favorito));
       }
@@ -79,7 +86,9 @@ export function useAwardFavorite({ memberId, item, initialValue = false, user } 
 
   const onToggleFavorite = useCallback(
     async (event) => {
-      event?.preventDefault?.();
+      // Sin `preventDefault`: en el cambio de una casilla hace que el navegador
+      // deshaga el clic después de que React la marque, y la estrella pedía
+      // dos pulsaciones. `stopPropagation` basta para no abrir el panel.
       event?.stopPropagation?.();
 
       if (!memberId || !itemId) {

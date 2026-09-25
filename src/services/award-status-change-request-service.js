@@ -284,7 +284,7 @@ async function resolverSolicitudCambioEstadoAscensoDirecto({
         idItemAscenso: request.rowId,
       },
     }).catch(() => null);
-    await sincronizarProgresoAscensoFirebase(request.idMiembro);
+    await sincronizarProgresoAscensoFirebase(request.idMiembro, { fresco: true });
 
     notificarCambioEstadoSistemaAscenso({
       member: {

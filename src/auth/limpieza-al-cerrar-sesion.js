@@ -4,6 +4,7 @@ import { borrarDatosDeSesion } from 'src/utils/storage-service';
 import { invalidarLecturas } from 'src/utils/cache-de-lecturas.mjs';
 
 import { FIRESTORE } from 'src/lib/firebase';
+import { vaciarProgresoEnCache } from 'src/services/awards-progress-cache';
 
 // ----------------------------------------------------------------------
 // AL CERRAR SESIÓN NO QUEDA NADA DE LA PERSONA EN EL EQUIPO.
@@ -47,6 +48,7 @@ export async function antesDeCerrar() {
 
 export async function despuesDeCerrar({ sinPendientes }) {
   invalidarLecturas();
+  vaciarProgresoEnCache();
   borrarDatosDeSesion();
 
   if (typeof caches !== 'undefined') {

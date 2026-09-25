@@ -13,6 +13,7 @@ import Typography from '@mui/material/Typography';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { isDestacamentoApprovalRole } from 'src/utils/member-access';
+import { esCarpetaDePremios } from 'src/utils/insignias-de-premios.mjs';
 
 import { getAwardsProgressCache } from 'src/services/awards-progress-cache';
 
@@ -23,6 +24,7 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { FileThumbnail } from 'src/components/file-thumbnail';
 
 import { PdfViewerDialog } from 'src/sections/member/awards/components/viewer/PdfViewerDialog';
+import { subirCertificadoDesdeInput } from 'src/sections/member/awards/utils/subir-certificado';
 import { StatusSelectCell } from 'src/sections/member/awards/components/status/StatusSelectCell';
 import { buildStatusChangeMessage } from 'src/sections/member/awards/utils/status-change-message';
 import { createAwardsActions } from 'src/sections/member/awards/components/core/AwardsActionsCore';
@@ -31,6 +33,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { AwardsManagerShareDialog } from './awards-manager-share-dialog';
 import { AwardsManagerInvitedItem } from './awards-manager-invited-item';
+import { imagenDelPremio, InsigniaDePremio } from './awards-insignia-item';
 
 // ----------------------------------------------------------------------
 
@@ -68,6 +71,9 @@ export function FileManagerFileDetails({
   const [sendingStatusRequest, setSendingStatusRequest] = useState(false);
 
   const resolvedMemberId = memberId || file?.memberId;
+  // Premio de una carpeta de premios: nombre centrado y su insignia debajo.
+  const esPremio = file?.type !== 'folder' && esCarpetaDePremios(file?.parentId);
+  const insignia = file?.imagenInsignia || imagenDelPremio(file);
   const resolvedSystem = system;
 
   if (!resolvedSystem) {
@@ -167,30 +173,8 @@ export function FileManagerFileDetails({
     setInviteEmail(event.target.value);
   }, []);
 
-  const handleUploadCertificate = (event) => {
-    const fileUploaded = event.target.files?.[0];
-    if (!fileUploaded) return;
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const certificate = {
-        name: fileUploaded.name,
-        type: fileUploaded.type,
-        size: fileUploaded.size,
-        fileBase64: reader.result,
-      };
-
-      actions.uploadCertificate(certificate);
-      toast.success('Documento cargado exitosamente.');
-    };
-
-    reader.onerror = () => {
-      toast.error('No se pudo leer el documento. Intentalo de nuevo.');
-    };
-
-    reader.readAsDataURL(fileUploaded);
-  };
+  // Validar, subir y avisar solo cuando está guardado (`subir-certificado.js`).
+  const handleUploadCertificate = (event) => subirCertificadoDesdeInput(event, actions);
 
   const renderHead = () => (
     <Box
@@ -533,19 +517,44 @@ export function FileManagerFileDetails({
             spacing={2.5}
             sx={{ p: 2.5, justifyContent: 'center', bgcolor: 'background.neutral' }}
           >
-            <FileThumbnail
-              showImage
-              file={file?.type === 'folder' ? file?.type : file?.url}
-              sx={{ width: 'auto', height: 'auto', alignSelf: 'flex-start' }}
-              slotProps={{
-                img: { sx: { width: 320, height: 'auto', aspectRatio: '4/3', objectFit: 'cover' } },
-                icon: { sx: { width: 64, height: 64 } },
-              }}
-            />
+            {/* Premio con insignia: nombre centrado y, debajo, su insignia (la
+                misma de la cuadrícula y la lista). Sin insignia, como siempre. */}
+            {esPremio ? (
+              <>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ textAlign: 'center', wordBreak: 'normal', overflowWrap: 'break-word' }}
+                >
+                  {file?.name}
+                </Typography>
+                <InsigniaDePremio
+                  src={insignia}
+                  completado={localStatus === 'completado'}
+                  tieneCertificado={hasCertificate}
+                  tamano={120}
+                  tamanoCheck={26}
+                  sx={{ alignSelf: 'center' }}
+                />
+              </>
+            ) : (
+              <>
+                <FileThumbnail
+                  showImage
+                  file={file?.type === 'folder' ? file?.type : file?.url}
+                  sx={{ width: 'auto', height: 'auto', alignSelf: 'flex-start' }}
+                  slotProps={{
+                    img: {
+                      sx: { width: 320, height: 'auto', aspectRatio: '4/3', objectFit: 'cover' },
+                    },
+                    icon: { sx: { width: 64, height: 64 } },
+                  }}
+                />
 
-            <Typography variant="subtitle1" sx={{ wordBreak: 'break-all' }}>
-              {file?.name}
-            </Typography>
+                <Typography variant="subtitle1" sx={{ wordBreak: 'break-all' }}>
+                  {file?.name}
+                </Typography>
+              </>
+            )}
 
             <Divider sx={{ borderStyle: 'dashed' }} />
 
@@ -569,7 +578,11 @@ export function FileManagerFileDetails({
                 variant="contained"
                 startIcon={<Iconify icon="eva:cloud-upload-fill" />}
                 onClick={() => {
-                  if (!completedDate) return;
+                  // Antes no hacía nada y sin decir por qué.
+                  if (!completedDate) {
+                    toast.warning('Indica primero la fecha en que se completó.');
+                    return;
+                  }
                   document.getElementById(fileInputId)?.click();
                 }}
               >
@@ -678,11 +691,13 @@ export function FileManagerFileDetails({
                 return;
               }
 
-              actions.deleteCertificate();
-
+              // Cambiar el estado y borrar el certificado en UN guardado: antes
+              // eran dos seguidos del mismo premio y podían pisarse.
               if (pendingStatus) {
                 setLocalStatus(pendingStatus);
-                actions.setStatus(pendingStatus);
+                actions.applyStatusChange({ nextStatus: pendingStatus, removeCertificate: true });
+              } else {
+                actions.deleteCertificate();
               }
 
               setPendingStatus(null);

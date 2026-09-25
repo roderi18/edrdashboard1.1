@@ -101,7 +101,7 @@ export function MemberEditAwardsForm({ currentMember, readOnly = false }) {
   return (
     <>
       <Box sx={{ width: '100%' }}>
-        <AwardsManagerView memberId={memberId} readOnly={readOnly} />
+        <AwardsManagerView memberId={memberId} readOnly={readOnly} enFicha />
       </Box>
 
       <Dialog open={reviewOpen} onClose={resolving ? undefined : closeReview} maxWidth="sm" fullWidth>

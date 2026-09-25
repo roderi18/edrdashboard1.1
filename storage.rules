@@ -600,6 +600,75 @@ service firebase.storage {
       allow write: if estaAutenticado() && puedeGestionarCertificadosAscenso();
     }
 
+    // CERTIFICADOS DE ACADEMIA MINISTERIAL: los sube quien EDITA la Academia.
+    //
+    // La Academia tiene su propia lista de cargos (`ACADEMIA_MINISTERIAL_EDITOR_ROLE_IDS`
+    // en `src/utils/member-access.js`): todo el destacamento —Consejo y Capellan
+    // incluidos—, casi toda la seccion y toda la region. Con la regla de arriba
+    // (la del Sistema de Ascenso) Consejo y Capellan tenian el boton de subir y
+    // la subida moria aqui. Se cuenta cualquier cargo que ejerza, no solo el
+    // principal (`rolesQueEjerce`). La lista la vigila
+    // `tests/acceso/certificados-academia-storage.test.mjs`.
+    function rolesQueEditanAcademia() {
+      return [
+        'usuario_destacamento',
+        'usuario_destacamento_asistente',
+        'pastor_destacamento',
+        'consejo_destacamento',
+        'capellan_destacamento',
+        'lider_grupo',
+        'lider_asistente_grupo',
+        'usuario_seccion',
+        'usuario_seccion_asistente',
+        'coordinador_adiestramiento_seccion',
+        'coordinador_promocion_seccion',
+        'coordinador_produccion_seccion',
+        'coordinador_programa_seccion',
+        'capellan_seccional',
+        'zonas',
+        'grupos_locales',
+        'secretario_regional',
+        'usuario_region',
+        'usuario_region_asistente',
+        'coordinador_adiestramiento_region',
+        'coordinador_promocion_region',
+        'coordinador_produccion_region',
+        'coordinador_programa_region',
+        'capellan_regional'
+      ];
+    }
+
+    function editaAcademiaMinisterial() {
+      return tieneDocumento('usuarios_roles')
+        && (
+          documentoUsuario('usuarios_roles').data.get('rolId', '') in rolesQueEditanAcademia()
+          || documentoUsuario('usuarios_roles').data.get('rolesQueEjerce', [])
+            .hasAny(rolesQueEditanAcademia())
+        );
+    }
+
+    // Lo mismo que valida la pantalla (`utils/subir-certificado.js`): PDF, imagen
+    // o Word, hasta 10 MB.
+    function esCertificadoPermitido() {
+      return request.resource.size < 10 * 1024 * 1024
+        && (
+          request.resource.contentType == 'application/pdf'
+          || request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/msword'
+          || request.resource.contentType
+            == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
+    }
+
+    match /certificados/academia/{allPaths=**} {
+      allow read: if estaAutenticado();
+      allow create, update: if estaAutenticado()
+        && (puedeGestionarCertificadosAscenso() || editaAcademiaMinisterial())
+        && esCertificadoPermitido();
+      allow delete: if estaAutenticado()
+        && (puedeGestionarCertificadosAscenso() || editaAcademiaMinisterial());
+    }
+
     match /documentos-salud-miembros/{idMiembro}/{archivo} {
       allow read: if estaAutenticado();
       allow create, update: if estaAutenticado()

@@ -13,9 +13,13 @@ const BASE = '¿Estás seguro de que deseas cambiar un registro que ya está Com
 export function buildStatusChangeMessage({ needsApproval = true, hasCertificate = false } = {}) {
   if (needsApproval) {
     return hasCertificate
-      ? `${BASE} El documento anexo se eliminará únicamente cuando la solicitud sea aprobada. El estado no cambiará hasta recibir esa aprobación.`
+      ? `${BASE} El certificado cargado se eliminará únicamente cuando la solicitud sea aprobada, y después será necesario volver a cargarlo. El estado no cambiará hasta recibir esa aprobación.`
       : `${BASE} El estado no cambiará hasta recibir la aprobación.`;
   }
 
-  return hasCertificate ? `${BASE} El documento anexo se eliminará.` : BASE;
+  // "Volver a cargarlo": quitar el completado borra el certificado y no se
+  // recupera; antes solo decía "se eliminará" y se leía como algo reversible.
+  return hasCertificate
+    ? `${BASE} El certificado cargado se eliminará y será necesario volver a cargarlo.`
+    : BASE;
 }

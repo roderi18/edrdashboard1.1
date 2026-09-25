@@ -31,6 +31,8 @@ export function AwardsManagerFilters({
   showStatusFilter = true,
   statusCounts = { completado: 0, en_progreso: 0, no_iniciado: 0 },
   auditNotice = null,
+  // Acción sobre lo seleccionado (p. ej. "Completar"), a la derecha del escudo.
+  selectionAction = null,
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -116,16 +118,24 @@ export function AwardsManagerFilters({
       }}
     >
 
-      <ExpandableSearchInput
-        value={currentFilters.name}
-        onChange={handleFilterName}
-        placeholder="Buscar..."
-        width={{ xs: 180, md: 260 }}
-        compact={isMobile}
-        activeInput={activeInput}
-        onOpen={() => setActiveInput('search')}
-        onClose={() => setActiveInput(null)}
-      />
+      {/* En pantalla pequeña y mediana (menos de 900 px) el buscador va siempre
+          abierto y ocupa lo que deje libre la fila, hasta el borde de la última
+          tarjeta (entre 600 y 900 px se quedaba en 180 px). Antes era un
+          botón con lupa que había que pulsar para escribir. */}
+      {/* El mínimo hace que "Completar" pase a la línea de abajo en vez de
+          dejar el buscador sin sitio. */}
+      <Box sx={{ flex: { xs: 1, md: '0 0 auto' }, minWidth: { xs: 140, md: 0 } }}>
+        <ExpandableSearchInput
+          value={currentFilters.name}
+          onChange={handleFilterName}
+          placeholder="Buscar..."
+          width={{ xs: 1, md: 260 }}
+          compact={false}
+          activeInput={activeInput}
+          onOpen={() => setActiveInput('search')}
+          onClose={() => setActiveInput(null)}
+        />
+      </Box>
 
 
       {showStatusFilter && (
@@ -195,6 +205,8 @@ export function AwardsManagerFilters({
           </Box>
         </Tooltip>
       )}
+
+      {selectionAction}
 
       {/* 🎯 Filtro Estado */}
       {/* <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>

@@ -144,11 +144,31 @@ export function ExpandableMultiSelect({
                         )
                         .join(', '),
 
+                // El menú se abre JUSTO debajo del campo, alineado a su borde
+                // izquierdo y con su mismo ancho. Antes MUI lo colocaba encima
+                // del campo, desplazado a la izquierda y más ancho que él.
                 MenuProps: {
+                    anchorOrigin: { vertical: 'bottom', horizontal: 'left' },
+                    transformOrigin: { vertical: 'top', horizontal: 'left' },
                     PaperProps: {
-                        sx: {
-                            width: isMobile && compact ? width : undefined,
-                        },
+                        sx: isMobile
+                            ? {
+                                  // En el móvil el campo es estrecho (140 px) y las
+                                  // opciones se partían en dos líneas: el menú crece
+                                  // hasta que cada una quepa en una línea, sin ser
+                                  // más estrecho que el campo ni salirse de la pantalla.
+                                  mt: 0.5,
+                                  width: 'max-content',
+                                  minWidth: width,
+                                  maxWidth: 'calc(100vw - 32px)',
+                                  '& .MuiMenuItem-root': { whiteSpace: 'nowrap' },
+                              }
+                            : {
+                                  mt: 0.5,
+                                  width,
+                                  // Las opciones se ajustan al ancho del campo.
+                                  '& .MuiMenuItem-root': { whiteSpace: 'normal' },
+                              },
                     },
                 },
             }}

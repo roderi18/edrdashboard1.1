@@ -1,10 +1,21 @@
 'use client';
 
 import { useMemo, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+
+// Abrir una carpeta es cambiar `?folder=` en la misma página, y la página ya
+// tiene todo el árbol en memoria. Con `router.push` Next pedía al servidor la
+// página otra vez en cada clic (y en Netlify eso es una función que arranca):
+// la carpeta tardaba en abrirse sin ninguna necesidad. `history.pushState` cambia
+// la dirección al momento, `useSearchParams` se entera igual y el botón Atrás
+// sigue funcionando.
+export const irACarpeta = (folderId) => {
+    if (typeof window === 'undefined') return;
+
+    window.history.pushState(null, '', `?folder=${encodeURIComponent(folderId ?? '')}`);
+};
 
 export function useAwardsFolderNavigation({ table, awardFolders }) {
-    const router = useRouter();
     const searchParams = useSearchParams();
 
     const currentFolder = searchParams.get('folder');
@@ -43,13 +54,13 @@ export function useAwardsFolderNavigation({ table, awardFolders }) {
 
 
         if (selectedItem?.type === 'folder') {
-            router.push(`?folder=${selectedItem.id}`);
+            irACarpeta(selectedItem.id);
             table.onSelectAllRows(false, []);
         }
-    }, [table.selected, awardFolders, router, table]);
+    }, [table.selected, awardFolders, table]);
 
     const openFolder = (folderId) => {
-        router.push(`?folder=${folderId}`);
+        irACarpeta(folderId);
     };
 
     return {

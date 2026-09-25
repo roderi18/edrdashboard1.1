@@ -10,6 +10,16 @@ export const getAwardsProgressCache = (idMiembro) => {
   return cached || createEmptyState();
 };
 
+// Si ya se leyó el progreso de este miembro en la sesión: con él la pestaña se
+// pinta al momento; sin él, esqueleto hasta la primera lectura (y no ceros que
+// luego saltan a la cifra real).
+export const hayProgresoEnCache = (idMiembro) =>
+  Boolean(idMiembro) && awardsProgressCache.has(String(idMiembro));
+
+// Al cerrar sesión: el progreso es de personas y vive solo en memoria, pero
+// sin recarga seguiría ahí para la siguiente cuenta.
+export const vaciarProgresoEnCache = () => awardsProgressCache.clear();
+
 export const setAwardsProgressCache = (idMiembro, nextState = {}) => {
   if (!idMiembro) return createEmptyState();
 

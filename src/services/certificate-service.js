@@ -539,7 +539,11 @@ const guardarCertificadoAscensoManualDirecto = async ({
     vinculo.idItemAscenso
   )}`;
   const fileName = certificate.name || `${vinculo.nombreItemAscenso || 'certificado'}.pdf`;
-  const pdfPath = `certificados/ascenso/${normalizeIdSegment(idMiembro)}/${certificateId}-${normalizeIdSegment(
+  // Los de Academia van a su carpeta: la suben los cargos que editan la Academia
+  // (Consejo y Capellan de Destacamento incluidos), que no pueden escribir en la
+  // del Sistema de Ascenso. Ver `storage.rules` (`certificados/academia`).
+  const carpeta = vinculo.sistema === 'sistemaAscenso' ? 'ascenso' : 'academia';
+  const pdfPath = `certificados/${carpeta}/${normalizeIdSegment(idMiembro)}/${certificateId}-${normalizeIdSegment(
     fileName
   )}`;
   const storageRef = ref(FIREBASE_STORAGE, pdfPath);
@@ -697,5 +701,11 @@ export const listarEstadosCertificados = conCache('certificados:listarEstadosCer
 export const guardarPlantillaCertificado = conInvalidacion(guardarPlantillaCertificadoDirecto, [], ['certificados:']);
 export const eliminarPlantillaCertificado = conInvalidacion(eliminarPlantillaCertificadoDirecto, [], ['certificados:']);
 export const guardarLoteCertificados = conInvalidacion(guardarLoteCertificadosDirecto, [], ['certificados:']);
-export const guardarCertificadoAscensoManual = conInvalidacion(guardarCertificadoAscensoManualDirecto, [], ['certificados:']);
+// Como el progreso (ver `LECTURAS_DEL_PROGRESO`), más los certificados: antes
+// cada certificado subido vaciaba la caché entera de la aplicación.
+export const guardarCertificadoAscensoManual = conInvalidacion(
+  guardarCertificadoAscensoManualDirecto,
+  ['certificados:', 'ascenso:', 'ascenso-estado:', 'historial:', 'solicitudes:', 'auditoria:'],
+  ['certificados:', 'ascenso:']
+);
 export const guardarEstadoCertificado = conInvalidacion(guardarEstadoCertificadoDirecto, [], ['certificados:']);

@@ -207,6 +207,10 @@ async function proponerCambioDirecto({
   descripcion = '',
   aplicarDirecto = false,
   payload = null,
+  // Qué lecturas guardadas deja viejas el cambio. Sin decirlo, todas (lo de
+  // siempre). El Sistema de Ascenso pasa las suyas: completar un premio vaciaba
+  // el padrón, las directivas y las fotos de toda la aplicación.
+  lecturasAfectadas = [],
 } = {}) {
   asegurarFirebase();
 
@@ -262,7 +266,7 @@ async function proponerCambioDirecto({
       await aplicar();
       // Todo cambio aplicado pasa por aquí: lo guardado en la caché de lecturas
       // (listas, directivas, fotos) ya no es lo de ahora.
-      invalidarLecturas();
+      invalidarLecturas(...lecturasAfectadas);
     }
 
     return {
