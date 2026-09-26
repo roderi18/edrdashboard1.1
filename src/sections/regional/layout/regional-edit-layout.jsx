@@ -115,6 +115,7 @@ export function RegionalEditLayout({ children, ...other }) {
   const editHref = paths.dashboard.level.regional.edit(regionalId);
   const leadershipHref = `/dashboard/level/regional/${regionalId}/edit/leadership`;
   const sectionsHref = `/dashboard/level/regional/${regionalId}/edit/sections`;
+  const historyHref = `/dashboard/level/regional/${regionalId}/edit/history`;
 
   const navItems = [
     {
@@ -133,6 +134,13 @@ export function RegionalEditLayout({ children, ...other }) {
       label: 'Directiva',
       icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
       href: leadershipHref,
+    },
+    {
+      // Quien ocupa hoy un cargo de la Directiva y quien lo ocupo antes (30+
+      // dias), sin importar la posicion.
+      label: 'Historia',
+      icon: <Iconify width={24} icon="solar:clock-circle-bold" />,
+      href: historyHref,
     },
   ];
 

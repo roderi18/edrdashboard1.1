@@ -10,20 +10,19 @@ import {
   obtenerAsignacionesDirectiva,
 } from 'src/services/directivas-organizacionales-service';
 
-import { LeadershipHistoryTable } from './leadership-history-table';
-
 // ----------------------------------------------------------------------
-// La pestaña "Historia" de UNA entidad puntual (un destacamento, una sección o
-// una región): junta quién la ocupa hoy con quién la ocupó antes (30+ días,
-// ver directiva-historial.mjs). La vista GLOBAL del Consejo Nacional arma sus
-// propias filas aparte (no hay una sola entidad de la que leer).
+// Quién ocupa HOY un cargo de directiva de UNA entidad (destacamento, sección
+// o región) + quién lo ocupó antes (30+ días, ver directiva-historial.mjs),
+// combinado en una sola lista. Sin importar de qué organigrama salga el cargo
+// (en destacamento hay dos: Directiva Local y Líderes Juveniles): las dos
+// escriben el mismo nivel + entidad, así que una sola lectura las junta.
 // ----------------------------------------------------------------------
 
-export function LeadershipHistoryTab({ nivel, idEntidad }) {
+export function useLeadershipHistory({ nivel, idEntidad }) {
   const [vigentes, setVigentes] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [cargando, setCargando] = useState(Boolean(idEntidad));
-  // Otra sesión asignó o reemplazó a alguien: la pestaña se relee sola.
+  // Otra sesión asignó o reemplazó a alguien: la lista se relee sola.
   const cambios = useLecturasVivas(['directiva:']);
 
   useEffect(() => {
@@ -54,7 +53,5 @@ export function LeadershipHistoryTab({ nivel, idEntidad }) {
     };
   }, [nivel, idEntidad, cambios]);
 
-  const filas = combinarHistorialYVigentes({ historial, vigentes });
-
-  return <LeadershipHistoryTable filas={filas} loading={cargando} />;
+  return { filas: combinarHistorialYVigentes({ historial, vigentes }), cargando };
 }

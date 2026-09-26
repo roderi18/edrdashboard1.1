@@ -50,6 +50,7 @@ export function SectionalEditLayout({ children, ...other }) {
   const editHref = paths.dashboard.level.sectional.edit(sectionalId);
   const leadershipHref = `/dashboard/level/sectional/${sectionalId}/edit/leadership`;
   const destsHref = `/dashboard/level/sectional/${sectionalId}/edit/dests`;
+  const historyHref = `/dashboard/level/sectional/${sectionalId}/edit/history`;
 
   const navItems = [
     {
@@ -68,6 +69,13 @@ export function SectionalEditLayout({ children, ...other }) {
       label: 'Directiva',
       icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
       href: leadershipHref,
+    },
+    {
+      // Quien ocupa hoy un cargo de la Directiva y quien lo ocupo antes (30+
+      // dias), sin importar la posicion.
+      label: 'Historia',
+      icon: <Iconify width={24} icon="solar:clock-circle-bold" />,
+      href: historyHref,
     },
   ];
 

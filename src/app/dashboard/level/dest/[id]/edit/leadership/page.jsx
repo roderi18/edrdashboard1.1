@@ -4,9 +4,7 @@ import { usePopover } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
-import Tab from '@mui/material/Tab';
 import Link from '@mui/material/Link';
-import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -60,7 +58,6 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
-import { LeadershipHistoryTab } from 'src/sections/common/leadership-history-tab';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
 import {
   DEST_LEADERSHIP_DATA,
@@ -612,8 +609,6 @@ export default function Page() {
   // administradores: para el resto es ruido sobre datos que no les toca completar.
   const mostrarAvisoDatos = puedeVerAvisoDatosPendientes(user);
   const destId = params?.id;
-  // "Directiva" (el organigrama de hoy) o "Historia" (quién ocupó cada cargo).
-  const [vistaDestacamento, setVistaDestacamento] = useState('directiva');
   const chartCaptureRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
@@ -1225,21 +1220,6 @@ export default function Page() {
   };
 
   return (
-    <>
-      <Tabs
-        value={vistaDestacamento}
-        onChange={(event, valor) => setVistaDestacamento(valor)}
-        sx={{ mb: 2 }}
-      >
-        <Tab value="directiva" label="Directiva" />
-        <Tab value="historia" label="Historia" />
-      </Tabs>
-
-      {vistaDestacamento === 'historia' && (
-        <LeadershipHistoryTab nivel="destacamento" idEntidad={destId} />
-      )}
-
-      {vistaDestacamento === 'directiva' && (
     <Box
         ref={chartCaptureRef}
         aria-label="Mover organigrama"
@@ -1757,7 +1737,5 @@ export default function Page() {
         confirmLabel="Remover"
       />
     </Box>
-      )}
-    </>
   );
 }

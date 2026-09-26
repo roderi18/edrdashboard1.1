@@ -78,6 +78,14 @@ export function DestEditLayout({ children, ...other }) {
             icon: <Iconify width={24} icon="solar:users-group-two-rounded-bold" />,
             href: `/dashboard/level/dest/${destId}/edit/youth-leadership`,
         },
+        {
+            // Quien ocupo un cargo de CUALQUIERA de las dos directivas de arriba
+            // y ya no lo ocupa (30+ dias), junto con quien lo ocupa hoy. Una sola
+            // pestaña para las dos, no una por cada una.
+            label: 'Historia',
+            icon: <Iconify width={24} icon="solar:clock-circle-bold" />,
+            href: `/dashboard/level/dest/${destId}/edit/history`,
+        },
     ];
 
     return (
