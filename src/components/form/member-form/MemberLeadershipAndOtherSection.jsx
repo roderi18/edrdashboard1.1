@@ -1,11 +1,14 @@
 import dayjs from 'dayjs';
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import MenuItem from '@mui/material/MenuItem';
 
 import { EDAD_MAYORIA } from 'src/utils/member-age';
+import { tituloDe } from 'src/utils/titulos-oficiales-nacionales.mjs';
 
+import { useTitulosOficiales } from 'src/services/titulos-oficiales-service';
 import { NIVELES_DIRECTIVA } from 'src/services/directivas-organizacionales-service';
 import {
     MEMBER_GENDERS,
@@ -17,6 +20,17 @@ import { Field } from 'src/components/hook-form';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import { EmptyReadOnlyField } from 'src/components/empty-readonly-field';
 import CargoSelectApi from 'src/components/api/cargo-institucional-select-api';
+
+import {
+    idDeOficial,
+    permisosDeTitulo,
+    TituloOficialDialog,
+} from 'src/sections/national/leadership/titulo-oficial';
+
+import { useAuthContext } from 'src/auth/hooks';
+
+// Las veinte casillas de Oficial Especial de la Directiva Nacional.
+const ES_OFICIAL_ESPECIAL = /^nacional-oficial-especial-(?:[1-9]|1\d|20)$/;
 
 const getRowsFromApi = (payload) => {
     if (Array.isArray(payload)) return payload;
@@ -53,6 +67,9 @@ export default function MemberLeadershipAndOtherSection({
     lockDest = false,
     // Solo lectura (p. ej. Director Nacional): deshabilita todos los selects.
     readOnly = false,
+    // El miembro de la ficha (solo al editar): hace falta para su título de
+    // Oficial de la Nacional.
+    miembro = null,
 }) {
     const disabledCore = lockCoreFields || readOnly;
     // En solo lectura, un campo sin valor se muestra como "Sin informacion registrada".
@@ -77,6 +94,29 @@ export default function MemberLeadershipAndOtherSection({
             methods.setValue('nationalLeadershipRole', '', { shouldDirty: false });
         }
     }, [esMenorDeEdad, methods, watch]);
+
+    // EL TÍTULO DEL OFICIAL, EN SINCRONÍA CON LA JERARQUÍA. Un Oficial Especial
+    // con título sale en "Cargo Nacional" con su título (Protocolo, Diseño y
+    // artes…), el mismo que pinta el organigrama, y "Asignar título" abre el
+    // mismo diálogo. Solo sobre el cargo GUARDADO: con uno recién elegido aún no
+    // es Oficial de la Nacional y el título se le colgaría a quien no lo es.
+    const { user } = useAuthContext();
+    const { asignaciones } = useTitulosOficiales();
+    const [tituloAbierto, setTituloAbierto] = useState(false);
+    const cargoNacional = watch('nationalLeadershipRole');
+    const idMiembro = idDeOficial(miembro);
+    const tituloOficial = tituloDe(asignaciones, idMiembro);
+    const esOficialEspecialGuardado =
+        Boolean(idMiembro) &&
+        ES_OFICIAL_ESPECIAL.test(String(cargoNacional || '')) &&
+        !methods.getFieldState('nationalLeadershipRole').isDirty;
+    const puedeAsignarTitulo =
+        esOficialEspecialGuardado && !readOnly && permisosDeTitulo(user).puedeAsignar;
+    const etiquetasCargoNacional = useMemo(
+        () =>
+            esOficialEspecialGuardado && tituloOficial ? { [cargoNacional]: tituloOficial } : null,
+        [esOficialEspecialGuardado, tituloOficial, cargoNacional]
+    );
 
     const [dests, setDests] = useState(Array.isArray(initialDests) ? initialDests : []);
 
@@ -136,8 +176,29 @@ export default function MemberLeadershipAndOtherSection({
                 includeNone
                 noneLabel={esMenorDeEdad ? 'Ninguno (menor de edad)' : 'Ninguno'}
                 disabled={disabledCore || esMenorDeEdad}
-
+                etiquetas={etiquetasCargoNacional}
+                helperText={
+                    puedeAsignarTitulo ? (
+                        <Link
+                            component="button"
+                            type="button"
+                            variant="caption"
+                            onClick={() => setTituloAbierto(true)}
+                        >
+                            {tituloOficial ? 'Cambiar título' : 'Asignar título'}
+                        </Link>
+                    ) : undefined
+                }
             />
+
+            {puedeAsignarTitulo && (
+                <TituloOficialDialog
+                    open={tituloAbierto}
+                    onClose={() => setTituloAbierto(false)}
+                    persona={miembro}
+                    puedeAgregar={permisosDeTitulo(user).puedeAgregar}
+                />
+            )}
 
             {/* Destacamento */}
             {emptyInReadOnly(watch('destId')) ? (

@@ -1344,6 +1344,21 @@ service cloud.firestore {
         || ejerceRol('oficina_nacional');
     }
 
+    // Los títulos de los Oficiales de la Nacional (Protocolo, Diseño y artes…),
+    // un único documento para que "cada título, una persona" se compruebe en
+    // una transacción. Los asignan el Administrador Global y la Oficina
+    // Nacional; la lista de títulos añadidos (`adicionales`) solo la cambia el
+    // Administrador Global: sin esto la Oficina Nacional podía inventar títulos.
+    match /titulos_oficiales_nacionales/{documento} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal()
+        || (
+          (esOficinaNacional() || ejerceRol('oficina_nacional'))
+          && request.resource.data.get('adicionales', [])
+            == (resource == null ? [] : resource.data.get('adicionales', []))
+        );
+    }
+
     match /everest_publicado/{pantalla} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();
@@ -1670,6 +1685,7 @@ service cloud.firestore {
         && coleccion != 'insignias_personalizadas'
         && coleccion != 'directiva_cuatrienios_integrantes'
         && coleccion != 'directiva_nacional_permanentes'
+        && coleccion != 'titulos_oficiales_nacionales'
         && coleccion != 'medallas_miembros'
         && coleccion != 'pines_miembros'
         && coleccion != 'estatus_miembros'

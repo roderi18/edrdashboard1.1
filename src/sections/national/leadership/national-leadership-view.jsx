@@ -21,8 +21,14 @@ import {
   canManageNationalLeadership,
 } from 'src/utils/org-level-access';
 
+import { azulLegible } from 'src/theme/azul-legible';
 import { obtenerDiagramaNacionalConOficiales } from 'src/catalogs/directiva-diagrams';
+import {
+  pintarTitulosYa,
+  guardarTituloDeVariosOficiales,
+} from 'src/services/titulos-oficiales-service';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
@@ -33,11 +39,17 @@ import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigra
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
 import { GLOW_JERARQUIA_SX, useResaltarMiembro } from 'src/sections/common/use-resaltar-miembro';
+import { AsignarOficialesDialog } from 'src/sections/national/leadership/asignar-oficiales-dialog';
 import { OficialesEspecialesGrupo } from 'src/sections/national/leadership/oficiales-especiales-grupo';
 import {
   entidadesDeDisenoDe,
   useLeadershipLayoutStorage,
 } from 'src/sections/common/use-leadership-layout-storage';
+import {
+  permisosDeTitulo,
+  useTituloDeOficial,
+  TituloOficialDialog,
+} from 'src/sections/national/leadership/titulo-oficial';
 import {
   LeadershipNodeAvatar,
   getMemberDisplayName,
@@ -126,10 +138,18 @@ function NationalLeadershipNode({
   puedeEliminarOficialEspecial = false,
   onEliminarOficialEspecial,
   oficialesDelGrupo = [],
+  puedeAsignarTitulo = false,
+  puedeAgregarTitulo = false,
+  mostrarTitulos = true,
+  puedeAsignarOficiales = false,
+  onAsignarOficiales,
+  onQuitarOficial,
 }) {
   const menuActions = usePopover();
+  const [tituloAbierto, setTituloAbierto] = useState(false);
   const isRootNode = depth === undefined;
   const identity = getLeadershipNodeIdentity(miembroAsignado);
+  const tituloOficial = useTituloDeOficial(miembroAsignado);
 
   if (isDivision) {
     return (
@@ -156,6 +176,20 @@ function NationalLeadershipNode({
       slotProps={{ arrow: { placement: 'left-center' } }}
     >
       <MenuList onPointerDown={(event) => event.stopPropagation()}>
+        {/* Varias personas de una vez, con su título (ver AsignarOficialesDialog). */}
+        {esNodoComitesEspeciales && puedeAsignarOficiales && (
+          <MenuItem
+            disabled={guardandoDiseno}
+            onClick={() => {
+              menuActions.onClose();
+              onAsignarOficiales?.();
+            }}
+          >
+            <Iconify icon="solar:users-group-rounded-bold" />
+            Asignar miembros
+          </MenuItem>
+        )}
+
         {puedeAgregarOficialEspecial && (esNodoComitesEspeciales || esNodoOficialEspecial) && (
           <MenuItem
             disabled={guardandoDiseno}
@@ -192,6 +226,19 @@ function NationalLeadershipNode({
           >
             <Iconify icon="solar:user-cross-bold" />
             Remover miembro
+          </MenuItem>
+        )}
+
+        {/* El título es de quien ocupa la casilla: sin ocupante no hay a quién dárselo. */}
+        {esNodoOficialEspecial && puedeAsignarTitulo && miembroAsignado && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              setTituloAbierto(true);
+            }}
+          >
+            <Iconify icon="solar:medal-ribbon-bold" />
+            Asignar título
           </MenuItem>
         )}
 
@@ -251,7 +298,13 @@ function NationalLeadershipNode({
 
         {esNodoComitesEspeciales ? (
           // Un grupo, no un cargo: caras, cuántos son y "Ver más" (ver el componente).
-          <OficialesEspecialesGrupo personas={oficialesDelGrupo} />
+          <OficialesEspecialesGrupo
+            personas={oficialesDelGrupo}
+            puedeAsignarTitulo={puedeAsignarTitulo}
+            puedeAgregarTitulo={puedeAgregarTitulo}
+            mostrarTitulos={mostrarTitulos}
+            onQuitarOficial={puedeAsignarOficiales ? onQuitarOficial : undefined}
+          />
         ) : (
           <>
             <Box
@@ -269,14 +322,22 @@ function NationalLeadershipNode({
 
             <LeadershipMemberNameLink identity={identity} miembroAsignado={miembroAsignado} />
 
+            {/* Con título, el título en el lugar del cargo: la casilla tiene alto
+                fijo y "Oficial Especial" ya lo dice la tarjeta de grupo. */}
             <Typography
               variant="caption"
               component="div"
               noWrap
-              title={role}
-              sx={{ color: 'text.secondary' }}
+              title={tituloOficial ? `${role} · ${tituloOficial}` : role}
+              sx={(theme) => ({
+                color: 'text.secondary',
+                ...(esNodoOficialEspecial && tituloOficial && {
+                  ...azulLegible(theme),
+                  fontWeight: 600,
+                }),
+              })}
             >
-              {role}
+              {(esNodoOficialEspecial && tituloOficial) || role}
             </Typography>
           </>
         )}
@@ -327,6 +388,15 @@ function NationalLeadershipNode({
       </Card>
 
       {renderMenuActions()}
+
+      {esNodoOficialEspecial && puedeAsignarTitulo && miembroAsignado && (
+        <TituloOficialDialog
+          open={tituloAbierto}
+          onClose={() => setTituloAbierto(false)}
+          persona={miembroAsignado}
+          puedeAgregar={puedeAgregarTitulo}
+        />
+      )}
     </>
   );
 }
@@ -378,6 +448,19 @@ export function NationalLeadershipView({
     !historico &&
     gestionarOficialesEspeciales &&
     (esAdministradorGlobal || isOficinaNacional(user));
+  // Títulos de los Oficiales de la Nacional: son de la persona, no de la casilla,
+  // así que también se asignan desde la pestaña Jerarquía. Pero SOLO en la
+  // directiva actual: una directiva pasada es memoria y no puede tocar el perfil
+  // de nadie hoy (en su tarjeta ni se asignan ni se pintan). La lista la amplía
+  // solo el Administrador Global.
+  const permisosTitulo = permisosDeTitulo(user);
+  const puedeAsignarTitulo = !historico && permisosTitulo.puedeAsignar;
+  const puedeAgregarTitulo = !historico && permisosTitulo.puedeAgregar;
+  // "Asignar miembros" de la tarjeta Oficiales Especiales: las mismas manos que
+  // los títulos, también en la pestaña Jerarquía (se pidió ahí), nunca en una
+  // directiva pasada. Crea casillas, así que también guarda el diseño.
+  const puedeAsignarOficiales = puedeAsignarTitulo;
+  const [asignarOficialesAbierto, setAsignarOficialesAbierto] = useState(false);
   const containerRef = useRef(null);
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
@@ -403,7 +486,7 @@ export function NationalLeadershipView({
     nivel: 'nacional',
     ...entidadesDeDisenoDe({ idEntidad: '', historico }),
     nombreEntidad: 'Directiva Nacional',
-    canManage: canManageOfficialStructure || canManageLayout,
+    canManage: canManageOfficialStructure || canManageLayout || puedeAsignarOficiales,
     defaultNodeOffsets: DEFAULT_NODE_OFFSETS,
     defaultContainerHeightOffset: DEFAULT_CONTAINER_HEIGHT_OFFSET,
     defaultCustomNodeCounts: { oficialesEspeciales: 1 },
@@ -431,10 +514,12 @@ export function NationalLeadershipView({
   const cantidadOficialesEspeciales = idsOficialesEspeciales.length;
   const [oficialEspecialPendienteEliminar, setOficialEspecialPendienteEliminar] = useState(null);
   const [eliminandoOficialEspecial, setEliminandoOficialEspecial] = useState(false);
-  const diagramaNacional = useMemo(
-    () => obtenerDiagramaNacionalConOficiales(historico ? [] : idsOficialesEspeciales),
-    [historico, idsOficialesEspeciales]
-  );
+  // LOS OFICIALES ESPECIALES SOLO VIVEN EN SU TARJETA DE GRUPO. Sus casillas
+  // (`oficial-especial-N`) siguen existiendo —son las que guardan cada
+  // asignación—, pero ya no se dibujan colgando debajo: con varios oficiales el
+  // árbol crecía una fila por persona y cada uno salía dos veces (en la tarjeta y
+  // en su casilla). Se gestionan desde la franja "Ver más" y "Asignar miembros".
+  const diagramaNacional = useMemo(() => obtenerDiagramaNacionalConOficiales([]), []);
   // Quienes van en la tarjeta "Oficiales Especiales": en una directiva anterior,
   // su grupo de Oficiales de la Nacional (que no tiene casillas; por eso el
   // diagrama historico va sin la cadena de Oficial Especial); hoy, los que ocupan
@@ -516,6 +601,145 @@ export function NationalLeadershipView({
     layoutEditor,
     layoutStorage,
   ]);
+  // Quienes son hoy Oficiales Especiales (ocupan una casilla creada).
+  const idsOficialesVigentes = useMemo(
+    () =>
+      new Set(
+        historico
+          ? []
+          : idsOficialesEspeciales
+              .map((id) => obtenerOcupante(id))
+              .filter(Boolean)
+              .map((persona) => String(persona.id ?? persona.idMiembros ?? ''))
+              .filter(Boolean)
+      ),
+    [historico, idsOficialesEspeciales, obtenerOcupante]
+  );
+
+  // ASIGNAR MIEMBROS: un título y varias personas. A quien ya es Oficial solo se
+  // le cambia el título; a los nuevos se les da una casilla —primero las que
+  // están vacías, luego se crean las que falten— y después el título a todos.
+  //
+  // INSTANTÁNEO: todo se pinta en el mismo clic (casillas, personas y títulos) y
+  // el diálogo se cierra; lo que se escribe va por detrás y en paralelo. Antes se
+  // esperaba al diseño, luego a cada persona una detrás de otra (600 ms de
+  // cortesía cada una) y al final al título: con cinco personas, varios
+  // segundos con el diálogo abierto. Si algo falla se deshace lo suyo y se avisa;
+  // quien no llega a quedar asignado (sin permiso, pendiente de aprobación) se
+  // queda sin título, porque el título solo lo lleva un Oficial vigente.
+  const asignarOficiales = useCallback(
+    ({ titulo, miembros = [] }) => {
+      if (!puedeAsignarOficiales || !titulo || !miembros.length) return false;
+
+      const idDe = (miembro) => String(miembro?.id ?? miembro?.idMiembros ?? '').trim();
+      const personaDe = (miembro) => ({
+        idMiembro: idDe(miembro),
+        nombre: getMemberDisplayName(miembro) || miembro?.name || '',
+      });
+      const existentes = miembros.filter((miembro) => idsOficialesVigentes.has(idDe(miembro)));
+      const nuevos = miembros.filter((miembro) => !idsOficialesVigentes.has(idDe(miembro)));
+      const vacias = idsOficialesEspeciales.filter((id) => !obtenerOcupante(id));
+      const faltan = Math.max(0, nuevos.length - vacias.length);
+      const libres = Array.from({ length: 20 }, (_, indice) => `oficial-especial-${indice + 1}`)
+        .filter((id) => !idsOficialesEspeciales.includes(id))
+        .slice(0, faltan);
+
+      if (libres.length < faltan) {
+        toast.error('No caben tantos: el organigrama admite veinte Oficiales Especiales.');
+        return false;
+      }
+
+      const disenoPrevio = {
+        customNodeCounts: layoutEditor.customNodeCounts,
+        customNodeLists: layoutEditor.customNodeLists,
+      };
+      let guardadoDelDiseno = Promise.resolve(true);
+
+      if (libres.length) {
+        const siguientesIds = [...idsOficialesEspeciales, ...libres];
+        const cambios = {
+          customNodeCounts: {
+            ...(layoutEditor.customNodeCounts || {}),
+            oficialesEspeciales: siguientesIds.length,
+          },
+          customNodeLists: {
+            ...(layoutEditor.customNodeLists || {}),
+            oficialesEspeciales: siguientesIds,
+          },
+        };
+
+        layoutEditor.applyLayout(cambios);
+        guardadoDelDiseno = layoutStorage.guardar(cambios);
+      }
+
+      // Los títulos en pantalla ya, también los de quienes aún se están asignando.
+      const deshacerTitulos = pintarTitulosYa({ personas: miembros.map(personaDe), titulo });
+      const casillas = [...vacias, ...libres];
+
+      (async () => {
+        if (!(await guardadoDelDiseno)) {
+          layoutEditor.applyLayout(disenoPrevio);
+          deshacerTitulos();
+          toast.error('No se pudieron crear las casillas. Se deshizo el cambio.');
+          return;
+        }
+
+        // En paralelo: cada `guardar` pinta su casilla en el acto (optimista) y
+        // escribe por detrás; son personas distintas, así que no se pisan.
+        const resultados = await Promise.all(
+          nuevos.map((miembro, indice) =>
+            leadership.guardar({
+              node: { id: casillas[indice], role: 'Oficial Especial' },
+              idMiembro: idDe(miembro),
+              miembro,
+              activo: true,
+            })
+          )
+        );
+        const asignados = nuevos.filter((_, indice) => resultados[indice] === true);
+        const conTitulo = [...existentes, ...asignados];
+        const sinEntrar = nuevos.length - asignados.length;
+
+        if (!conTitulo.length) {
+          deshacerTitulos();
+          return;
+        }
+
+        try {
+          await guardarTituloDeVariosOficiales({
+            titulo,
+            usuario: user,
+            personas: conTitulo.map(personaDe),
+          });
+        } catch (error) {
+          deshacerTitulos();
+          toast.error(error?.message || 'Se asignaron, pero no se pudo guardar el título.');
+          return;
+        }
+
+        const cuantos = conTitulo.length === 1 ? '1 oficial' : `${conTitulo.length} oficiales`;
+
+        toast.success(
+          sinEntrar
+            ? `${cuantos} con "${titulo}". ${sinEntrar} no se pudieron asignar.`
+            : `${cuantos} con "${titulo}".`
+        );
+      })();
+
+      return true;
+    },
+    [
+      puedeAsignarOficiales,
+      idsOficialesVigentes,
+      idsOficialesEspeciales,
+      obtenerOcupante,
+      layoutEditor,
+      layoutStorage,
+      leadership,
+      user,
+    ]
+  );
+
   const guardarEliminacionDeOficialEspecial = useCallback(
     async (id) => {
       if (layoutStorage.guardando) return false;
@@ -585,6 +809,22 @@ export function NationalLeadershipView({
       guardarEliminacionDeOficialEspecial(id);
     },
     [guardarEliminacionDeOficialEspecial, leadership]
+  );
+  // Quitar a un oficial desde la franja "Ver más": se busca su casilla y se sigue
+  // el mismo camino que eliminarla (confirmación, retirar la asignación y la
+  // casilla). Antes se hacía desde la casilla, que ya no se dibuja.
+  const quitarOficial = useCallback(
+    (persona) => {
+      const idPersona = String(persona?.id ?? persona?.idMiembros ?? '').trim();
+      const casilla = idsOficialesEspeciales.find((id) => {
+        const ocupante = obtenerOcupante(id);
+
+        return String(ocupante?.id ?? ocupante?.idMiembros ?? '') === idPersona;
+      });
+
+      if (casilla) solicitarEliminarOficialEspecial({ id: casilla, role: 'Oficial Especial' });
+    },
+    [idsOficialesEspeciales, obtenerOcupante, solicitarEliminarOficialEspecial]
   );
   const confirmarEliminarOficialEspecial = useCallback(async () => {
     const pendiente = oficialEspecialPendienteEliminar;
@@ -997,14 +1237,17 @@ export function NationalLeadershipView({
                 onAsignarMiembro={leadership.openAssign}
                 onRemoverMiembro={leadership.pedirRemoverMiembro}
                 agregarOficialEspecial={agregarOficialEspecial}
-                puedeAgregarOficialEspecial={
-                  canManageOfficialStructure &&
-                  (props.id === 'comites-especiales' ||
-                    props.id === `oficial-especial-${cantidadOficialesEspeciales}`) &&
-                  cantidadOficialesEspeciales < 20
-                }
+                // Sin casillas a la vista, una vacía no serviría de nada: las crea
+                // "Asignar miembros" cuando hace falta.
+                puedeAgregarOficialEspecial={false}
                 guardandoDiseno={layoutStorage.guardando}
                 oficialesDelGrupo={oficialesDelGrupo}
+                puedeAsignarTitulo={puedeAsignarTitulo}
+                puedeAgregarTitulo={puedeAgregarTitulo}
+                mostrarTitulos={!historico}
+                puedeAsignarOficiales={puedeAsignarOficiales}
+                onAsignarOficiales={() => setAsignarOficialesAbierto(true)}
+                onQuitarOficial={quitarOficial}
                 puedeEliminarOficialEspecial={canManageOfficialStructure}
                 onEliminarOficialEspecial={
                   canManageOfficialStructure ? solicitarEliminarOficialEspecial : undefined
@@ -1044,6 +1287,23 @@ export function NationalLeadershipView({
           />
         )}
       </Box>
+
+      {puedeAsignarOficiales && (
+        <AsignarOficialesDialog
+          open={asignarOficialesAbierto}
+          onClose={() => setAsignarOficialesAbierto(false)}
+          opciones={leadership.memberOptions}
+          cargando={!leadership.members.length}
+          idsOficiales={idsOficialesVigentes}
+          casillasLibres={
+            20 -
+            idsOficialesEspeciales.length +
+            idsOficialesEspeciales.filter((id) => !obtenerOcupante(id)).length
+          }
+          puedeAgregarTitulo={puedeAgregarTitulo}
+          onConfirmar={asignarOficiales}
+        />
+      )}
 
       <LeadershipAssignDialog
         open={Boolean(leadership.selectedNode)}

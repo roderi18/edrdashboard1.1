@@ -76,6 +76,10 @@ export default function CargoSelectApi({
   noneLabel = 'Ninguna',
   helperText,
   disabled = false,
+  // Nombre a mostrar en lugar del del catálogo, por valor. Lo usa "Cargo
+  // Nacional" para que un Oficial Especial con título salga con su título,
+  // igual que en la Jerarquía, y no como uno más de veinte "Oficial Especial".
+  etiquetas = null,
 }) {
   const { setValue, watch } = useFormContext();
 
@@ -130,14 +134,14 @@ export default function CargoSelectApi({
     const cargoOptions = cargos.map((cargo) => ({
       ...cargo,
       value: getCargoValue(cargo),
-      label: getCargoLabel(cargo),
+      label: etiquetas?.[getCargoValue(cargo)] || getCargoLabel(cargo),
       groupLabel: groupByDivision
         ? cargo.nombreDivision || 'General'
         : NIVEL_LABELS[cargo.nivel] || cargo.nivel || 'Otros',
     }));
 
     return includeNone ? [{ ...NONE_OPTION, label: noneLabel }, ...cargoOptions] : cargoOptions;
-  }, [cargos, includeNone, groupByDivision, noneLabel]);
+  }, [cargos, includeNone, groupByDivision, noneLabel, etiquetas]);
 
   const currentValue = watch(name);
   const value =

@@ -1,4 +1,3 @@
-// third-party
 import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
@@ -26,6 +25,8 @@ import { certificacionCi } from 'src/utils/certificacion-ci.mjs';
 // services
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
+// third-party
+import { esOficialEspecial } from 'src/utils/cargos-compatibles.mjs';
 import { normalizeMemberUsername } from 'src/utils/member-auth-credentials';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import { buildOrgIndex, getMemberOrgPath } from 'src/utils/leadership-member-options';
@@ -836,9 +837,30 @@ export function MemberCreateEditForm({
     disabled: readOnlyEffective,
   });
 
+  // LO QUE DICE LA DIRECTIVA SOBREVIVE A LOS RESETS DE LA FICHA.
+  //
+  // El miembro llega por partes (caché, luego con foto y metadatos) y cada
+  // versión hace `reset` con "Cargo Nacional" y "Posición" en vacío. Los cargos
+  // se leían una sola vez, así que el reset que llegaba después los borraba: todo
+  // el Consejo Nacional salía con "Ninguno" aunque la Jerarquía los tuviera
+  // asignados. Se guardan aquí y se vuelven a poner tras cada reset.
+  const cargosDeDirectivaRef = useRef(null);
+  const reaplicarCargosDeDirectiva = () => {
+    const leidos = cargosDeDirectivaRef.current;
+    const idActual = String(currentMember?.id || currentMember?.idMiembros || '');
+
+    if (!leidos || leidos.idMiembro !== idActual) return;
+
+    methods.setValue('nationalLeadershipRole', leidos.nationalLeadershipRole, {
+      shouldDirty: false,
+    });
+    methods.setValue('memberPosition', leidos.memberPosition, { shouldDirty: false });
+  };
+
   useEffect(() => {
     if (currentMember) {
       methods.reset(mapMemberToForm(currentMember));
+      reaplicarCargosDeDirectiva();
     }
   }, [currentMember]);
 
@@ -895,7 +917,13 @@ export function MemberCreateEditForm({
           )
           .filter(Boolean);
 
-        const nationalCargo = posiciones.find((cargo) => cargo.nivel !== 'destacamento');
+        // Con dos cargos compatibles (Oficial Especial + región o sección), el
+        // campo enseña el de región o sección: el de Oficial se lleva en su
+        // tarjeta de la Jerarquía, con su título.
+        const cargosDeConsejo = posiciones.filter((cargo) => cargo.nivel !== 'destacamento');
+        const nationalCargo =
+          cargosDeConsejo.find((cargo) => !esOficialEspecial(cargo.idPosicionDirectiva || cargo.id)) ||
+          cargosDeConsejo[0];
         const destCargo = posiciones.find((cargo) => cargo.nivel === 'destacamento');
 
         // El aviso de ficha incompleta es SOLO para el pastor: es la unica persona
@@ -916,19 +944,23 @@ export function MemberCreateEditForm({
         // Se escriben SIEMPRE, tambien en vacio: si el cargo se retiro desde la
         // Directiva, la ficha tiene que quedarse vacia en vez de conservar lo que
         // trajera el formulario.
-        methods.setValue(
-          'nationalLeadershipRole',
-          nationalCargo
+        cargosDeDirectivaRef.current = {
+          idMiembro: String(memberId),
+          cargoNacionalMostrado: nationalCargo
+            ? {
+                nivel: nationalCargo.nivel,
+                idPosicionDirectiva:
+                  nationalCargo.idPosicionDirectiva || nationalCargo.id || nationalCargo.idCargo,
+              }
+            : null,
+          nationalLeadershipRole: nationalCargo
             ? nationalCargo.idPosicionDirectiva || nationalCargo.id || nationalCargo.idCargo
             : '',
-          { shouldDirty: false }
-        );
-
-        methods.setValue(
-          'memberPosition',
-          destCargo ? destCargo.idPosicionDirectiva || destCargo.id || destCargo.idCargo : '',
-          { shouldDirty: false }
-        );
+          memberPosition: destCargo
+            ? destCargo.idPosicionDirectiva || destCargo.id || destCargo.idCargo
+            : '',
+        };
+        reaplicarCargosDeDirectiva();
       } catch {
         // Si Firestore no responde, no bloquea la edicion del miembro.
       }
@@ -1246,14 +1278,16 @@ export function MemberCreateEditForm({
   // Retira lo que el miembro tuviera en estos niveles: las asignaciones de
   // directiva y, si el nivel incluye destacamento, su casilla del organigrama.
   // Es la operacion inversa de `saveSelectedCargo`.
-  const retirarCargosDeNiveles = async ({ idMiembro, niveles = [] }) => {
+  const retirarCargosDeNiveles = async ({ idMiembro, niveles = [], compatibleCon = null }) => {
     if (!idMiembro || !niveles.length) {
       return;
     }
 
     await Promise.all(
       niveles.map((nivel) =>
-        desactivarAsignacionesDirectivaPorNivel({ idMiembro, nivel }).catch(() => 0)
+        desactivarAsignacionesDirectivaPorNivel({ idMiembro, nivel, compatibleCon }).catch(
+          () => 0
+        )
       )
     );
 
@@ -1292,7 +1326,17 @@ export function MemberCreateEditForm({
     // nada, asi que vaciar el desplegable no quitaba el cargo de ningun lado: la
     // ficha lo seguia mostrando y el organigrama tambien.
     if (!cargo) {
-      await retirarCargosDeNiveles({ idMiembro, niveles: nivelesDelCampo });
+      // "Ninguno" retira el cargo que el campo ENSEÑABA. Si la persona era además
+      // Oficial Especial (que convive con su región o sección y el campo no
+      // enseña), ese se conserva: vaciar su cargo regional no la saca de los
+      // Oficiales Especiales.
+      const mostrado = cargosDeDirectivaRef.current?.cargoNacionalMostrado || null;
+
+      await retirarCargosDeNiveles({
+        idMiembro,
+        niveles: nivelesDelCampo,
+        compatibleCon: mostrado && !esOficialEspecial(mostrado.idPosicionDirectiva) ? mostrado : null,
+      });
 
       return;
     }
@@ -1344,6 +1388,11 @@ export function MemberCreateEditForm({
           idMiembro,
           nivel,
           conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
+          // Oficial Especial + región o sección conviven: guardar uno no quita el otro.
+          compatibleCon: {
+            nivel: cargo.nivel,
+            idPosicionDirectiva: cargo.idPosicionDirectiva || cargo.id || '',
+          },
         }).catch((error) => {
           console.warn('[member form] no se pudo dar de baja el cargo anterior', error);
         })

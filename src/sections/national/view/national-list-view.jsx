@@ -21,6 +21,7 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 import { normalizeText } from 'src/utils/normalize-text';
 import { claveNodo } from 'src/utils/leadership-assignments';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
+import { tituloDe } from 'src/utils/titulos-oficiales-nacionales.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import { canDeleteOrgLevel, puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
@@ -37,6 +38,7 @@ import { getRegionals } from 'src/services/regional-service';
 import { useLecturasVivas } from 'src/lib/avisos-de-lecturas';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
+import { useTitulosOficiales } from 'src/services/titulos-oficiales-service';
 import { ID_CUATRIENIO_LISTADO } from 'src/catalogs/directiva-2022-2026.mjs';
 import { quitarIntegrante, obtenerPermanentes } from 'src/services/directiva-cuatrienios-service';
 import { obtenerTelefonosDirectivaActual } from 'src/services/national-directiva-contactos-service';
@@ -456,6 +458,13 @@ export function NationalListView() {
     // directiva_local: 'Directiva Local',
   };
 
+  // El título de un Oficial de la Nacional (Protocolo, Diseño y artes…) sale en
+  // la columna Posición en lugar de "Oficial Especial", igual que en la Jerarquía
+  // y en la ficha. Va aparte de la etiqueta del cargo: el filtro de Posición sigue
+  // agrupando por cargo, no por título. Solo en la directiva de HOY: la memoria de
+  // un cuatrienio pasado conserva su "Oficial de la Nacional" de entonces.
+  const { asignaciones: titulosOficiales } = useTitulosOficiales();
+
   const filasDeHoy = nationalAssignments.map((assignment) => {
     const member = allMembers.find(
       (m) => String(m.id ?? m.idMiembros) === String(assignment.idMiembro)
@@ -512,6 +521,11 @@ export function NationalListView() {
 
       nationalXMemberPosition: assignment.idPosicionDirectiva,
       nationalXMemberPositionLabel: position?.nombreCargo || '-',
+      nationalXMemberPositionTitulo: /^nacional-oficial-especial-\d+$/.test(
+        String(assignment.idPosicionDirectiva || '')
+      )
+        ? tituloDe(titulosOficiales, member?.id ?? assignment.idMiembro)
+        : '',
       // Se pinta BAJO la posicion: "Sección La Romana", "Región Este".
       nationalXMemberPositionScope: ambito,
       nationalXMemberPositionHref: construirHrefDirectiva({
@@ -722,7 +736,7 @@ export function NationalListView() {
       memberId: String(row.memberId),
       label: row.nationalXname,
       ambito: row.nationalOrganizationalLevel,
-      cargo: row.nationalXMemberPositionLabel,
+      cargo: row.nationalXMemberPositionTitulo || row.nationalXMemberPositionLabel,
       avatarUrl: row.avatarUrl,
     }));
 

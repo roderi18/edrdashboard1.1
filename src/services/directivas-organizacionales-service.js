@@ -9,6 +9,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { esOficialEspecial, sonCargosCompatibles } from 'src/utils/cargos-compatibles.mjs';
 import { leerConCache, valorGuardado, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
   canManageRegionLeadership,
@@ -103,13 +104,22 @@ const NOMBRE_CONSEJO = {
 
 export const esNivelDeConsejo = (nivel) => NIVELES_CARGO_EXCLUYENTES.includes(nivel);
 
+export { esOficialEspecial, sonCargosCompatibles };
+
 /**
  * Cargo de consejo que ya ocupa el miembro y que impide darle otro, o null.
  *
  * `idAsignacionActual` es la asignacion que se esta guardando: reescribir la
  * misma casilla no es un conflicto consigo misma.
  */
-export async function buscarConflictoDeConsejo({ idMiembro, idAsignacionActual = '' } = {}) {
+export async function buscarConflictoDeConsejo({
+  idMiembro,
+  idAsignacionActual = '',
+  // El cargo que se va a dar (`{ nivel, idPosicionDirectiva }`): uno que puede ir
+  // junto al que ya tiene no es conflicto (Oficial Especial + región o sección,
+  // ver `src/utils/cargos-compatibles.mjs`).
+  nuevo = null,
+} = {}) {
   if (!idMiembro) return null;
 
   const asignaciones = await obtenerAsignacionesDirectivaPorMiembro({ idMiembro });
@@ -118,7 +128,8 @@ export async function buscarConflictoDeConsejo({ idMiembro, idAsignacionActual =
     asignaciones.find(
       (asignacion) =>
         esNivelDeConsejo(asignacion?.nivel) &&
-        String(asignacion.idAsignacion || asignacion.id) !== String(idAsignacionActual)
+        String(asignacion.idAsignacion || asignacion.id) !== String(idAsignacionActual) &&
+        !(nuevo && sonCargosCompatibles(asignacion, nuevo))
     ) || null
   );
 }
@@ -733,6 +744,7 @@ export async function guardarAsignacionDirectiva({
     const conflicto = await buscarConflictoDeConsejo({
       idMiembro: idMiembroResolved,
       idAsignacionActual: idAsignacion,
+      nuevo: { nivel, idPosicionDirectiva },
     });
 
     if (conflicto) {
@@ -982,6 +994,10 @@ export async function desactivarAsignacionesDirectivaPorNivel({
   idMiembro,
   nivel,
   conservarIdAsignacion = '',
+  // El cargo que se acaba de dar: los que pueden ir junto a él NO se retiran.
+  // Sin esto, hacer Oficial Especial a un Subdirector Regional le quitaba la
+  // región (y al revés).
+  compatibleCon = null,
   fechaFin = new Date().toISOString().slice(0, 10),
 } = {}) {
   asegurarFirebaseDirectivas();
@@ -994,7 +1010,8 @@ export async function desactivarAsignacionesDirectivaPorNivel({
   const aDesactivar = asignaciones.filter(
     (asignacion) =>
       asignacion.nivel === nivel &&
-      String(asignacion.idAsignacion || asignacion.id) !== String(conservarIdAsignacion)
+      String(asignacion.idAsignacion || asignacion.id) !== String(conservarIdAsignacion) &&
+      !(compatibleCon && sonCargosCompatibles(asignacion, compatibleCon))
   );
 
   if (!aDesactivar.length) {

@@ -116,6 +116,7 @@ export function MemberFormFieldsCard({
               methods={methods}
               isCreateView={false}
               isEdit
+              miembro={currentMember}
               dests={dests}
               lockCoreFields={lockGroupLeaderFields}
               readOnly={readOnlyEffective}

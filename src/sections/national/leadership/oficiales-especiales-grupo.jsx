@@ -12,8 +12,14 @@ import AvatarGroup from '@mui/material/AvatarGroup';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { tituloDe } from 'src/utils/titulos-oficiales-nacionales.mjs';
+
+import { azulLegible } from 'src/theme/azul-legible';
+import { useTitulosOficiales } from 'src/services/titulos-oficiales-service';
+
 import { Iconify } from 'src/components/iconify';
 
+import { MenuTituloOficial } from 'src/sections/national/leadership/titulo-oficial';
 import {
   getMemberDisplayName,
   getLeadershipNodeIdentity,
@@ -37,9 +43,24 @@ const nombreDe = (persona) => persona?.name || getMemberDisplayName(persona) || 
 const idDeFicha = (persona) =>
   String(persona?.idMiembros ?? persona?.idMiembro ?? persona?.id ?? '').trim();
 
-export function OficialesEspecialesGrupo({ personas = [] }) {
+// `puedeAsignarTitulo`: los tres puntos de cada oficial ("Asignar título"), para
+// Administrador Global y Oficina Nacional; `puedeAgregarTitulo`, el "Nuevo" de la
+// lista, solo para el primero.
+export function OficialesEspecialesGrupo({
+  personas = [],
+  puedeAsignarTitulo = false,
+  puedeAgregarTitulo = false,
+  // Apagado en una directiva pasada: su tarjeta es memoria y un título de hoy
+  // no se pinta sobre quien fue oficial entonces.
+  mostrarTitulos = true,
+  // Quitar a la persona de los Oficiales Especiales (solo si se puede gestionar).
+  onQuitarOficial,
+}) {
   const franja = usePopover();
   const total = personas.length;
+  const { asignaciones } = useTitulosOficiales();
+  const tituloDePersona = (persona) =>
+    mostrarTitulos ? tituloDe(asignaciones, idDeFicha(persona)) : '';
 
   // Los botones viven dentro de una tarjeta que se arrastra (editor de diseño y
   // paneo del organigrama): sin esto, pulsar "Ver más" empezaba un arrastre.
@@ -130,7 +151,7 @@ export function OficialesEspecialesGrupo({ personas = [] }) {
             // La raya del mismo color que la letra: MUI la pinta más apagada.
             textDecorationColor: 'currentColor',
             // En oscuro el azul de siempre casi no se leia sobre la tarjeta.
-            ...theme.applyStyles('dark', { color: theme.vars.palette.primary.light }),
+            ...azulLegible(theme),
           })}
         >
           Ver más
@@ -162,11 +183,27 @@ export function OficialesEspecialesGrupo({ personas = [] }) {
                   width: 150,
                   flexShrink: 0,
                   borderRadius: 1.5,
+                  position: 'relative',
                   textAlign: 'center',
                   border: '1px solid',
                   borderColor: 'divider',
                 }}
               >
+                {puedeAsignarTitulo && idDeFicha(persona) && (
+                  <MenuTituloOficial
+                    persona={persona}
+                    puedeAgregar={puedeAgregarTitulo}
+                    onQuitar={
+                      onQuitarOficial
+                        ? () => {
+                            franja.onClose();
+                            onQuitarOficial(persona);
+                          }
+                        : undefined
+                    }
+                  />
+                )}
+
                 <Avatar
                   alt={nombreDe(persona)}
                   src={identidad.avatarUrl}
@@ -191,13 +228,19 @@ export function OficialesEspecialesGrupo({ personas = [] }) {
                     nombreDe(persona)
                   )}
                 </Typography>
+                {/* Con título, el título EN LUGAR de "Oficial de la Nacional": que lo
+                    es ya lo dice la tarjeta; lo que distingue a cada uno es el título. */}
                 <Typography
                   variant="caption"
                   component="div"
                   noWrap
-                  sx={{ color: 'text.secondary' }}
+                  title={tituloDePersona(persona) || undefined}
+                  sx={(theme) => ({
+                    color: 'text.secondary',
+                    ...(tituloDePersona(persona) && { ...azulLegible(theme), fontWeight: 600 }),
+                  })}
                 >
-                  {persona.cargo || 'Oficial de la Nacional'}
+                  {tituloDePersona(persona) || persona.cargo || 'Oficial de la Nacional'}
                 </Typography>
               </Box>
             );

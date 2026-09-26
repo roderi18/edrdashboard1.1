@@ -40,7 +40,10 @@ export function NationalCard({ national, canManage = true, sx, ...other }) {
   const nationalHref = getNationalHref(national);
   const structureHref = getStructureHref(national);
   const positionLabel =
-    national?.nationalXMemberPositionLabel || national?.nationalXMemberPosition || 'Desconocido';
+    national?.nationalXMemberPositionTitulo ||
+    national?.nationalXMemberPositionLabel ||
+    national?.nationalXMemberPosition ||
+    'Desconocido';
   const positionHref = national?.nationalXMemberPositionHref || '';
   const organizationalLevel = national?.nationalOrganizationalLevel || 'Desconocido';
   const structure =

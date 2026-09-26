@@ -116,6 +116,49 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    Tests: `tests/ascenso/insignias-de-premios.test.mjs`,
    `tests/ascenso/completar-varios-premios.test.mjs`.
 
+14. **Títulos de los Oficiales de la Nacional**: tres puntos en cada oficial de la
+   tarjeta "Oficiales Especiales" (en "Ver más") → "Asignar título" o "Quitar". Se acumulan SOLO en esa tarjeta: sus casillas guardan la asignación pero no se dibujan debajo. Cada
+   persona lleva un solo título, pero **un título lo llevan varias personas, sin
+   límite** (el desplegable dice quiénes; ninguno se deshabilita). El menú de la
+   tarjeta tiene **"Asignar miembros"**: un título y varias personas a la vez; a
+   cada una se le da una casilla de Oficial Especial (primero las vacías, luego
+   se crean, hasta veinte) y el título. Quien ya es oficial solo cambia de
+   título; quien tiene otro cargo sale apagado. El título SUSTITUYE a "Oficial de la Nacional"/"Oficial
+   Especial" en la franja, la casilla, la columna Posición y "Cargo Nacional" de
+   la ficha (que también lo asigna). Asignan Administrador Global y Oficina
+   Nacional; "Nuevo" en la lista, solo el primero. Es de la persona
+   (`idMiembros`) y no da permisos, pero **solo cuenta la directiva actual**: lo
+   lleva quien HOY ocupa una casilla de Oficial Especial; en una directiva pasada
+   ni se asigna ni se pinta, y el de un ex oficial queda libre. Todo en
+   `titulos_oficiales_nacionales/actual`; regla en
+   `src/utils/titulos-oficiales-nacionales.mjs`. Detalle en
+   `docs/cargo-nacional-y-titulos-oficiales.md`.
+   Test: `tests/directivas/titulos-oficiales-nacionales.test.mjs`.
+
+15. **"Cargo Nacional" de la ficha = la Jerarquía.** Todo el Consejo Nacional
+   vigente ve en su ficha el cargo que ocupa en el organigrama (igual que
+   "Posición en tu Destacamento" con el del destacamento): ambos salen de
+   `asignaciones_directiva` y se escriben ahí. El miembro llega por partes y cada
+   `reset` del formulario los vaciaba; por eso lo leído se reaplica tras cada
+   reset (`reaplicarCargosDeDirectiva` en `member-create-edit-form.jsx`).
+   **Ninguna posición de una directiva pasada impacta el perfil**: la memoria de
+   un cuatrienio (`directiva_cuatrienios_integrantes`) no rellena la ficha ni da
+   título; solo las asignaciones activas de hoy. (La única excepción sigue siendo
+   la de permisos del punto 12: Director Nacional / ex comandante.)
+   Test: `tests/directivas/cargo-nacional-sigue-a-la-jerarquia.test.mjs`.
+
+16. **Oficial Especial convive con un cargo de región o de sección** (y solo con
+   esos): es la única excepción a "nadie sirve en dos consejos". Ni se bloquea al
+   darlo ni se retira el otro (servicio, organigramas y ficha). Dentro del
+   Consejo Ejecutivo sigue valiendo un cargo por persona. En la ficha, "Cargo
+   Nacional" enseña el de región o sección. Regla en `src/utils/cargos-compatibles.mjs`.
+
+17. **Asignar en cualquier directiva es instantáneo**: la casilla (y el título)
+   se pinta en el mismo clic, el diálogo se cierra y la escritura va por detrás;
+   si falla o queda pendiente, se deshace y se avisa. `RETARDO_ASIGNACION_MS = 0`
+   rige los cuatro organigramas. No vuelvas a poner esperas de cortesía.
+   Test: `tests/directivas/oficial-especial-y-asignar-al-instante.test.mjs`.
+
 Corazón del alcance: `src/utils/member-access.js` y `src/utils/org-level-access.js`.
 Suite que lo cubre: `npm run test:acceso`.
 
@@ -137,6 +180,12 @@ Suite que lo cubre: `npm run test:acceso`.
   cian `#00B8D9` de la plantilla ya se colaba dos veces donde tocaba el verde
   de la casa (`primary`). Si el color no distingue una cosa de otra —tres
   garantías, no tres estados—, va uno solo.
+- **Texto azul en pantallas oscuras: siempre el azul más claro de la paleta
+  que sigue siendo azul** (`primary.light`, #7A9BD4), nunca `primary.main`
+  (#1F4FA6), que sobre una tarjeta oscura casi no se lee. En claro, `primary.main`.
+  Una sola pieza: `azulLegible(theme)` de `src/theme/azul-legible.js`
+  (`sx={(theme) => ({ ...azulLegible(theme) })}`). `primary.lighter` ya es casi
+  blanco y no se usa para texto.
 - **Fechas: siempre el calendario del proyecto**, nunca `<input type="date">` ni
   `datetime-local`. Con formulario, `Field.DatePicker` / `Field.DateTimePicker`
   (`src/components/hook-form`); sin él, `DatePicker` / `DateTimePicker` de

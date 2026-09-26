@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { valorGuardado } from 'src/utils/cache-de-lecturas.mjs';
+import { esOficialEspecial } from 'src/utils/cargos-compatibles.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
   buildOrgIndex,
@@ -61,19 +62,16 @@ import { useAuthContext } from 'src/auth/hooks';
 // ----------------------------------------------------------------------
 // AQUI SE CAMBIA EL TIEMPO DE LA ESPERA DE "Asignando...".
 //
-// Espera deliberada entre el clic en "Asignar" y el pintado de la casilla. NO es
-// tiempo de trabajo: la escritura viaja por detras y el organigrama podria
-// cambiar en el mismo frame del clic — tan rapido que la accion se quedaba sin
-// acuse de recibo y no daba la sensacion de haber hecho nada. Estos
-// milisegundos, con la barra "Asignando..." del dialogo, son ese acuse.
-//
-// Solo aplica al ASIGNAR. Remover sigue siendo inmediato.
+// Era una espera deliberada de 600 ms entre el clic en "Asignar" y el pintado de
+// la casilla, como acuse de recibo. Se pidió lo contrario: asignar en cualquier
+// directiva tiene que ser INSTANTÁNEO. Ahora vale 0: la casilla se pinta en el
+// mismo clic (pintado optimista) y la escritura viaja por detrás; si falla, se
+// deshace y se avisa.
 //
 // Rige los CUATRO organigramas: nacion, region y seccion por este hook, y el del
-// destacamento importando esta misma constante. Cambiar el numero de abajo los
-// cambia todos.
+// destacamento importando esta misma constante.
 // ----------------------------------------------------------------------
-export const RETARDO_ASIGNACION_MS = 600;
+export const RETARDO_ASIGNACION_MS = 0;
 
 const esperar = (ms) =>
   new Promise((resolve) => {
@@ -215,7 +213,11 @@ export function useLeadershipAssignments({
           !(
             asignacion?.nivel === nivel &&
             String(asignacion?.idEntidad || '') === String(idEntidad || '')
-          )
+          ) &&
+          // En una región o sección, ser Oficial Especial no ocupa: se puede
+          // tener las dos cosas y no hay nada que preguntar ni que retirar.
+          !((nivel === 'regional' || nivel === 'seccional') &&
+            esOficialEspecial(asignacion?.idPosicionDirectiva))
       )
     );
     // `cambiosDeDirectiva` no se lee dentro: está para releer cuando otra sesión
@@ -364,7 +366,7 @@ export function useLeadershipAssignments({
       // Espera de cortesia con la barra "Asignando...". Ver RETARDO_ASIGNACION_MS
       // arriba, que es donde se cambia el tiempo. Remover no la lleva: retirar a
       // alguien no necesita que se note el esfuerzo.
-      if (activo && idMiembro) {
+      if (activo && idMiembro && RETARDO_ASIGNACION_MS > 0) {
         setIsSaving(true);
         await esperar(RETARDO_ASIGNACION_MS);
         setIsSaving(false);
@@ -435,6 +437,7 @@ export function useLeadershipAssignments({
                 idMiembro,
                 nivel: nivelARetirar,
                 conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
+                compatibleCon: { nivel, idPosicionDirectiva: position.idCargo },
               }).catch(() => 0)
             )
           );

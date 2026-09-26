@@ -58,7 +58,6 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
-import { RETARDO_ASIGNACION_MS } from 'src/sections/common/use-leadership-assignments';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
 import {
   DEST_LEADERSHIP_DATA,
@@ -632,7 +631,8 @@ export default function Page() {
   });
   const [assignments, setAssignments] = useState({});
   const [isDragging, setIsDragging] = useState(false);
-  const [isSavingMember, setIsSavingMember] = useState(false);
+  // Asignar ya no espera (pintado optimista): el diálogo nunca queda "Asignando...".
+  const isSavingMember = false;
   // Cargos que los miembros ocupan en las directivas de seccion, region y nacion,
   // y el indice para poder nombrar esas entidades. Aqui no estorban —el
   // destacamento es compatible con ellas— pero se dicen, igual que en los demas
@@ -1006,43 +1006,64 @@ export default function Page() {
       return;
     }
 
-    setIsSavingMember(true);
+    const position = POSICION_POR_CASILLA.get(getAssignmentKey(assignmentInfo));
+
+    if (!position) {
+      toast.error('Este nodo no está en el catálogo de cargos.');
+      return;
+    }
+
+    // INSTANTÁNEO, como en las demás directivas: la casilla se pinta en el mismo
+    // clic y el diálogo se cierra; la escritura va por detrás. Antes se esperaba
+    // a Firestore (y a una espera de cortesía) con el diálogo abierto. Si falla
+    // o queda pendiente de aprobación, se vuelve a lo que había.
+    const aplicarCasilla = (casilla) => (current) => {
+      const siguientes = { ...current };
+
+      // Fuera cualquier OTRA casilla del mismo miembro: se libera más abajo.
+      Object.entries(siguientes).forEach(([clave, valor]) => {
+        if (String(valor?.idMiembros) === String(memberId)) delete siguientes[clave];
+      });
+
+      if (casilla) siguientes[getAssignmentKey(casilla)] = casilla;
+
+      return siguientes;
+    };
+    const resumen = construirResumenMiembro(selectedMember || {});
+    const provisional = asignacionDirectivaACasilla({
+      idPosicionDirectiva: position.idCargo,
+      idAsignacion: `provisional-${memberId}`,
+      idMiembro: memberId,
+      ...resumen,
+    });
+    let previas = null;
+
+    setAssignments((current) => {
+      previas = current;
+      return aplicarCasilla(provisional)(current);
+    });
+    setSelectedNode(null);
+    setSelectedMember(null);
 
     try {
-      // La barra "Asignando..." dura AL MENOS RETARDO_ASIGNACION_MS: van en
-      // paralelo, asi que una escritura rapida no se salta el acuse de recibo y
-      // una lenta tampoco suma la espera encima. El tiempo se cambia en
-      // `use-leadership-assignments`, que es de donde sale la constante.
-      const position = POSICION_POR_CASILLA.get(getAssignmentKey(assignmentInfo));
-
-      if (!position) {
-        throw new Error('Este nodo no está en el catálogo de cargos.');
-      }
-
-      const [asignacionGuardada] = await Promise.all([
-        guardarAsignacionDirectiva({
-          // Sin el usuario, la puerta de cambios no sabe quien actua y deja el
-          // cambio pendiente de aprobacion: la casilla se pintaba y volvia atras.
-          usuario: user,
-          nivel: NIVEL_DESTACAMENTO,
-          idEntidad: destId,
-          idCargo: Number(position.idCargoApi) || null,
-          idMiembro: memberId,
-          idPosicionDirectiva: position.idCargo,
-          division: position.division ?? null,
-          orden: position.orden || 1,
-          origen: 'organigrama-destacamento',
-          activo: true,
-          ...construirResumenMiembro(selectedMember || {}),
-        }),
-        new Promise((resolve) => {
-          setTimeout(resolve, RETARDO_ASIGNACION_MS);
-        }),
-      ]);
+      const asignacionGuardada = await guardarAsignacionDirectiva({
+        // Sin el usuario, la puerta de cambios no sabe quien actua y deja el
+        // cambio pendiente de aprobacion: la casilla se pintaba y volvia atras.
+        usuario: user,
+        nivel: NIVEL_DESTACAMENTO,
+        idEntidad: destId,
+        idCargo: Number(position.idCargoApi) || null,
+        idMiembro: memberId,
+        idPosicionDirectiva: position.idCargo,
+        division: position.division ?? null,
+        orden: position.orden || 1,
+        origen: 'organigrama-destacamento',
+        activo: true,
+        ...resumen,
+      });
 
       if (asignacionGuardada?.pendienteDeAprobacion) {
-        setSelectedNode(null);
-        setSelectedMember(null);
+        if (previas) setAssignments(previas);
         toast.info(
           'Cambio enviado a la Oficina Nacional y al Administrador Global. Se aplicará cuando lo aprueben.'
         );
@@ -1057,29 +1078,13 @@ export default function Page() {
         conservarIdAsignacion: asignacionGuardada?.idAsignacion || '',
       }).catch(() => 0);
 
-      const casilla = asignacionDirectivaACasilla(asignacionGuardada);
-
-      setAssignments((current) => {
-        const siguientes = { ...current };
-
-        // Fuera cualquier OTRA casilla del mismo miembro, que acaba de quedar
-        // liberada arriba.
-        Object.entries(siguientes).forEach(([clave, valor]) => {
-          if (String(valor?.idMiembros) === String(memberId)) delete siguientes[clave];
-        });
-
-        if (casilla) siguientes[getAssignmentKey(casilla)] = casilla;
-
-        return siguientes;
-      });
-      setSelectedNode(null);
-      setSelectedMember(null);
+      // La provisional se cambia por la de verdad (con su id).
+      setAssignments(aplicarCasilla(asignacionDirectivaACasilla(asignacionGuardada) || provisional));
       toast.success('Miembro asignado correctamente.');
     } catch (error) {
       console.error('Error guardando asignacion del organigrama:', error);
-      toast.error(error?.message || 'No se pudo asignar el miembro.');
-    } finally {
-      setIsSavingMember(false);
+      if (previas) setAssignments(previas);
+      toast.error(error?.message || 'No se pudo asignar el miembro. Se deshizo el cambio.');
     }
   };
 

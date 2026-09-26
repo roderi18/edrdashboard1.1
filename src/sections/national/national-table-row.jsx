@@ -51,7 +51,8 @@ export function NationalTableRow({
   // de antes. Se quita con `undefined`, que es lo unico que la celda omite; con
   // cadena vacia saldria el "Tel. desconocido" de formatPhoneNumber.
   const esMemoriaDeCuatrienio = Boolean(row.integrante);
-  const positionLabel = row.nationalXMemberPositionLabel || '-';
+  // Un Oficial de la Nacional con título se nombra por su título.
+  const positionLabel = row.nationalXMemberPositionTitulo || row.nationalXMemberPositionLabel || '-';
   const positionHref = row.nationalXMemberPositionHref || '';
   const organizationalLevel = row.nationalOrganizationalLevel || '-';
   const structureLabel = row.nationalEstructureLabel || '-';
