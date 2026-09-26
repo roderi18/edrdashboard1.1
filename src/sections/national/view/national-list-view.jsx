@@ -61,6 +61,7 @@ import {
 } from 'src/catalogs/directiva-diagrams';
 import {
   guardarAsignacionDirectiva,
+  obtenerCasillasPersonalizadas,
   obtenerHistorialDirectivaGlobal,
   obtenerAsignacionesDirectivaMiembros,
 } from 'src/services/directivas-organizacionales-service';
@@ -81,6 +82,7 @@ import {
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { LeadershipHistoryList } from 'src/sections/common/leadership-history-list';
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
+import { useCasillasPersonalizadas } from 'src/sections/common/use-casillas-personalizadas';
 import { useCambiarMotivoDeSalida } from 'src/sections/common/use-cambiar-motivo-de-salida';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 import { SelectorDeCuatrienio } from 'src/sections/national/cuatrienios/selector-de-cuatrienio';
@@ -292,6 +294,9 @@ const rutaDelCuatrienio = (id, vigente) =>
 
 export function NationalListView() {
   const [hydrated, setHydrated] = useState(false);
+  // Registra en el catálogo las casillas añadidas con "Agregar casilla": sin
+  // esto la columna Posición enseñaba su id en lugar de su nombre.
+  useCasillasPersonalizadas();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -396,6 +401,11 @@ export function NationalListView() {
           obtenerPermanentes().catch(() => []),
           obtenerTelefonosDirectivaActual().catch(() => []),
           obtenerHistorialDirectivaGlobal().catch(() => []),
+          // Antes de montar las filas: con ellas en el catálogo, un cargo
+          // añadido con "Agregar casilla" sale con su nombre y su nivel, y no
+          // con su id (las filas se calculan una vez y no se enteran si llegan
+          // después).
+          obtenerCasillasPersonalizadas().catch(() => []),
         ]);
 
       if (cancelado) return;

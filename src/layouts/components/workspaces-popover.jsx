@@ -71,16 +71,16 @@ const SUBROLES_POR_ROL = {
     { label: 'Director Nacional', rolCodigo: ROLES.DIRECTOR_NACIONAL },
     { label: 'Capellán Nacional', rolCodigo: ROLES.CAPELLAN_NACIONAL },
     {
-      label: 'Coordinador Nacional de Adiestramiento',
+      label: 'Director Nacional de Adiestramiento',
       rolCodigo: ROLES.COORDINADOR_ADIESTRAMIENTO_NACIONAL,
     },
     { label: 'Sub-Director Nacional', rolCodigo: ROLES.SUBDIRECTOR_NACIONAL },
-    { label: 'Coordinador Nacional de Promoción', rolCodigo: ROLES.COORDINADOR_PROMOCION_NACIONAL },
+    { label: 'Director Nacional de Promoción', rolCodigo: ROLES.COORDINADOR_PROMOCION_NACIONAL },
     {
-      label: 'Coordinador Nacional de Producción',
+      label: 'Director Nacional de Producción',
       rolCodigo: ROLES.COORDINADOR_PRODUCCION_NACIONAL,
     },
-    { label: 'Coordinador Nacional de Programa', rolCodigo: ROLES.COORDINADOR_PROGRAMA_NACIONAL },
+    { label: 'Director Nacional de Programa', rolCodigo: ROLES.COORDINADOR_PROGRAMA_NACIONAL },
     { label: 'Comités Especiales', rolCodigo: ROLES.COMITES_ESPECIALES_NACIONAL },
     {
       label: 'Oficiales de Adiestramientos Especiales',

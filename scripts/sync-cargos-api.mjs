@@ -50,7 +50,7 @@ const buildApiCargoName = (position) => {
     return `${base} (${division})`;
   }
 
-  // Si el nombre ya lleva su nivel dentro ("Coordinador Nacional de Promoción",
+  // Si el nombre ya lleva su nivel dentro ("Director Nacional de Promoción",
   // "Capellán Regional"), no se repite.
   return normalizeKey(base).includes(normalizeKey(nivel)) ? base : `${base} (${nivel})`;
 };

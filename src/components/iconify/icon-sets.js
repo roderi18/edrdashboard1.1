@@ -794,6 +794,10 @@ export default {
   'custom:estado-reembolsado': {
     body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 12a7.8 7.8 0 1 0 2.6-5.8"/><path d="M4 4v3.2h3.2"/></g>',
   },
+  // Casco de constructor local: el acceso a Pruebas no depende de descargar iconos.
+  'custom:constructor-duotone': {
+    body: '<path fill="currentColor" opacity=".4" d="M4 16v-3a8 8 0 0 1 16 0v3z"/><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-3a8 8 0 0 1 5-7.42M20 16v-3a8 8 0 0 0-5-7.42M9 10V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v6"/><rect x="2" y="16" width="20" height="4" rx="2"/></g>',
+  },
   'custom:menu-duotone': {
     body: '<path fill="currentColor" opacity="0.4" d="M15.7798 4.5H5.2202C4.27169 4.5 3.5 5.06057 3.5 5.75042C3.5 6.43943 4.27169 7 5.2202 7H15.7798C16.7283 7 17.5 6.43943 17.5 5.75042C17.5 5.06054 16.7283 4.5 15.7798 4.5Z" ></path> <path fill="currentColor" d="M18.7798 10.75H8.2202C7.27169 10.75 6.5 11.3106 6.5 12.0004C6.5 12.6894 7.27169 13.25 8.2202 13.25H18.7798C19.7283 13.25 20.5 12.6894 20.5 12.0004C20.5 11.3105 19.7283 10.75 18.7798 10.75Z" ></path> <path fill="currentColor" d="M15.7798 17H5.2202C4.27169 17 3.5 17.5606 3.5 18.2504C3.5 18.9394 4.27169 19.5 5.2202 19.5H15.7798C16.7283 19.5 17.5 18.9394 17.5 18.2504C17.5 17.5606 16.7283 17 15.7798 17Z" ></path>',
   },

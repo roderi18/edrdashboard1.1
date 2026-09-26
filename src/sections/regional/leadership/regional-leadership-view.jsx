@@ -17,6 +17,7 @@ import { useParams } from 'src/routes/hooks';
 
 import { canManageDirectiva } from 'src/utils/admin-role-label';
 import { canManageRegionLeadership } from 'src/utils/org-level-access';
+import { arbolConCasillas } from 'src/utils/casillas-personalizadas.mjs';
 
 import { getRegionals } from 'src/services/regional-service';
 import { REGIONAL_LEADERSHIP_DATA } from 'src/catalogs/directiva-diagrams';
@@ -29,7 +30,9 @@ import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-d
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigrama';
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
+import { CasillasDirectivaBoton } from 'src/sections/common/casillas-directiva-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
+import { useCasillasPersonalizadas } from 'src/sections/common/use-casillas-personalizadas';
 import { GLOW_JERARQUIA_SX, useResaltarMiembro } from 'src/sections/common/use-resaltar-miembro';
 import {
   entidadesDeDisenoDe,
@@ -282,6 +285,17 @@ export function RegionalLeadershipView({
     conDatosDeHoy: !historico,
   });
   const obtenerOcupante = historico?.obtenerOcupante ?? leadership.getAssignedMember;
+  // El árbol de fábrica más lo añadido con "Agregar casilla" (global al nivel).
+  const casillasAnadidas = useCasillasPersonalizadas();
+  // En la memoria de un cuatrienio no se añaden: salían como "Vacante" cargos
+  // que entonces no existían.
+  const diagrama = useMemo(
+    () =>
+      historico
+        ? REGIONAL_LEADERSHIP_DATA
+        : arbolConCasillas(REGIONAL_LEADERSHIP_DATA, 'regional', casillasAnadidas.todas),
+    [historico, casillasAnadidas.todas]
+  );
   // El diseno del diagrama se guarda en Firestore: antes vivia en memoria y cada
   // recolocacion se perdia al recargar.
   const layoutStorage = useLeadershipLayoutStorage({
@@ -314,18 +328,18 @@ export function RegionalLeadershipView({
 
   useResaltarMiembro({
     containerRef,
-    diagrama: REGIONAL_LEADERSHIP_DATA,
+    diagrama,
     obtenerOcupante,
     miembroId: resaltarMiembroId,
     token: resaltarToken,
   });
   const connections = useMemo(
     () =>
-      aplicarVinculosDelDiagrama(getLeadershipConnections(REGIONAL_LEADERSHIP_DATA), {
+      aplicarVinculosDelDiagrama(getLeadershipConnections(diagrama), {
         hiddenConnections: layoutEditor.hiddenConnections,
         extraConnections: layoutEditor.extraConnections,
       }),
-    [layoutEditor.hiddenConnections, layoutEditor.extraConnections]
+    [diagrama, layoutEditor.hiddenConnections, layoutEditor.extraConnections]
   );
   const connectorLayerActive =
     layoutEditor.editMode ||
@@ -336,7 +350,8 @@ export function RegionalLeadershipView({
     layoutEditor.extraConnections.length > 0;
   // Sin diseño o sin ocupantes todavía, el árbol no se pinta: salía con las
   // posiciones de partida y todo en "Vacante", y se recolocaba y llenaba después.
-  const cargandoArbol = layoutStorage.cargando || leadership.cargando;
+  const cargandoArbol =
+    layoutStorage.cargando || leadership.cargando || casillasAnadidas.cargando;
   // Todo el arbol centrado como un grupo (ver el hook): se suma al arrastre.
   const desplazamientoX = useCentrarOrganigrama({
     containerRef,
@@ -720,7 +735,7 @@ export function RegionalLeadershipView({
             lineWidth="2px"
             lineHeight="34px"
             lineColor="var(--palette-grey-500)"
-            data={REGIONAL_LEADERSHIP_DATA}
+            data={diagrama}
             nodeClassName={layoutEditor.getNodeTreeClassName}
             nodeItem={(props) => (
               <RegionalLeadershipNode
@@ -762,6 +777,16 @@ export function RegionalLeadershipView({
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
             mostrarMargenHorizontal
+            accionesExtra={
+              historico ? null : (
+                <CasillasDirectivaBoton
+                  nivel="regional"
+                  arboles={[diagrama]}
+                  casillas={casillasAnadidas.casillas}
+                  onCambio={casillasAnadidas.recargar}
+                />
+              )
+            }
           />
         )}
       </Box>

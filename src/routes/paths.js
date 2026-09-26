@@ -16,6 +16,10 @@ const ROOTS = {
 // ----------------------------------------------------------------------
 
 export const paths = {
+  pruebas: {
+    root: '/pruebas',
+    mapaRepublicaDominicana: '/pruebas/mapa-republica-dominicana',
+  },
   // Lo que se ve dentro del iframe de la vista previa de EXPLORA Designer. Va
   // fuera de /dashboard para no cargar el menu ni la cabecera dentro del recuadro.
   everestVistaPrevia: '/vista-previa/everest',

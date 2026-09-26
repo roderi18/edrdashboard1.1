@@ -26,6 +26,7 @@ import { useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
 import { canManageDirectiva } from 'src/utils/admin-role-label';
+import { arbolesConCasillas } from 'src/utils/casillas-personalizadas.mjs';
 import { puedeVerAvisoDatosPendientes } from 'src/utils/member-datos-pendientes';
 import { construirResumenMiembro, resolverMiembroAsignado } from 'src/utils/leadership-assignments';
 import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
@@ -58,6 +59,8 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
+import { CasillasDirectivaBoton } from 'src/sections/common/casillas-directiva-dialog';
+import { useCasillasPersonalizadas } from 'src/sections/common/use-casillas-personalizadas';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
 import {
   DEST_LEADERSHIP_DATA,
@@ -71,16 +74,16 @@ import {
   getLeadershipNodeIdentity,
 } from 'src/sections/common/leadership-node-identity';
 import {
+  LeadershipNodeAnchors,
   LeadershipLayoutEditor,
-  getLeadershipContainerWidthSx,
   getLeadershipEditGridSx,
   getLeadershipConnections,
-  aplicarVinculosDelDiagrama,
-  LeadershipNodeAnchors,
   useLeadershipLayoutEditor,
+  aplicarVinculosDelDiagrama,
   hasLeadershipLayoutOffsets,
   getLeadershipEditableNodeSx,
   LeadershipLayoutOffsetStyles,
+  getLeadershipContainerWidthSx,
   LeadershipLayoutConnectorLayer,
   getLeadershipConnectorOverrideSx,
 } from 'src/sections/common/leadership-layout-editor';
@@ -271,12 +274,21 @@ const CARGOS_VISIBLES_DESDE_FUERA = new Set([
 
 // Casilla del organigrama -> posicion del catalogo. Es el inverso de
 // `getOrganigramaDestSlot`, que hace el camino contrario.
-const POSICION_POR_CASILLA = new Map(
-  DIRECTIVA_POSITIONS.filter((position) => position.nivel === NIVEL_DESTACAMENTO)
-    .map((position) => [position, getOrganigramaDestSlot(position)])
-    .filter(([, slot]) => slot)
-    .map(([position, slot]) => [getAssignmentKey(slot), position])
-);
+//
+// Se calcula al pedirla y no al cargar el módulo: las casillas añadidas con
+// "Agregar casilla" entran en el catálogo después, y un mapa hecho de antemano
+// no las conocía ("Este nodo no está en el catálogo de cargos").
+const posicionPorCasilla = (clave) =>
+  DIRECTIVA_POSITIONS.find(
+    (position) =>
+      position.nivel === NIVEL_DESTACAMENTO &&
+      position.activo !== false &&
+      (() => {
+        const slot = getOrganigramaDestSlot(position);
+
+        return Boolean(slot) && getAssignmentKey(slot) === clave;
+      })()
+  ) || null;
 
 // Traduce una asignacion de directiva a la forma que espera esta pantalla
 // (`cargo`, `division`, `orden`, `idMiembros`). Devuelve null si la posicion no
@@ -613,6 +625,19 @@ export default function Page() {
   const dragRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const skipNextDragRef = useRef(false);
   const layoutEditor = useLeadershipLayoutEditor();
+  // Los árboles de fábrica más lo añadido con "Agregar casilla": sale en todos
+  // los destacamentos. El primero es el de la dirección; los demás, las
+  // divisiones.
+  const casillasAnadidas = useCasillasPersonalizadas();
+  const [arbolDireccion, ...gruposDivision] = useMemo(
+    () =>
+      arbolesConCasillas(
+        [DEST_LEADERSHIP_DATA, ...DEST_DIVISION_GROUPS],
+        NIVEL_DESTACAMENTO,
+        casillasAnadidas.todas
+      ),
+    [casillasAnadidas.todas]
+  );
   const [destName, setDestName] = useState('Destacamento');
   // El diseno del diagrama se guarda en Firestore: antes vivia en memoria y cada
   // recolocacion se perdia al recargar.
@@ -659,13 +684,13 @@ export default function Page() {
   const connections = useMemo(
     () =>
       aplicarVinculosDelDiagrama(
-        getLeadershipConnections([DEST_LEADERSHIP_DATA, ...DEST_DIVISION_GROUPS]),
+        getLeadershipConnections([arbolDireccion, ...gruposDivision]),
         {
           hiddenConnections: layoutEditor.hiddenConnections,
           extraConnections: layoutEditor.extraConnections,
         }
       ),
-    [layoutEditor.hiddenConnections, layoutEditor.extraConnections]
+    [arbolDireccion, gruposDivision, layoutEditor.hiddenConnections, layoutEditor.extraConnections]
   );
   const connectorLayerActive =
     layoutEditor.editMode ||
@@ -714,10 +739,10 @@ export default function Page() {
       (node.children || []).forEach(recorrer);
     };
 
-    [DEST_LEADERSHIP_DATA, ...DEST_DIVISION_GROUPS].forEach(recorrer);
+    [arbolDireccion, ...gruposDivision].forEach(recorrer);
 
     return porMiembro;
-  }, [assignments]);
+  }, [assignments, arbolDireccion, gruposDivision]);
 
   // Cargo que cada miembro ocupa en una directiva de seccion, region o nacion.
   // No impide asignarlo aqui: se dice, y punto.
@@ -810,10 +835,12 @@ export default function Page() {
       }
     };
 
-    if (destId) {
+    // Se espera a las casillas añadidas: una asignación a una de ellas no se
+    // sabe traducir a su casilla hasta que están en el catálogo.
+    if (destId && !casillasAnadidas.cargando) {
       loadAssignments();
     }
-  }, [destId]);
+  }, [destId, casillasAnadidas.cargando, casillasAnadidas.casillas]);
 
   useEffect(() => {
     const handleClickAwayPopover = (event) => {
@@ -1006,7 +1033,7 @@ export default function Page() {
       return;
     }
 
-    const position = POSICION_POR_CASILLA.get(getAssignmentKey(assignmentInfo));
+    const position = posicionPorCasilla(getAssignmentKey(assignmentInfo));
 
     if (!position) {
       toast.error('Este nodo no está en el catálogo de cargos.');
@@ -1145,7 +1172,7 @@ export default function Page() {
       return;
     }
 
-    const position = POSICION_POR_CASILLA.get(assignmentKey);
+    const position = posicionPorCasilla(assignmentKey);
 
     try {
       // Se da de baja escribiendo la misma asignacion con activo=false, igual que
@@ -1451,9 +1478,13 @@ export default function Page() {
             lineWidth="2px"
             lineHeight="34px"
             lineColor="var(--palette-grey-500)"
-            data={DEST_LEADERSHIP_DATA}
+            data={arbolDireccion}
             nodeClassName={layoutEditor.getNodeTreeClassName}
-            nodeItem={(props) => (
+            nodeItem={(props) =>
+              // Un contenedor añadido con "Agregar casilla" es caja, no cargo.
+              props.isDivision ? (
+                <DivisionNode sx={{}} {...props} layoutEditor={layoutEditor} />
+              ) : (
               <LeadershipNode
                 sx={{}}
                 {...props}
@@ -1466,7 +1497,8 @@ export default function Page() {
                 onRemoverMiembro={handleOpenRemoveMember}
                 onInformacionRol={handleRoleInfo}
               />
-            )}
+              )
+            }
           />
 
           <Box
@@ -1477,7 +1509,7 @@ export default function Page() {
               justifyContent: 'center',
             }}
           >
-            {DEST_DIVISION_GROUPS.map((node) => (
+            {gruposDivision.map((node) => (
               <OrganizationalChart
                 key={node.id}
                 lineWidth="2px"
@@ -1535,6 +1567,14 @@ export default function Page() {
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
             mostrarMargenHorizontal
+            accionesExtra={
+              <CasillasDirectivaBoton
+                nivel="destacamento"
+                arboles={[arbolDireccion, ...gruposDivision]}
+                casillas={casillasAnadidas.casillas}
+                onCambio={casillasAnadidas.recargar}
+              />
+            }
           />
         )}
       <Dialog open={!!selectedNode} onClose={handleCloseChangeMember} fullWidth maxWidth="xs">

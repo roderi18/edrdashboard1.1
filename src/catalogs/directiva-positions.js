@@ -1,6 +1,11 @@
 // Con extension explicita: este modulo se carga tambien desde `node --test`, y
 // el resolvedor de ESM no la deduce.
 import { tieneCasillaEnOrganigrama } from './directiva-diagrams.js';
+import {
+  casillasValidas,
+  posicionDeCasilla,
+  cargoDeCasillaDest,
+} from '../utils/casillas-personalizadas.mjs';
 
 export const DIRECTIVA_LEVELS = {
   nacional: 'nacional',
@@ -370,7 +375,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idCargo: 'nacional-coordinador-adiestramiento',
     idCargoApi: API_CARGO_IDS.coordinadorNacionalAdiestramiento,
     nivel: DIRECTIVA_LEVELS.nacional,
-    nombreCargo: 'Coordinador Nacional de Adiestramiento',
+    nombreCargo: 'Director Nacional de Adiestramiento',
     idNodoDiagrama: 'coordinador-nacional-adiestramiento',
     idCargoPadre: 'nacional-consejo-ejecutivo',
     idNodoPadre: 'consejo-ejecutivo',
@@ -385,7 +390,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idNodoDiagrama: 'oficiales-adiestramientos-especiales',
     idCargoPadre: 'nacional-coordinador-adiestramiento',
     idNodoPadre: 'coordinador-nacional-adiestramiento',
-    nombreCargoPadre: 'Coordinador Nacional de Adiestramiento',
+    nombreCargoPadre: 'Director Nacional de Adiestramiento',
     orden: 8,
   }),
   createPosition({
@@ -414,7 +419,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idCargo: 'nacional-coordinador-promocion',
     idCargoApi: API_CARGO_IDS.coordinadorNacionalPromocion,
     nivel: DIRECTIVA_LEVELS.nacional,
-    nombreCargo: 'Coordinador Nacional de Promoción',
+    nombreCargo: 'Director Nacional de Promoción',
     idNodoDiagrama: 'coordinador-nacional-promocion',
     idCargoPadre: 'nacional-consejo-ejecutivo',
     idNodoPadre: 'consejo-ejecutivo',
@@ -425,7 +430,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idCargo: 'nacional-coordinador-produccion',
     idCargoApi: API_CARGO_IDS.coordinadorNacionalProduccion,
     nivel: DIRECTIVA_LEVELS.nacional,
-    nombreCargo: 'Coordinador Nacional de Producción',
+    nombreCargo: 'Director Nacional de Producción',
     idNodoDiagrama: 'coordinador-nacional-produccion',
     idCargoPadre: 'nacional-consejo-ejecutivo',
     idNodoPadre: 'consejo-ejecutivo',
@@ -436,7 +441,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idCargo: 'nacional-coordinador-programa',
     idCargoApi: API_CARGO_IDS.coordinadorNacionalPrograma,
     nivel: DIRECTIVA_LEVELS.nacional,
-    nombreCargo: 'Coordinador Nacional de Programa',
+    nombreCargo: 'Director Nacional de Programa',
     idNodoDiagrama: 'coordinador-nacional-programa',
     idCargoPadre: 'nacional-consejo-ejecutivo',
     idNodoPadre: 'consejo-ejecutivo',
@@ -875,6 +880,55 @@ export const DIRECTIVA_POSITIONS_BY_LEVEL = DIRECTIVA_POSITIONS.reduce((acc, pos
 }, {});
 
 // ----------------------------------------------------------------------
+// Casillas añadidas desde el organigrama (`casillas-personalizadas.mjs`).
+//
+// Se SUMAN a esta misma lista, en su sitio, en vez de vivir en otra: el
+// catálogo lo consultan una veintena de pantallas (organigramas, ficha, lista
+// de miembros, historial, importación) por `DIRECTIVA_POSITIONS`, y con una
+// lista aparte cada una tendría que acordarse de mirar las dos. Registrar de
+// nuevo sustituye las anteriores; las de fábrica no se tocan.
+// ----------------------------------------------------------------------
+
+let versionCasillas = 0;
+let firmaCasillas = '';
+
+/** Cambia cada vez que se registran casillas: sirve de clave de caché. */
+export const versionDeCasillasPersonalizadas = () => versionCasillas;
+
+export const registrarCasillasPersonalizadas = (lista = []) => {
+  const nuevas = casillasValidas(lista).map(posicionDeCasilla);
+  // Se registra en cada lectura; solo cambia algo (y la versión) si la lista
+  // es otra. Si no, la caché de cargos se vaciaría a cada paso.
+  const firma = JSON.stringify(nuevas);
+
+  if (firma === firmaCasillas) return;
+  firmaCasillas = firma;
+
+  for (let indice = DIRECTIVA_POSITIONS.length - 1; indice >= 0; indice -= 1) {
+    if (DIRECTIVA_POSITIONS[indice].personalizada) DIRECTIVA_POSITIONS.splice(indice, 1);
+  }
+  DIRECTIVA_POSITIONS.push(...nuevas);
+
+  Object.keys(DIRECTIVA_POSITIONS_BY_LEVEL).forEach((nivel) => {
+    DIRECTIVA_POSITIONS_BY_LEVEL[nivel] = DIRECTIVA_POSITIONS_BY_LEVEL[nivel].filter(
+      (position) => !position.personalizada
+    );
+  });
+  nuevas.forEach((position) => {
+    DIRECTIVA_POSITIONS_BY_LEVEL[position.nivel] = [
+      ...(DIRECTIVA_POSITIONS_BY_LEVEL[position.nivel] || []),
+      position,
+    ];
+  });
+
+  versionCasillas += 1;
+};
+
+/** La posición por su id, contando las añadidas (que llegan después de cargar). */
+export const posicionDirectivaPorId = (idCargo) =>
+  DIRECTIVA_POSITIONS.find((position) => position.idCargo === String(idCargo ?? '')) || null;
+
+// ----------------------------------------------------------------------
 // Reglas de ocupacion de cargos
 // ----------------------------------------------------------------------
 
@@ -951,6 +1005,22 @@ const ORGANIGRAMA_CARGO_POR_POSICION = {
 // si esa posicion no vive en el cuadro del destacamento (niveles superiores).
 export const getOrganigramaDestSlot = (position = {}) => {
   const idPosicion = String(position?.idPosicionDirectiva ?? position?.idCargo ?? '');
+
+  // Una casilla añadida en el destacamento casa por su propio cargo.
+  const anadida = DIRECTIVA_POSITIONS.find(
+    (item) => item.personalizada && item.idCargo === idPosicion
+  );
+
+  if (anadida) {
+    return anadida.nivel === DIRECTIVA_LEVELS.destacamento
+      ? {
+          cargo: cargoDeCasillaDest({ id: anadida.idCasilla }),
+          division: anadida.division ?? null,
+          orden: 1,
+        }
+      : null;
+  }
+
   const cargo = ORGANIGRAMA_CARGO_POR_POSICION[idPosicion];
 
   if (!cargo) return null;

@@ -153,3 +153,37 @@ test('en una memoria ya guardada, el Director Regional sale en su casilla y no e
   assert.equal(ocupanteHistorico(integrantes, 'regional', 'director-regional')?.id, '42');
   assert.equal(ocupanteHistorico(integrantes, 'regional', 'directiva-regional'), null);
 });
+
+// En la nacional también: "Coordinador Nacional de X" pasa a "Director Nacional
+// de X". El organigrama (/dashboard/level/national) y "Cargo Nacional" de la
+// ficha salen del mismo catálogo y tienen que decir lo mismo; los ids no cambian
+// (`nacional-coordinador-*`) porque los llevan las asignaciones guardadas.
+test('la nacional dice "Director Nacional de …" en el catálogo, el organigrama y los roles', async () => {
+  const { NATIONAL_LEADERSHIP_DATA } = await import('../../src/catalogs/directiva-diagrams.js');
+  const { ROLES_CATALOGO } = await import('../../src/auth/permissions/roles.js');
+
+  const nombresDelArbol = [];
+  const recorrer = (nodo) => {
+    if (!nodo) return;
+    nombresDelArbol.push(nodo.role || nodo.name || '');
+    (nodo.children || []).forEach(recorrer);
+  };
+  recorrer(NATIONAL_LEADERSHIP_DATA);
+
+  const textos = [
+    ...DIRECTIVA_POSITIONS.map((p) => `${p.nombreCargo} ${p.nombreCargoPadre || ''}`),
+    ...nombresDelArbol,
+    ...ROLES_CATALOGO.map((rol) => rol.nombre),
+  ];
+
+  assert.deepEqual(
+    textos.filter((texto) => /Coordinador Nacional/.test(texto)),
+    []
+  );
+
+  for (const area of ['Adiestramiento', 'Promoción', 'Producción', 'Programa']) {
+    const nombre = `Director Nacional de ${area}`;
+    assert.equal(asignablesLlamados('nacional', nombre).length, 1, nombre);
+    assert.ok(nombresDelArbol.includes(nombre), `${nombre} en el organigrama`);
+  }
+});

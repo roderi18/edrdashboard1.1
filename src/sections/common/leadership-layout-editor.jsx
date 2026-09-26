@@ -1492,6 +1492,9 @@ export function LeadershipLayoutEditor({
   savingLayout = false,
   // Solo lo pide el organigrama cuyo cuadro es mas ancho que su columna.
   mostrarMargenHorizontal = false,
+  // Botones que van encima del lápiz (p. ej. "Agregar casilla"): los mismos
+  // que ve quien diseña, en la misma esquina.
+  accionesExtra = null,
 }) {
   const selectedOffset = editor.selectedNode
     ? (editor.nodeOffsets[editor.selectedNode.id] ?? EMPTY_OFFSET)
@@ -1988,6 +1991,12 @@ export function LeadershipLayoutEditor({
             )}
           </Stack>
         </Paper>
+      )}
+
+      {accionesExtra && (
+        <Stack spacing={1} alignItems="flex-end" sx={{ mb: 1 }}>
+          {accionesExtra}
+        </Stack>
       )}
 
       <Tooltip title={editor.editMode ? 'Cerrar edicion visual' : 'Editar layout visual'}>

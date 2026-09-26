@@ -49,7 +49,7 @@ export const PERFILES_DIRECTIVA_NACIONAL_2022_2026 = Object.freeze({
   "377": {
     "nombre": "Edward Encarnación",
     "nivel": "nacional",
-    "cargoNacional": "Coordinador Nacional de Producción",
+    "cargoNacional": "Director Nacional de Producción",
     "cargoExcluido": false,
     "regionPropuesta": "Nacional",
     "seccionPropuesta": "Provisional",
@@ -58,7 +58,7 @@ export const PERFILES_DIRECTIVA_NACIONAL_2022_2026 = Object.freeze({
   "378": {
     "nombre": "Juan Carlos García",
     "nivel": "nacional",
-    "cargoNacional": "Coordinador Nacional de Programa",
+    "cargoNacional": "Director Nacional de Programa",
     "cargoExcluido": false,
     "regionPropuesta": "Nacional",
     "seccionPropuesta": "Provisional",
@@ -67,7 +67,7 @@ export const PERFILES_DIRECTIVA_NACIONAL_2022_2026 = Object.freeze({
   "379": {
     "nombre": "Wellinton Sánchez",
     "nivel": "nacional",
-    "cargoNacional": "Coordinador Nacional de Promoción",
+    "cargoNacional": "Director Nacional de Promoción",
     "cargoExcluido": false,
     "regionPropuesta": "Nacional",
     "seccionPropuesta": "Provisional",
@@ -76,7 +76,7 @@ export const PERFILES_DIRECTIVA_NACIONAL_2022_2026 = Object.freeze({
   "380": {
     "nombre": "Mirke de León",
     "nivel": "nacional",
-    "cargoNacional": "Coordinador Nacional de Adiestramiento",
+    "cargoNacional": "Director Nacional de Adiestramiento",
     "cargoExcluido": true,
     "regionPropuesta": "Nacional",
     "seccionPropuesta": "Provisional",

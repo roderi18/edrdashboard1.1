@@ -123,7 +123,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'produccion',
     orden: 5,
     nombres: {
-      nacional: 'Coordinador Nacional de Producción',
+      nacional: 'Director Nacional de Producción',
       regional: 'Coordinador de Producción',
       seccional: 'Coordinador de Producción',
     },
@@ -137,7 +137,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'programa',
     orden: 6,
     nombres: {
-      nacional: 'Coordinador Nacional de Programa',
+      nacional: 'Director Nacional de Programa',
       regional: 'Coordinador de Programa',
       seccional: 'Coordinador de Programa',
     },
@@ -151,7 +151,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'promocion',
     orden: 7,
     nombres: {
-      nacional: 'Coordinador Nacional de Promoción',
+      nacional: 'Director Nacional de Promoción',
       regional: 'Coordinador de Promoción',
       seccional: 'Coordinador de Promoción',
     },
@@ -165,7 +165,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'adiestramiento',
     orden: 8,
     nombres: {
-      nacional: 'Coordinador Nacional de Adiestramiento',
+      nacional: 'Director Nacional de Adiestramiento',
       regional: 'Coordinador de Adiestramiento',
       seccional: 'Coordinador de Adiestramiento',
     },

@@ -160,5 +160,10 @@ Sub-Director (nombres de cargo, de casilla y de rol).
   (id de siempre, da el rol de sección), ahora rotulada "Director Seccional"; su
   Sub-Director, `sub-coordinador-seccional`. La posición antigua
   `seccional-director-seccional` no tiene casilla y no sale en el desplegable.
+- **Nación**: "Coordinador Nacional de Adiestramiento/Promoción/Producción/
+  Programa" pasan a "Director Nacional de …" en el organigrama, "Cargo
+  Nacional" de la ficha, los roles y la memoria del cuatrienio (salen del mismo
+  catálogo). Los ids `nacional-coordinador-*` no cambian; la importación de
+  miembros sigue aceptando el nombre antiguo.
 
 Test: `tests/directivas/cargo-nacional-oficial-y-directores.test.mjs`.

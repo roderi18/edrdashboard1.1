@@ -159,6 +159,18 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    rige los cuatro organigramas. No vuelvas a poner esperas de cortesía.
    Test: `tests/directivas/oficial-especial-y-asignar-al-instante.test.mjs`.
 
+18. **"Agregar casilla" en los cuatro organigramas** (botón encima del lápiz, solo
+   Administrador Global): una casilla (cargo que se asigna) o un contenedor (caja
+   que agrupa) con nombre, colgando del nodo que se elija. Es **global por nivel**
+   —la de una sección sale en todas— y entra en el catálogo, así que sale también
+   en "Cargo Nacional" (nación, región, sección) o "Nivel posición en tu
+   Destacamento". Se guardan en `casillas_directiva_personalizadas` y se suman a
+   `DIRECTIVA_POSITIONS` con `registrarCasillasPersonalizadas`; quitar una la deja
+   inactiva (su nombre se sigue traduciendo). Piezas:
+   `src/utils/casillas-personalizadas.mjs`, `use-casillas-personalizadas.js`,
+   `casillas-directiva-dialog.jsx`. Detalle en `docs/casillas-personalizadas.md`.
+   Test: `tests/directivas/casillas-personalizadas.test.mjs`.
+
 Corazón del alcance: `src/utils/member-access.js` y `src/utils/org-level-access.js`.
 Suite que lo cubre: `npm run test:acceso`.
 

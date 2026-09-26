@@ -12,6 +12,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { esCargoDeCasillaDest } from 'src/utils/casillas-personalizadas.mjs';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -56,7 +58,10 @@ const normalizarTexto = (value) => String(value ?? '').trim();
 const normalizarCargo = (cargo) => {
   const cargoNormalizado = normalizarTexto(cargo);
 
-  if (!CARGOS_VALIDOS.includes(cargoNormalizado)) {
+  // Además de los de fábrica, los de las casillas añadidas con "Agregar
+  // casilla" (`casilla_<id>`): si no, la ficha avisaba de un error al guardar
+  // a alguien en una de ellas.
+  if (!CARGOS_VALIDOS.includes(cargoNormalizado) && !esCargoDeCasillaDest(cargoNormalizado)) {
     throw new Error(`Cargo de organigrama invalido: ${cargoNormalizado || 'vacio'}.`);
   }
 

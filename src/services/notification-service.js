@@ -2969,6 +2969,20 @@ const construirNotificacionesPrueba = ({ usuario, ultimoMiembro }) => {
   ];
 };
 
+// La fecha del aviso en ISO. Casi todos la guardan como texto, pero los que
+// escribe el servidor con Timestamp de Firestore llegaban como objeto y la
+// campana pintaba "Invalid" en lugar de "hace 2 días".
+const fechaDeAviso = (valor) => {
+  if (!valor) return null;
+  if (typeof valor.toDate === 'function') return valor.toDate().toISOString();
+
+  const segundos = valor.seconds ?? valor._seconds;
+
+  if (typeof segundos === 'number') return new Date(segundos * 1000).toISOString();
+
+  return valor;
+};
+
 export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}, idUsuario = '') => {
   const usuarioId = String(idUsuario || '').trim();
   const leidaPor = Array.isArray(notificacion.leidaPor) ? notificacion.leidaPor.map(String) : [];
@@ -2992,7 +3006,7 @@ export const transformarNotificacionFirestoreADrawer = (id, notificacion = {}, i
     prioridad: notificacion.prioridad || 'informativa',
     estado,
     isUnRead: estado === 'no_leida',
-    createdAt: notificacion.fechaCreacion || notificacion.fechaEnvio || null,
+    createdAt: fechaDeAviso(notificacion.fechaCreacion || notificacion.fechaEnvio),
     ruta: notificacion.ruta || null,
     entidadId: notificacion.entidadId || null,
     tipoAccion: notificacion.tipoAccion || 'ver',

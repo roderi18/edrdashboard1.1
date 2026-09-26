@@ -15,6 +15,7 @@ import Typography from '@mui/material/Typography';
 
 import { normalizeText } from 'src/utils/normalize-text';
 import { canManageDirectiva } from 'src/utils/admin-role-label';
+import { arbolConCasillas } from 'src/utils/casillas-personalizadas.mjs';
 import {
   isAdminGlobal,
   isOficinaNacional,
@@ -37,7 +38,9 @@ import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-d
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigrama';
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
+import { CasillasDirectivaBoton } from 'src/sections/common/casillas-directiva-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
+import { useCasillasPersonalizadas } from 'src/sections/common/use-casillas-personalizadas';
 import { GLOW_JERARQUIA_SX, useResaltarMiembro } from 'src/sections/common/use-resaltar-miembro';
 import { AsignarOficialesDialog } from 'src/sections/national/leadership/asignar-oficiales-dialog';
 import { OficialesEspecialesGrupo } from 'src/sections/national/leadership/oficiales-especiales-grupo';
@@ -519,7 +522,19 @@ export function NationalLeadershipView({
   // asignación—, pero ya no se dibujan colgando debajo: con varios oficiales el
   // árbol crecía una fila por persona y cada uno salía dos veces (en la tarjeta y
   // en su casilla). Se gestionan desde la franja "Ver más" y "Asignar miembros".
-  const diagramaNacional = useMemo(() => obtenerDiagramaNacionalConOficiales([]), []);
+  // Más lo añadido con "Agregar casilla" (`casillas-personalizadas.mjs`).
+  const casillasAnadidas = useCasillasPersonalizadas();
+  // En la memoria de un cuatrienio no se añaden: salían como "Vacante" cargos
+  // que entonces no existían.
+  const diagramaNacional = useMemo(
+    () =>
+      arbolConCasillas(
+        obtenerDiagramaNacionalConOficiales([]),
+        'nacional',
+        historico ? [] : casillasAnadidas.todas
+      ),
+    [historico, casillasAnadidas.todas]
+  );
   // Quienes van en la tarjeta "Oficiales Especiales": en una directiva anterior,
   // su grupo de Oficiales de la Nacional (que no tiene casillas; por eso el
   // diagrama historico va sin la cadena de Oficial Especial); hoy, los que ocupan
@@ -865,7 +880,8 @@ export function NationalLeadershipView({
     layoutEditor.extraConnections.length > 0;
   // Sin diseño o sin ocupantes todavía, el árbol no se pinta: salía con las
   // posiciones de partida y todo en "Vacante", y se recolocaba y llenaba después.
-  const cargandoArbol = layoutStorage.cargando || leadership.cargando;
+  const cargandoArbol =
+    layoutStorage.cargando || leadership.cargando || casillasAnadidas.cargando;
   // Todo el arbol centrado como un grupo (ver el hook): se suma al arrastre.
   const desplazamientoX = useCentrarOrganigrama({
     containerRef,
@@ -1284,6 +1300,16 @@ export function NationalLeadershipView({
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
             mostrarMargenHorizontal
+            accionesExtra={
+              historico ? null : (
+                <CasillasDirectivaBoton
+                  nivel="nacional"
+                  arboles={[diagramaNacional]}
+                  casillas={casillasAnadidas.casillas}
+                  onCambio={casillasAnadidas.recargar}
+                />
+              )
+            }
           />
         )}
       </Box>

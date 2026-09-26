@@ -207,8 +207,15 @@ const nombreDestacamentoConNumero = (member = {}) => {
 // Del texto del cargo al cargo del catalogo. Se compara sin acentos ni
 // mayusculas, y se acepta tanto "Líder de Grupo" como "Líder de Grupo
 // (Exploradores)", que es como sale al descargar.
+//
+// "Coordinador Nacional de X" es el nombre antiguo de "Director Nacional de X":
+// una hoja bajada antes del cambio lo trae así y, sin traducirlo, ese cargo
+// dejaba de reconocerse al volver a subirla.
 export const buscarPosicionDirectiva = (nivel, texto) => {
-  const buscado = normalizeTextValue(texto).replace(/\s+/g, ' ').trim();
+  const buscado = normalizeTextValue(texto)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^coordinador nacional de /, 'director nacional de ');
 
   if (!buscado) return null;
 

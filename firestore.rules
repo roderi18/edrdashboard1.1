@@ -1145,6 +1145,22 @@ service cloud.firestore {
       allow write: if esAdministradorGlobal();
     }
 
+    // Casillas y contenedores añadidos desde los organigramas. Son de TODAS las
+    // entidades de su nivel (una casilla de sección sale en todas las
+    // secciones), así que solo las escribe el Administrador Global. No se
+    // borran: quitar una la deja con `activo: false`.
+    match /casillas_directiva_personalizadas/{idCasilla} {
+      allow read: if esUsuarioDelSistema();
+      allow create, update: if esAdministradorGlobal()
+        && request.resource.data.id == idCasilla
+        && request.resource.data.nivel in ['nacional', 'regional', 'seccional', 'destacamento']
+        && request.resource.data.tipo in ['casilla', 'contenedor']
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() >= 2
+        && request.resource.data.nombre.size() <= 60;
+      allow delete: if false;
+    }
+
     match /disenosDirectiva/{idDiseno} {
       allow read: if esUsuarioDelSistema();
       allow create, update: if (
@@ -1681,6 +1697,7 @@ service cloud.firestore {
         && coleccion != 'directivasOrganizacionales'
         && coleccion != 'posicionesDirectiva'
         && coleccion != 'disenosDirectiva'
+        && coleccion != 'casillas_directiva_personalizadas'
         && coleccion != 'organigramaDirectivaDestacamentos'
         && coleccion != 'organigrama_directiva_destacamentos'
         && coleccion != 'usuarios_roles'

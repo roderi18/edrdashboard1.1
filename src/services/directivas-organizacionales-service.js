@@ -13,6 +13,14 @@ import {
 import { esOficialEspecial, sonCargosCompatibles } from 'src/utils/cargos-compatibles.mjs';
 import { leerConCache, valorGuardado, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
+  TIPOS_CASILLA,
+  sanearCasilla,
+  crearIdCasilla,
+  casillasValidas,
+  posicionDeCasilla,
+  COLECCION_CASILLAS_PERSONALIZADAS,
+} from 'src/utils/casillas-personalizadas.mjs';
+import {
   esMotivoDeSalida,
   etiquetaDeMotivo,
   debeRegistrarSalida,
@@ -22,6 +30,7 @@ import {
   COLECCION_HISTORIAL_DIRECTIVA,
 } from 'src/utils/directiva-historial.mjs';
 import {
+  isAdminGlobal,
   canManageRegionLeadership,
   canManageSectionLeadership,
   canManageNationalLeadership,
@@ -47,8 +56,11 @@ import {
   DIRECTIVA_POSITIONS,
   DIRECTIVA_DIVISIONS,
   CARGOS_DIRECTIVA_BASE,
+  posicionDirectivaPorId,
   DIRECTIVA_DIVISION_NAMES,
   NIVELES_CARGO_EXCLUYENTES,
+  registrarCasillasPersonalizadas,
+  versionDeCasillasPersonalizadas,
 } from 'src/catalogs/directiva-positions';
 
 // ----------------------------------------------------------------------
@@ -475,6 +487,11 @@ export async function obtenerCargosDirectiva({
 } = {}) {
   asegurarFirebaseDirectivas();
 
+  // Las casillas añadidas desde los organigramas entran en el catálogo ANTES de
+  // leerlo: sin esto "Cargo Nacional" y "Posición en tu Destacamento" no las
+  // ofrecían hasta que alguien abriera una directiva en esa misma sesión.
+  await obtenerCasillasPersonalizadas().catch(() => []);
+
   const [posiciones, cargosApi] = await Promise.all([
     obtenerPosicionesDirectiva(),
     obtenerCargosApi().catch(() => []),
@@ -516,6 +533,9 @@ export async function obtenerCargosDirectivaCached({
   forceRefresh = false,
 } = {}) {
   const cacheKey = JSON.stringify({
+    // Una casilla nueva cambia el catálogo: con la versión en la clave, la
+    // lista guardada de antes no la tapa.
+    casillas: versionDeCasillasPersonalizadas(),
     nivel: nivel || '',
     division: division ?? '__all__',
     incluirInactivos: Boolean(incluirInactivos),
@@ -1020,7 +1040,10 @@ export async function guardarAsignacionDirectiva({
   // ya se hubiera resuelto el nombre.
   const personaAuditoria = nombreCopia || `el miembro ${idMiembroResolved}`;
   const cargoAuditoria =
-    POSICION_POR_ID_CARGO.get(normalizarTexto(idPosicionDirectiva))?.nombreCargo || '';
+    (
+      POSICION_POR_ID_CARGO.get(normalizarTexto(idPosicionDirectiva)) ||
+      posicionDirectivaPorId(normalizarTexto(idPosicionDirectiva))
+    )?.nombreCargo || '';
   const dondeAuditoria = normalizarTexto(nombreEntidad) || `${nivel} ${idEntidad}`;
   const descripcionCambio = cargoAuditoria
     ? `Se asignó a ${personaAuditoria} el cargo de ${cargoAuditoria} en ${dondeAuditoria}.`
@@ -1386,4 +1409,265 @@ export async function guardarDisenoDirectiva({
   });
 
   return diseno;
+}
+
+// ----------------------------------------------------------------------
+// Casillas y contenedores añadidos desde el organigrama
+// (`src/utils/casillas-personalizadas.mjs`). Son globales por nivel: la ficha
+// se guarda una vez y la dibujan todas las entidades de ese nivel.
+// ----------------------------------------------------------------------
+
+const CLAVE_CASILLAS = `${CLAVE_DIRECTIVA}casillas`;
+
+async function leerCasillasPersonalizadas() {
+  asegurarFirebaseDirectivas();
+
+  const snapshot = await getDocs(collection(FIRESTORE, COLECCION_CASILLAS_PERSONALIZADAS));
+  const lista = casillasValidas(
+    snapshot.docs.map((documento) => ({ id: documento.id, ...documento.data() }))
+  );
+
+  registrarCasillasPersonalizadas(lista);
+
+  return lista;
+}
+
+/** Todas las válidas (también las quitadas, para traducir nombres). */
+//
+// Se registran también cuando llegan de la caché: lo guardado puede venir del
+// disco de una visita anterior, y entonces la lectura no llega a ejecutarse.
+export const obtenerCasillasPersonalizadas = () =>
+  leerConCache(CLAVE_CASILLAS, leerCasillasPersonalizadas).then((lista) => {
+    registrarCasillasPersonalizadas(lista);
+    return lista;
+  });
+
+/** Las ya leídas (y registradas), o `undefined` si aún no se han pedido. */
+export const casillasPersonalizadasGuardadas = () => {
+  const lista = valorGuardado(CLAVE_CASILLAS);
+
+  if (lista !== undefined) registrarCasillasPersonalizadas(lista);
+
+  return lista;
+};
+
+const avisarCambioDeCasillas = () => {
+  cargosDirectivaCache.clear();
+  invalidarLecturas(CLAVE_DIRECTIVA);
+  avisarAOtrasSesiones(CLAVE_DIRECTIVA);
+};
+
+export async function crearCasillaPersonalizada({
+  nivel,
+  nombre,
+  tipo = TIPOS_CASILLA.casilla,
+  idNodoPadre,
+  division = null,
+  usuario = {},
+} = {}) {
+  asegurarFirebaseDirectivas();
+
+  // Lo mismo que exigen las reglas: la casilla es de todas las entidades del
+  // nivel, así que solo la crea quien diseña los organigramas.
+  if (!isAdminGlobal(usuario)) {
+    throw new Error('Solo el Administrador Global añade casillas a las directivas.');
+  }
+
+  // Las de hoy, frescas: con ellas en el catálogo se comprueba el nombre
+  // repetido, y el registro de abajo no pierde las demás si la caché estaba vacía.
+  const existentes = await obtenerCasillasPersonalizadas();
+  const ahora = Date.now();
+  const casilla = sanearCasilla({
+    id: crearIdCasilla(ahora),
+    nivel,
+    nombre,
+    tipo,
+    idNodoPadre,
+    division,
+    orden: ahora,
+    activo: true,
+  });
+
+  if (!casilla) {
+    throw new Error('Revisa el nombre (de 2 a 60 letras) y dónde va la casilla.');
+  }
+
+  const nombreRepetido = DIRECTIVA_POSITIONS.some(
+    (posicion) =>
+      posicion.nivel === casilla.nivel &&
+      posicion.activo !== false &&
+      (posicion.division ?? null) === (casilla.division ?? null) &&
+      normalizarClaveTexto(posicion.nombreCargo) === normalizarClaveTexto(casilla.nombre)
+  );
+
+  if (nombreRepetido) {
+    throw new Error(`Ya hay un cargo "${casilla.nombre}" en este nivel.`);
+  }
+
+  const ficha = {
+    ...casilla,
+    creadoPor: describirActorDirectiva(usuario),
+    uidCreador: String(usuario?.uid || usuario?.id || ''),
+    fechaCreacion: serverTimestamp(),
+    fechaActualizacion: serverTimestamp(),
+  };
+
+  await writeBatch(FIRESTORE)
+    .set(doc(FIRESTORE, COLECCION_CASILLAS_PERSONALIZADAS, casilla.id), ficha)
+    .commit();
+
+  // Se pinta sin esperar a volver a leer la colección.
+  registrarCasillasPersonalizadas([...existentes, casilla]);
+  avisarCambioDeCasillas();
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'casilla_directiva_creada',
+    descripcion: `Se añadió ${casilla.tipo === TIPOS_CASILLA.contenedor ? 'el contenedor' : 'la casilla'} "${casilla.nombre}" a las directivas de nivel ${casilla.nivel}.`,
+    entidad: {
+      tipo: 'casilla_directiva',
+      id: casilla.id,
+      nombre: casilla.nombre,
+      ruta: '/dashboard/level/national',
+    },
+    despues: casilla,
+    realizadoPor: usuario,
+    origen: 'directivas',
+  });
+
+  return casilla;
+}
+
+/** Cuántas asignaciones activas tiene la casilla, en cualquier entidad del nivel. */
+export async function contarOcupantesDeCasilla(casilla) {
+  asegurarFirebaseDirectivas();
+
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCION_ASIGNACIONES_DIRECTIVA),
+      where('idPosicionDirectiva', '==', posicionDeCasilla(casilla).idCargo),
+      where('activo', '==', true)
+    )
+  );
+
+  return snapshot.size;
+}
+
+/**
+ * Cambia el nombre de una casilla en todas partes a la vez: organigramas,
+ * ficha, lista e historial lo toman del catálogo, y las asignaciones guardan
+ * el id, no el nombre.
+ */
+export async function renombrarCasillaPersonalizada({ id, nombre, usuario = {} } = {}) {
+  asegurarFirebaseDirectivas();
+
+  if (!isAdminGlobal(usuario)) {
+    throw new Error('Solo el Administrador Global renombra casillas de las directivas.');
+  }
+
+  const idCasilla = normalizarTexto(id);
+  // Fresca y no la de la caché: vacía, `antes` no llegaba y la comprobación de
+  // ocupantes se saltaba.
+  const lista = await obtenerCasillasPersonalizadas();
+  const antes = lista.find((casilla) => casilla.id === idCasilla);
+
+  if (!antes) {
+    throw new Error('Esa casilla ya no existe.');
+  }
+  const despues = sanearCasilla({ ...antes, nombre });
+
+  if (!despues) {
+    throw new Error('El nombre debe tener de 2 a 60 letras.');
+  }
+
+  if (despues.nombre === antes.nombre) return despues;
+
+  const nombreRepetido = DIRECTIVA_POSITIONS.some(
+    (posicion) =>
+      posicion.nivel === despues.nivel &&
+      posicion.activo !== false &&
+      posicion.idCasilla !== idCasilla &&
+      (posicion.division ?? null) === (despues.division ?? null) &&
+      normalizarClaveTexto(posicion.nombreCargo) === normalizarClaveTexto(despues.nombre)
+  );
+
+  if (nombreRepetido) {
+    throw new Error(`Ya hay un cargo "${despues.nombre}" en este nivel.`);
+  }
+
+  await updateDoc(doc(FIRESTORE, COLECCION_CASILLAS_PERSONALIZADAS, idCasilla), {
+    nombre: despues.nombre,
+    fechaActualizacion: serverTimestamp(),
+  });
+
+  registrarCasillasPersonalizadas(
+    lista.map((casilla) => (casilla.id === idCasilla ? despues : casilla))
+  );
+  avisarCambioDeCasillas();
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'casilla_directiva_renombrada',
+    descripcion: `"${antes.nombre}" pasa a llamarse "${despues.nombre}" en las directivas de nivel ${despues.nivel}.`,
+    entidad: { tipo: 'casilla_directiva', id: idCasilla, nombre: despues.nombre },
+    antes,
+    despues,
+    realizadoPor: usuario,
+    origen: 'directivas',
+  });
+
+  return despues;
+}
+
+/**
+ * Quita una casilla de todos los organigramas de su nivel. No se borra: queda
+ * inactiva para que el historial y la lista sigan sabiendo cómo se llamaba.
+ */
+export async function quitarCasillaPersonalizada({ id, usuario = {} } = {}) {
+  asegurarFirebaseDirectivas();
+
+  if (!isAdminGlobal(usuario)) {
+    throw new Error('Solo el Administrador Global quita casillas de las directivas.');
+  }
+
+  const idCasilla = normalizarTexto(id);
+  // Fresca y no la de la caché: vacía, `antes` no llegaba y la comprobación de
+  // ocupantes se saltaba.
+  const lista = await obtenerCasillasPersonalizadas();
+  const antes = lista.find((casilla) => casilla.id === idCasilla);
+
+  if (!antes) {
+    throw new Error('Esa casilla ya no existe.');
+  }
+
+  // Ocupada no se quita. Su asignación seguiría activa sin verse en ninguna
+  // parte: la ficha la enseñaba como "Ninguno" y, como sigue contando como
+  // cargo, a esa persona no se le podía dar otro de consejo ("ya ocupa…").
+  const ocupantes = await contarOcupantesDeCasilla(antes);
+
+  if (ocupantes > 0) {
+    throw new Error(
+      `"${antes.nombre}" la ocupa${ocupantes === 1 ? ' una persona' : `n ${ocupantes} personas`}. Retíralas de la casilla antes de quitarla.`
+    );
+  }
+
+  await updateDoc(doc(FIRESTORE, COLECCION_CASILLAS_PERSONALIZADAS, idCasilla), {
+    activo: false,
+    fechaActualizacion: serverTimestamp(),
+  });
+
+  registrarCasillasPersonalizadas(
+    lista.map((casilla) => (casilla.id === idCasilla ? { ...casilla, activo: false } : casilla))
+  );
+  avisarCambioDeCasillas();
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'casilla_directiva_quitada',
+    descripcion: `Se quitó "${antes.nombre}" de las directivas de nivel ${antes.nivel}.`,
+    entidad: { tipo: 'casilla_directiva', id: idCasilla, nombre: antes.nombre },
+    antes,
+    realizadoPor: usuario,
+    origen: 'directivas',
+  });
 }

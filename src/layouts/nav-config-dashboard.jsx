@@ -41,6 +41,7 @@ const ICONS = {
   analytics: icon('ic-analytics'),
   dashboard: icon('ic-dashboard'),
   designer: <Iconify width={24} icon="solar:paint-brush-bold-duotone" />,
+  pruebas: <Iconify width={24} icon="custom:constructor-duotone" />,
 };
 
 // ----------------------------------------------------------------------
@@ -322,6 +323,14 @@ export const navDataDesarrollo = [
   {
     subheader: 'Desarrollo · plantilla',
     items: [
+      {
+        title: 'Pruebas',
+        path: paths.pruebas.root,
+        icon: ICONS.pruebas,
+        children: [
+          { title: 'Mapa Rep. Dom.', path: paths.pruebas.mapaRepublicaDominicana },
+        ],
+      },
       { title: 'Aplicación', path: paths.dashboard.root, icon: ICONS.dashboard },
       { title: 'Ecommerce', path: paths.dashboard.general.ecommerce, icon: ICONS.ecommerce },
       { title: 'Analytics', path: paths.dashboard.general.analytics, icon: ICONS.analytics },

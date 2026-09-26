@@ -297,7 +297,7 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.COORDINADOR_ADIESTRAMIENTO_NACIONAL,
-    nombre: 'Coordinador Nacional de Adiestramiento',
+    nombre: 'Director Nacional de Adiestramiento',
     descripcion:
       'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
@@ -315,7 +315,7 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.COORDINADOR_PROMOCION_NACIONAL,
-    nombre: 'Coordinador Nacional de Promoción',
+    nombre: 'Director Nacional de Promoción',
     descripcion:
       'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
@@ -324,7 +324,7 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.COORDINADOR_PRODUCCION_NACIONAL,
-    nombre: 'Coordinador Nacional de Producción',
+    nombre: 'Director Nacional de Producción',
     descripcion:
       'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,
@@ -333,7 +333,7 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.COORDINADOR_PROGRAMA_NACIONAL,
-    nombre: 'Coordinador Nacional de Programa',
+    nombre: 'Director Nacional de Programa',
     descripcion:
       'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,

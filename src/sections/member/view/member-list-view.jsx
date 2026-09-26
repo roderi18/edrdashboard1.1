@@ -68,6 +68,7 @@ import {
 
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
 import { useCompactEntityDelete } from 'src/sections/common/use-compact-entity-delete';
+import { useCasillasPersonalizadas } from 'src/sections/common/use-casillas-personalizadas';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 import { OrganizationalCreateButton } from 'src/sections/common/organizational-create-button';
 import { OrganizationalListBreadcrumbs } from 'src/sections/common/organizational-list-breadcrumbs';
@@ -108,6 +109,9 @@ import {
  */
 export function MemberListView({ destId = null }) {
   const esPestanaDeDestacamento = Boolean(destId);
+  // Registra en el catálogo las casillas añadidas con "Agregar casilla": sin
+  // esto la columna Posición enseñaba su id en lugar de su nombre.
+  useCasillasPersonalizadas();
   // Abrir un miembro y volver atras remonta esta vista, asi que la pagina se
   // guarda en la URL (?p=2). Sin eso el usuario aterrizaba siempre en la #1.
   const {

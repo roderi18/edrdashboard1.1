@@ -17,6 +17,7 @@ import { useParams } from 'src/routes/hooks';
 
 import { canManageDirectiva } from 'src/utils/admin-role-label';
 import { canManageSectionLeadership } from 'src/utils/org-level-access';
+import { arbolConCasillas } from 'src/utils/casillas-personalizadas.mjs';
 
 import { getSectionalById } from 'src/services/sectional-service';
 import { SECTIONAL_LEADERSHIP_DATA } from 'src/catalogs/directiva-diagrams';
@@ -29,7 +30,9 @@ import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-d
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigrama';
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
+import { CasillasDirectivaBoton } from 'src/sections/common/casillas-directiva-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
+import { useCasillasPersonalizadas } from 'src/sections/common/use-casillas-personalizadas';
 import { GLOW_JERARQUIA_SX, useResaltarMiembro } from 'src/sections/common/use-resaltar-miembro';
 import {
   entidadesDeDisenoDe,
@@ -38,6 +41,7 @@ import {
 import {
   LeadershipNodeAvatar,
   getMemberDisplayName,
+  LeadershipStructureNode,
   LEADERSHIP_NODE_SIZE_SX,
   LeadershipMemberNameLink,
   getLeadershipNodeIdentity,
@@ -83,8 +87,11 @@ const ZOOM_PERCENT_WIDTH = CONTROL_BUTTON_SIZE * 2 + CONTROL_BUTTON_GAP;
 
 function SectionalLeadershipNode({
   id,
+  name,
   depth,
   role,
+  avatarUrl,
+  isDivision,
   layoutEditor,
   canManage = true,
   miembroAsignado = null,
@@ -93,8 +100,33 @@ function SectionalLeadershipNode({
 }) {
   const menuActions = usePopover();
   const identity = getLeadershipNodeIdentity(miembroAsignado);
-  const editProps = layoutEditor.getNodeEditProps({ id, name: identity.displayName, role });
+  const editProps = layoutEditor.getNodeEditProps({
+    id,
+    name: isDivision ? name : identity.displayName,
+    role,
+  });
   const isRootNode = depth === undefined;
+
+  // Un contenedor añadido desde "Agregar casilla" agrupa, no se ocupa: caja de
+  // estructura, como el Consejo Ejecutivo en la región.
+  if (isDivision) {
+    return (
+      <LeadershipStructureNode
+        name={name}
+        role={role}
+        avatarUrl={avatarUrl}
+        data-leadership-node-id={id}
+        data-leadership-editable="true"
+        onPointerUp={editProps.onPointerUp}
+        onPointerMove={editProps.onPointerMove}
+        onPointerDown={editProps.onPointerDown}
+        onPointerCancel={editProps.onPointerCancel}
+        sx={getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode })}
+      >
+        <LeadershipNodeAnchors editor={layoutEditor} nodeId={id} />
+      </LeadershipStructureNode>
+    );
+  }
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -267,6 +299,17 @@ export function SectionalLeadershipView({
     conDatosDeHoy: !historico,
   });
   const obtenerOcupante = historico?.obtenerOcupante ?? leadership.getAssignedMember;
+  // El árbol de fábrica más lo añadido con "Agregar casilla" (global al nivel).
+  const casillasAnadidas = useCasillasPersonalizadas();
+  // En la memoria de un cuatrienio no se añaden: salían como "Vacante" cargos
+  // que entonces no existían.
+  const diagrama = useMemo(
+    () =>
+      historico
+        ? SECTIONAL_LEADERSHIP_DATA
+        : arbolConCasillas(SECTIONAL_LEADERSHIP_DATA, 'seccional', casillasAnadidas.todas),
+    [historico, casillasAnadidas.todas]
+  );
   // El diseno del diagrama se guarda en Firestore: antes vivia en memoria y cada
   // recolocacion se perdia al recargar.
   const layoutStorage = useLeadershipLayoutStorage({
@@ -295,18 +338,18 @@ export function SectionalLeadershipView({
 
   useResaltarMiembro({
     containerRef,
-    diagrama: SECTIONAL_LEADERSHIP_DATA,
+    diagrama,
     obtenerOcupante,
     miembroId: resaltarMiembroId,
     token: resaltarToken,
   });
   const connections = useMemo(
     () =>
-      aplicarVinculosDelDiagrama(getLeadershipConnections(SECTIONAL_LEADERSHIP_DATA), {
+      aplicarVinculosDelDiagrama(getLeadershipConnections(diagrama), {
         hiddenConnections: layoutEditor.hiddenConnections,
         extraConnections: layoutEditor.extraConnections,
       }),
-    [layoutEditor.hiddenConnections, layoutEditor.extraConnections]
+    [diagrama, layoutEditor.hiddenConnections, layoutEditor.extraConnections]
   );
   const connectorLayerActive =
     layoutEditor.editMode ||
@@ -317,7 +360,8 @@ export function SectionalLeadershipView({
     layoutEditor.extraConnections.length > 0;
   // Sin diseño o sin ocupantes todavía, el árbol no se pinta: salía con las
   // posiciones de partida y todo en "Vacante", y se recolocaba y llenaba después.
-  const cargandoArbol = layoutStorage.cargando || leadership.cargando;
+  const cargandoArbol =
+    layoutStorage.cargando || leadership.cargando || casillasAnadidas.cargando;
   // Todo el arbol centrado como un grupo (ver el hook): se suma al arrastre.
   const desplazamientoX = useCentrarOrganigrama({
     containerRef,
@@ -701,7 +745,7 @@ export function SectionalLeadershipView({
             lineWidth="2px"
             lineHeight="34px"
             lineColor="var(--palette-grey-500)"
-            data={SECTIONAL_LEADERSHIP_DATA}
+            data={diagrama}
             nodeClassName={layoutEditor.getNodeTreeClassName}
             nodeItem={(props) => (
               <SectionalLeadershipNode
@@ -743,6 +787,16 @@ export function SectionalLeadershipView({
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
             mostrarMargenHorizontal
+            accionesExtra={
+              historico ? null : (
+                <CasillasDirectivaBoton
+                  nivel="seccional"
+                  arboles={[diagrama]}
+                  casillas={casillasAnadidas.casillas}
+                  onCambio={casillasAnadidas.recargar}
+                />
+              )
+            }
           />
         )}
       </Box>
