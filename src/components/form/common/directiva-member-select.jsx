@@ -17,12 +17,20 @@ import DialogContentText from '@mui/material/DialogContentText';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { filtrarPorNombreComoElBuscador } from 'src/utils/buscador-organizacion.mjs';
 
 import { getMembers } from 'src/services/member-service';
 import { getRegionals } from 'src/services/regional-service';
 import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import { obtenerAsignacionesDirectivaMiembros } from 'src/services/directivas-organizacionales-service';
+
+// Busca como el buscador de la cabecera: palabras sueltas, en cualquier orden,
+// con erratas, y tambien por codigo de miembro.
+const filtrarMiembros = filtrarPorNombreComoElBuscador(
+  (opcion) => opcion?.nombre,
+  (opcion) => opcion?.member?.memberId ?? opcion?.codigo
+);
 
 // ----------------------------------------------------------------------
 // Desplegable de personas para las directivas de seccion y region.
@@ -181,6 +189,7 @@ export default function DirectivaMemberSelect({
         value={seleccionado}
         onChange={(evento, opcion) => elegir(opcion)}
         getOptionLabel={(opcion) => opcion?.nombre || ''}
+        filterOptions={filtrarMiembros}
         getOptionKey={(opcion) => opcion?.id}
         isOptionEqualToValue={(opcion, valor) => opcion?.id === valor?.id}
         noOptionsText="No hay miembros disponibles"

@@ -17,8 +17,8 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { filtrarPorNombreComoElBuscador } from 'src/utils/buscador-organizacion.mjs';
 import {
-  claveDeTexto,
   idIntegrante,
   nombreCompleto,
   claveDePersona,
@@ -41,6 +41,8 @@ import {
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+
+const filtrarPadron = filtrarPorNombreComoElBuscador((opcion) => etiquetaMiembro(opcion));
 
 // ----------------------------------------------------------------------
 // Agregar o corregir a alguien en la Directiva de un cuatrienio.
@@ -354,13 +356,10 @@ export function IntegranteDialog({
             onChange={(event, miembro) => elegirMiembro(miembro)}
             getOptionLabel={etiquetaMiembro}
             isOptionEqualToValue={(opcion, valor) => String(opcion.id) === String(valor.id)}
-            filterOptions={(opciones, { inputValue }) => {
-              const buscada = claveDeTexto(inputValue);
-
-              return opciones
-                .filter((opcion) => claveDeTexto(etiquetaMiembro(opcion)).includes(buscada))
-                .slice(0, 50);
-            }}
+            // Como el buscador de la cabecera: palabras sueltas y erratas.
+            filterOptions={(opciones, estado) =>
+              filtrarPadron(opciones, estado).slice(0, 50)
+            }
             renderInput={(params) => (
               <TextField
                 {...params}

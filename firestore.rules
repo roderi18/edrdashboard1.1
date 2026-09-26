@@ -1335,6 +1335,17 @@ service cloud.firestore {
       allow read, write: if esUsuarioDelSistema();
     }
 
+    // EL ESTADO DEL DESTACAMENTO (Activo / Inactivo). Lo lee cualquiera con
+    // cuenta (sale en la ficha); lo mueven solo el Administrador Global y la
+    // Oficina Nacional, como el numero. Sin esta regla caia en el comodin del
+    // final y cualquier sesion podia dar de baja un destacamento.
+    match /estado_destacamentos/{idDestacamento} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal()
+        || esOficinaNacional()
+        || ejerceRol('oficina_nacional');
+    }
+
     match /cintas_miembros/{idMiembros} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();

@@ -1,4 +1,4 @@
-import { useFormContext } from 'react-hook-form';
+import { useWatch, useFormContext } from 'react-hook-form';
 
 import { Field } from 'src/components/hook-form';
 
@@ -17,7 +17,11 @@ export default function DaysSelect({
     label = 'Día',
     disabled = false,
 }) {
-    const { setValue, watch } = useFormContext();
+    const { setValue, control } = useFormContext();
+    // `useWatch` y no `watch`: `watch` del contexto repinta el formulario
+    // ENTERO en cada tecla (miles de lineas en el de miembros) y escribir se
+    // sentia lento. `useWatch` repinta solo este campo.
+    const valorVigilado = useWatch({ control, name });
 
     return (
         <Field.Autocomplete
@@ -25,7 +29,7 @@ export default function DaysSelect({
             label={label}
             disabled={disabled}
             options={DAYS}
-            value={watch(name) || null}
+            value={valorVigilado || null}
             onChange={(event, value) => {
                 if (disabled) return;
 

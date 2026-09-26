@@ -155,7 +155,6 @@ export function RegionalCreateEditForm({ currentRegional }) {
 
   const {
     reset,
-    watch,
     setValue,
     getValues,
     control,
@@ -163,7 +162,11 @@ export function RegionalCreateEditForm({ currentRegional }) {
     formState: { isSubmitting },
   } = methods;
 
-  const values = watch();
+  // `getValues()` y no `watch()`: `watch()` a secas suscribe al formulario
+  // ENTERO y cada tecla repintaba todo el componente; escribir iba lento. Estos
+  // valores solo se usan al descargar la ficha o subir la foto, y la lectura
+  // del momento basta.
+  const values = methods.getValues();
 
   const handleUploadRegionalPhoto = async (acceptedFiles) => {
     const file = acceptedFiles?.[0];
@@ -405,7 +408,8 @@ export function RegionalCreateEditForm({ currentRegional }) {
     <Form methods={methods} onSubmit={onSubmit} borrador={`region:${currentRegional?.id ?? 'nueva'}`}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ pt: 10, pb: 5, px: 3 }}>
+          {/* Al crear, la tarjeta de la foto llega hasta abajo, igual de alta que la del formulario. */}
+          <Card sx={{ pt: 10, pb: 5, px: 3, height: currentRegional ? 'auto' : 1 }}>
             {currentRegional && (
               <Label
                 color={

@@ -1,5 +1,7 @@
 'use client';
 
+import { useRef } from 'react';
+
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
@@ -14,6 +16,7 @@ import DialogContent from '@mui/material/DialogContent';
 import LinearProgress from '@mui/material/LinearProgress';
 
 import { getLeadershipScopeLabel } from 'src/utils/leadership-member-options';
+import { filtrarPorNombreComoElBuscador } from 'src/utils/buscador-organizacion.mjs';
 
 // ----------------------------------------------------------------------
 // Dialogo de "Asignar / Cambiar miembro" de las Directivas. Es el mismo que usa
@@ -22,6 +25,13 @@ import { getLeadershipScopeLabel } from 'src/utils/leadership-member-options';
 // ----------------------------------------------------------------------
 
 const getMemberAvatar = (member) => member?.avatarUrl || member?.photoURL || '';
+
+// Busca como el buscador de la cabecera: palabras sueltas, en cualquier orden,
+// con erratas, y tambien por codigo de miembro.
+const filtrarMiembros = filtrarPorNombreComoElBuscador(
+  (opcion) => opcion?.nombre,
+  (opcion) => opcion?.member?.memberId ?? opcion?.codigo
+);
 
 const memberKey = (member) => String(member?.id ?? member?.idMiembros ?? '').trim();
 
@@ -39,8 +49,26 @@ export function LeadershipAssignDialog({
   saving = false,
   yaAsignado = false,
 }) {
+  const inputRef = useRef(null);
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="xs"
+      // `autoFocus` solo no bastaba: la transicion del dialogo le robaba el
+      // foco. Se pone al terminar de abrirse.
+      TransitionProps={{ onEntered: () => inputRef.current?.focus() }}
+      // Una letra pulsada con el foco en cualquier otra parte del dialogo va al
+      // buscador: se enfoca antes de que el navegador escriba la tecla.
+      onKeyDown={(event) => {
+        const input = inputRef.current;
+        if (!input || event.target === input) return;
+        if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+        input.focus();
+      }}
+    >
       <DialogTitle>{yaAsignado ? 'Cambiar miembro' : 'Asignar miembro'}</DialogTitle>
 
       <DialogContent>
@@ -57,9 +85,6 @@ export function LeadershipAssignDialog({
           </Box>
 
           <Autocomplete
-            // Se abre para buscar a alguien por nombre: el foco va directo al
-            // campo, sin que haya que hacerle clic primero.
-            autoFocus
             options={options}
             // Se compara por id, no por identidad de objeto: los miembros llegan
             // de servicios distintos y una misma persona puede ser dos objetos.
@@ -67,6 +92,7 @@ export function LeadershipAssignDialog({
             loading={loading}
             onChange={(event, option) => onChange?.(option?.member ?? null)}
             getOptionLabel={(option) => option?.nombre || ''}
+            filterOptions={filtrarMiembros}
             getOptionKey={(option) => option?.id}
             // Quien ya ocupa otro cargo se lista, pero no se puede elegir.
             getOptionDisabled={(option) => Boolean(option?.disabled)}
@@ -125,7 +151,16 @@ export function LeadershipAssignDialog({
               );
             }}
             renderInput={(autocompleteParams) => (
-              <TextField {...autocompleteParams} label="Miembro" placeholder="Buscar miembro" />
+              // Se abre para buscar a alguien por nombre: el foco va directo al
+              // campo, sin que haya que hacerle clic primero. Va en el TextField:
+              // puesto en el Autocomplete no llegaba al input y no hacia nada.
+              <TextField
+                {...autocompleteParams}
+                inputRef={inputRef}
+                autoFocus
+                label="Miembro"
+                placeholder="Buscar miembro"
+              />
             )}
           />
 

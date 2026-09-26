@@ -2,14 +2,22 @@ import { useParams } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+
+import { OPCIONES_ESTADO_DESTACAMENTO } from 'src/utils/estado-destacamento.mjs';
+import { filtrarPorNombreComoElBuscador } from 'src/utils/buscador-organizacion.mjs';
 
 import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
 import TimeInput from 'src/components/common/time-input';
 import DaysSelect from 'src/components/common/days-select';
 import NumberInput from 'src/components/common/number-input';
+
+const nombreDelMiembro = (option) =>
+    option?.fullName || `${option?.firstName || ''} ${option?.lastName || ''}`.trim();
+const filtrarCoordinador = filtrarPorNombreComoElBuscador(nombreDelMiembro, (o) => o?.memberId);
 
 export default function DestGeneralSection({
     isCreateView,
@@ -25,6 +33,12 @@ export default function DestGeneralSection({
     coordinatorDisabled = disabled,
     // El numero es de la Oficina Nacional, hasta al crear el destacamento.
     numberDisabled = disabled,
+    // El estado (Activo / Inactivo) no va en el formulario: vive en Firestore y
+    // se guarda al elegirlo. Lo mueven solo el Administrador Global y la Oficina
+    // Nacional (`puedeCambiarEstadoDeDestacamento`).
+    estado,
+    onEstadoChange,
+    estadoDisabled = true,
 }) {
     const params = useParams();
     const destId = params?.id;
@@ -120,6 +134,8 @@ export default function DestGeneralSection({
                 label="Coordinador de Destacamento"
                 disabled={coordinatorDisabled}
                 options={destMembers}
+                // Como el buscador de la cabecera: palabras sueltas y erratas.
+                filterOptions={filtrarCoordinador}
                 value={
                     watch('coordinatorId')
                         ? members.find((m) => m.memberId === watch('coordinatorId')) || null
@@ -159,6 +175,28 @@ export default function DestGeneralSection({
                     fullWidth
                     disabled
                 />
+            )}
+
+            {!isCreateView && (
+                <TextField
+                    select
+                    label="Estado"
+                    value={estado ?? 'activo'}
+                    onChange={(event) => onEstadoChange?.(event.target.value)}
+                    fullWidth
+                    disabled={estadoDisabled}
+                    helperText={
+                        estadoDisabled
+                            ? 'Lo cambian el Administrador Global y la Oficina Nacional.'
+                            : ''
+                    }
+                >
+                    {OPCIONES_ESTADO_DESTACAMENTO.map((opcion) => (
+                        <MenuItem key={opcion.value} value={opcion.value}>
+                            {opcion.label}
+                        </MenuItem>
+                    ))}
+                </TextField>
             )}
 
             {/* <Box

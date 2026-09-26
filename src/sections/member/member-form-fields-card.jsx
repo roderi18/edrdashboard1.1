@@ -135,7 +135,7 @@ export function MemberFormFieldsCard({
 
         {isCreateView && step === 1 && (
           <>
-            <SectionDivider label="Direcci?n" />
+            <SectionDivider label="Dirección" />
             <MemberAddressSection />
           </>
         )}

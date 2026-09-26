@@ -11,6 +11,9 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Tooltip from '@mui/material/Tooltip';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 
@@ -28,6 +31,12 @@ import {
   filterDestsByMemberScope,
 } from 'src/utils/member-access';
 import {
+  textoDeFaltantes,
+  resumenInfoCompleta,
+  TEXTO_TIP_INFO_COMPLETA,
+  faltantesDeDestacamento,
+} from 'src/utils/destacamento-info-completa.mjs';
+import {
   canEditDest,
   isAdminGlobal,
   esRolDeDestacamento,
@@ -35,6 +44,7 @@ import {
   isForeignDestForMembers,
   ejerceCargoSobreDestacamento,
   puedeAsignarNumeroDeDestacamento,
+  puedeVerInfoCompletaDeDestacamentos,
 } from 'src/utils/org-level-access';
 
 import { REGIONAL_FULL_NAME_OPTIONS } from 'src/_mock';
@@ -263,8 +273,22 @@ export function DestListView({ sectionalId = null }) {
           Number(r.idRegion) === Number(sectional?.regionalId)
       );
 
+      const coordinatorFullName = coordinator
+        ? `${coordinator.firstName ?? ''} ${coordinator.lastName ?? ''}`.trim()
+        : '';
+      // Lo que le falta para tener la información completa (aviso sobre la foto
+      // y porcentaje "Dest. Info. Completa"). "Desconocido" no cuenta como dato.
+      const infoFaltante = faltantesDeDestacamento({
+        coordinador: coordinatorFullName,
+        pastor: church?.pastor,
+        iglesia: church?.name,
+        direccion: church?.address,
+      });
+
       return {
         ...dest,
+        infoFaltante,
+        avisoInfo: textoDeFaltantes(infoFaltante),
         idIglesia: dest.idIglesia || dest.churchId || null,
         nombre: dest.nombre || dest.name || '',
         numero: dest.numero || dest.destNumber || '',
@@ -317,6 +341,9 @@ export function DestListView({ sectionalId = null }) {
     canCreateDestInSection(user) || canModifyDest(user, PERMISOS.DESTACAMENTOS_CREAR, 'crear');
   // Eliminar destacamentos: solo el Administrador Global.
   const canDeleteDest = isAdminGlobal(user);
+  // El porcentaje de destacamentos con la información completa: solo la Oficina
+  // Nacional y el Administrador Global, que son quienes cargan el Listado Nacional.
+  const verInfoCompleta = puedeVerInfoCompletaDeDestacamentos(user);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
@@ -513,7 +540,7 @@ export function DestListView({ sectionalId = null }) {
   // Orden inicial: primero los destacamentos del alcance del usuario (el propio
   // y, para los cargos seccionales/regionales, los de su sección o región). Si el
   // usuario ordena por una columna, manda su criterio (ver `sortOwnFirst`).
-  const dataFiltered = useMemo(() => {
+  const dataSinFiltroInfo = useMemo(() => {
     // La seccion acota, no abre: lo que llega en `tableData` ya paso por
     // `filterDestsByMemberScope`.
     const inputData = esPestanaDeSeccion
@@ -560,7 +587,24 @@ export function DestListView({ sectionalId = null }) {
     esPestanaDeSeccion,
   ]);
 
+  // Filtro "Completos / Incompletos" junto al porcentaje. Va aparte y después:
+  // el porcentaje se calcula sobre la lista SIN este filtro, o siempre daría 0% o 100%.
+  const [filtroInfo, setFiltroInfo] = useState('todos');
+  const dataFiltered = useMemo(() => {
+    if (!verInfoCompleta || filtroInfo === 'todos') return dataSinFiltroInfo;
+    const quiereCompletos = filtroInfo === 'completos';
+    return dataSinFiltroInfo.filter(
+      (row) => Array.isArray(row.infoFaltante) && (row.infoFaltante.length === 0) === quiereCompletos
+    );
+  }, [dataSinFiltroInfo, filtroInfo, verInfoCompleta]);
+
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
+
+  // De lo que se está viendo (región, sección y búsqueda aplicadas).
+  const infoCompleta = useMemo(
+    () => (verInfoCompleta ? resumenInfoCompleta(dataSinFiltroInfo) : null),
+    [verInfoCompleta, dataSinFiltroInfo]
+  );
 
   const canReset =
     !!currentFilters.name ||
@@ -597,15 +641,19 @@ export function DestListView({ sectionalId = null }) {
   const renderLista = () => (
     <>
         <Card>
-          <Tabs
-            value={currentFilters.regionalName}
-            onChange={handleFilterRegionalFullName}
+          <Box
             sx={[
               (muiTheme) => ({
-                px: { md: 2.5 },
+                display: 'flex',
+                alignItems: 'center',
                 boxShadow: `inset 0 -2px 0 0 ${varAlpha(muiTheme.vars.palette.grey['500Channel'], 0.08)}`,
               }),
             ]}
+          >
+          <Tabs
+            value={currentFilters.regionalName}
+            onChange={handleFilterRegionalFullName}
+            sx={{ px: { md: 2.5 }, flex: '1 1 auto', minWidth: 0 }}
           >
             {REGIONAL_FULL_NAME.map((tab) => (
               <Tab
@@ -633,6 +681,18 @@ export function DestListView({ sectionalId = null }) {
               />
             ))}
           </Tabs>
+
+            {infoCompleta && (
+              <InfoCompletaIndicador
+                resumen={infoCompleta}
+                filtro={filtroInfo}
+                onFiltro={(valor) => {
+                  table.onResetPage();
+                  setFiltroInfo(valor);
+                }}
+              />
+            )}
+          </Box>
 
           <DestTableToolbar
             filters={filters}
@@ -844,4 +904,76 @@ function applyFilter({ inputData, comparator, filters, members }) {
   }
 
   return inputData;
+}
+
+// ----------------------------------------------------------------------
+
+// "Dest. Info. Completa 42%", al final de las pestañas de región. El tip explica
+// qué cuenta como completo; mientras no se han evaluado los destacamentos (la
+// lista llega por partes) se ve un guion en vez de un 0% que asustaría.
+function InfoCompletaIndicador({ resumen, filtro, onFiltro }) {
+  const { completos, total, porcentaje } = resumen;
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, pr: 2 }}>
+    <Tooltip
+      arrow
+      title={
+        <Box sx={{ p: 0.5 }}>
+          <Box sx={{ mb: 0.5 }}>{TEXTO_TIP_INFO_COMPLETA}</Box>
+          {total > 0 && (
+            <Box sx={{ opacity: 0.8 }}>
+              {completos} de {total} destacamentos con la información completa.
+            </Box>
+          )}
+        </Box>
+      }
+    >
+      <Box
+        sx={{
+          px: 2.5,
+          gap: 0.75,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          cursor: 'help',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 'fontWeightSemiBold' }}>
+          Dest. Info. Completa
+        </Typography>
+        <Label
+          variant="soft"
+          color={
+            porcentaje === null
+              ? 'default'
+              : porcentaje >= 80
+                ? 'success'
+                : porcentaje >= 50
+                  ? 'warning'
+                  : 'error'
+          }
+        >
+          {porcentaje === null ? '—' : `${porcentaje}%`}
+        </Label>
+        <Iconify icon="solar:info-circle-bold" width={16} sx={{ color: 'text.disabled' }} />
+      </Box>
+    </Tooltip>
+
+    {/* Ver solo los completos o solo los que tienen el aviso. */}
+    <TextField
+      select
+      size="small"
+      value={filtro}
+      onChange={(event) => onFiltro(event.target.value)}
+      sx={{ minWidth: 150 }}
+      slotProps={{ htmlInput: { 'aria-label': 'Filtrar por información completa' } }}
+    >
+      <MenuItem value="todos">Todos</MenuItem>
+      <MenuItem value="completos">Completos</MenuItem>
+      <MenuItem value="incompletos">Incompletos</MenuItem>
+    </TextField>
+    </Box>
+  );
 }

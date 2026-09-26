@@ -1,4 +1,4 @@
-import { useFormContext } from 'react-hook-form';
+import { useWatch, useFormContext } from 'react-hook-form';
 
 import InputAdornment from '@mui/material/InputAdornment';
 
@@ -20,10 +20,14 @@ export default function NameInput({
     disabled = false,
     InputProps: externalInputProps = {},
 }) {
-    const { setValue, watch } = useFormContext();
+    const { setValue, control } = useFormContext();
+    // `useWatch` y no `watch`: `watch` del contexto repinta el formulario
+    // ENTERO en cada tecla (miles de lineas en el de miembros) y escribir se
+    // sentia lento. `useWatch` repinta solo este campo.
+    const valorVigilado = useWatch({ control, name });
 
     // 📌 Valor actual del input (para el contador)
-    const currentValue = watch(name) || '';
+    const currentValue = valorVigilado || '';
 
     // Limpieza y capitalizacion de lo tecleado. Vive aparte del `onChange` para
     // poder aplicarla tambien al texto que queda ANTES del cursor y saber donde

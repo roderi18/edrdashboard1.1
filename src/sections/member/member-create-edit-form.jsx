@@ -1148,9 +1148,12 @@ export function MemberCreateEditForm({
   // Los demas `watch('campo')` de arriba son correctos: repintan cuando cambia
   // SU campo, que es justo cuando hace falta.
   const avatarUrl = watch('avatarUrl');
-  const firstName = watch('firstName');
-  const lastName = watch('lastName');
-  const memberFullName = `${firstName ?? ''} ${lastName ?? ''}`.trim();
+  // El nombre NO se vigila aqui: cada letra de Nombres o Apellidos repintaba
+  // este componente entero y escribir iba a trompicones. La tarjeta de la foto
+  // lo vigila por su cuenta (`useWatch`); aqui se lee al momento de usarlo.
+  const nombreCompletoAhora = () =>
+    `${getValues('firstName') ?? ''} ${getValues('lastName') ?? ''}`.trim();
+  const memberFullName = nombreCompletoAhora();
   const getDestId = (destItem) => String(destItem?.id ?? destItem?.idDestacamento ?? '');
   const getDestName = (destItem) => destItem?.name ?? destItem?.nombre ?? '';
   const getDestNumber = (destItem) => destItem?.destNumber ?? destItem?.numero ?? '';
@@ -1640,7 +1643,9 @@ export function MemberCreateEditForm({
   const leadership = leaderships[0];
   const nationalLeadership = leaderships.find((l) => l.level === 'national');
   const destLeadership = leaderships.find((l) => l.level === 'dest');
-  let memberDestText = destName ? `Miembro de ${destName}` : null;
+  // Sin destacamento elegido no se dice nada: "Miembro de Destacamento
+  // desconocido" salia al abrir "Crear" antes de escoger ninguno.
+  let memberDestText = dest ? `Miembro de ${destName}` : null;
 
   const roleInfo = _allLeadershipRoles.find((r) => r.value === leadership?.role);
 
@@ -1768,7 +1773,7 @@ export function MemberCreateEditForm({
       registrarCambiosHistorialMiembro({
         idMiembro: currentMember.id,
         codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
-        nombreMiembro: memberFullName,
+        nombreMiembro: nombreCompletoAhora(),
         modulo: 'Información general',
         antes: { contrasena: 'sin código pendiente' },
         despues: { contrasena: 'con un código de un solo uso para crear otra' },
@@ -1790,7 +1795,7 @@ export function MemberCreateEditForm({
     registrarCambiosHistorialMiembro({
       idMiembro: idMiembros,
       codigoMiembro: currentMember?.memberId || currentMember?.codigoMiembro || '',
-      nombreMiembro: memberFullName,
+      nombreMiembro: nombreCompletoAhora(),
       modulo: 'Información general',
       antes: { fotoPerfil: currentMember?.avatarUrl || '' },
       despues: { fotoPerfil: urlFoto || '' },

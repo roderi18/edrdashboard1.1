@@ -8,6 +8,8 @@ import { RouterLink } from 'src/routes/components';
 
 import { isUnknownLabel } from 'src/utils/is-unknown-label';
 
+import { AvisoSobreFoto } from './aviso-sobre-foto';
+
 // ----------------------------------------------------------------------
 
 export function CompactEntityTableCell({
@@ -23,6 +25,8 @@ export function CompactEntityTableCell({
   linkSx,
   avatarSx,
   cellSx,
+  // Texto del aviso de advertencia sobre la foto (vacío = sin aviso).
+  avatarAviso = '',
 }) {
   const hasHref = Boolean(href);
   const titleSx = {
@@ -33,17 +37,21 @@ export function CompactEntityTableCell({
   return (
     <TableCell sx={cellSx}>
       <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-        <Avatar
-          alt={avatarAlt || title}
-          src={avatarUrl || undefined}
-          onClick={onAvatarClick}
-          sx={{
-            ...(onAvatarClick && { cursor: 'pointer' }),
-            ...avatarSx,
-          }}
-        >
-          {avatarChildren}
-        </Avatar>
+        <Box sx={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+          <Avatar
+            alt={avatarAlt || title}
+            src={avatarUrl || undefined}
+            onClick={onAvatarClick}
+            sx={{
+              ...(onAvatarClick && { cursor: 'pointer' }),
+              ...avatarSx,
+            }}
+          >
+            {avatarChildren}
+          </Avatar>
+
+          <AvisoSobreFoto texto={avatarAviso} size={18} />
+        </Box>
 
         <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
           {hasHref ? (

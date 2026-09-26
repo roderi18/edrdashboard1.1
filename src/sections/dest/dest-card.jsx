@@ -57,6 +57,8 @@ export function DestCard({ dest, sx, ...other }) {
       avatarUrl={getDestAvatar(dest)}
       avatarSize={80}
       avatarBorderRadius={2.5}
+      // Sin coordinador, pastor, iglesia o dirección: aviso sobre la foto.
+      avatarAviso={dest?.avisoInfo}
       fallbackText={getDestName(dest)}
       lines={[
         {

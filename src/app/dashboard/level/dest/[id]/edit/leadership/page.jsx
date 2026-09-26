@@ -28,6 +28,7 @@ import { RouterLink } from 'src/routes/components';
 import { canManageDirectiva } from 'src/utils/admin-role-label';
 import { arbolesConCasillas } from 'src/utils/casillas-personalizadas.mjs';
 import { puedeVerAvisoDatosPendientes } from 'src/utils/member-datos-pendientes';
+import { filtrarPorNombreComoElBuscador } from 'src/utils/buscador-organizacion.mjs';
 import { construirResumenMiembro, resolverMiembroAsignado } from 'src/utils/leadership-assignments';
 import { obtenerFotoPrincipal, obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
@@ -89,6 +90,13 @@ import {
 } from 'src/sections/common/leadership-layout-editor';
 
 import { useAuthContext } from 'src/auth/hooks';
+
+// Busca como el buscador de la cabecera: palabras sueltas, en cualquier orden,
+// con erratas, y tambien por codigo de miembro.
+const filtrarMiembros = filtrarPorNombreComoElBuscador(
+  (opcion) => opcion?.nombre,
+  (opcion) => opcion?.member?.memberId ?? opcion?.codigo
+);
 
 const MIN_ZOOM = 0.7;
 const MAX_ZOOM = 1.4;
@@ -644,6 +652,7 @@ export default function Page() {
   const [destNumber, setDestNumber] = useState('');
   const [members, setMembers] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
+  const buscadorMiembroRef = useRef(null);
   const [roleInfoNode, setRoleInfoNode] = useState(null);
   const [removeMemberNode, setRemoveMemberNode] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -1577,7 +1586,21 @@ export default function Page() {
             }
           />
         )}
-      <Dialog open={!!selectedNode} onClose={handleCloseChangeMember} fullWidth maxWidth="xs">
+      <Dialog
+        open={!!selectedNode}
+        onClose={handleCloseChangeMember}
+        fullWidth
+        maxWidth="xs"
+        // Foco al buscador al abrir, y cualquier letra pulsada va a el, como en
+        // el dialogo compartido de seccion, region y nacion.
+        TransitionProps={{ onEntered: () => buscadorMiembroRef.current?.focus() }}
+        onKeyDown={(event) => {
+          const input = buscadorMiembroRef.current;
+          if (!input || event.target === input) return;
+          if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+          input.focus();
+        }}
+      >
         <DialogTitle>
           {selectedNode?.miembroAsignado ? 'Cambiar miembro' : 'Asignar miembro'}
         </DialogTitle>
@@ -1609,6 +1632,8 @@ export default function Page() {
               loading={!members.length}
               onChange={(event, option) => setSelectedMember(option?.member ?? null)}
               getOptionLabel={(option) => option?.nombre || ''}
+              // Como el buscador de la cabecera (ver dialogo compartido).
+              filterOptions={filtrarMiembros}
               getOptionKey={(option) => option?.id}
               // Quien ya ocupa otro cargo se lista, pero no se puede elegir.
               getOptionDisabled={(option) => Boolean(option?.disabled)}
@@ -1661,7 +1686,14 @@ export default function Page() {
                 );
               }}
               renderInput={(autocompleteParams) => (
-                <TextField {...autocompleteParams} label="Miembro" placeholder="Buscar miembro" />
+                // Foco directo al campo al abrir, como en el dialogo compartido.
+                <TextField
+                  {...autocompleteParams}
+                  inputRef={buscadorMiembroRef}
+                  autoFocus
+                  label="Miembro"
+                  placeholder="Buscar miembro"
+                />
               )}
             />
 

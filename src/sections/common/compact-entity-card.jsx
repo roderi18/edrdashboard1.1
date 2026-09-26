@@ -13,6 +13,8 @@ import { isUnknownLabel } from 'src/utils/is-unknown-label';
 
 import { Iconify } from 'src/components/iconify';
 
+import { AvisoSobreFoto } from './aviso-sobre-foto';
+
 // ----------------------------------------------------------------------
 
 export function CompactEntityCardSkeleton() {
@@ -45,6 +47,8 @@ export const CompactEntityCard = memo(function CompactEntityCard({
   fallbackText = '?',
   lines = [],
   rightImage,
+  // Texto del aviso de advertencia sobre la foto (vacío = sin aviso).
+  avatarAviso = '',
   sx,
   ...other
 }) {
@@ -100,7 +104,19 @@ export const CompactEntityCard = memo(function CompactEntityCard({
     : { href };
 
   // Uno solo para las dos ramas: eran el mismo bloque duplicado.
-  const renderAvatar = () => (
+  // El aviso va FUERA del Avatar (que recorta lo que sobresale), en una caja que
+  // lo sostiene arriba a la derecha de la foto.
+  const renderAvatar = () =>
+    avatarAviso ? (
+      <Box sx={{ position: 'relative', display: 'inline-flex', flexShrink: 0, mr: 2 }}>
+        {renderFoto({ mr: 0 })}
+        <AvisoSobreFoto texto={avatarAviso} />
+      </Box>
+    ) : (
+      renderFoto()
+    );
+
+  const renderFoto = (extraSx = {}) => (
     <Avatar
       alt={title}
       sx={{
@@ -110,6 +126,7 @@ export const CompactEntityCard = memo(function CompactEntityCard({
         mr: 2,
         overflow: 'hidden',
         position: 'relative',
+        ...extraSx,
       }}
     >
       <Box component="span">{initial}</Box>

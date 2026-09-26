@@ -105,6 +105,12 @@ export const AMBITOS_CAMBIO = {
   // Administrador Global y la Oficina Nacional: se aplica en el acto, queda en
   // Historial y avisa al otro.
   directivaHistorica: 'directiva_historica',
+  // El estado del destacamento (Activo / Inactivo). Solo lo mueven el
+  // Administrador Global y la Oficina Nacional: se aplica en el acto y queda en
+  // Historial. Va aparte de `destacamento` porque este vive en Firestore, no en
+  // la API .NET: una propuesta suya aprobada como `destacamento` se habria
+  // enviado al padron.
+  estadoDestacamento: 'estado_destacamento',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.

@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { useFormContext } from 'react-hook-form';
+import { useWatch, useFormContext } from 'react-hook-form';
 
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -10,9 +10,13 @@ export default function TimeInput({
     label = 'Horario de reunión',
     disabled = false,
 }) {
-    const { setValue, watch } = useFormContext();
+    const { setValue, control } = useFormContext();
+    // `useWatch` y no `watch`: `watch` del contexto repinta el formulario
+    // ENTERO en cada tecla (miles de lineas en el de miembros) y escribir se
+    // sentia lento. `useWatch` repinta solo este campo.
+    const valorVigilado = useWatch({ control, name });
 
-    const value = watch(name);
+    const value = valorVigilado;
 
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs}>

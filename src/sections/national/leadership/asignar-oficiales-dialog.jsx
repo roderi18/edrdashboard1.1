@@ -15,7 +15,16 @@ import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
+import { filtrarPorNombreComoElBuscador } from 'src/utils/buscador-organizacion.mjs';
+
 import { SelectorDeTitulo } from 'src/sections/national/leadership/titulo-oficial';
+
+// Busca como el buscador de la cabecera: palabras sueltas, en cualquier orden,
+// con erratas, y tambien por codigo de miembro.
+const filtrarMiembros = filtrarPorNombreComoElBuscador(
+  (opcion) => opcion?.nombre,
+  (opcion) => opcion?.member?.memberId ?? opcion?.codigo
+);
 
 // ----------------------------------------------------------------------
 // "ASIGNAR MIEMBROS" EN LA TARJETA "OFICIALES ESPECIALES".
@@ -117,6 +126,7 @@ export function AsignarOficialesDialog({
             filterSelectedOptions
             disableCloseOnSelect
             getOptionLabel={(opcion) => opcion?.nombre || ''}
+            filterOptions={filtrarMiembros}
             getOptionKey={(opcion) => opcion?.id}
             getOptionDisabled={tieneOtroCargo}
             isOptionEqualToValue={(opcion, elegido) => opcion?.id === elegido?.id}

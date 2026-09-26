@@ -1,14 +1,25 @@
 import dayjs from 'dayjs';
 
 import { normalizarEstatusMiembro } from 'src/utils/estatus-miembro.mjs';
-import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 
 import { AUTH } from 'src/lib/firebase';
 
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
 import { desactivarAsignacionesDirectivaDelMiembro } from './directivas-organizacionales-service';
 import { desactivarAsignacionesOrganigramaDelMiembro } from './organigrama-directiva-destacamentos-service';
+
+// "8099729676" o "18099729676" -> "+18099729676". Lo que ya trae "+" o no tiene
+// 10/11 cifras se deja como está.
+const telefonoE164 = (valor) => {
+  const texto = String(valor ?? '').trim();
+  if (!texto || texto.startsWith('+')) return texto;
+  const digitos = texto.replace(/\D/g, '');
+  if (digitos.length === 10) return `+1${digitos}`;
+  if (digitos.length === 11 && digitos.startsWith('1')) return `+${digitos}`;
+  return texto;
+};
 
 // Cabecera de identidad: adjunta el ID token de Firebase para que el proxy /api
 // lo reenvíe al backend, que autoriza/filtra por alcance. Sin sesión, no agrega
@@ -154,7 +165,10 @@ export function mapApiMemberToUI(member) {
 
     destId: String(member.idDestacamento || ''),
 
-    phoneNumber: member.telefono || '',
+    // El campo de teléfono exige E.164 (+1XXXXXXXXXX): con "8099729676" la ficha
+    // lanzaba un error en consola y no mostraba el número. Muchos miembros del
+    // padrón lo guardan así, con 10 cifras.
+    phoneNumber: telefonoE164(member.telefono),
     memberAddress: member.direccion || '',
     email: member.correo || '',
 

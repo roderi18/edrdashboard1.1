@@ -1,4 +1,4 @@
-import { useFormContext } from 'react-hook-form';
+import { useWatch, useFormContext } from 'react-hook-form';
 
 import { Field } from 'src/components/hook-form';
 
@@ -9,9 +9,13 @@ export default function NumberInput({
     disabled = false,
     helperText = '',
 }) {
-    const { setValue, watch } = useFormContext();
+    const { setValue, control } = useFormContext();
+    // `useWatch` y no `watch`: `watch` del contexto repinta el formulario
+    // ENTERO en cada tecla (miles de lineas en el de miembros) y escribir se
+    // sentia lento. `useWatch` repinta solo este campo.
+    const valorVigilado = useWatch({ control, name });
 
-    const value = watch(name) || '';
+    const value = valorVigilado || '';
 
     return (
         <Field.Text

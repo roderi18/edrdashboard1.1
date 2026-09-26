@@ -199,3 +199,31 @@ export const armarIndiceDeOrganizacion = ({
       .filter((region) => region.id && region.nombre),
   };
 };
+
+// ----------------------------------------------------------------------
+// LA MISMA REGLA EN LOS SELECTORES DE MIEMBROS ("Asignar miembro", coordinador…).
+//
+// El `Autocomplete` de MUI solo encontraba el texto seguido: "perez juan" o
+// "Estalin" no traian a nadie, cuando el buscador de la cabecera si los
+// encuentra. Se usa como `filterOptions`: todas las coincidencias (sin tope),
+// las mas cercanas primero. Sin nada escrito, la lista tal cual.
+// ----------------------------------------------------------------------
+
+export const filtrarPorNombreComoElBuscador =
+  (nombreDe = (opcion) => opcion?.nombre, codigoDe = () => '') =>
+  (opciones = [], { inputValue = '' } = {}) => {
+    if (!normalizarTexto(inputValue)) return opciones;
+
+    return opciones
+      .map((opcion, indice) => ({
+        opcion,
+        indice,
+        cercania: cercaniaDeNombre(inputValue, {
+          nombre: nombreDe(opcion) ?? '',
+          codigo: codigoDe(opcion) ?? '',
+        }),
+      }))
+      .filter(({ cercania }) => cercania !== null)
+      .sort((a, b) => a.cercania - b.cercania || a.indice - b.indice)
+      .map(({ opcion }) => opcion);
+  };

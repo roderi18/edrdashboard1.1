@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { useWatch, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -55,8 +56,15 @@ export function MemberProfileCard({
   tiempoCodigoRestante,
   resetCodeLifetimeMs,
 }) {
+  // El nombre se vigila AQUI y no en el formulario: asi cada letra repinta solo
+  // esta tarjeta y no las miles de lineas del formulario de miembros.
+  const { control } = useFormContext();
+  const [nombres, apellidos] = useWatch({ control, name: ['firstName', 'lastName'] });
+  const nombreVivo = `${nombres ?? ''} ${apellidos ?? ''}`.trim() || memberFullName;
+
   return (
-    <Card sx={{ pt: 5, pb: 5, px: 3, position: 'relative' }}>
+    // Al crear, la tarjeta llega hasta abajo, igual de alta que la del formulario.
+    <Card sx={{ pt: 5, pb: 5, px: 3, position: 'relative', height: isCreateView ? 1 : 'auto' }}>
       {!isCreateView && (
         <ChipEstatusMiembro estatus={currentMember?.status ?? currentMember?.estatusMiembro} />
       )}
@@ -64,7 +72,7 @@ export function MemberProfileCard({
       <Box sx={{ mb: 5 }}>
         <FotoDeMiembro
           url={avatarUrl?.preview || avatarUrl || ''}
-          nombre={memberFullName}
+          nombre={nombreVivo}
           cargando={uploadingPhoto}
           puedeEditar={canUploadMemberPhoto}
           onFoto={(archivo) => onUploadPhoto([archivo])}
@@ -89,8 +97,8 @@ export function MemberProfileCard({
               <ContextInfo
                 items={[
                   {
-                    show: isCreateView && !!memberFullName,
-                    text: memberFullName,
+                    show: isCreateView && !!nombreVivo,
+                    text: nombreVivo,
                     variant: 'subtitle1',
                     bold: true,
                     mt: 1,
@@ -107,7 +115,7 @@ export function MemberProfileCard({
                   },
                   {
                     show: isCreateView && !!selectedDest?.name,
-                    text: `pertenecer? a ${`${selectedDest?.name || ''} ${selectedDest?.destNumber || ''}`.trim()}`,
+                    text: `pertenecerá a ${`${selectedDest?.name || ''} ${selectedDest?.destNumber || ''}`.trim()}`,
                   },
                   {
                     show: isCreateView && !!destChurch?.name,
@@ -115,7 +123,7 @@ export function MemberProfileCard({
                   },
                   {
                     show: isCreateView && !!selectedSectional?.name,
-                    text: `Secci?n ${selectedSectional?.name}`,
+                    text: `Sección ${selectedSectional?.name}`,
                   },
                   {
                     show: isCreateView && !!selectedRegional?.name,
@@ -190,7 +198,7 @@ export function MemberProfileCard({
           <MemberInfoPdfMenu
             obtenerValores={getValues}
             memberCode={currentMember?.memberId}
-            fullName={memberFullName}
+            fullName={nombreVivo}
             destName={destName}
             avatarUrl={currentMember?.avatarUrl}
             masked={maskSensitive}

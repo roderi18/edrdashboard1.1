@@ -1,5 +1,5 @@
-import { useForm } from 'react-hook-form';
 import { useState, useEffect } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
@@ -42,6 +42,7 @@ import {
   isSectionScopedManager,
   soloSugiereAltasDeDestacamento,
   puedeAsignarNumeroDeDestacamento,
+  puedeCambiarEstadoDeDestacamento,
   canEditDest as canGestionarDestPorAlcance,
 } from 'src/utils/org-level-access';
 
@@ -109,6 +110,10 @@ const hayCambiosDeIglesia = (datosIglesia, iglesiaActual) => {
 };
 
 import { crearNotificacionNumeroDestacamento } from 'src/services/notification-service';
+import {
+  leerEstadoDeDestacamento,
+  guardarEstadoDeDestacamento,
+} from 'src/services/estado-destacamentos-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -210,6 +215,9 @@ export function DestCreateEditForm({ currentDest }) {
   // se resuelve; `null` cuando el destacamento no tiene coordinador asignado.
   const [coordinatorFromDb, setCoordinatorFromDb] = useState(undefined);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // Estado del destacamento (Activo / Inactivo), de Firestore. Va fuera del
+  // formulario: cada `reset` lo habria vaciado, y se guarda al elegirlo.
+  const [destStatus, setDestStatus] = useState('activo');
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
   const isDestacamentoAdmin = isDestacamentoAdminRole(user);
   // Administrador "pleno" (global/funcional/legado) sin restriccion de alcance.
@@ -282,6 +290,53 @@ export function DestCreateEditForm({ currentDest }) {
   }, [currentDest, churches, sectionals, regionals, allMembers, coordinatorFromDb]);
 
   useEffect(() => {
+    const idDestacamento = currentDest?.id || currentDest?.idDestacamento;
+    if (!idDestacamento) return undefined;
+
+    let vigente = true;
+    leerEstadoDeDestacamento(idDestacamento)
+      .then((estado) => vigente && setDestStatus(estado))
+      .catch((error) => console.warn('[destacamento] no se pudo leer el estado', error));
+
+    return () => {
+      vigente = false;
+    };
+  }, [currentDest?.id, currentDest?.idDestacamento]);
+
+  // Se pinta en el mismo clic y se guarda por detras; si falla o queda
+  // pendiente, se deshace y se avisa (como las directivas).
+  const handleDestStatusChange = async (estado) => {
+    if (!canChangeDestStatus || !currentDest) return;
+
+    const anterior = destStatus;
+    if (estado === anterior) return;
+
+    setDestStatus(estado);
+
+    try {
+      const resultado = await guardarEstadoDeDestacamento({
+        idDestacamento: currentDest.id || currentDest.idDestacamento,
+        estado,
+        anterior,
+        usuario: user,
+        nombre: currentDest.name || '',
+      });
+
+      if (resultado?.estado === 'pendiente') {
+        setDestStatus(anterior);
+        toast.info('El cambio de estado quedó pendiente de aprobación.');
+        return;
+      }
+
+      toast.success(`Destacamento ${estado === 'inactivo' ? 'inactivo' : 'activo'}.`);
+    } catch (error) {
+      console.error('[destacamento] no se pudo guardar el estado', error);
+      setDestStatus(anterior);
+      toast.error('No se pudo cambiar el estado del destacamento.');
+    }
+  };
+
+  useEffect(() => {
     const loadData = async () => {
       // Las fotos viven en Firebase, no en la lista que devuelve la API: sin
       // pedirlas aparte, toda persona salia con el avatar generico.
@@ -351,9 +406,11 @@ export function DestCreateEditForm({ currentDest }) {
     formState: { isSubmitting },
   } = methods;
 
-  const values = watch();
-  const destName = watch('name');
-  const destNumber = watch('destNumber');
+  // `getValues()` y no `watch()`: `watch()` a secas suscribe al formulario
+  // ENTERO y cada tecla repintaba todo el componente; escribir iba lento. Estos
+  // valores solo se usan al descargar la ficha o subir la foto, y la lectura
+  // del momento basta.
+  const values = methods.getValues();
 
   const selectedSectionId = watch('sectionId');
 
@@ -388,6 +445,8 @@ export function DestCreateEditForm({ currentDest }) {
   // El numero es del registro nacional: no lo pone ni quien crea el
   // destacamento. Ver `puedeAsignarNumeroDeDestacamento`.
   const canAssignDestNumber = puedeAsignarNumeroDeDestacamento(user);
+  // El estado (Activo / Inactivo), igual que el numero, es del registro nacional.
+  const canChangeDestStatus = puedeCambiarEstadoDeDestacamento(user);
   const canEditDest = isCreateView
     ? !isDestacamentoAdmin &&
       (isLegacyAdmin || canCreateDestInSection(user) || canCreateDestByRole)
@@ -946,7 +1005,8 @@ export function DestCreateEditForm({ currentDest }) {
     <Form methods={methods} onSubmit={onSubmit} borrador={`destacamento:${currentDest?.id ?? 'nuevo'}`}>
       <Grid container spacing={3} sx={disabledReadableFieldSx}>
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ pt: 10, pb: 5, px: 3 }}>
+          {/* Al crear, la tarjeta de la foto llega hasta abajo, igual de alta que la del formulario. */}
+          <Card sx={{ pt: 10, pb: 5, px: 3, height: isCreateView ? 1 : 'auto' }}>
             {/* {currentDest && (
               <Label
                 color={
@@ -1096,16 +1156,10 @@ export function DestCreateEditForm({ currentDest }) {
               />
             </Stack>
 
+            {!currentDest && <NombreDelDestacamentoNuevo control={control} />}
+
             <ContextInfo
               items={[
-                {
-                  show: !currentDest && !!destName,
-                  text: `Destacamento ${destName ?? ''} ${destNumber ?? ''}`.trim(),
-                  variant: 'subtitle1',
-                  bold: true,
-                  mt: 1,
-                  color: 'text.primary',
-                },
                 {
                   show: !currentDest && !!sectional?.sectionalName,
                   text: `Pertenecerá a la Sección ${sectional?.sectionalName}`,
@@ -1266,6 +1320,9 @@ export function DestCreateEditForm({ currentDest }) {
                     scheduleDisabled={!canSaveDest}
                     coordinatorDisabled={!canSaveDest}
                     numberDisabled={!canAssignDestNumber}
+                    estado={destStatus}
+                    onEstadoChange={handleDestStatusChange}
+                    estadoDisabled={!canChangeDestStatus}
                   />
 
                   <Box sx={{ gridColumn: '1 / -1' }}>
@@ -1403,5 +1460,28 @@ export function DestCreateEditForm({ currentDest }) {
         </Grid>
       </Grid>
     </Form>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+// El nombre que se va escribiendo, bajo la foto. Vive aparte y con `useWatch`
+// para que cada letra repinte solo esto y no el formulario entero.
+function NombreDelDestacamentoNuevo({ control }) {
+  const [destName, destNumber] = useWatch({ control, name: ['name', 'destNumber'] });
+
+  return (
+    <ContextInfo
+      items={[
+        {
+          show: !!destName,
+          text: `Destacamento ${destName ?? ''} ${destNumber ?? ''}`.trim(),
+          variant: 'subtitle1',
+          bold: true,
+          mt: 1,
+          color: 'text.primary',
+        },
+      ]}
+    />
   );
 }

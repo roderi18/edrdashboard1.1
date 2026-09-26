@@ -989,6 +989,19 @@ export const requiereRevisionDeAdministradorGlobal = (user = {}, ambito = '') =>
 export const puedeEditarDirectivaHistorica = (user = {}) =>
   ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
 
+// EL ESTADO DEL DESTACAMENTO (Activo / Inactivo) es del registro nacional, como
+// el numero: lo mueven el Administrador Global y la Oficina Nacional, por
+// cualquiera de sus cargos (la Oficina Nacional es un rol a mano). Ver
+// `src/utils/estado-destacamento.mjs`.
+export const puedeCambiarEstadoDeDestacamento = (user = {}) =>
+  ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
+
+// El porcentaje "Dest. Info. Completa" de la lista de destacamentos es una
+// medida de la carga del Listado Nacional: la siguen quienes la hacen, el
+// Administrador Global y la Oficina Nacional (por cualquiera de sus cargos).
+export const puedeVerInfoCompletaDeDestacamentos = (user = {}) =>
+  ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
+
 // Los diez cargos del Consejo Ejecutivo y el rol generico "Consejo Ejecutivo",
 // por cualquiera de los cargos de la persona.
 export const ejerceConsejoEjecutivo = (user = {}) =>

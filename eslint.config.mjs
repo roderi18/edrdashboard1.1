@@ -242,6 +242,8 @@ export default [
       // Mismo caso: el estatus de cada miembro, que mueve la regla de asistencia
       // despues de registrarlo en Historial.
       'src/services/estatus-miembros-apply.js',
+      // Mismo caso: el estado (Activo / Inactivo) de un destacamento.
+      'src/services/estado-destacamentos-apply.js',
       // Los borradores de EXPLORA Designer: lo que el Administrador Global esta
       // editando y aun no publico. No lo ve nadie mas y no cambia nada de la
       // organizacion; registrar cada autoguardado llenaria Historial de ruido.

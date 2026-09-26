@@ -18,14 +18,19 @@ export function OrganizationalCreateButton({ href, ariaLabel = 'Crear nuevo' }) 
       aria-label={ariaLabel}
       title={ariaLabel}
       startIcon={<Iconify icon="mingcute:add-line" />}
-      sx={{
-        color: 'common.black',
-        bgcolor: 'common.white',
-        minWidth: { xs: 36, sm: 64 },
-        px: { xs: 0, sm: 2 },
-        '&:hover': { bgcolor: 'grey.300' },
-        '& .MuiButton-startIcon': { mx: { xs: 0, sm: '-4px' } },
-      }}
+      // Solo en el movil va blanco y con el + solo. En pantalla grande es el
+      // boton relleno de siempre: el blanco sin borde se perdia en el fondo y
+      // el margen negativo pegaba el + a las letras.
+      sx={(theme) => ({
+        [theme.breakpoints.down('sm')]: {
+          color: 'common.black',
+          bgcolor: 'common.white',
+          minWidth: 36,
+          px: 0,
+          '&:hover': { bgcolor: 'grey.300' },
+          '& .MuiButton-startIcon': { mx: 0 },
+        },
+      })}
     >
       <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
         Crear nuevo

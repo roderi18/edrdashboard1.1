@@ -61,6 +61,8 @@ export function DestTableRow({
         subtitle={formatChurchName(churchName)}
         avatarAlt={row.nombre}
         avatarUrl={row.avatarUrl}
+        // Sin coordinador, pastor, iglesia o dirección: aviso sobre la foto.
+        avatarAviso={row.avisoInfo}
       />
 
       <CompactEntityTableCell
