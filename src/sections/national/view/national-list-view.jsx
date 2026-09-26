@@ -2,7 +2,7 @@
 
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -24,6 +24,7 @@ import { claveNodo } from 'src/utils/leadership-assignments';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { tituloDe } from 'src/utils/titulos-oficiales-nacionales.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { ordenarDirectivaParaExportar } from 'src/utils/directiva-exportacion.mjs';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import {
   canDeleteOrgLevel,
@@ -80,6 +81,7 @@ import {
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { LeadershipHistoryList } from 'src/sections/common/leadership-history-list';
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
+import { useCambiarMotivoDeSalida } from 'src/sections/common/use-cambiar-motivo-de-salida';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 import { SelectorDeCuatrienio } from 'src/sections/national/cuatrienios/selector-de-cuatrienio';
 import { NationalLeadershipView } from 'src/sections/national/leadership/national-leadership-view';
@@ -126,6 +128,18 @@ const ORDEN_ESTRUCTURA = {
   consejo_ejecutivo: 0,
   directivas_regionales: 1,
   directivas_seccionales: 2,
+};
+
+// Etiqueta de cada estructura. Vivia dentro del componente y se rehacia en cada
+// render; es fija.
+const NATIONAL_STRUCTURES = {
+  ministerios_infantiles: 'Ministerios Infantiles',
+  consejo_ejecutivo: 'Consejo Ejecutivo',
+  oficiales_especiales_nacionales: 'Oficiales Especiales Nacionales',
+  directivas_regionales: 'Directivas Regionales',
+  directivas_seccionales: 'Directivas Seccionales',
+  directivas_zonales: 'Directivas Zonales',
+  // directiva_local: 'Directiva Local',
 };
 
 const DIAGRAMA_POR_NIVEL = {
@@ -323,6 +337,10 @@ export function NationalListView() {
     usuario: user,
     alCambiar: memoria.recargar,
   });
+  // `abrirOrganigrama` se crea en cada render: las filas memoizadas lo llaman a
+  // través de esta referencia para no rehacerse por eso.
+  const abrirOrganigramaRef = useRef(herramientas.abrirOrganigrama);
+  abrirOrganigramaRef.current = herramientas.abrirOrganigrama;
 
   const table = useTable();
 
@@ -354,16 +372,24 @@ export function NationalListView() {
   // La directiva de hoy tampoco tenía esqueleto: hasta que llegaban las
   // lecturas la tabla decía "Sin datos" y luego se llenaba.
   const [cargandoHoy, setCargandoHoy] = useState(true);
-  // Otra sesión asignó, quitó o cambió a alguien: la lista se relee sola.
-  const cambiosDeHoy = useLecturasVivas(['directiva:', 'miembros:', 'cuatrienio:']);
+  // A qué región pertenece cada sección, para exportar cada región con las suyas.
+  const [regionDeSeccion, setRegionDeSeccion] = useState(() => new Map());
+  // Otra sesión asignó, quitó o cambió a alguien: la lista se relee sola. Cada
+  // lectura escucha SOLO lo suyo: un cambio de directiva ya no vuelve a bajar
+  // el padrón entero y las fotos, ni un cambio de miembro las asignaciones.
+  const cambiosDeDirectiva = useLecturasVivas(['directiva:', 'cuatrienio:']);
+  const cambiosDeMiembros = useLecturasVivas(['miembros:']);
 
+  // LA DIRECTIVA NO ESPERA AL PADRÓN. La lista entera esperaba a `getMembers()`
+  // —el padrón completo de la API .NET, de 0,3 a 17 s— aunque las asignaciones
+  // ya traen nombre, código y foto. Ahora sale con lo suyo y el padrón completa
+  // teléfono y nombre de ficha cuando llega (efecto de abajo).
   useEffect(() => {
     let cancelado = false;
 
     const cargar = async () => {
-      const [miembros, asignaciones, secciones, regiones, permanentes, telefonos, historial] =
+      const [asignaciones, secciones, regiones, permanentes, telefonos, historial] =
         await Promise.all([
-          getMembers().catch(() => []),
           obtenerAsignacionesDirectivaMiembros().catch(() => []),
           getSectionals({ includePhotos: false }).catch(() => []),
           getRegionals().catch(() => []),
@@ -408,18 +434,26 @@ export function NationalListView() {
         )
       );
 
-      setAllMembers(Array.isArray(miembros) ? miembros : []);
       setCargandoHoy(false);
       setNationalAssignments(
         (Array.isArray(asignaciones) ? asignaciones : []).filter((asignacion) =>
           NIVELES_DE_LA_LISTA.includes(asignacion?.nivel)
         )
       );
+      const listaDeSecciones = Array.isArray(secciones) ? secciones : [];
       setSeccionesPorId(
         new Map(
-          (Array.isArray(secciones) ? secciones : []).map((seccion) => [
+          listaDeSecciones.map((seccion) => [
             String(seccion.id ?? seccion.idSeccion),
             seccion.sectionalName ?? seccion.nombre ?? seccion.name ?? '',
+          ])
+        )
+      );
+      setRegionDeSeccion(
+        new Map(
+          listaDeSecciones.map((seccion) => [
+            String(seccion.id ?? seccion.idSeccion),
+            String(seccion.regionalId ?? seccion.idRegion ?? ''),
           ])
         )
       );
@@ -431,20 +465,6 @@ export function NationalListView() {
           ])
         )
       );
-
-      obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' })
-        .then((fotos) => {
-          if (cancelado) return;
-
-          setFotosPorMiembro(
-            Object.fromEntries(
-              Object.entries(fotos)
-                .filter(([, foto]) => foto?.urlFoto)
-                .map(([idMiembro, foto]) => [String(idMiembro), foto.urlFoto])
-            )
-          );
-        })
-        .catch(() => { });
     };
 
     cargar();
@@ -452,7 +472,52 @@ export function NationalListView() {
     return () => {
       cancelado = true;
     };
-  }, [cambiosDeHoy]);
+  }, [cambiosDeDirectiva]);
+
+  // El padrón y las fotos, aparte y sin bloquear: completan la lista ya pintada.
+  useEffect(() => {
+    let cancelado = false;
+
+    getMembers()
+      .catch(() => [])
+      .then((miembros) => {
+        if (!cancelado) setAllMembers(Array.isArray(miembros) ? miembros : []);
+      });
+
+    obtenerFotosPrincipalesPorEntidad({ tipoEntidad: 'miembro' })
+      .then((fotos) => {
+        if (cancelado) return;
+
+        setFotosPorMiembro(
+          Object.fromEntries(
+            Object.entries(fotos)
+              .filter(([, foto]) => foto?.urlFoto)
+              .map(([idMiembro, foto]) => [String(idMiembro), foto.urlFoto])
+          )
+        );
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelado = true;
+    };
+  }, [cambiosDeMiembros]);
+
+  // UNA BÚSQUEDA POR ID, NO UN RECORRIDO. Cada fila buscaba a su miembro
+  // recorriendo el padrón entero (dos veces: aquí y en la fila), en cada render.
+  const miembrosPorId = useMemo(() => {
+    const mapa = new Map();
+
+    allMembers.forEach((miembro) => {
+      [miembro?.id, miembro?.idMiembros, miembro?.memberId].forEach((id) => {
+        const clave = String(id ?? '').trim();
+
+        if (clave && !mapa.has(clave)) mapa.set(clave, miembro);
+      });
+    });
+
+    return mapa;
+  }, [allMembers]);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
@@ -472,16 +537,6 @@ export function NationalListView() {
   // Que se pinta en la tarjeta: la lista de personas o el organigrama.
   const [vista, setVista] = useState('lista');
 
-  const NATIONAL_STRUCTURES = {
-    ministerios_infantiles: 'Ministerios Infantiles',
-    consejo_ejecutivo: 'Consejo Ejecutivo',
-    oficiales_especiales_nacionales: 'Oficiales Especiales Nacionales',
-    directivas_regionales: 'Directivas Regionales',
-    directivas_seccionales: 'Directivas Seccionales',
-    directivas_zonales: 'Directivas Zonales',
-    // directiva_local: 'Directiva Local',
-  };
-
   // El título de un Oficial de la Nacional (Protocolo, Diseño y artes…) sale en
   // la columna Posición en lugar de "Oficial Especial", igual que en la Jerarquía
   // y en la ficha. Va aparte de la etiqueta del cargo: el filtro de Posición sigue
@@ -489,125 +544,141 @@ export function NationalListView() {
   // un cuatrienio pasado conserva su "Oficial de la Nacional" de entonces.
   const { asignaciones: titulosOficiales } = useTitulosOficiales();
 
-  const filasDeHoy = nationalAssignments.map((assignment) => {
-    const member = allMembers.find(
-      (m) => String(m.id ?? m.idMiembros) === String(assignment.idMiembro)
-    );
-    const position = DIRECTIVA_POSITIONS.find(
-      (item) => item.idCargo === assignment.idPosicionDirectiva
-    );
-    // El catalogo del cargo manda sobre metadata antigua de la asignacion. Asi,
-    // todo cargo que vive en la Directiva Nacional se clasifica siempre dentro
-    // del Consejo Ejecutivo, aunque el miembro tambien pertenezca a una seccion
-    // o region por su procedencia.
-    const perteneceAlConsejoEjecutivo =
-      position?.nivel === 'nacional' ||
-      String(assignment.idEntidad || '').trim().toLowerCase() === 'nacional';
-    const nivel = perteneceAlConsejoEjecutivo
-      ? 'nacional'
-      : position?.nivel || assignment.nivel;
-    const idEntidad = nivel === 'nacional' ? 'nacional' : assignment.idEntidad;
-    const estructura = ESTRUCTURA_POR_NIVEL[nivel] || '-';
-    const ambito = construirAmbito({
-      nivel,
-      idEntidad,
-      seccionesPorId,
-      regionesPorId,
-    });
-    const estructuraLabel = NATIONAL_STRUCTURES[estructura] || '-';
-
-    return {
-      id: assignment.idAsignacion || assignment.id,
-      entityId: idEntidad,
-      // Nombre CRUDO de la entidad (sin el prefijo "Región"/"Sección"): la pestaña
-      // Jerarquía lo usa para casar la memoria de un cuatrienio cuando el id aún
-      // no existe en el padrón. La nacional no tiene entidad.
-      entityNombre:
-        nivel === 'regional'
-          ? regionesPorId.get(String(idEntidad)) || ''
-          : nivel === 'seccional'
-            ? seccionesPorId.get(String(idEntidad)) || ''
-            : '',
-      memberId: member?.id ?? assignment.idMiembro,
-      level: nivel,
-      // El nombre del listado manda; si el miembro no viene (baja, filtro), se usa
-      // la copia guardada dentro de la propia asignacion.
-      nationalXname:
-        `${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim() ||
-        member?.fullName ||
-        assignment.nombreMiembro ||
-        'Desconocido',
-      email: member?.email,
-      phoneNumber:
-        member?.phoneNumber || telefonosDirectiva[String(member?.id ?? assignment.idMiembro)] || '',
-      avatarUrl:
-        fotosPorMiembro[String(member?.id ?? assignment.idMiembro)] || member?.avatarUrl || '',
-
-      nationalXMemberPosition: assignment.idPosicionDirectiva,
-      nationalXMemberPositionLabel: position?.nombreCargo || '-',
-      nationalXMemberPositionTitulo: /^nacional-oficial-especial-\d+$/.test(
-        String(assignment.idPosicionDirectiva || '')
-      )
-        ? tituloDe(titulosOficiales, member?.id ?? assignment.idMiembro)
-        : '',
-      // Se pinta BAJO la posicion: "Sección La Romana", "Región Este".
-      nationalXMemberPositionScope: ambito,
-      nationalXMemberPositionHref: construirHrefDirectiva({
+  const filasDeHoy = useMemo(() => {
+    const filas = nationalAssignments.map((assignment) => {
+      const member = miembrosPorId.get(String(assignment.idMiembro));
+      const position = DIRECTIVA_POSITIONS.find(
+        (item) => item.idCargo === assignment.idPosicionDirectiva
+      );
+      // El catalogo del cargo manda sobre metadata antigua de la asignacion. Asi,
+      // todo cargo que vive en la Directiva Nacional se clasifica siempre dentro
+      // del Consejo Ejecutivo, aunque el miembro tambien pertenezca a una seccion
+      // o region por su procedencia.
+      const perteneceAlConsejoEjecutivo =
+        position?.nivel === 'nacional' ||
+        String(assignment.idEntidad || '').trim().toLowerCase() === 'nacional';
+      const nivel = perteneceAlConsejoEjecutivo
+        ? 'nacional'
+        : position?.nivel || assignment.nivel;
+      const idEntidad = nivel === 'nacional' ? 'nacional' : assignment.idEntidad;
+      const estructura = ESTRUCTURA_POR_NIVEL[nivel] || '-';
+      const ambito = construirAmbito({
         nivel,
         idEntidad,
-      }),
-      nationalEstructure: estructura,
-      nationalEstructureLabel: estructuraLabel,
-      nationalOrganizationalLevel: ambito,
-      hierarchyStructureOrder: ORDEN_ESTRUCTURA[estructura] ?? 999,
-      hierarchyRoleOrder: obtenerOrdenVisualCargo(position, nivel),
+        seccionesPorId,
+        regionesPorId,
+      });
+      const estructuraLabel = NATIONAL_STRUCTURES[estructura] || '-';
 
-      nationalXAssignedRegional: ambito || '-',
-    };
-  });
+      return {
+        id: assignment.idAsignacion || assignment.id,
+        entityId: idEntidad,
+        // Nombre CRUDO de la entidad (sin el prefijo "Región"/"Sección"): la pestaña
+        // Jerarquía lo usa para casar la memoria de un cuatrienio cuando el id aún
+        // no existe en el padrón. La nacional no tiene entidad.
+        entityNombre:
+          nivel === 'regional'
+            ? regionesPorId.get(String(idEntidad)) || ''
+            : nivel === 'seccional'
+              ? seccionesPorId.get(String(idEntidad)) || ''
+              : '',
+        memberId: member?.id ?? assignment.idMiembro,
+        // El código se busca también en el buscador.
+        codigoMiembro: assignment.codigoMiembro || member?.memberId || '',
+        level: nivel,
+        // El nombre del listado manda; si el miembro no viene (baja, filtro), se usa
+        // la copia guardada dentro de la propia asignacion.
+        nationalXname:
+          `${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim() ||
+          member?.fullName ||
+          assignment.nombreMiembro ||
+          'Desconocido',
+        email: member?.email,
+        phoneNumber:
+          member?.phoneNumber || telefonosDirectiva[String(member?.id ?? assignment.idMiembro)] || '',
+        avatarUrl:
+          fotosPorMiembro[String(member?.id ?? assignment.idMiembro)] || member?.avatarUrl || '',
 
-  exComandantes.forEach((permanente) => {
-    const member = allMembers.find((m) => String(m.id) === String(permanente.idMiembros));
+        nationalXMemberPosition: assignment.idPosicionDirectiva,
+        nationalXMemberPositionLabel: position?.nombreCargo || '-',
+        nationalXMemberPositionTitulo: /^nacional-oficial-especial-\d+$/.test(
+          String(assignment.idPosicionDirectiva || '')
+        )
+          ? tituloDe(titulosOficiales, member?.id ?? assignment.idMiembro)
+          : '',
+        // Se pinta BAJO la posicion: "Sección La Romana", "Región Este".
+        nationalXMemberPositionScope: ambito,
+        nationalXMemberPositionHref: construirHrefDirectiva({
+          nivel,
+          idEntidad,
+        }),
+        nationalEstructure: estructura,
+        nationalEstructureLabel: estructuraLabel,
+        nationalOrganizationalLevel: ambito,
+        hierarchyStructureOrder: ORDEN_ESTRUCTURA[estructura] ?? 999,
+        hierarchyRoleOrder: obtenerOrdenVisualCargo(position, nivel),
 
-    filasDeHoy.push({
-      id: `${POSICION_EX_COMANDANTE}-${permanente.idMiembros}`,
-      soloLectura: true,
-      entityId: 'nacional',
-      memberId: member?.id ?? permanente.idMiembros,
-      level: 'nacional',
-      nationalXname:
-        `${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim() ||
-        `${permanente.nombres ?? ''} ${permanente.apellidos ?? ''}`.trim() ||
-        'Desconocido',
-      email: member?.email,
-      phoneNumber:
-        member?.phoneNumber || telefonosDirectiva[String(permanente.idMiembros)] || '',
-      // La foto de la historia antes que la de perfil: es la de cuando fue
-      // comandante, y la de perfil puede no existir.
-      avatarUrl:
-        permanente.fotoUrl ||
-        fotosPorMiembro[String(permanente.idMiembros)] ||
-        member?.avatarUrl ||
-        '',
-      nationalXMemberPosition: POSICION_EX_COMANDANTE,
-      nationalXMemberPositionLabel: 'Ex Comandante Nacional',
-      nationalXMemberPositionScope: 'Consejo Ejecutivo',
-      nationalXMemberPositionHref: rutaDelCuatrienio(ultimoCerrado, vigente),
-      nationalEstructure: 'consejo_ejecutivo',
-      nationalEstructureLabel: NATIONAL_STRUCTURES.consejo_ejecutivo,
-      nationalOrganizationalLevel: 'Consejo Ejecutivo',
-      hierarchyStructureOrder: ORDEN_ESTRUCTURA.consejo_ejecutivo,
-      // Siempre al final de la lista de la directiva actual.
-      hierarchyRoleOrder: 900,
-      nationalXAssignedRegional: 'Consejo Ejecutivo',
+        nationalXAssignedRegional: ambito || '-',
+      };
     });
-  });
+
+    exComandantes.forEach((permanente) => {
+      const member = miembrosPorId.get(String(permanente.idMiembros));
+
+      filas.push({
+        id: `${POSICION_EX_COMANDANTE}-${permanente.idMiembros}`,
+        soloLectura: true,
+        entityId: 'nacional',
+        memberId: member?.id ?? permanente.idMiembros,
+        level: 'nacional',
+        nationalXname:
+          `${member?.firstName ?? ''} ${member?.lastName ?? ''}`.trim() ||
+          `${permanente.nombres ?? ''} ${permanente.apellidos ?? ''}`.trim() ||
+          'Desconocido',
+        email: member?.email,
+        phoneNumber:
+          member?.phoneNumber || telefonosDirectiva[String(permanente.idMiembros)] || '',
+        // La foto de la historia antes que la de perfil: es la de cuando fue
+        // comandante, y la de perfil puede no existir.
+        avatarUrl:
+          permanente.fotoUrl ||
+          fotosPorMiembro[String(permanente.idMiembros)] ||
+          member?.avatarUrl ||
+          '',
+        nationalXMemberPosition: POSICION_EX_COMANDANTE,
+        nationalXMemberPositionLabel: 'Ex Comandante Nacional',
+        nationalXMemberPositionScope: 'Consejo Ejecutivo',
+        nationalXMemberPositionHref: rutaDelCuatrienio(ultimoCerrado, vigente),
+        nationalEstructure: 'consejo_ejecutivo',
+        nationalEstructureLabel: NATIONAL_STRUCTURES.consejo_ejecutivo,
+        nationalOrganizationalLevel: 'Consejo Ejecutivo',
+        hierarchyStructureOrder: ORDEN_ESTRUCTURA.consejo_ejecutivo,
+        // Siempre al final de la lista de la directiva actual.
+        hierarchyRoleOrder: 900,
+        nationalXAssignedRegional: 'Consejo Ejecutivo',
+      });
+    });
+
+    return filas;
+     
+  }, [
+    nationalAssignments,
+    exComandantes,
+    miembrosPorId,
+    seccionesPorId,
+    regionesPorId,
+    telefonosDirectiva,
+    fotosPorMiembro,
+    titulosOficiales,
+    ultimoCerrado,
+    vigente,
+  ]);
 
   // La memoria del cuatrienio, con la misma forma que las filas de hoy.
   const filaDeIntegrante = (integrante) => {
     const { nivel } = integrante;
     const member = integrante.idMiembros
-      ? allMembers.find((m) => String(m.id ?? m.idMiembros) === String(integrante.idMiembros))
+      ? miembrosPorId.get(String(integrante.idMiembros))
       : null;
     const position = DIRECTIVA_POSITIONS.find(
       (item) => item.idCargo === integrante.idPosicionDirectiva
@@ -637,6 +708,7 @@ export function NationalListView() {
       // encuentra a una sección o región que aún no existe en el padrón por id.
       entityNombre: entidad.nombre || '',
       memberId: integrante.idMiembros || '',
+      codigoMiembro: integrante.codigoMiembro || '',
       level: nivel,
       nationalXname: nombreCompleto(integrante) || 'Sin nombre',
       email: member?.email,
@@ -648,7 +720,7 @@ export function NationalListView() {
       nationalXMemberPositionLabel: integrante.cargoNombre || '-',
       nationalXMemberPositionScope: ambito,
       // El cargo abre el organigrama de su entidad en ese cuatrienio.
-      onAbrirPosicion: () => herramientas.abrirOrganigrama(nivel, entidad),
+      onAbrirPosicion: () => abrirOrganigramaRef.current(nivel, entidad),
       nationalEstructure: estructura,
       nationalEstructureLabel: NATIONAL_STRUCTURES[estructura] || '-',
       nationalOrganizationalLevel: ambito,
@@ -686,6 +758,7 @@ export function NationalListView() {
       entityId: idEntidad,
       entityNombre: nombreEntidad,
       memberId: salida.idMiembro || '',
+      codigoMiembro: salida.codigoMiembro || '',
       level: nivel,
       nationalXname: salida.nombreMiembro || 'Sin nombre',
       avatarUrl: salida.fotoMiembro || fotosPorMiembro[String(salida.idMiembro)] || '',
@@ -693,7 +766,7 @@ export function NationalListView() {
       nationalXMemberPositionLabel: position?.nombreCargo || '-',
       nationalXMemberPositionScope: ambito,
       onAbrirPosicion: () =>
-        herramientas.abrirOrganigrama(nivel, { id: idEntidad, nombre: nombreEntidad }),
+        abrirOrganigramaRef.current(nivel, { id: idEntidad, nombre: nombreEntidad }),
       nationalEstructure: estructura,
       nationalEstructureLabel: NATIONAL_STRUCTURES[estructura] || '-',
       nationalOrganizationalLevel: ambito,
@@ -709,19 +782,39 @@ export function NationalListView() {
   // salieron de un cargo en ese cuatrienio. Una posición que ocuparon varias
   // personas sale varias veces, con "desde – hasta" bajo la posición y la más
   // reciente primero; la que ocupó una sola persona, como siempre.
-  const filasDelCuatrienio = esMemoria
-    ? apuntesDelCuatrienio({
-        integrantes: memoria.integrantes,
-        historial: historialGlobal,
-        cuatrienio: datosDelCuatrienio || {},
-      }).map((apunte) => ({
-        ...(apunte.tipo === 'salida' ? filaDeSalida(apunte.fila) : filaDeIntegrante(apunte.fila)),
-        nationalXMemberPositionPeriodo: apunte.periodo
-          ? `${fDate(apunte.periodo.desde)} – ${fDate(apunte.periodo.hasta)}`
-          : '',
-        ordenPeriodo: apunte.ordenPeriodo,
-      }))
-    : [];
+  //
+  // Memoizada: antes se rehacía en cada tecla del buscador. `filaDeIntegrante` y
+  // `filaDeSalida` solo leen lo que está en las dependencias.
+  const filasDelCuatrienio = useMemo(
+    () =>
+      esMemoria
+        ? apuntesDelCuatrienio({
+            integrantes: memoria.integrantes,
+            historial: historialGlobal,
+            cuatrienio: datosDelCuatrienio || {},
+          }).map((apunte) => ({
+            ...(apunte.tipo === 'salida'
+              ? filaDeSalida(apunte.fila)
+              : filaDeIntegrante(apunte.fila)),
+            nationalXMemberPositionPeriodo: apunte.periodo
+              ? `${fDate(apunte.periodo.desde)} – ${fDate(apunte.periodo.hasta)}`
+              : '',
+            ordenPeriodo: apunte.ordenPeriodo,
+          }))
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      esMemoria,
+      memoria.integrantes,
+      historialGlobal,
+      datosDelCuatrienio,
+      miembrosPorId,
+      fotosPorMiembro,
+      seccionesPorId,
+      regionesPorId,
+      puedeEditarMemoria,
+    ]
+  );
 
   const tableData = esMemoria ? filasDelCuatrienio : filasDeHoy;
 
@@ -731,6 +824,9 @@ export function NationalListView() {
   // vigente, no a quien lo ocupa hoy (para eso está "Todos"). Las salidas de un
   // cuatrienio pasado se ven en la lista de ese cuatrienio.
   const puedeVerHistoria = !esMemoria && puedeVerHistoriaNacional(user);
+  // El motivo lo precisan Administrador Global y Oficina Nacional; el Consejo
+  // Ejecutivo lo ve.
+  const cambiarMotivo = useCambiarMotivoDeSalida();
   const vistaActual = vista === 'historia' && !puedeVerHistoria ? 'lista' : vista;
 
   const resolverEntidadNombreHistoria = useCallback(
@@ -878,29 +974,45 @@ export function NationalListView() {
   // El desplegable de la Jerarquía es de una sola opción: el primer (y único)
   // nivel elegido, o vacío para el Consejo Nacional.
   const nivelValorJerarquia = nivelesElegidos[0] || NIVEL_CONSEJO_EJECUTIVO;
-  const distinctPositions = getAvailableOptionsFromData({
-    inputData: tableData,
-    property: 'nationalXMemberPosition',
-    labelResolver: (value) =>
-      tableData.find((row) => row.nationalXMemberPosition === value)?.nationalXMemberPositionLabel,
-  }).sort((a, b) => {
-    const rowA = tableData.find((row) => row.nationalXMemberPosition === a.value);
-    const rowB = tableData.find((row) => row.nationalXMemberPosition === b.value);
+  // Las opciones de los filtros, una vez por cambio de datos y no en cada tecla.
+  // Cada opción buscaba su fila recorriendo la tabla DENTRO del orden (al
+  // cuadrado); ahora la primera fila de cada posición se guarda en un Map.
+  const distinctPositions = useMemo(() => {
+    const primeraFila = new Map();
 
-    return (
-      (rowA?.hierarchyStructureOrder ?? 999) - (rowB?.hierarchyStructureOrder ?? 999) ||
-      (rowA?.hierarchyRoleOrder ?? 9999) - (rowB?.hierarchyRoleOrder ?? 9999) ||
-      a.label.localeCompare(b.label, 'es')
-    );
-  });
+    tableData.forEach((row) => {
+      if (!primeraFila.has(row.nationalXMemberPosition)) {
+        primeraFila.set(row.nationalXMemberPosition, row);
+      }
+    });
 
-  const distinctOrganizationalLevels = getAvailableOptionsFromData({
-    inputData: tableData,
-    property: 'nationalOrganizationalLevel',
-  }).sort(
-    (a, b) =>
-      ordenNivelOrganizacional(a.value) - ordenNivelOrganizacional(b.value) ||
-      a.label.localeCompare(b.label, 'es')
+    return getAvailableOptionsFromData({
+      inputData: tableData,
+      property: 'nationalXMemberPosition',
+      labelResolver: (value) => primeraFila.get(value)?.nationalXMemberPositionLabel,
+    }).sort((a, b) => {
+      const rowA = primeraFila.get(a.value);
+      const rowB = primeraFila.get(b.value);
+
+      return (
+        (rowA?.hierarchyStructureOrder ?? 999) - (rowB?.hierarchyStructureOrder ?? 999) ||
+        (rowA?.hierarchyRoleOrder ?? 9999) - (rowB?.hierarchyRoleOrder ?? 9999) ||
+        a.label.localeCompare(b.label, 'es')
+      );
+    });
+  }, [tableData]);
+
+  const distinctOrganizationalLevels = useMemo(
+    () =>
+      getAvailableOptionsFromData({
+        inputData: tableData,
+        property: 'nationalOrganizationalLevel',
+      }).sort(
+        (a, b) =>
+          ordenNivelOrganizacional(a.value) - ordenNivelOrganizacional(b.value) ||
+          a.label.localeCompare(b.label, 'es')
+      ),
+    [tableData]
   );
   // El desplegable de la Jerarquía: los niveles de la lista más las regiones y
   // secciones del catálogo que aún no tienen a nadie (ver `entidadesDelCatalogo`).
@@ -923,14 +1035,17 @@ export function NationalListView() {
       ordenNivelOrganizacional(a.value) - ordenNivelOrganizacional(b.value) ||
       a.label.localeCompare(b.label, 'es')
   );
-  const distinctEstructures = getAvailableOptionsFromData({
-    inputData: tableData,
-    property: 'nationalEstructure',
-    labelResolver: (value) =>
-      tableData.find((row) => row.nationalEstructure === value)?.nationalEstructureLabel,
-  }).sort((a, b) => (ORDEN_ESTRUCTURA[a.value] ?? 999) - (ORDEN_ESTRUCTURA[b.value] ?? 999));
+  const distinctEstructures = useMemo(
+    () =>
+      getAvailableOptionsFromData({
+        inputData: tableData,
+        property: 'nationalEstructure',
+        labelResolver: (value) => NATIONAL_STRUCTURES[value] || value,
+      }).sort((a, b) => (ORDEN_ESTRUCTURA[a.value] ?? 999) - (ORDEN_ESTRUCTURA[b.value] ?? 999)),
+    [tableData]
+  );
 
-  const dataFiltered = (() => {
+  const dataFiltered = useMemo(() => {
     const compararPorColumna = getComparator(table.order, table.orderBy);
     const compararFilas = (a, b) => {
       if (!esMemoria) {
@@ -950,7 +1065,50 @@ export function NationalListView() {
     });
 
     return filtered;
-  })();
+  }, [tableData, esMemoria, table.order, table.orderBy, table.hasUserSorted, currentFilters]);
+
+  // EXPORTAR E IMPRIMIR: la directiva que se ve (con sus filtros), ordenada para
+  // leerla en papel: Consejo Ejecutivo y después cada región con sus secciones
+  // debajo, cada bloque con su fila de encabezado sombreada.
+  const exportacion = useMemo(() => {
+    const filas = ordenarDirectivaParaExportar(dataFiltered, {
+      regionDeSeccion: (idSeccion) => regionDeSeccion.get(String(idSeccion)) || '',
+      tituloDeRegion: (idRegion) =>
+        construirAmbito({ nivel: 'regional', idEntidad: idRegion, seccionesPorId, regionesPorId }),
+      tituloDeSeccion: (idSeccion) =>
+        construirAmbito({ nivel: 'seccional', idEntidad: idSeccion, seccionesPorId, regionesPorId }),
+    });
+    const deFila = (valor) => (row) => (row.esEncabezado ? '' : valor(row) || '');
+
+    return {
+      filas,
+      titulo: `Directiva Nacional ${cuatrienio}`,
+      prefijo: `directiva-nacional-${cuatrienio}`,
+      columnas: [
+        {
+          label: 'Estructura',
+          value: (row) => (row.esEncabezado ? row.titulo : row.nationalOrganizationalLevel || ''),
+        },
+        {
+          label: 'Posición',
+          value: deFila((row) =>
+            [
+              row.nationalXMemberPositionTitulo || row.nationalXMemberPositionLabel,
+              row.nationalXMemberPositionPeriodo,
+            ]
+              .filter(Boolean)
+              .join(' · ')
+          ),
+        },
+        { label: 'Miembro', value: deFila((row) => row.nationalXname) },
+        { label: 'Código', value: deFila((row) => row.codigoMiembro) },
+        // El teléfono es un dato de HOY: en la memoria de un cuatrienio no va.
+        ...(esMemoria ? [] : [{ label: 'Teléfono', value: deFila((row) => row.phoneNumber) }]),
+      ],
+      fondoDeFila: (row) =>
+        row.esEncabezado ? (row.nivel === 'seccional' ? '#EEF3FA' : '#DDE7F6') : null,
+    };
+  }, [dataFiltered, regionDeSeccion, seccionesPorId, regionesPorId, cuatrienio, esMemoria]);
 
   const canReset =
     !!currentFilters.name ||
@@ -958,7 +1116,16 @@ export function NationalListView() {
     currentFilters.nationalOrganizationalLevel.length > 0 ||
     currentFilters.nationalEstructure.length > 0;
 
-  const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
+  const notFound = !dataFiltered.length;
+
+  // Lo que se puede borrar de verdad. Las filas de solo lectura (ex comandantes,
+  // Directores permanentes, salidas del historial) no se pueden marcar: antes
+  // "Seleccionar todo" las contaba, el diálogo pedía borrar 12 y se borraban 9
+  // con un "Eliminados correctamente".
+  const idsBorrables = useMemo(
+    () => dataFiltered.filter((row) => !row.soloLectura).map((row) => row.id),
+    [dataFiltered]
+  );
 
   // Quitar a alguien de la lista es DAR DE BAJA su asignacion en Firestore, con
   // el mismo mecanismo que usan los organigramas (activo=false). Antes se
@@ -970,11 +1137,17 @@ export function NationalListView() {
         ids.includes(asignacion.idAsignacion || asignacion.id)
       );
 
-      if (!objetivo.length) return;
+      if (!objetivo.length) return { aplicadas: 0, pendientes: 0 };
 
-      await Promise.all(
-        objetivo.map((asignacion) =>
-          guardarAsignacionDirectiva({
+      // DE UNA EN UNA. Cada baja guarda además su salida en el historial y
+      // libera la casilla; en paralelo esas escrituras se pisaban (lo mismo que
+      // ya se corrigió en la memoria del cuatrienio).
+      const resultados = [];
+
+       
+      for (const asignacion of objetivo) {
+         
+        const resultado = await guardarAsignacionDirectiva({
             nivel: asignacion.nivel,
             idEntidad: asignacion.idEntidad,
             idCargo: asignacion.idCargo,
@@ -989,13 +1162,23 @@ export function NationalListView() {
             // Global, la dejaba esperando una aprobacion que el mismo tendria que
             // darse. El cargo seguia activo y la baja se quedaba en la bandeja.
             usuario: user,
-          })
-        )
-      );
+          });
+
+        resultados.push({ id: asignacion.idAsignacion || asignacion.id, resultado });
+      }
+
+      // Una baja PENDIENTE DE APROBACIÓN sigue activa hasta que la aprueben: no
+      // se quita de la lista ni se anuncia como hecha. Antes desaparecía y al
+      // recargar volvía a salir.
+      const aplicadas = resultados
+        .filter(({ resultado }) => !resultado?.pendienteDeAprobacion)
+        .map(({ id }) => id);
 
       setNationalAssignments((previas) =>
-        previas.filter((asignacion) => !ids.includes(asignacion.idAsignacion || asignacion.id))
+        previas.filter((asignacion) => !aplicadas.includes(asignacion.idAsignacion || asignacion.id))
       );
+
+      return { aplicadas: aplicadas.length, pendientes: resultados.length - aplicadas.length };
     },
     [nationalAssignments, user]
   );
@@ -1014,9 +1197,29 @@ export function NationalListView() {
       );
 
       memoria.recargar();
+
+      return { aplicadas: objetivo.length, pendientes: 0 };
     },
     [memoria, user]
   );
+
+  // El aviso dice lo que pasó de verdad: cuántas bajas se aplicaron y cuántas
+  // esperan aprobación.
+  const avisarDeLasBajas = ({ aplicadas = 0, pendientes = 0 } = {}) => {
+    if (aplicadas && !pendientes) {
+      toast.success(aplicadas === 1 ? 'Eliminado correctamente' : `${aplicadas} eliminados`);
+    } else if (pendientes && !aplicadas) {
+      toast.info(
+        pendientes === 1
+          ? 'La baja quedó pendiente de aprobación.'
+          : `${pendientes} bajas quedaron pendientes de aprobación.`
+      );
+    } else if (aplicadas && pendientes) {
+      toast.info(`${aplicadas} eliminados; ${pendientes} pendientes de aprobación.`);
+    } else {
+      toast.info('No había nada que se pudiera eliminar.');
+    }
+  };
 
   const darDeBaja = esMemoria ? quitarDeLaMemoria : darDeBajaAsignaciones;
 
@@ -1036,26 +1239,29 @@ export function NationalListView() {
   const handleDeleteRow = useCallback(
     async (id) => {
       try {
-        await darDeBaja([id]);
-        toast.success('Eliminado correctamente');
+        avisarDeLasBajas(await darDeBaja([id]));
       } catch (error) {
         console.error('[lista nacional] no se pudo dar de baja la asignación', error);
         toast.error(error?.message || 'No se pudo eliminar.');
       }
     },
+     
     [darDeBaja]
   );
 
   const handleDeleteRows = useCallback(async () => {
     try {
-      await darDeBaja(table.selected);
+      // Solo lo que se puede borrar, aunque algo de solo lectura siguiera marcado.
+      const resumen = await darDeBaja(table.selected.filter((id) => idsBorrables.includes(id)));
+
       table.onSelectAllRows(false, []);
-      toast.success('Eliminados correctamente');
+      avisarDeLasBajas(resumen);
     } catch (error) {
       console.error('[lista nacional] no se pudieron dar de baja las asignaciones', error);
       toast.error(error?.message || 'No se pudieron eliminar.');
     }
-  }, [darDeBaja, table]);
+     
+  }, [darDeBaja, table, idsBorrables]);
 
   if (!hydrated) {
     return null;
@@ -1170,7 +1376,18 @@ export function NationalListView() {
                   el cuatrienio vigente. Solo en la directiva actual y solo para
                   Consejo Ejecutivo, Administrador Global y Oficina Nacional; en
                   una pasada, esas salidas van dentro de "Todos". */}
-              {puedeVerHistoria && <Tab value="historia" label="Historia" />}
+              {puedeVerHistoria && (
+                <Tab
+                  value="historia"
+                  label="Historia"
+                  iconPosition="end"
+                  icon={
+                    <Label variant={vistaActual === 'historia' ? 'filled' : 'soft'}>
+                      {filasHistoria.length}
+                    </Label>
+                  }
+                />
+              )}
             </Tabs>
 
             {/* La lista manda cuatro filtros; la Jerarquía, solo su propia barra
@@ -1182,6 +1399,7 @@ export function NationalListView() {
                   onResetPage={table.onResetPage}
                   displayMode={displayMode}
                   setDisplayMode={setDisplayMode}
+                  exportacion={exportacion}
                   options={{
                     nationalXMemberPosition: distinctPositions,
                     nationalOrganizationalLevel: distinctOrganizationalLevels,
@@ -1281,6 +1499,7 @@ export function NationalListView() {
                 mostrarEntidad
                 conEstado={false}
                 embebido
+                onCambiarMotivo={cambiarMotivo}
                 tituloExportacion="Historial del Consejo Nacional"
               />
             )}
@@ -1291,12 +1510,9 @@ export function NationalListView() {
                   <TableSelectedAction
                     dense={table.dense}
                     numSelected={table.selected.length}
-                    rowCount={dataFiltered.length}
+                    rowCount={idsBorrables.length}
                     onSelectAllRows={(checked) =>
-                      table.onSelectAllRows(
-                        checked,
-                        dataFiltered.map((row) => row.id)
-                      )
+                      table.onSelectAllRows(checked, idsBorrables)
                     }
                     action={
                       <Tooltip title="Eliminar">
@@ -1314,14 +1530,11 @@ export function NationalListView() {
                       order={table.order}
                       orderBy={table.orderBy}
                       headCells={TABLE_HEAD}
-                      rowCount={dataFiltered.length}
+                      rowCount={idsBorrables.length}
                       numSelected={table.selected.length}
                       onSort={table.onSort}
                       onSelectAllRows={(checked) =>
-                        table.onSelectAllRows(
-                          checked,
-                          dataFiltered.map((row) => row.id)
-                        )
+                        table.onSelectAllRows(checked, idsBorrables)
                       }
                     />
 
@@ -1344,7 +1557,7 @@ export function NationalListView() {
                           editHref={paths.dashboard.level.national.edit(row.id)}
                           canManage={canManage && !row.soloLectura}
                           canDelete={canDelete && !row.soloLectura}
-                          allMembers={allMembers}
+                          miembrosPorId={miembrosPorId}
                         />
                       )}
                       notFound={notFound}
@@ -1409,9 +1622,21 @@ function applyFilter({ inputData, comparator, filters }) {
 
   inputData = stabilizedThis.map((el) => el[0]);
 
+  // EL BUSCADOR NO ES SOLO DE NOMBRES. Buscar "Oriental" o "Adiestramiento"
+  // no encontraba nada: ahora mira nombre, código, posición (o su título),
+  // sección o región y estructura.
   if (name) {
+    const clave = normalizeText(name);
+
     inputData = inputData.filter((national) =>
-      normalizeText(national.nationalXname).includes(normalizeText(name))
+      [
+        national.nationalXname,
+        national.codigoMiembro,
+        national.nationalXMemberPositionTitulo,
+        national.nationalXMemberPositionLabel,
+        national.nationalOrganizationalLevel,
+        national.nationalEstructureLabel,
+      ].some((valor) => normalizeText(valor ?? '').includes(clave))
     );
   }
 

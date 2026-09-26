@@ -24,18 +24,15 @@ export function NationalTableRow({
   onEditRow,
   canManage = true,
   canDelete = true,
-  // Ambas colecciones las calcula UNA vez la vista y las pasa por props: leerlas
-  // aqui suponia dos copias completas por fila y por render. Son exactamente el
-  // mismo conjunto con el que la vista construyo las filas.
-  allMembers = [],
+  // El padrón indexado por id lo calcula UNA vez la vista: cada fila recorría
+  // el padrón entero para encontrar a su miembro, en cada render.
+  miembrosPorId = new Map(),
   leadershipAssignments = [],
 }) {
   // La vista ya resolvio posicion, ambito y estructura contra el catalogo y
   // Firestore: aqui no se vuelve a deducir nada de los mocks, que era de donde
   // salian etiquetas que no correspondian con la asignacion real.
-  const member = allMembers.find(
-    (m) => String(m.id) === String(row.memberId) || String(m.memberId) === String(row.memberId)
-  );
+  const member = miembrosPorId.get(String(row.memberId ?? ''));
   const memberName = row.nationalXname || member?.fullName || 'Desconocido';
   const memberHref = row.integrante?.id
     ? `/dashboard/level/member/${encodeURIComponent(row.integrante.id)}/edit?cuatrienio=${encodeURIComponent(row.integrante.cuatrienio || '')}&integrante=${encodeURIComponent(row.integrante.id)}`
@@ -62,8 +59,10 @@ export function NationalTableRow({
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
       <TableCell padding="checkbox">
+        {/* Lo que no se puede borrar (solo lectura) no se puede marcar. */}
         <Checkbox
           checked={selected}
+          disabled={!canDelete}
           onClick={onSelectRow}
           slotProps={{
             input: {

@@ -9,15 +9,37 @@ import IconButton from '@mui/material/IconButton';
 import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
+import { printTablePdf } from 'src/utils/download-table-pdf';
+
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
+import { ExportTableButton } from 'src/components/export-table-button';
 import { ViewModeToggle } from 'src/components/view-mode-toggle/ViewModeToggle';
 import { TableToolbarMobileFilter } from 'src/components/mobile-filter/table-toolbar-mobile-filter';
 
 import { FiltroBuscable } from './filtro-buscable';
 // ----------------------------------------------------------------------
 
-export function NationalTableToolbar({ filters, options, onResetPage, displayMode, setDisplayMode }) {
+// El modo de vista se recuerda por persona. Puede fallar (navegación privada,
+// datos del sitio bloqueados) y no debe romper el menú.
+const recordarModo = (modo) => {
+  try {
+    localStorage.setItem('global-display-mode', modo);
+  } catch {
+    // Sin almacenamiento, el modo vale solo para esta visita.
+  }
+};
+
+export function NationalTableToolbar({
+  filters,
+  options,
+  onResetPage,
+  displayMode,
+  setDisplayMode,
+  // { filas, columnas, fondoDeFila, titulo, prefijo }: la directiva ya ordenada
+  // para el papel (Consejo Ejecutivo, y cada región con sus secciones).
+  exportacion = null,
+}) {
   const menuActions = usePopover();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -83,7 +105,7 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
             selected={displayMode === 'panel'}
             onClick={() => {
               setDisplayMode('panel');
-              localStorage.setItem('global-display-mode', 'panel');
+              recordarModo('panel');
               menuActions.onClose();
             }}
           >
@@ -96,7 +118,7 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
             selected={displayMode === 'grid'}
             onClick={() => {
               setDisplayMode('grid');
-              localStorage.setItem('global-display-mode', 'grid');
+              recordarModo('grid');
               menuActions.onClose();
             }}
           >
@@ -105,20 +127,37 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
           </MenuItem>
         ]}
 
-        <MenuItem onClick={() => menuActions.onClose()}>
-          <Iconify icon="solar:printer-minimalistic-bold" />
-          Print
-        </MenuItem>
+        {/* Imprimir y Exportar de verdad: los tres de antes (Print, Import,
+            Export) solo cerraban el menú. */}
+        {exportacion && (
+          <MenuItem
+            disabled={!exportacion.filas.length}
+            onClick={async () => {
+              menuActions.onClose();
+              await printTablePdf({
+                title: exportacion.titulo,
+                rows: exportacion.filas,
+                columns: exportacion.columnas,
+                fondoDeFila: exportacion.fondoDeFila,
+              });
+            }}
+          >
+            <Iconify icon="solar:printer-minimalistic-bold" />
+            Imprimir
+          </MenuItem>
+        )}
 
-        <MenuItem onClick={() => menuActions.onClose()}>
-          <Iconify icon="solar:import-bold" />
-          Import
-        </MenuItem>
-
-        <MenuItem onClick={() => menuActions.onClose()}>
-          <Iconify icon="solar:export-bold" />
-          Export
-        </MenuItem>
+        {exportacion && (
+          <ExportTableButton
+            rows={exportacion.filas}
+            columns={exportacion.columnas}
+            fondoDeFila={exportacion.fondoDeFila}
+            title={exportacion.titulo}
+            fileNamePrefix={exportacion.prefijo}
+            buttonLabel="Exportar (Excel o PDF)"
+            trigger="menuItem"
+          />
+        )}
 
       </MenuList>
     </CustomPopover>
@@ -147,7 +186,7 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
             fullWidth
             value={currentFilters.name}
             onChange={handleFilterName}
-            placeholder="Buscar nombre..."
+            placeholder="Buscar nombre, código, posición, sección o región..."
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -169,7 +208,7 @@ export function NationalTableToolbar({ filters, options, onResetPage, displayMod
             <TextField
               value={currentFilters.name}
               onChange={handleFilterName}
-              placeholder="Buscar nombre..."
+              placeholder="Buscar nombre, código, posición, sección o región..."
               sx={{
                 flex: 1,
                 minWidth: 0,

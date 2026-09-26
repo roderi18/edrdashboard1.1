@@ -7,6 +7,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Select from '@mui/material/Select';
+import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -25,6 +26,7 @@ import { paths } from 'src/routes/paths';
 import { fDate } from 'src/utils/format-time';
 import { normalizeText } from 'src/utils/normalize-text';
 import { printTablePdf } from 'src/utils/download-table-pdf';
+import { MOTIVOS_SALIDA, etiquetaDeMotivo } from 'src/utils/directiva-historial.mjs';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -43,6 +45,7 @@ import {
 } from 'src/components/table';
 
 import { CompactEntityCard } from './compact-entity-card';
+import { MotivoSalidaDialog } from './motivo-salida-dialog';
 import { CompactEntityListView } from './compact-entity-list-view';
 import { CompactEntityCardList } from './compact-entity-card-list';
 import { CompactEntityTableCell } from './compact-entity-table-cell';
@@ -65,7 +68,11 @@ const ESTADOS = [
   { value: 'pasado', label: 'Pasado' },
 ];
 
-const FILTROS_INICIALES = { nombre: '', cargo: [], estado: [], estructura: [] };
+const FILTROS_INICIALES = { nombre: '', cargo: [], estado: [], estructura: [], motivo: [] };
+
+// Solo las salidas tienen motivo; el de una vigente no se pinta.
+const textoMotivo = (fila) =>
+  fila.vigente ? '' : [etiquetaDeMotivo(fila.motivo), fila.motivoNota].filter(Boolean).join(' · ');
 
 // Las fechas llegan como texto ISO o como fecha; para ordenar hace falta un
 // número, o "Desde" comparaba cadenas de formatos distintos.
@@ -93,8 +100,13 @@ export function LeadershipHistoryList({
   // Sin filtro de Estado cuando todas las filas son salidas (la Historia del
   // Consejo Nacional): con una sola opción, "Pasado", no filtraba nada.
   conEstado = true,
+  // Con esto, cada salida lleva un lápiz para precisar su motivo (Administrador
+  // Global y Oficina Nacional). Recibe { salida, motivo, nota }.
+  onCambiarMotivo = null,
   tituloExportacion = 'Historial de la directiva',
 }) {
+  const [salidaEnEdicion, setSalidaEnEdicion] = useState(null);
+  const puedeCambiarMotivo = typeof onCambiarMotivo === 'function';
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
 
@@ -119,8 +131,10 @@ export function LeadershipHistoryList({
       ...(mostrarEntidad ? [{ id: 'entidadNombre', label: 'Estructura', width: 200 }] : []),
       { id: 'desdeOrden', label: 'Desde', width: 130 },
       { id: 'hastaOrden', label: 'Hasta', width: 130 },
+      { id: 'motivoTexto', label: 'Motivo', width: 180 },
+      ...(puedeCambiarMotivo ? [{ id: '', width: 56 }] : []),
     ],
-    [mostrarEntidad]
+    [mostrarEntidad, puedeCambiarMotivo]
   );
 
   const filasConOrden = useMemo(
@@ -131,6 +145,7 @@ export function LeadershipHistoryList({
         // Una vigente "termina" en el futuro: al ordenar por Hasta queda con las
         // más recientes, no con las que nunca tuvieron fecha.
         hastaOrden: fila.vigente ? Number.MAX_SAFE_INTEGER : aMilisegundos(fila.fechaFin),
+        motivoTexto: textoMotivo(fila),
       })),
     [filas]
   );
@@ -140,6 +155,11 @@ export function LeadershipHistoryList({
       cargo: opcionesDistintas(filasConOrden, 'cargoNombre'),
       estado: ESTADOS,
       estructura: opcionesDistintas(filasConOrden, 'entidadNombre'),
+      motivo: MOTIVOS_SALIDA.filter((opcion) =>
+        filasConOrden.some(
+          (fila) => !fila.vigente && (fila.motivo || 'sin_especificar') === opcion.value
+        )
+      ),
     }),
     [filasConOrden]
   );
@@ -151,9 +171,13 @@ export function LeadershipHistoryList({
     const filtradas = filasConOrden.filter((fila) => {
       if (
         clave &&
-        ![fila.nombreMiembro, fila.codigoMiembro, fila.cargoNombre, fila.entidadNombre].some(
-          (texto) => normalizeText(texto).includes(clave)
-        )
+        ![
+          fila.nombreMiembro,
+          fila.codigoMiembro,
+          fila.cargoNombre,
+          fila.entidadNombre,
+          fila.motivoTexto,
+        ].some((texto) => normalizeText(texto ?? '').includes(clave))
       ) {
         return false;
       }
@@ -176,6 +200,13 @@ export function LeadershipHistoryList({
         return false;
       }
 
+      if (
+        filtrosActuales.motivo.length &&
+        (fila.vigente || !filtrosActuales.motivo.includes(fila.motivo || 'sin_especificar'))
+      ) {
+        return false;
+      }
+
       return true;
     });
 
@@ -190,7 +221,8 @@ export function LeadershipHistoryList({
     !!filtrosActuales.nombre ||
     filtrosActuales.cargo.length > 0 ||
     filtrosActuales.estado.length > 0 ||
-    filtrosActuales.estructura.length > 0;
+    filtrosActuales.estructura.length > 0 ||
+    filtrosActuales.motivo.length > 0;
 
   const columnasExportacion = useMemo(
     () => [
@@ -200,6 +232,7 @@ export function LeadershipHistoryList({
       ...(mostrarEntidad ? [{ label: 'Estructura', value: (fila) => fila.entidadNombre }] : []),
       { label: 'Desde', value: (fila) => fDate(fila.fechaInicio) || '' },
       { label: 'Hasta', value: (fila) => (fila.vigente ? 'Vigente' : fDate(fila.fechaFin) || '') },
+      { label: 'Motivo', value: (fila) => fila.motivoTexto },
     ],
     [mostrarEntidad]
   );
@@ -210,6 +243,7 @@ export function LeadershipHistoryList({
     ...(mostrarEntidad
       ? [{ key: 'estructura', label: 'Estructura', options: opciones.estructura }]
       : []),
+    { key: 'motivo', label: 'Motivo', options: opciones.motivo },
   ];
 
   const cambiarFiltroMultiple = (clave) => (event) => {
@@ -234,7 +268,8 @@ export function LeadershipHistoryList({
       hayFiltros={
         filtrosActuales.cargo.length +
           filtrosActuales.estado.length +
-          filtrosActuales.estructura.length >
+          filtrosActuales.estructura.length +
+          filtrosActuales.motivo.length >
         0
       }
       displayMode={displayMode}
@@ -259,6 +294,7 @@ export function LeadershipHistoryList({
           ...(mostrarEntidad
             ? [{ name: 'estructura', label: 'Estructura:', options: opciones.estructura }]
             : []),
+          { name: 'motivo', label: 'Motivo:', options: MOTIVOS_SALIDA },
           { name: 'nombre', label: 'Buscar:', resetValue: '' },
         ]}
       />
@@ -305,6 +341,40 @@ export function LeadershipHistoryList({
                     fDate(fila.fechaFin) || '-'
                   )}
                 </TableCell>
+
+                <TableCell>
+                  {!fila.vigente && (
+                    <>
+                      <Label
+                        color={
+                          fila.motivo && fila.motivo !== 'sin_especificar' ? 'info' : 'default'
+                        }
+                      >
+                        {etiquetaDeMotivo(fila.motivo)}
+                      </Label>
+                      {fila.motivoNota && (
+                        <Typography
+                          variant="caption"
+                          sx={{ display: 'block', mt: 0.5, color: 'text.secondary' }}
+                        >
+                          {fila.motivoNota}
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </TableCell>
+
+                {puedeCambiarMotivo && (
+                  <TableCell align="right">
+                    {!fila.vigente && (
+                      <Tooltip title="Motivo de salida">
+                        <IconButton onClick={() => setSalidaEnEdicion(fila)}>
+                          <Iconify icon="solar:pen-bold" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
             )}
             notFound={!cargando && !dataFiltered.length}
@@ -351,15 +421,37 @@ export function LeadershipHistoryList({
                 ? [{ icon: 'solar:flag-bold', text: fila.entidadNombre }]
                 : []),
               { icon: 'solar:calendar-date-bold', text: textoPeriodo(fila) },
+              ...(fila.motivoTexto
+                ? [{ icon: 'solar:notes-bold-duotone', text: fila.motivoTexto, wrap: true }]
+                : []),
             ]}
+            {...(puedeCambiarMotivo &&
+              !fila.vigente && {
+                onClick: () => setSalidaEnEdicion(fila),
+                sx: { cursor: 'pointer' },
+              })}
           />
         )}
+      />
+    );
+
+  const renderDialogoMotivo = () =>
+    puedeCambiarMotivo && (
+      <MotivoSalidaDialog
+        salida={salidaEnEdicion}
+        onClose={() => setSalidaEnEdicion(null)}
+        onGuardar={(cambio) => {
+          // Responde al pulsar: se cierra ya y la escritura va por detrás.
+          setSalidaEnEdicion(null);
+          onCambiarMotivo(cambio);
+        }}
       />
     );
 
   if (embebido) {
     return (
       <>
+        {renderDialogoMotivo()}
         {renderToolbar()}
         {renderResultadoFiltros()}
         {displayMode === 'panel' ? (
@@ -373,6 +465,7 @@ export function LeadershipHistoryList({
 
   return (
     <>
+      {renderDialogoMotivo()}
       <Card>
         {renderToolbar()}
         {renderResultadoFiltros()}

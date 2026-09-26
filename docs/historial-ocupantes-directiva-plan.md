@@ -130,8 +130,21 @@ persona lo ocupó — solo se ve quien esté al momento de la próxima lectura.
   antes. En un destacamento, el Consejo Ejecutivo solo ve la del suyo propio
   (`puedeVerHistoriaDeDestacamento`); Administrador Global y Oficina Nacional,
   todas; los demás cargos, sin cambios.
+- **Motivo de salida**: cada salida guarda `motivo` (`MOTIVOS_SALIDA`). Al
+  salir se deduce solo "Reemplazado" (entra otra persona) o "Sin especificar"
+  (la casilla queda vacía); el Administrador Global y la Oficina Nacional lo
+  precisan con el lápiz de la Historia (`cambiarMotivoDeSalida`, queda en
+  Historial). `firestore.rules` solo deja cambiar `motivo` y `motivoNota`.
+- **Exportar la directiva** (menú ⋮ de la lista nacional, Excel o PDF, e
+  Imprimir): Consejo Ejecutivo y después cada región con sus secciones debajo
+  (`ordenarDirectivaParaExportar`, `src/utils/directiva-exportacion.mjs`).
+- **Recordatorio de cierre**: a 30, 7 y 1 día del 22/08, aviso en la campana al
+  Administrador Global y la Oficina Nacional para guardar la directiva en su
+  memoria (`src/utils/recordatorio-cierre-cuatrienio.mjs`). Lo manda la primera
+  sesión de uno de ellos en cada tramo; id fijo, nunca se repite.
 - Tests: `tests/directivas/historial-en-el-cuatrienio.test.mjs`,
-  `tests/acceso/historia-de-directivas-quien-la-ve.test.mjs`.
+  `tests/acceso/historia-de-directivas-quien-la-ve.test.mjs`,
+  `tests/directivas/directiva-exportacion-y-cierre.test.mjs`.
 - `tests/directivas/historial-ocupantes.test.mjs` — cubre el mínimo de 30 días,
   vacar sin reemplazo, el id estable por salida, vigentes antes que histórico,
   y que `NIVELES_HISTORIAL_NACIONAL` nunca incluye destacamento.

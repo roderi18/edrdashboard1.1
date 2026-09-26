@@ -12,9 +12,9 @@ import { iconButtonClasses } from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { usePathname, useSearchParams } from 'src/routes/hooks';
 
-import { isAdminGlobal } from 'src/utils/org-level-access';
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { setModuloActivo, moduloDesdeRuta } from 'src/utils/modulo-activo';
+import { isAdminGlobal, puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
 import { canManageStoreProducts, filterDashboardNavDataByUser } from 'src/utils/member-access';
 
 import { _notifications } from 'src/_mock';
@@ -64,7 +64,7 @@ import { NotificationsDrawer } from '../components/notifications-drawer';
 import { RoleCombinationPopover } from '../components/role-combination-popover';
 import { SesionComoUsuarioBanner } from '../components/sesion-como-usuario-banner';
 import { ProbarComoUsuarioDialog } from '../components/probar-como-usuario-dialog';
-import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
+import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
 
 // La lista de chats y los contactos, precargados en segundo plano (ver el archivo).
 const PrecargaDelChat = dynamic(() => import('src/sections/chat/precarga-del-chat'), { ssr: false });
@@ -199,6 +199,21 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 
     return iniciarAvisosDeLecturas();
   }, [cargaSecundariaLista, uidDeLaSesion]);
+
+  // RECORDATORIO DE CIERRE DEL CUATRIENIO (30, 7 y 1 día antes del 22/08). Lo
+  // manda la primera sesión del Administrador Global o la Oficina Nacional que
+  // entra en ese tramo; sin tramo abierto no pide nada. Import diferido: el
+  // resto de sesiones no carga el servicio.
+  const recuerdaElCierre = puedeEditarDirectivaHistorica(user);
+  useEffect(() => {
+    if (!cargaSecundariaLista || !uidDeLaSesion || !recuerdaElCierre) return;
+
+    import('src/services/notificar-oficina-nacional-service')
+      .then(({ recordarCierreDeCuatrienio }) => recordarCierreDeCuatrienio({ usuario: user }))
+      .catch((error) => console.warn('[cuatrienio] no se pudo recordar el cierre', error));
+    // `user` cambia de identidad en cada lectura de la sesión; basta con el uid.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargaSecundariaLista, uidDeLaSesion, recuerdaElCierre]);
 
   // Un solo contador para la persona y todos sus buzones. Fuera de /chat solo
   // se escucha lo justo para contarlo (una consulta por identidad, sin mensajes

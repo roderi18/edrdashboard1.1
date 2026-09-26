@@ -1051,7 +1051,17 @@ service cloud.firestore {
         && request.resource.data.idMiembro is string
         && request.resource.data.fechaInicio is string
         && request.resource.data.fechaFin is string;
-      allow update, delete: if false;
+      // El MOTIVO de la salida se precisa despues (renuncia, fallecimiento...):
+      // solo el motivo y su nota, y solo Administrador Global u Oficina
+      // Nacional. Persona, cargo y fechas son historia y no se tocan.
+      allow update: if (esAdministradorGlobal() || esOficinaNacional())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'motivo', 'motivoNota', 'motivoActualizadoPorUid', 'motivoActualizadoEn'
+           ])
+        && request.resource.data.motivo is string
+        && request.resource.data.motivoNota is string
+        && request.resource.data.motivoNota.size() <= 300;
+      allow delete: if false;
     }
 
     match /directivasOrganizacionales/{idDirectiva} {

@@ -1,8 +1,13 @@
-import { getDocs, collection } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
 
 import { paths } from 'src/routes/paths';
 
 import { ROLES_CONSEJO_EJECUTIVO } from 'src/utils/org-level-access';
+import {
+  recordatorioDeCierre,
+  textoDelRecordatorio,
+  TIPO_RECORDATORIO_CIERRE,
+} from 'src/utils/recordatorio-cierre-cuatrienio.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -357,5 +362,52 @@ export async function notificarCambioDirectivaHistorica({ mensaje = '', cuatrien
     metadatos: { cuatrienio },
     usuario,
     idsDestinatarios: destinatarios,
+  });
+}
+
+/**
+ * RECORDATORIO DE CIERRE DEL CUATRIENIO: a 30, 7 y 1 día del 22/08, al
+ * Administrador Global y a la Oficina Nacional (`recordatorio-cierre-cuatrienio.mjs`).
+ *
+ * Lo manda la sesión del primero de ellos que entra en la aplicación ese tramo,
+ * sin depender de una tarea programada del hosting. El id del aviso es fijo por
+ * tramo: si ya existe no se vuelve a escribir, porque escribirlo otra vez lo
+ * dejaría como no leído para quien ya lo vio.
+ */
+export async function recordarCierreDeCuatrienio({ usuario = {}, ahora = new Date() } = {}) {
+  const recordatorio = recordatorioDeCierre({ ahora });
+
+  if (!recordatorio || !isFirebaseConfigured || !FIRESTORE) return null;
+
+  const existente = await getDoc(doc(FIRESTORE, 'notificaciones', recordatorio.id)).catch(
+    () => null
+  );
+
+  // Sin poder comprobarlo, mejor no mandar que mandarlo dos veces.
+  if (!existente || existente.exists()) return null;
+
+  const destinatarios = await obtenerDestinatarios();
+
+  if (!destinatarios.length) return null;
+
+  return crearNotificacionUsuario({
+    tipoNotificacion: TIPO_RECORDATORIO_CIERRE,
+    modulo: 'directivas',
+    titulo: 'Guarda la Directiva Nacional en su memoria',
+    mensaje: textoDelRecordatorio(recordatorio),
+    prioridad: recordatorio.tramo === 1 ? 'importante' : 'informativa',
+    actorNombre: 'Sistema',
+    entidadTipo: 'directiva_cuatrienio',
+    entidadId: recordatorio.cuatrienio,
+    ruta: paths.dashboard.level.national.root,
+    etiquetaAccion: 'Ir a la directiva',
+    metadatos: {
+      cuatrienio: recordatorio.cuatrienio,
+      tramo: recordatorio.tramo,
+      dias: recordatorio.dias,
+    },
+    usuario,
+    idsDestinatarios: destinatarios,
+    notificationId: recordatorio.id,
   });
 }

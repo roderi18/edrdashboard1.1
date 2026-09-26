@@ -70,12 +70,45 @@ export const debeRegistrarSalida = ({
   return diasEntre(anterior.fechaInicio, fechaSalida) >= MINIMO_DIAS_HISTORIAL;
 };
 
+// POR QUE SALIO. El historial solo guardaba fechas, y "hasta el 15/03/2028" no
+// dice si lo reemplazaron, si renuncio o si fallecio. Al guardar la salida se
+// deduce lo unico que se sabe con certeza (lo reemplazaron, o la casilla quedo
+// vacia) y el Administrador Global o la Oficina Nacional lo precisan despues.
+export const MOTIVOS_SALIDA = Object.freeze([
+  { value: 'reemplazo', label: 'Reemplazado' },
+  { value: 'renuncia', label: 'Renuncia' },
+  { value: 'cambio_de_cargo', label: 'Cambio de cargo' },
+  { value: 'fallecimiento', label: 'Fallecimiento' },
+  { value: 'fin_cuatrienio', label: 'Fin del cuatrienio' },
+  { value: 'destitucion', label: 'Destitución' },
+  { value: 'otro', label: 'Otro' },
+  { value: 'sin_especificar', label: 'Sin especificar' },
+]);
+
+const MOTIVO_POR_VALOR = new Map(MOTIVOS_SALIDA.map((motivo) => [motivo.value, motivo]));
+
+export const esMotivoDeSalida = (valor) => MOTIVO_POR_VALOR.has(String(valor ?? ''));
+
+// Las salidas guardadas antes de existir el motivo no lo traen: "Sin especificar".
+export const etiquetaDeMotivo = (valor) =>
+  MOTIVO_POR_VALOR.get(String(valor ?? ''))?.label || 'Sin especificar';
+
+/** Lo que se sabe al salir: otra persona entra (reemplazo) o la casilla se vacia. */
+export const motivoDeSalidaAutomatico = ({ siguienteIdMiembro = '', siguienteActivo = true } = {}) =>
+  siguienteActivo && siguienteIdMiembro ? 'reemplazo' : 'sin_especificar';
+
 /**
  * La fila que se guarda para quien sale. El id es estable por SALIDA (casilla +
  * fecha de salida), no por casilla: asi una misma casilla puede acumular varias
  * filas en el tiempo en vez de que la siguiente pise a esta.
  */
-export const construirRegistroHistorial = ({ anterior, idAsignacion, fechaSalida }) => ({
+export const construirRegistroHistorial = ({
+  anterior,
+  idAsignacion,
+  fechaSalida,
+  motivo = 'sin_especificar',
+}) => ({
+  motivo: esMotivoDeSalida(motivo) ? motivo : 'sin_especificar',
   id: `${idAsignacion}__${fechaSalida}`,
   idAsignacion,
   nivel: anterior.nivel,
@@ -124,6 +157,9 @@ export const combinarHistorialYVigentes = ({
       '',
     fechaInicio: fila.fechaInicio,
     fechaFin: vigente ? null : fila.fechaFin,
+    // Quien sigue en el cargo no tiene motivo de salida.
+    motivo: vigente ? '' : fila.motivo || 'sin_especificar',
+    motivoNota: vigente ? '' : fila.motivoNota || '',
     vigente,
   });
 

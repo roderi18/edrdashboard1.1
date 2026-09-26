@@ -11,6 +11,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { useLeadershipHistory } from './use-leadership-history';
 import { LeadershipHistoryList } from './leadership-history-list';
+import { useCambiarMotivoDeSalida } from './use-cambiar-motivo-de-salida';
 
 // ----------------------------------------------------------------------
 // LA PESTAÑA "HISTORIA" de un destacamento, sección o región. Junta a quien
@@ -25,6 +26,7 @@ import { LeadershipHistoryList } from './leadership-history-list';
 
 export function LeadershipHistoryView({ nivel, idEntidad }) {
   const { user } = useAuthContext();
+  const cambiarMotivo = useCambiarMotivoDeSalida();
   const puedeVerla = nivel !== 'destacamento' || puedeVerHistoriaDeDestacamento(user, idEntidad);
   const { filas, cargando } = useLeadershipHistory({
     nivel,
@@ -44,5 +46,7 @@ export function LeadershipHistoryView({ nivel, idEntidad }) {
     );
   }
 
-  return <LeadershipHistoryList filas={filas} cargando={cargando} />;
+  return (
+    <LeadershipHistoryList filas={filas} cargando={cargando} onCambiarMotivo={cambiarMotivo} />
+  );
 }

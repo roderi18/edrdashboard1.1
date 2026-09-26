@@ -4,6 +4,7 @@ import {
   query,
   getDoc,
   getDocs,
+  updateDoc,
   writeBatch,
   collection,
   serverTimestamp,
@@ -12,7 +13,10 @@ import {
 import { esOficialEspecial, sonCargosCompatibles } from 'src/utils/cargos-compatibles.mjs';
 import { leerConCache, valorGuardado, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
+  esMotivoDeSalida,
+  etiquetaDeMotivo,
   debeRegistrarSalida,
+  motivoDeSalidaAutomatico,
   NIVELES_HISTORIAL_NACIONAL,
   construirRegistroHistorial,
   COLECCION_HISTORIAL_DIRECTIVA,
@@ -21,6 +25,7 @@ import {
   canManageRegionLeadership,
   canManageSectionLeadership,
   canManageNationalLeadership,
+  puedeEditarDirectivaHistorica,
   canManageDestLeadershipDirectly,
   destLeadershipChangeNeedsNotice,
   esProponenteRegionalDeSecciones,
@@ -712,6 +717,60 @@ async function leerHistorialDirectivaGlobal() {
 export const obtenerHistorialDirectivaGlobal = () =>
   leerConCache(`${CLAVE_DIRECTIVA}historial-global`, () => leerHistorialDirectivaGlobal());
 
+/**
+ * EL MOTIVO DE UNA SALIDA, PRECISADO A MANO. Al salir solo se sabe si lo
+ * reemplazaron o si la casilla quedo vacia; renuncia, fallecimiento o fin de
+ * cuatrienio lo dice el Administrador Global o la Oficina Nacional. Solo se
+ * tocan el motivo y su nota: las fechas y la persona son historia y no cambian
+ * (las reglas de Firestore lo exigen igual).
+ */
+export async function cambiarMotivoDeSalida({ salida, motivo, nota = '', usuario = {} } = {}) {
+  asegurarFirebaseDirectivas();
+
+  if (!puedeEditarDirectivaHistorica(usuario)) {
+    throw new Error('Solo el Administrador Global y la Oficina Nacional cambian el motivo.');
+  }
+
+  if (!salida?.id || !esMotivoDeSalida(motivo)) {
+    throw new Error('Motivo de salida no válido.');
+  }
+
+  const notaLimpia = normalizarTexto(nota).slice(0, 300);
+  const persona = salida.nombreMiembro || `el miembro ${salida.idMiembro}`;
+  const cargo = salida.cargoNombre || 'su cargo';
+
+  await proponerCambio({
+    ambito: AMBITOS_CAMBIO.directivaNacional,
+    entidad: {
+      tipo: 'historial_directiva',
+      id: salida.id,
+      nombre: `${cargo} · ${persona}`,
+      ruta: '/dashboard/level/national',
+    },
+    cambios: [
+      {
+        campo: 'motivo',
+        etiqueta: 'Motivo de salida',
+        antes: etiquetaDeMotivo(salida.motivo),
+        despues: etiquetaDeMotivo(motivo),
+      },
+    ],
+    usuario,
+    descripcion: `Motivo de salida de ${persona} (${cargo}): ${etiquetaDeMotivo(motivo)}.`,
+    aplicarDirecto: true,
+    aplicar: async () => {
+      await updateDoc(doc(FIRESTORE, COLECCION_HISTORIAL_DIRECTIVA, salida.id), {
+        motivo,
+        motivoNota: notaLimpia,
+        motivoActualizadoPorUid: String(usuario?.uid || usuario?.id || ''),
+        motivoActualizadoEn: serverTimestamp(),
+      });
+      invalidarLecturas(CLAVE_DIRECTIVA);
+      avisarAOtrasSesiones(CLAVE_DIRECTIVA);
+    },
+  });
+}
+
 /** Lo ya leído de las asignaciones de una directiva, sin pedir nada (primer render). */
 export const asignacionesDirectivaGuardadas = ({ nivel, idEntidad, incluirInactivas = false } = {}) =>
   valorGuardado(`${CLAVE_DIRECTIVA}asignaciones:${nivel}:${idEntidad || ''}:${incluirInactivas}`);
@@ -909,6 +968,10 @@ export async function guardarAsignacionDirectiva({
         anterior: ocupanteActual,
         idAsignacion,
         fechaSalida: fechaInicio,
+        motivo: motivoDeSalidaAutomatico({
+          siguienteIdMiembro: idMiembroResolved,
+          siguienteActivo: activo,
+        }),
       })
     : null;
   const batch = writeBatch(FIRESTORE);
