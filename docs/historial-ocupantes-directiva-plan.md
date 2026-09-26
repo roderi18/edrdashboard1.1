@@ -22,19 +22,25 @@ persona lo ocupó — solo se ve quien esté al momento de la próxima lectura.
    reemplazo ocurre antes de cumplir 30 días desde que empezó, no se guarda
    nada: es como si nunca hubiera estado (evita ensuciar el historial con
    correcciones rápidas o errores de carga).
-3. **Una sola pestaña "Historia" (lista, no organigrama), repetida en los 4
-   niveles** — Destacamento, Sección, Región y Nacional usan el MISMO
-   componente de lista, con foto + nombre por fila (igual formato que las
-   listas de miembros ya existentes, `member-list-view.jsx`). Cada fila
+3. **"Historia" es un tab de NIVEL SUPERIOR del perfil**, no un sub-tab metido
+   dentro del organigrama de Directiva. En destacamento/sección/región vive
+   junto a "General"/"Miembros"/"Directiva" en la navegación del propio
+   perfil, con el mismo diseño de lista (buscador, tabla ordenable, paginación)
+   que ya usan Miembros o Destacamentos — no el organigrama. En destacamento
+   hay DOS organigramas (Directiva Local y Líderes Juveniles): "Historia" es
+   **una sola pestaña que junta a los dos**, sin separarlos, porque ambos
+   escriben el mismo nivel `destacamento` + la misma entidad. Cada fila
    muestra: foto, cargo que ocupó, "Desde dd/mm/aaaa · Hasta dd/mm/aaaa"; quien
    sigue en el cargo hoy se marca como **Vigente** (sin fecha de "hasta").
 4. **Alcance de cada pestaña**:
-   - **Destacamento**: solo el historial de ESE destacamento.
+   - **Destacamento**: solo el historial de ESE destacamento (Directiva Local
+     + Líderes Juveniles, juntos).
    - **Sección**: solo el historial de ESA sección.
    - **Región**: solo el historial de ESA región.
-   - **Consejo Nacional**: **global**, junta el historial de nacional +
-     todas las regiones + todas las secciones, con filtros para acotar (igual
-     que ya filtra hoy la pestaña "Lista" de national-list-view). **NO incluye
+   - **Consejo Nacional**: sigue como estaba pensado desde el principio —
+     su propia pestaña "Historia" **dentro** de la lista nacional (junto a
+     "Todos" y "Jerarquía", que ya es su propio nivel superior), **global**:
+     junta nacional + todas las regiones + todas las secciones. **NO incluye
      destacamentos** — el historial de destacamento se ve únicamente en la
      pestaña "Historia" de cada destacamento, nunca en la vista global
      nacional.
@@ -68,16 +74,18 @@ persona lo ocupó — solo se ve quien esté al momento de la próxima lectura.
 
 ## Dónde va la pestaña en cada pantalla
 
-- **Destacamento**: al lado de donde hoy se administra su directiva
-  (`src/app/dashboard/level/dest/[id]/edit/leadership/page.jsx`,
-  `src/sections/dest/leadership/dest-youth-leadership-view.jsx`).
-- **Sección**: `src/sections/sectional/leadership/sectional-leadership-view.jsx`
-  y su página `edit/leadership`.
-- **Región**: `src/sections/regional/leadership/regional-leadership-view.jsx`
-  y su página `edit/leadership`.
-- **Nacional**: junto a la pestaña "Lista" y "Jerarquía" que ya existen en
-  `src/sections/national/view/national-list-view.jsx` (mismo patrón de
-  `Tabs`/`Tab` de MUI que ya usa esa pantalla).
+- **Destacamento**: nuevo tab "Historia" en `src/sections/dest/layout/dest-edit-layout.jsx`
+  (junto a General/Miembros/Directiva Local/Directiva Líderes Juveniles),
+  ruta `edit/history` → `src/sections/common/leadership-history-view.jsx`.
+- **Sección**: nuevo tab en `src/sections/sectional/layout/sectional-edit-layout.jsx`,
+  ruta `edit/history`.
+- **Región**: nuevo tab en `src/sections/regional/layout/regional-edit-layout.jsx`,
+  ruta `edit/history`.
+- **Nacional**: sigue dentro de `src/sections/national/view/national-list-view.jsx`,
+  junto a la pestaña "Lista" y "Jerarquía" que ya existen ahí (mismo patrón de
+  `Tabs`/`Tab` de MUI que ya usa esa pantalla) — esa pantalla YA es el nivel
+  superior para el Consejo Nacional, así que no hace falta un tab de perfil
+  aparte como en los otros tres niveles.
 
 ## Piezas (implementadas)
 
@@ -92,16 +100,22 @@ persona lo ocupó — solo se ve quien esté al momento de la próxima lectura.
 - `firestore.rules` — colección `directiva_historial_ocupantes`: se crea, nunca
   se edita ni se borra; también sumada a la exclusión del comodín permisivo del
   final.
-- `src/sections/common/leadership-history-table.jsx` — la tabla "Historia"
-  (foto, nombre, cargo, desde/hasta o "Vigente"), reutilizada en los 4 niveles.
-- `src/sections/common/leadership-history-tab.jsx` — la envoltura que lee y
-  arma esa tabla para UNA entidad puntual (destacamento, sección o región).
-- Pestaña "Directiva"/"Historia" agregada en:
-  `src/app/dashboard/level/dest/[id]/edit/leadership/page.jsx`,
-  `src/sections/sectional/leadership/sectional-leadership-view.jsx`,
-  `src/sections/regional/leadership/regional-leadership-view.jsx` (alcance
-  individual), y `src/sections/national/view/national-list-view.jsx` (pestaña
-  "Historia" global, junto a "Todos" y "Jerarquía").
+- `src/sections/common/leadership-history-table.jsx` — la tabla simple (sin
+  paginación) que usa el tab "Historia" global de Nacional.
+- `src/sections/common/use-leadership-history.js` — el hook que lee vigentes +
+  historial de UNA entidad y los combina (destacamento, sección o región).
+- `src/sections/common/leadership-history-view.jsx` — la pantalla completa
+  "Historia" (mismo diseño que Miembros/Destacamentos: buscador, tabla
+  ordenable, paginación), para destacamento/sección/región.
+- Tab "Historia" agregado como nivel superior del perfil (junto a
+  General/Miembros/Directiva) en `src/sections/dest/layout/dest-edit-layout.jsx`,
+  `src/sections/sectional/layout/sectional-edit-layout.jsx` y
+  `src/sections/regional/layout/regional-edit-layout.jsx`, con sus rutas
+  `edit/history` nuevas. En destacamento junta Directiva Local y Líderes
+  Juveniles en una sola pestaña.
+- `src/sections/national/view/national-list-view.jsx` — pestaña "Historia"
+  global (nacional + regiones + secciones, sin destacamentos), junto a "Todos"
+  y "Jerarquía".
 - `tests/directivas/historial-ocupantes.test.mjs` — cubre el mínimo de 30 días,
   vacar sin reemplazo, el id estable por salida, vigentes antes que histórico,
   y que `NIVELES_HISTORIAL_NACIONAL` nunca incluye destacamento.
