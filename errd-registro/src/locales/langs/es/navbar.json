@@ -1,0 +1,12 @@
+{
+  "app": "Aplicación",
+  "job": "Empleo",
+  "user": "Usuario",
+  "travel": "Viajes",
+  "invoice": "Factura",
+  "blog": {
+    "title": "Blog",
+    "caption": "Accesos directos personalizados."
+  },
+  "subheader": "Subtítulo"
+}
