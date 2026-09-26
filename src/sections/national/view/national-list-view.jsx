@@ -68,8 +68,8 @@ import {
 } from 'src/components/table';
 
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
+import { LeadershipHistoryList } from 'src/sections/common/leadership-history-list';
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
-import { LeadershipHistoryTable } from 'src/sections/common/leadership-history-table';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 import { SelectorDeCuatrienio } from 'src/sections/national/cuatrienios/selector-de-cuatrienio';
 import { NationalLeadershipView } from 'src/sections/national/leadership/national-leadership-view';
@@ -1190,10 +1190,12 @@ export function NationalListView() {
             )}
 
             {vista === 'historia' && (
-              <LeadershipHistoryTable
+              <LeadershipHistoryList
                 filas={filasHistoria}
-                loading={cargandoHoy}
+                cargando={cargandoHoy}
                 mostrarEntidad
+                embebido
+                tituloExportacion="Historial del Consejo Nacional"
               />
             )}
 

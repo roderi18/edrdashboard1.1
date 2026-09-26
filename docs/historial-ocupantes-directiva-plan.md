@@ -100,13 +100,16 @@ persona lo ocupó — solo se ve quien esté al momento de la próxima lectura.
 - `firestore.rules` — colección `directiva_historial_ocupantes`: se crea, nunca
   se edita ni se borra; también sumada a la exclusión del comodín permisivo del
   final.
-- `src/sections/common/leadership-history-table.jsx` — la tabla simple (sin
-  paginación) que usa el tab "Historia" global de Nacional.
+- `src/sections/common/leadership-history-list.jsx` — LA lista de "Historia",
+  la misma en los cuatro niveles y con las piezas de Miembros/Destacamentos:
+  buscador, filtros de Posición y Estado (y Estructura en Nacional, con
+  `mostrarEntidad`), Lista/Cuadrícula, imprimir y exportar, chips de filtros,
+  orden por columna, "Vista compacta" y filas por página. Con `embebido` va
+  dentro de la tarjeta de otra vista (la del Consejo Nacional).
 - `src/sections/common/use-leadership-history.js` — el hook que lee vigentes +
   historial de UNA entidad y los combina (destacamento, sección o región).
-- `src/sections/common/leadership-history-view.jsx` — la pantalla completa
-  "Historia" (mismo diseño que Miembros/Destacamentos: buscador, tabla
-  ordenable, paginación), para destacamento/sección/región.
+- `src/sections/common/leadership-history-view.jsx` — la pestaña "Historia" de
+  destacamento/sección/región: el hook + la lista.
 - Tab "Historia" agregado como nivel superior del perfil (junto a
   General/Miembros/Directiva) en `src/sections/dest/layout/dest-edit-layout.jsx`,
   `src/sections/sectional/layout/sectional-edit-layout.jsx` y
