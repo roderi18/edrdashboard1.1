@@ -118,7 +118,20 @@ persona lo ocupó — solo se ve quien esté al momento de la próxima lectura.
   Juveniles en una sola pestaña.
 - `src/sections/national/view/national-list-view.jsx` — pestaña "Historia"
   global (nacional + regiones + secciones, sin destacamentos), junto a "Todos"
-  y "Jerarquía".
+  y "Jerarquía". **Solo en la directiva actual** y solo para Administrador
+  Global, Oficina Nacional y Consejo Ejecutivo (`puedeVerHistoriaNacional`).
+  Enseña solo a quienes SALIERON en el cuatrienio vigente, no a los vigentes.
+- **Directiva pasada = apunte para la historia**: no tiene pestaña "Historia";
+  quienes salieron de un cargo en ese cuatrienio se suman a su lista "Todos"
+  (`apuntesDelCuatrienio`). Una posición que ocuparon varias personas sale
+  varias veces, con "desde – hasta" debajo de la posición y la más reciente
+  primero; si la ocupó una sola, sin fechas.
+- **Quién ve "Historia" en los perfiles**: secciones y regiones, igual que
+  antes. En un destacamento, el Consejo Ejecutivo solo ve la del suyo propio
+  (`puedeVerHistoriaDeDestacamento`); Administrador Global y Oficina Nacional,
+  todas; los demás cargos, sin cambios.
+- Tests: `tests/directivas/historial-en-el-cuatrienio.test.mjs`,
+  `tests/acceso/historia-de-directivas-quien-la-ve.test.mjs`.
 - `tests/directivas/historial-ocupantes.test.mjs` — cubre el mínimo de 30 días,
   vacar sin reemplazo, el id estable por salida, vigentes antes que histórico,
   y que `NIVELES_HISTORIAL_NACIONAL` nunca incluye destacamento.

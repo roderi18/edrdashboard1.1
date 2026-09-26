@@ -140,3 +140,131 @@ export const combinarHistorialYVigentes = ({
     );
   });
 };
+
+// ----------------------------------------------------------------------
+// EL HISTORIAL DENTRO DE UN CUATRIENIO (Consejo Nacional).
+//
+// La pestaña "Historia" del Consejo Nacional mezclaba vigentes y salidas de
+// todos los tiempos, y salía también al mirar una directiva pasada. Ahora:
+// en la directiva actual, "Historia" enseña solo quienes SALIERON durante el
+// cuatrienio vigente; en una directiva pasada no hay pestaña, y esas salidas
+// se suman a la lista de su cuatrienio como un apunte más de la memoria.
+// ----------------------------------------------------------------------
+
+const soloFecha = (valor) => String(valor ?? '').slice(0, 10);
+
+/**
+ * Las salidas que tocan el cuatrienio: se fue después de que empezara y había
+ * llegado antes de que terminara (`fin` es exclusivo, como en CUATRIENIOS).
+ */
+export const salidasDelCuatrienio = (historial = [], { inicio = '', fin = '' } = {}) =>
+  historial.filter((fila) => {
+    const desde = soloFecha(fila.fechaInicio);
+    const hasta = soloFecha(fila.fechaFin);
+
+    return Boolean(hasta) && hasta > inicio && (!desde || !fin || desde < fin);
+  });
+
+// Una casilla del organigrama: nivel + entidad + posición. El Consejo Ejecutivo
+// no tiene entidad (unas filas dicen 'nacional' y otras nada).
+export const claveDePosicion = ({ nivel = '', idEntidad = '', idPosicionDirectiva = '' } = {}) =>
+  [
+    nivel,
+    nivel === 'nacional' ? '' : String(idEntidad ?? ''),
+    String(idPosicionDirectiva ?? ''),
+  ].join('|');
+
+const claveDeIntegrante = (integrante = {}) =>
+  integrante.idPosicionDirectiva
+    ? claveDePosicion({
+        nivel: integrante.nivel,
+        idEntidad:
+          integrante.nivel === 'regional'
+            ? integrante.regionId
+            : integrante.nivel === 'seccional'
+              ? integrante.seccionId
+              : '',
+        idPosicionDirectiva: integrante.idPosicionDirectiva,
+      })
+    : // Sin casilla (oficiales, provisionales): nunca "se repite" con nadie.
+      `sin-casilla|${integrante.id}`;
+
+/**
+ * La lista de una directiva PASADA: los integrantes de su memoria + quienes
+ * salieron de un cargo dentro de ese cuatrienio. Es un apunte para la historia:
+ * la misma posición puede salir varias veces.
+ *
+ * Cada entrada trae `periodo` ({ desde, hasta }) SOLO si su posición la ocupó
+ * más de una persona; si la ocupó una sola, `periodo` es null y la fila se pinta
+ * como siempre. `ordenPeriodo` (la fecha "hasta") sirve para poner primero al
+ * más reciente dentro de la misma posición.
+ *
+ * Si la memoria ya tiene a esa persona en esa posición (se guardó antes de que
+ * saliera), no se duplica: la fila de la memoria toma las fechas de la salida.
+ */
+export const apuntesDelCuatrienio = ({
+  integrantes = [],
+  historial = [],
+  cuatrienio = {},
+} = {}) => {
+  const { inicio = '', fin = '' } = cuatrienio;
+
+  const entradas = integrantes.map((integrante) => ({
+    tipo: 'integrante',
+    fila: integrante,
+    clave: claveDeIntegrante(integrante),
+    idMiembro: String(integrante.idMiembros ?? ''),
+    desde: soloFecha(integrante.desde),
+    hasta: soloFecha(integrante.hasta),
+  }));
+
+  salidasDelCuatrienio(historial, cuatrienio).forEach((salida) => {
+    const clave = claveDePosicion(salida);
+    const idMiembro = String(salida.idMiembro ?? '');
+    const enLaMemoria = entradas.find(
+      (entrada) =>
+        entrada.tipo === 'integrante' &&
+        entrada.clave === clave &&
+        idMiembro &&
+        entrada.idMiembro === idMiembro
+    );
+
+    if (enLaMemoria) {
+      enLaMemoria.desde = enLaMemoria.desde || soloFecha(salida.fechaInicio);
+      enLaMemoria.hasta = enLaMemoria.hasta || soloFecha(salida.fechaFin);
+      return;
+    }
+
+    entradas.push({
+      tipo: 'salida',
+      fila: salida,
+      clave,
+      idMiembro,
+      desde: soloFecha(salida.fechaInicio),
+      hasta: soloFecha(salida.fechaFin),
+    });
+  });
+
+  const porClave = entradas.reduce((mapa, entrada) => {
+    mapa.set(entrada.clave, [...(mapa.get(entrada.clave) || []), entrada]);
+    return mapa;
+  }, new Map());
+
+  return entradas.map((entrada) => {
+    const deLaPosicion = porClave.get(entrada.clave);
+
+    if (deLaPosicion.length < 2) return { ...entrada, periodo: null, ordenPeriodo: '' };
+
+    // Quien terminó el cuatrienio no trae fechas: llegó cuando se fue el último
+    // que salió antes que él, y se quedó hasta el final del cuatrienio.
+    const ultimaSalidaAnterior = deLaPosicion
+      .filter((otra) => otra !== entrada && otra.hasta)
+      .map((otra) => otra.hasta)
+      .sort()
+      .pop();
+    const desde = entrada.desde || ultimaSalidaAnterior || inicio;
+    const hasta = entrada.hasta || fin;
+
+    return { ...entrada, periodo: { desde, hasta }, ordenPeriodo: hasta };
+  });
+};

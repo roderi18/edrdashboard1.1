@@ -171,8 +171,12 @@ test('en la memoria de un cuatrienio la fila no enseña el telefono', () => {
     'utf8'
   );
 
-  // `integrante` solo lo llevan las filas del cuatrienio guardado.
-  assert.match(fila, /const esMemoriaDeCuatrienio = Boolean\(row\.integrante\);/);
+  // `integrante` solo lo llevan las filas del cuatrienio guardado; y
+  // `esApunteHistorico`, quienes salieron de un cargo en ese cuatrienio.
+  assert.match(
+    fila,
+    /const esMemoriaDeCuatrienio = Boolean\(row\.integrante\) \|\| Boolean\(row\.esApunteHistorico\);/
+  );
   assert.match(fila, /subtitle=\{esMemoriaDeCuatrienio \? undefined : formatPhoneNumber\(phoneNumber\)\}/);
   assert.match(
     fila,

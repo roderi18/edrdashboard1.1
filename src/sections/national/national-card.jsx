@@ -53,6 +53,9 @@ export function NationalCard({ national, canManage = true, sx, ...other }) {
   ]);
   const lines = [
     { text: positionLabel, href: positionHref },
+    // Desde – hasta, solo en una posición de una directiva pasada que ocuparon
+    // varias personas.
+    { text: national?.nationalXMemberPositionPeriodo || '', icon: 'solar:calendar-date-bold' },
     { text: organizationalLevel },
     { text: structure, href: structureHref },
   ].filter((line) => {

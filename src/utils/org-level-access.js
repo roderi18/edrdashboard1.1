@@ -989,6 +989,20 @@ export const requiereRevisionDeAdministradorGlobal = (user = {}, ambito = '') =>
 export const puedeEditarDirectivaHistorica = (user = {}) =>
   ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
 
+// Los diez cargos del Consejo Ejecutivo y el rol generico "Consejo Ejecutivo",
+// por cualquiera de los cargos de la persona.
+export const ejerceConsejoEjecutivo = (user = {}) =>
+  rolesQueEjerce(user).some((codigo) =>
+    [...ROLES_CONSEJO_EJECUTIVO, ROLES.CONSEJO_EJECUTIVO].includes(codigo)
+  );
+
+// LA PESTAÑA "HISTORIA" DEL CONSEJO NACIONAL (quienes dejaron un cargo en el
+// cuatrienio vigente). Antes la veia cualquiera que entrara a la lista; es
+// informacion de gobierno: Administrador Global, Oficina Nacional y el Consejo
+// Ejecutivo. Solo en la directiva actual; eso lo decide la pantalla.
+export const puedeVerHistoriaNacional = (user = {}) =>
+  puedeEditarDirectivaHistorica(user) || ejerceConsejoEjecutivo(user);
+
 export const puedeAplicarDirectamenteCambioDeOrganizacion = (user = {}, ambito = '') =>
   puedeAprobarCambiosDeOrganizacion(user) && !requiereRevisionDeAdministradorGlobal(user, ambito);
 

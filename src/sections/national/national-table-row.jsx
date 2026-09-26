@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
@@ -50,7 +51,8 @@ export function NationalTableRow({
   // se saca del padron de HOY: era un dato de ahora colado en una instantanea
   // de antes. Se quita con `undefined`, que es lo unico que la celda omite; con
   // cadena vacia saldria el "Tel. desconocido" de formatPhoneNumber.
-  const esMemoriaDeCuatrienio = Boolean(row.integrante);
+  // Lo mismo para quien salió de un cargo en ese cuatrienio (`esApunteHistorico`).
+  const esMemoriaDeCuatrienio = Boolean(row.integrante) || Boolean(row.esApunteHistorico);
   // Un Oficial de la Nacional con título se nombra por su título.
   const positionLabel = row.nationalXMemberPositionTitulo || row.nationalXMemberPositionLabel || '-';
   const positionHref = row.nationalXMemberPositionHref || '';
@@ -110,6 +112,17 @@ export function NationalTableRow({
           </Link>
         ) : (
           positionLabel
+        )}
+
+        {/* Una posición que en una directiva pasada ocuparon varias personas:
+            desde cuándo y hasta cuándo estuvo cada una. */}
+        {row.nationalXMemberPositionPeriodo && (
+          <Box
+            component="span"
+            sx={{ display: 'block', typography: 'caption', color: 'text.secondary' }}
+          >
+            {row.nationalXMemberPositionPeriodo}
+          </Box>
         )}
       </TableCell>
 

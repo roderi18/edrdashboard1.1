@@ -8,8 +8,10 @@ import { buildDefaultMemberPermissions } from 'src/utils/member-default-permissi
 import {
   isAdminGlobal,
   isOficinaNacional,
+  ejerceConsejoEjecutivo,
   ROLES_CONSEJO_EJECUTIVO,
   puedeEntrarAAdministracion,
+  puedeEditarDirectivaHistorica,
   canManageDestLeadershipDirectly,
   esProponenteNacionalDeDirectivas,
   nivelDeSusCargosSobreElDestacamento,
@@ -1802,6 +1804,18 @@ export const getVisibleDestIdsForUser = (user = {}) => {
   if (ownDestId) ids.add(ownDestId);
 
   return new Set([...ids].filter(Boolean));
+};
+
+// LA PESTAÑA "HISTORIA" DE UN DESTACAMENTO. El Consejo Ejecutivo ve la de todas
+// las secciones y regiones, pero la de un destacamento solo si es el suyo: su
+// cargo es nacional, no de cada destacamento. El Administrador Global y la
+// Oficina Nacional ven todas; para los demas cargos no cambia nada (entran a la
+// ficha del destacamento que su alcance ya les deja ver).
+export const puedeVerHistoriaDeDestacamento = (user = {}, destId = '') => {
+  if (puedeEditarDirectivaHistorica(user)) return true;
+  if (!ejerceConsejoEjecutivo(user)) return true;
+
+  return getOwnDestIdsForUser(user).has(normalizeScopeId(destId));
 };
 
 export const getOwnDestIdsForUser = (user = {}) => {

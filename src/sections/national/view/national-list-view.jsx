@@ -18,17 +18,27 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
+import { fDate } from 'src/utils/format-time';
 import { normalizeText } from 'src/utils/normalize-text';
 import { claveNodo } from 'src/utils/leadership-assignments';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { tituloDe } from 'src/utils/titulos-oficiales-nacionales.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
-import { combinarHistorialYVigentes } from 'src/utils/directiva-historial.mjs';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
-import { canDeleteOrgLevel, puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
+import {
+  canDeleteOrgLevel,
+  puedeVerHistoriaNacional,
+  puedeEditarDirectivaHistorica,
+} from 'src/utils/org-level-access';
+import {
+  salidasDelCuatrienio,
+  apuntesDelCuatrienio,
+  combinarHistorialYVigentes,
+} from 'src/utils/directiva-historial.mjs';
 import {
   CUATRIENIOS,
   nombreCompleto,
+  cuatrienioPorId,
   cuatrienioDeFecha,
   esCuatrienioCerrado,
 } from 'src/utils/directiva-cuatrienios.mjs';
@@ -174,6 +184,9 @@ const compararJerarquia = (a, b) =>
     String(b.nationalOrganizationalLevel || ''),
     'es'
   ) ||
+  // Misma posición ocupada por varias personas en una directiva pasada: primero
+  // la más reciente (su "hasta" es mayor). Las filas de hoy no lo traen.
+  String(b.ordenPeriodo || '').localeCompare(String(a.ordenPeriodo || '')) ||
   String(a.nationalXname || '').localeCompare(String(b.nationalXname || ''), 'es');
 
 const ordenNivelOrganizacional = (value) => {
@@ -326,8 +339,9 @@ export function NationalListView() {
   // pantallas aparece aqui solo.
   const [allMembers, setAllMembers] = useState([]);
   const [nationalAssignments, setNationalAssignments] = useState([]);
-  // Pestaña "Historia": quienes SALIERON de un cargo nacional, regional o
-  // seccional (30+ días, ver `directiva-historial.mjs`). Los destacamentos no
+  // Quienes SALIERON de un cargo nacional, regional o
+  // seccional (30+ días, ver `directiva-historial.mjs`): la pestaña "Historia" de
+  // hoy y la lista de un cuatrienio pasado. Los destacamentos no
   // entran aquí: su historial se ve solo en su propia pestaña.
   const [historialGlobal, setHistorialGlobal] = useState([]);
   const [seccionesPorId, setSeccionesPorId] = useState(() => new Map());
@@ -590,7 +604,7 @@ export function NationalListView() {
   });
 
   // La memoria del cuatrienio, con la misma forma que las filas de hoy.
-  const filasDelCuatrienio = memoria.integrantes.map((integrante) => {
+  const filaDeIntegrante = (integrante) => {
     const { nivel } = integrante;
     const member = integrante.idMiembros
       ? allMembers.find((m) => String(m.id ?? m.idMiembros) === String(integrante.idMiembros))
@@ -644,13 +658,81 @@ export function NationalListView() {
         : (ORDEN_SIN_CASILLA[integrante.grupo] ?? 1000) + (Number(integrante.orden) || 99),
       nationalXAssignedRegional: ambito,
     };
-  });
+  };
+
+  // Quien SALIÓ de un cargo dentro del cuatrienio (30+ días; ver
+  // `directiva-historial.mjs`): en una directiva pasada es un apunte más de su
+  // lista, de solo lectura, con la foto y el nombre que se guardaron al salir.
+  const filaDeSalida = (salida) => {
+    const position = DIRECTIVA_POSITIONS.find(
+      (item) => item.idCargo === salida.idPosicionDirectiva
+    );
+    const nivel = position?.nivel || salida.nivel;
+    const idEntidad = nivel === 'nacional' ? 'nacional' : salida.idEntidad;
+    const estructura = ESTRUCTURA_POR_NIVEL[nivel] || '-';
+    const ambito = construirAmbito({ nivel, idEntidad, seccionesPorId, regionesPorId });
+    const nombreEntidad =
+      nivel === 'regional'
+        ? regionesPorId.get(String(idEntidad)) || ''
+        : nivel === 'seccional'
+          ? seccionesPorId.get(String(idEntidad)) || ''
+          : '';
+
+    return {
+      id: `salida:${salida.id}`,
+      soloLectura: true,
+      // Como la memoria: sin teléfono de hoy en un apunte de entonces.
+      esApunteHistorico: true,
+      entityId: idEntidad,
+      entityNombre: nombreEntidad,
+      memberId: salida.idMiembro || '',
+      level: nivel,
+      nationalXname: salida.nombreMiembro || 'Sin nombre',
+      avatarUrl: salida.fotoMiembro || fotosPorMiembro[String(salida.idMiembro)] || '',
+      nationalXMemberPosition: salida.idPosicionDirectiva,
+      nationalXMemberPositionLabel: position?.nombreCargo || '-',
+      nationalXMemberPositionScope: ambito,
+      onAbrirPosicion: () =>
+        herramientas.abrirOrganigrama(nivel, { id: idEntidad, nombre: nombreEntidad }),
+      nationalEstructure: estructura,
+      nationalEstructureLabel: NATIONAL_STRUCTURES[estructura] || '-',
+      nationalOrganizationalLevel: ambito,
+      hierarchyStructureOrder: ORDEN_ESTRUCTURA[estructura] ?? 999,
+      hierarchyRoleOrder: obtenerOrdenVisualCargo(position, nivel),
+      nationalXAssignedRegional: ambito,
+    };
+  };
+
+  const datosDelCuatrienio = cuatrienioPorId(cuatrienio);
+
+  // LA DIRECTIVA PASADA ES UN APUNTE PARA LA HISTORIA: su memoria + quienes
+  // salieron de un cargo en ese cuatrienio. Una posición que ocuparon varias
+  // personas sale varias veces, con "desde – hasta" bajo la posición y la más
+  // reciente primero; la que ocupó una sola persona, como siempre.
+  const filasDelCuatrienio = esMemoria
+    ? apuntesDelCuatrienio({
+        integrantes: memoria.integrantes,
+        historial: historialGlobal,
+        cuatrienio: datosDelCuatrienio || {},
+      }).map((apunte) => ({
+        ...(apunte.tipo === 'salida' ? filaDeSalida(apunte.fila) : filaDeIntegrante(apunte.fila)),
+        nationalXMemberPositionPeriodo: apunte.periodo
+          ? `${fDate(apunte.periodo.desde)} – ${fDate(apunte.periodo.hasta)}`
+          : '',
+        ordenPeriodo: apunte.ordenPeriodo,
+      }))
+    : [];
 
   const tableData = esMemoria ? filasDelCuatrienio : filasDeHoy;
 
-  // Pestaña "Historia": siempre la de HOY (nacional + regiones + secciones),
-  // sin importar que cuatrienio este elegido arriba en el titulo — esa
-  // eleccion es solo para la pestaña "Todos".
+  // Pestaña "Historia": solo en la directiva ACTUAL y solo para el Consejo
+  // Ejecutivo, el Administrador Global y la Oficina Nacional. Enseña a quienes
+  // SALIERON de un cargo nacional, regional o seccional durante el cuatrienio
+  // vigente, no a quien lo ocupa hoy (para eso está "Todos"). Las salidas de un
+  // cuatrienio pasado se ven en la lista de ese cuatrienio.
+  const puedeVerHistoria = !esMemoria && puedeVerHistoriaNacional(user);
+  const vistaActual = vista === 'historia' && !puedeVerHistoria ? 'lista' : vista;
+
   const resolverEntidadNombreHistoria = useCallback(
     (idEntidad, nivel) => {
       if (nivel === 'regional') return regionesPorId.get(String(idEntidad)) || '';
@@ -664,11 +746,10 @@ export function NationalListView() {
   const filasHistoria = useMemo(
     () =>
       combinarHistorialYVigentes({
-        historial: historialGlobal,
-        vigentes: nationalAssignments,
+        historial: salidasDelCuatrienio(historialGlobal, cuatrienioPorId(vigente) || {}),
         resolverEntidadNombre: resolverEntidadNombreHistoria,
       }),
-    [historialGlobal, nationalAssignments, resolverEntidadNombreHistoria]
+    [historialGlobal, vigente, resolverEntidadNombreHistoria]
   );
 
   const { state: currentFilters } = filters;
@@ -939,7 +1020,9 @@ export function NationalListView() {
 
   const darDeBaja = esMemoria ? quitarDeLaMemoria : darDeBajaAsignaciones;
 
-  const cargandoLista = esMemoria ? memoria.cargando : cargandoHoy;
+  // La lista de una directiva pasada también espera al historial: sin él, las
+  // salidas del cuatrienio aparecían un momento después y la tabla saltaba.
+  const cargandoLista = esMemoria ? memoria.cargando || cargandoHoy : cargandoHoy;
 
   const cambiarCuatrienio = (id) => {
     if (id === cuatrienio) return;
@@ -1065,7 +1148,7 @@ export function NationalListView() {
         <>
           <Card>
             <Tabs
-              value={vista}
+              value={vistaActual}
               onChange={(event, valor) => setVista(valor)}
               sx={[
                 (themeItem) => ({
@@ -1083,14 +1166,16 @@ export function NationalListView() {
               {/* Tanto la directiva de hoy como la de un cuatrienio guardado: la
                   memoria se pinta de solo lectura con sus ocupantes de entonces. */}
               <Tab value="jerarquia" label="Jerarquía" />
-              {/* Quien ya no ocupa un cargo (30+ días) de nacional, region o
-                  seccion. Los destacamentos tienen la suya propia. */}
-              <Tab value="historia" label="Historia" />
+              {/* Quien dejó un cargo (30+ días) de nacional, region o seccion en
+                  el cuatrienio vigente. Solo en la directiva actual y solo para
+                  Consejo Ejecutivo, Administrador Global y Oficina Nacional; en
+                  una pasada, esas salidas van dentro de "Todos". */}
+              {puedeVerHistoria && <Tab value="historia" label="Historia" />}
             </Tabs>
 
             {/* La lista manda cuatro filtros; la Jerarquía, solo su propia barra
                 (buscar por nombre + nivel de una sola opción). */}
-            {vista === 'lista' && (
+            {vistaActual === 'lista' && (
               <>
                 <NationalTableToolbar
                   filters={filters}
@@ -1120,7 +1205,7 @@ export function NationalListView() {
               </>
             )}
 
-            {vista === 'jerarquia' && (
+            {vistaActual === 'jerarquia' && (
               <>
                 <NationalJerarquiaToolbar
                   opcionesBusqueda={opcionesBusquedaJerarquia}
@@ -1189,17 +1274,18 @@ export function NationalListView() {
               </>
             )}
 
-            {vista === 'historia' && (
+            {vistaActual === 'historia' && (
               <LeadershipHistoryList
                 filas={filasHistoria}
                 cargando={cargandoHoy}
                 mostrarEntidad
+                conEstado={false}
                 embebido
                 tituloExportacion="Historial del Consejo Nacional"
               />
             )}
 
-            {vista === 'lista' && displayMode === 'panel' && (
+            {vistaActual === 'lista' && displayMode === 'panel' && (
               <Box sx={{ position: 'relative' }}>
                 {canDelete && (
                   <TableSelectedAction
@@ -1272,7 +1358,7 @@ export function NationalListView() {
               </Box>
             )}
 
-            {vista === 'lista' && displayMode === 'panel' && (
+            {vistaActual === 'lista' && displayMode === 'panel' && (
               <TablePaginationCustom
                 page={table.page}
                 dense={table.dense}
@@ -1285,7 +1371,7 @@ export function NationalListView() {
             )}
           </Card>
 
-          {vista === 'lista' && displayMode !== 'panel' && (
+          {vistaActual === 'lista' && displayMode !== 'panel' && (
             <NationalCardList
               nationals={dataFiltered}
               canManage={canManage}

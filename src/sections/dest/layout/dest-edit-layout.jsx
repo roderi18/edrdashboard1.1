@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react';
 import { paths } from 'src/routes/paths';
 import { useParams, usePathname } from 'src/routes/hooks';
 
+import { puedeVerHistoriaDeDestacamento } from 'src/utils/member-access';
+
 import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -12,6 +14,8 @@ import { Iconify } from 'src/components/iconify';
 
 import { CandadoDeAlcance } from 'src/sections/common/candado-de-alcance';
 import { OrganizationalProfileNavigation } from 'src/sections/common/organizational-profile-navigation';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // Los títulos descriptivos de listas anidadas incluyen el nombre del
 // destacamento. Las pantallas generales no necesitan un encabezado "Editar".
@@ -21,6 +25,7 @@ export function DestEditLayout({ children, ...other }) {
     const params = useParams();
     const destId = params?.id;
     const [dest, setDest] = useState(null);
+    const { user } = useAuthContext();
 
     useEffect(() => {
         let cancelado = false;
@@ -85,8 +90,10 @@ export function DestEditLayout({ children, ...other }) {
             label: 'Historia',
             icon: <Iconify width={24} icon="solar:clock-circle-bold" />,
             href: `/dashboard/level/dest/${destId}/edit/history`,
+            // El Consejo Ejecutivo solo ve la de su propio destacamento.
+            oculto: !puedeVerHistoriaDeDestacamento(user, destId),
         },
-    ];
+    ].filter((item) => !item.oculto);
 
     return (
 

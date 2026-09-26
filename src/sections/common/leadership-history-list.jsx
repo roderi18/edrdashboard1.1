@@ -90,6 +90,9 @@ export function LeadershipHistoryList({
   // Dentro de la tarjeta de otra vista (el Consejo Nacional ya pinta la suya con
   // sus pestañas): no se envuelve en otra, y la cuadrícula va dentro.
   embebido = false,
+  // Sin filtro de Estado cuando todas las filas son salidas (la Historia del
+  // Consejo Nacional): con una sola opción, "Pasado", no filtraba nada.
+  conEstado = true,
   tituloExportacion = 'Historial de la directiva',
 }) {
   const theme = useTheme();
@@ -203,7 +206,7 @@ export function LeadershipHistoryList({
 
   const configFiltros = [
     { key: 'cargo', label: 'Posición', options: opciones.cargo },
-    { key: 'estado', label: 'Estado', options: opciones.estado },
+    ...(conEstado ? [{ key: 'estado', label: 'Estado', options: opciones.estado }] : []),
     ...(mostrarEntidad
       ? [{ key: 'estructura', label: 'Estructura', options: opciones.estructura }]
       : []),
@@ -252,7 +255,7 @@ export function LeadershipHistoryList({
         sx={{ p: 2.5, pt: 0 }}
         configs={[
           { name: 'cargo', label: 'Posición:', options: opciones.cargo },
-          { name: 'estado', label: 'Estado:', options: opciones.estado },
+          ...(conEstado ? [{ name: 'estado', label: 'Estado:', options: opciones.estado }] : []),
           ...(mostrarEntidad
             ? [{ name: 'estructura', label: 'Estructura:', options: opciones.estructura }]
             : []),
