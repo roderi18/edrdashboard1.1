@@ -12,6 +12,12 @@ import {
 import { esOficialEspecial, sonCargosCompatibles } from 'src/utils/cargos-compatibles.mjs';
 import { leerConCache, valorGuardado, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
+  debeRegistrarSalida,
+  NIVELES_HISTORIAL_NACIONAL,
+  construirRegistroHistorial,
+  COLECCION_HISTORIAL_DIRECTIVA,
+} from 'src/utils/directiva-historial.mjs';
+import {
   canManageRegionLeadership,
   canManageSectionLeadership,
   canManageNationalLeadership,
@@ -665,6 +671,47 @@ export const obtenerAsignacionesDirectivaMiembros = ({ incluirInactivas = false 
     leerAsignacionesDirectivaMiembros({ incluirInactivas })
   );
 
+// La pestaña "Historia": quienes salieron de un cargo (30+ dias, ver
+// `directiva-historial.mjs`) de UNA entidad puntual (un destacamento, una
+// seccion o una region).
+async function leerHistorialDirectiva({ nivel, idEntidad }) {
+  asegurarFirebaseDirectivas();
+
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCION_HISTORIAL_DIRECTIVA),
+      where('nivel', '==', nivel),
+      where('idEntidad', '==', String(idEntidad ?? ''))
+    )
+  );
+
+  return mapearDocumentos(snapshot);
+}
+
+export const obtenerHistorialDirectiva = ({ nivel, idEntidad }) =>
+  leerConCache(`${CLAVE_DIRECTIVA}historial:${nivel}:${idEntidad || ''}`, () =>
+    leerHistorialDirectiva({ nivel, idEntidad })
+  );
+
+// La pestaña "Historia" GLOBAL del Consejo Nacional: nacional + todas las
+// regiones + todas las secciones. Destacamento queda afuera a propósito — su
+// historial se ve solo en la pestaña de cada destacamento.
+async function leerHistorialDirectivaGlobal() {
+  asegurarFirebaseDirectivas();
+
+  const snapshot = await getDocs(
+    query(
+      collection(FIRESTORE, COLECCION_HISTORIAL_DIRECTIVA),
+      where('nivel', 'in', [...NIVELES_HISTORIAL_NACIONAL])
+    )
+  );
+
+  return mapearDocumentos(snapshot);
+}
+
+export const obtenerHistorialDirectivaGlobal = () =>
+  leerConCache(`${CLAVE_DIRECTIVA}historial-global`, () => leerHistorialDirectivaGlobal());
+
 /** Lo ya leído de las asignaciones de una directiva, sin pedir nada (primer render). */
 export const asignacionesDirectivaGuardadas = ({ nivel, idEntidad, incluirInactivas = false } = {}) =>
   valorGuardado(`${CLAVE_DIRECTIVA}asignaciones:${nivel}:${idEntidad || ''}:${incluirInactivas}`);
@@ -834,17 +881,44 @@ export async function guardarAsignacionDirectiva({
     fechaActualizacion: serverTimestamp(),
     fechaCreacion: serverTimestamp(),
   };
+  const asignacionesDeLaEntidad = await obtenerAsignacionesDirectiva({ nivel, idEntidad }).catch(
+    () => []
+  );
   // Documentos de la MISMA posicion con otra clave: los que quedaron del esquema
   // anterior, cuando el id incluia al miembro. Se dan de baja en el mismo lote
   // para que la posicion no acabe con dos ocupantes activos.
-  const asignacionesPrevias = (
-    await obtenerAsignacionesDirectiva({ nivel, idEntidad }).catch(() => [])
-  ).filter(
+  const asignacionesPrevias = asignacionesDeLaEntidad.filter(
     (previa) =>
       normalizarTexto(previa.idPosicionDirectiva) === normalizarTexto(idPosicionDirectiva) &&
       String(previa.idAsignacion || previa.id) !== idAsignacion
   );
+  // Quien ocupaba ESTA MISMA casilla antes de esta escritura: si sale (la
+  // reemplazan o queda vacante) y llevaba 30+ dias, se guarda su paso en el
+  // historial antes de que el `set` de mas abajo lo sobreescriba sin dejar
+  // rastro (ver `directiva-historial.mjs`).
+  const ocupanteActual = asignacionesDeLaEntidad.find(
+    (previa) => String(previa.idAsignacion || previa.id) === idAsignacion
+  );
+  const registroHistorial = debeRegistrarSalida({
+    anterior: ocupanteActual,
+    siguienteIdMiembro: idMiembroResolved,
+    siguienteActivo: activo,
+    fechaSalida: fechaInicio,
+  })
+    ? construirRegistroHistorial({
+        anterior: ocupanteActual,
+        idAsignacion,
+        fechaSalida: fechaInicio,
+      })
+    : null;
   const batch = writeBatch(FIRESTORE);
+
+  if (registroHistorial) {
+    batch.set(doc(FIRESTORE, COLECCION_HISTORIAL_DIRECTIVA, registroHistorial.id), {
+      ...registroHistorial,
+      fechaCreacion: serverTimestamp(),
+    });
+  }
 
   asignacionesPrevias.forEach((previa) => {
     batch.set(

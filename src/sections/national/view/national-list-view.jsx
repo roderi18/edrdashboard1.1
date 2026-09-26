@@ -23,6 +23,7 @@ import { claveNodo } from 'src/utils/leadership-assignments';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { tituloDe } from 'src/utils/titulos-oficiales-nacionales.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { combinarHistorialYVigentes } from 'src/utils/directiva-historial.mjs';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import { canDeleteOrgLevel, puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
 import {
@@ -49,6 +50,7 @@ import {
 } from 'src/catalogs/directiva-diagrams';
 import {
   guardarAsignacionDirectiva,
+  obtenerHistorialDirectivaGlobal,
   obtenerAsignacionesDirectivaMiembros,
 } from 'src/services/directivas-organizacionales-service';
 
@@ -67,6 +69,7 @@ import {
 
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { CompactEntityListView } from 'src/sections/common/compact-entity-list-view';
+import { LeadershipHistoryTable } from 'src/sections/common/leadership-history-table';
 import { CompactEntityDeleteDialog } from 'src/sections/common/compact-entity-delete-dialog';
 import { SelectorDeCuatrienio } from 'src/sections/national/cuatrienios/selector-de-cuatrienio';
 import { NationalLeadershipView } from 'src/sections/national/leadership/national-leadership-view';
@@ -323,6 +326,10 @@ export function NationalListView() {
   // pantallas aparece aqui solo.
   const [allMembers, setAllMembers] = useState([]);
   const [nationalAssignments, setNationalAssignments] = useState([]);
+  // Pestaña "Historia": quienes SALIERON de un cargo nacional, regional o
+  // seccional (30+ días, ver `directiva-historial.mjs`). Los destacamentos no
+  // entran aquí: su historial se ve solo en su propia pestaña.
+  const [historialGlobal, setHistorialGlobal] = useState([]);
   const [seccionesPorId, setSeccionesPorId] = useState(() => new Map());
   const [regionesPorId, setRegionesPorId] = useState(() => new Map());
   // Las fotos viven en su propia coleccion, no en el miembro: sin esta carga la
@@ -340,7 +347,7 @@ export function NationalListView() {
     let cancelado = false;
 
     const cargar = async () => {
-      const [miembros, asignaciones, secciones, regiones, permanentes, telefonos] =
+      const [miembros, asignaciones, secciones, regiones, permanentes, telefonos, historial] =
         await Promise.all([
           getMembers().catch(() => []),
           obtenerAsignacionesDirectivaMiembros().catch(() => []),
@@ -348,9 +355,12 @@ export function NationalListView() {
           getRegionals().catch(() => []),
           obtenerPermanentes().catch(() => []),
           obtenerTelefonosDirectivaActual().catch(() => []),
+          obtenerHistorialDirectivaGlobal().catch(() => []),
         ]);
 
       if (cancelado) return;
+
+      setHistorialGlobal(Array.isArray(historial) ? historial : []);
 
       const integrantesDeDirectivaNacional = new Set(
         asignaciones
@@ -637,6 +647,29 @@ export function NationalListView() {
   });
 
   const tableData = esMemoria ? filasDelCuatrienio : filasDeHoy;
+
+  // Pestaña "Historia": siempre la de HOY (nacional + regiones + secciones),
+  // sin importar que cuatrienio este elegido arriba en el titulo — esa
+  // eleccion es solo para la pestaña "Todos".
+  const resolverEntidadNombreHistoria = useCallback(
+    (idEntidad, nivel) => {
+      if (nivel === 'regional') return regionesPorId.get(String(idEntidad)) || '';
+      if (nivel === 'seccional') return seccionesPorId.get(String(idEntidad)) || '';
+
+      return 'Consejo Ejecutivo';
+    },
+    [regionesPorId, seccionesPorId]
+  );
+
+  const filasHistoria = useMemo(
+    () =>
+      combinarHistorialYVigentes({
+        historial: historialGlobal,
+        vigentes: nationalAssignments,
+        resolverEntidadNombre: resolverEntidadNombreHistoria,
+      }),
+    [historialGlobal, nationalAssignments, resolverEntidadNombreHistoria]
+  );
 
   const { state: currentFilters } = filters;
 
@@ -1001,21 +1034,27 @@ export function NationalListView() {
                 {/* Al cerrar el cuatrienio, la directiva de hoy se guarda en su
                     memoria desde aqui. */}
                 {!esMemoria && (
-                  <Button
-                    variant="outlined"
-                    sx={SIN_NEGRITA}
-                    disabled={Boolean(herramientas.tomandoFoto)}
-                    startIcon={
-                      herramientas.tomandoFoto ? (
-                        <CircularProgress size={16} />
-                      ) : (
-                        <Iconify icon="solar:camera-add-bold" />
-                      )
-                    }
-                    onClick={herramientas.pedirFoto}
+                  <Tooltip
+                    title={`Copia los cargos de hoy a la memoria de ${cuatrienio}. Si una casilla ya no tiene a nadie, la memoria NO se vacía sola: hay que quitarla a mano.`}
                   >
-                    {herramientas.tomandoFoto || `Guardar en la memoria de ${cuatrienio}`}
-                  </Button>
+                    <span>
+                      <Button
+                        variant="outlined"
+                        sx={SIN_NEGRITA}
+                        disabled={Boolean(herramientas.tomandoFoto)}
+                        startIcon={
+                          herramientas.tomandoFoto ? (
+                            <CircularProgress size={16} />
+                          ) : (
+                            <Iconify icon="solar:camera-add-bold" />
+                          )
+                        }
+                        onClick={herramientas.pedirFoto}
+                      >
+                        {herramientas.tomandoFoto || `Guardar en la memoria de ${cuatrienio}`}
+                      </Button>
+                    </span>
+                  </Tooltip>
                 )}
               </Box>
             )
@@ -1044,6 +1083,9 @@ export function NationalListView() {
               {/* Tanto la directiva de hoy como la de un cuatrienio guardado: la
                   memoria se pinta de solo lectura con sus ocupantes de entonces. */}
               <Tab value="jerarquia" label="Jerarquía" />
+              {/* Quien ya no ocupa un cargo (30+ días) de nacional, region o
+                  seccion. Los destacamentos tienen la suya propia. */}
+              <Tab value="historia" label="Historia" />
             </Tabs>
 
             {/* La lista manda cuatro filtros; la Jerarquía, solo su propia barra
@@ -1145,6 +1187,14 @@ export function NationalListView() {
                   )}
                 </Box>
               </>
+            )}
+
+            {vista === 'historia' && (
+              <LeadershipHistoryTable
+                filas={filasHistoria}
+                loading={cargandoHoy}
+                mostrarEntidad
+              />
             )}
 
             {vista === 'lista' && displayMode === 'panel' && (

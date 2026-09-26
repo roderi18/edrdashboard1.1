@@ -12,6 +12,7 @@ import {
   cargoDePosicion,
   GRUPOS_CUATRIENIO,
   NIVELES_CUATRIENIO,
+  NOMBRE_PROVISIONAL,
 } from 'src/utils/directiva-cuatrienios.mjs';
 
 import { getDivisions } from 'src/services/division-service';
@@ -46,8 +47,6 @@ import {
 // Se puede correr dos veces sin duplicar: las entidades y las personas se buscan
 // por nombre antes de crearlas, y las filas del cuatrienio tienen id fijo.
 // ----------------------------------------------------------------------
-
-export const NOMBRE_PROVISIONAL = 'Provisional';
 
 const nombreDeFila = (fila) =>
   fila?.nombre ?? fila?.sectionalName ?? fila?.name ?? fila?.regionalName ?? '';

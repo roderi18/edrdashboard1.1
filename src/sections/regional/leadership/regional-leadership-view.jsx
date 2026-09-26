@@ -4,6 +4,8 @@ import { usePopover } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -27,6 +29,7 @@ import { OrganizationalChart } from 'src/components/organizational-chart';
 import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
+import { LeadershipHistoryTab } from 'src/sections/common/leadership-history-tab';
 import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigrama';
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
@@ -273,6 +276,10 @@ export function RegionalLeadershipView({
   });
   const [isDragging, setIsDragging] = useState(false);
   const [regionalName, setRegionalName] = useState('');
+  // "Directiva" (el organigrama de hoy) o "Historia" (quién ocupó cada cargo).
+  // Sin pestañas cuando esta vista va embebida en otra pantalla (la Jerarquía
+  // del Consejo Nacional): ahí ya se ve de solo lectura, sin chrome propio.
+  const [vistaRegional, setVistaRegional] = useState('directiva');
   // Asignacion de miembros: mismo flujo que el organigrama del destacamento.
   const leadership = useLeadershipAssignments({
     nivel: 'regional',
@@ -485,6 +492,22 @@ export function RegionalLeadershipView({
 
   return (
     <>
+      {!embebido && (
+        <Tabs
+          value={vistaRegional}
+          onChange={(event, valor) => setVistaRegional(valor)}
+          sx={{ mb: 2 }}
+        >
+          <Tab value="directiva" label="Directiva" />
+          <Tab value="historia" label="Historia" />
+        </Tabs>
+      )}
+
+      {!embebido && vistaRegional === 'historia' && (
+        <LeadershipHistoryTab nivel="regional" idEntidad={regionalId} />
+      )}
+
+      {(embebido || vistaRegional === 'directiva') && (
       <Box
         ref={containerRef}
         aria-label="Mover organigrama regional"
@@ -765,6 +788,7 @@ export function RegionalLeadershipView({
           />
         )}
       </Box>
+      )}
 
       <LeadershipAssignDialog
         open={Boolean(leadership.selectedNode)}

@@ -1,4 +1,5 @@
 import { getMemberAge } from './member-age';
+import { claveDeTexto, NOMBRE_PROVISIONAL } from './directiva-cuatrienios.mjs';
 
 // ----------------------------------------------------------------------
 // Opciones del desplegable "Asignar / Cambiar miembro" de la Directiva.
@@ -207,6 +208,20 @@ export const getMemberOrgPath = (member, index) => {
   return { destId, dest, sectionId, sectional, regionId, regional };
 };
 
+const claveProvisional = claveDeTexto(NOMBRE_PROVISIONAL);
+
+// El destacamento, la seccion y la region "Provisional" son el cajon donde cae
+// quien no tiene destacamento real conocido (ver directiva-importacion-service.js).
+// Quien esta ahi debe poder asignarse en CUALQUIER directiva, sin importar la
+// region o seccion que se este editando: si no fuera asi, nunca se le podria
+// dar un cargo hasta que alguien lo traslade a mano a su destacamento real.
+const esRutaProvisional = (path) =>
+  [
+    path?.dest?.nombre ?? path?.dest?.name,
+    path?.sectional?.nombre ?? path?.sectional?.name,
+    path?.regional?.nombre ?? path?.regional?.name,
+  ].some((nombre) => claveDeTexto(nombre) === claveProvisional);
+
 // ¿El miembro pertenece a la entidad para la que se esta asignando el cargo?
 const perteneceAlAmbito = ({ nivel, idEntidad, path }) => {
   // NACIONAL PRIMERO, antes de exigir entidad: la Directiva nacional se nutre de
@@ -214,6 +229,8 @@ const perteneceAlAmbito = ({ nivel, idEntidad, path }) => {
   // nacional no pasa `idEntidad`, y con la comprobacion de entidad por delante el
   // desplegable se quedaba VACIO: se descartaba a todo el mundo.
   if (nivel === 'nacional') return true;
+
+  if (esRutaProvisional(path)) return true;
 
   const entidad = normalizeId(idEntidad);
 
@@ -235,7 +252,11 @@ const buildSubtitulo = ({ nivel, member, path }) => {
   // En la Directiva NACIONAL se ofrece a toda la organizacion, asi que hace falta
   // situar a cada persona: region, seccion y destacamento.
   if (nivel === 'nacional') {
-    return [getRegionalName(path.regional), getSectionalName(path.sectional), getDestName(path.dest)]
+    return [
+      getRegionalName(path.regional),
+      getSectionalName(path.sectional),
+      getDestName(path.dest),
+    ]
       .filter(Boolean)
       .join(' · ');
   }

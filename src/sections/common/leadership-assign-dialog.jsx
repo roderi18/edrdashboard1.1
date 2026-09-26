@@ -57,6 +57,9 @@ export function LeadershipAssignDialog({
           </Box>
 
           <Autocomplete
+            // Se abre para buscar a alguien por nombre: el foco va directo al
+            // campo, sin que haya que hacerle clic primero.
+            autoFocus
             options={options}
             // Se compara por id, no por identidad de objeto: los miembros llegan
             // de servicios distintos y una misma persona puede ser dos objetos.

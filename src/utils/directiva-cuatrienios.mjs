@@ -18,6 +18,12 @@ import { DIRECTIVA_POSITIONS } from '../catalogs/directiva-positions.js';
 // `docs/directiva-por-cuatrienio.md`.
 // ----------------------------------------------------------------------
 
+// Región, sección y destacamento "cajón" donde cae quien no tiene destacamento
+// real conocido (ver directiva-importacion-service.js). Comparten el mismo
+// nombre; se usa también para ofrecerlos como disponibles en CUALQUIER
+// directiva (leadership-member-options.js).
+export const NOMBRE_PROVISIONAL = 'Provisional';
+
 export const COLECCION_CUATRIENIOS = 'directiva_cuatrienios';
 export const COLECCION_INTEGRANTES = 'directiva_cuatrienios_integrantes';
 export const COLECCION_PERMANENTES = 'directiva_nacional_permanentes';

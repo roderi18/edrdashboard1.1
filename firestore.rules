@@ -1032,6 +1032,28 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // PESTAÑA "HISTORIA": quien ocupó un cargo de directiva y ya no lo ocupa
+    // (30+ días, ver src/utils/directiva-historial.mjs). Se escribe en el mismo
+    // momento en que se reemplaza a alguien en `asignacionesDirectiva`, por
+    // quien puede componer esa misma directiva. Es un registro permanente: se
+    // crea una vez por salida y nunca se modifica ni se borra.
+    match /directiva_historial_ocupantes/{idHistorial} {
+      allow read: if esUsuarioDelSistema();
+      allow create: if (
+          esAdministradorGlobal()
+          || esOficinaNacional()
+          || componeLaDirectivaDeSuDestacamento(
+               request.resource.data.nivel,
+               request.resource.data.idEntidad
+             )
+        )
+        && request.resource.data.idPosicionDirectiva is string
+        && request.resource.data.idMiembro is string
+        && request.resource.data.fechaInicio is string
+        && request.resource.data.fechaFin is string;
+      allow update, delete: if false;
+    }
+
     match /directivasOrganizacionales/{idDirectiva} {
       allow read: if esUsuarioDelSistema();
       allow create, update: if (
@@ -1645,6 +1667,7 @@ service cloud.firestore {
         // comodín volvería a conceder la escritura que los bloques de arriba
         // reservan al administrador global.
         && coleccion != 'asignacionesDirectiva'
+        && coleccion != 'directiva_historial_ocupantes'
         && coleccion != 'directivasOrganizacionales'
         && coleccion != 'posicionesDirectiva'
         && coleccion != 'disenosDirectiva'
