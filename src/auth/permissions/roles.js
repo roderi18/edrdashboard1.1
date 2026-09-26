@@ -126,7 +126,7 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.USUARIO_SECCION,
-    nombre: 'Coordinador Seccional',
+    nombre: 'Director Seccional',
     descripcion: 'Supervision de destacamentos y miembros adultos dentro de una seccion.',
     alcancePredeterminado: ALCANCES.SECCION,
     asignableDesdeAdministradores: true,
@@ -134,8 +134,8 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.USUARIO_SECCION_ASISTENTE,
-    nombre: 'Sub-Coordinador Seccional',
-    descripcion: 'Apoyo del Coordinador Seccional con los mismos permisos y alcance seccional.',
+    nombre: 'Sub-Director Seccional',
+    descripcion: 'Apoyo del Director Seccional con los mismos permisos y alcance seccional.',
     alcancePredeterminado: ALCANCES.SECCION,
     asignableDesdeAdministradores: true,
     activo: true,
@@ -174,7 +174,7 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.USUARIO_REGION,
-    nombre: 'Coordinador Regional',
+    nombre: 'Director Regional',
     descripcion: 'Supervision regional de secciones, destacamentos e indicadores.',
     alcancePredeterminado: ALCANCES.REGION,
     asignableDesdeAdministradores: true,

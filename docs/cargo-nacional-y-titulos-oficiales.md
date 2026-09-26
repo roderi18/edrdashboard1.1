@@ -136,3 +136,29 @@ excepción de permisos del Director Nacional / ex comandante, en
 
 Tests: `tests/directivas/titulos-oficiales-nacionales.test.mjs`,
 `tests/directivas/cargo-nacional-sigue-a-la-jerarquia.test.mjs`.
+
+## "Oficial Especial" es una sola opción en "Cargo Nacional"
+
+El desplegable de la ficha ofrecía las veinte casillas de Oficial Especial como
+veinte opciones iguales (y React avisaba de claves repetidas). Ahora es una sola
+opción (`nacional-oficial-especial`); la casilla se decide al guardar
+(`src/utils/oficial-especial-una-opcion.mjs`): quien ya es Oficial conserva la
+suya; si no, la primera vacía que el organigrama dibuja; si no queda ninguna, se
+crea la siguiente (hasta veinte), igual que "Asignar miembros". Cada opción del
+desplegable usa su valor como clave, no su nombre.
+
+**Director, no Coordinador.** "Coordinador Regional/Seccional" y "Director
+Regional/Seccional" son el mismo cargo: se llama Director, y su asistente
+Sub-Director (nombres de cargo, de casilla y de rol).
+
+- **Región**: el Director Regional es `regional-director-regional` (da el rol de
+  región, lo asigna el formulario de la región) y tiene su casilla propia, la
+  primera de la Directiva Regional. "Directiva Regional" es solo el título del
+  grupo; la memoria de un cuatrienio pone al Director en su casilla aunque se
+  guardara en el título (`ocupanteHistorico` ubica por el cargo).
+- **Sección**: el Director Seccional ocupa la casilla `coordinador-seccional`
+  (id de siempre, da el rol de sección), ahora rotulada "Director Seccional"; su
+  Sub-Director, `sub-coordinador-seccional`. La posición antigua
+  `seccional-director-seccional` no tiene casilla y no sale en el desplegable.
+
+Test: `tests/directivas/cargo-nacional-oficial-y-directores.test.mjs`.

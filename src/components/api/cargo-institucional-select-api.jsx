@@ -7,6 +7,13 @@ import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 import ListSubheader from '@mui/material/ListSubheader';
 
+import { esOficialEspecial } from 'src/utils/cargos-compatibles.mjs';
+import {
+  valorEnElDesplegable,
+  unaSolaOpcionDeOficial,
+  OPCION_OFICIAL_ESPECIAL,
+} from 'src/utils/oficial-especial-una-opcion.mjs';
+
 import { rangoDivisionRol } from 'src/catalogs/directiva-positions';
 import {
   NIVELES_DIRECTIVA,
@@ -80,6 +87,9 @@ export default function CargoSelectApi({
   // Nacional" para que un Oficial Especial con título salga con su título,
   // igual que en la Jerarquía, y no como uno más de veinte "Oficial Especial".
   etiquetas = null,
+  // "Cargo Nacional": las veinte casillas de Oficial Especial como UNA opción.
+  // La casilla concreta la decide quien guarda (`oficial-especial-una-opcion.mjs`).
+  unaOpcionDeOficial = false,
 }) {
   const { setValue, watch } = useFormContext();
 
@@ -130,7 +140,7 @@ export default function CargoSelectApi({
     };
   }, [selectedLevelsKey]);
 
-  const options = useMemo(() => {
+  const opcionesDelCatalogo = useMemo(() => {
     const cargoOptions = cargos.map((cargo) => ({
       ...cargo,
       value: getCargoValue(cargo),
@@ -144,8 +154,22 @@ export default function CargoSelectApi({
   }, [cargos, includeNone, groupByDivision, noneLabel, etiquetas]);
 
   const currentValue = watch(name);
+  // Con una sola opción de Oficial, la casilla guardada (`nacional-oficial-especial-7`)
+  // se enseña como esa opción, con el título de la persona si lo tiene.
+  const options = useMemo(
+    () =>
+      unaOpcionDeOficial
+        ? unaSolaOpcionDeOficial(opcionesDelCatalogo, {
+            etiqueta: esOficialEspecial(currentValue) ? etiquetas?.[currentValue] : '',
+          })
+        : opcionesDelCatalogo,
+    [unaOpcionDeOficial, opcionesDelCatalogo, currentValue, etiquetas]
+  );
+  const valorMostrado = unaOpcionDeOficial
+    ? valorEnElDesplegable(currentValue)
+    : String(currentValue || '');
   const value =
-    options.find((cargo) => String(cargo.value) === String(currentValue || '')) ||
+    options.find((cargo) => String(cargo.value) === valorMostrado) ||
     (includeNone && !currentValue ? { ...NONE_OPTION, label: noneLabel } : null);
   const hasCollapsibleGroups = groupByLevel || groupByDivision;
   const getGroupLabel = (option) => {
@@ -187,12 +211,32 @@ export default function CargoSelectApi({
         String(option.value) === String(selectedOption?.value)
       }
       onChange={(_, newValue) => {
-        setValue(name, newValue?.value || '', {
+        // Elegir "Oficial Especial" siendo ya Oficial no lo mueve de casilla.
+        const siguiente =
+          unaOpcionDeOficial &&
+          newValue?.value === OPCION_OFICIAL_ESPECIAL &&
+          esOficialEspecial(currentValue)
+            ? currentValue
+            : newValue?.value || '';
+
+        setValue(name, siguiente, {
           shouldDirty: true,
           shouldValidate: true,
         });
       }}
       ListboxProps={{ sx: { maxHeight: 300 } }}
+      // La clave es el VALOR, no el nombre: hay nombres repetidos entre niveles
+      // ("Coordinador de Adiestramiento" en nación, región y sección) y React
+      // avisaba de claves duplicadas.
+      renderOption={(props, option) => {
+        const { key, ...rest } = props;
+
+        return (
+          <li key={option.value || key} {...rest}>
+            {option.label}
+          </li>
+        );
+      }}
       renderGroup={
         hasCollapsibleGroups
           ? (params) => {

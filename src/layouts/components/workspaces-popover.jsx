@@ -45,10 +45,10 @@ const SUBROLES_POR_ROL = {
     { label: 'Líder de Grupo', rolCodigo: ROLES.LIDER_GRUPO },
     { label: 'Líder Asistente de Grupo', rolCodigo: ROLES.LIDER_ASISTENTE_GRUPO },
   ],
-  // "Coordinador Seccional" es ahora el rol en si (primer item).
+  // "Director Seccional" es ahora el rol en si (primer item).
   [ROLES.USUARIO_SECCION]: [
     { label: 'Capellán Seccional', rolCodigo: ROLES.CAPELLAN_SECCIONAL },
-    { label: 'Sub-Coordinador Seccional', rolCodigo: ROLES.USUARIO_SECCION_ASISTENTE },
+    { label: 'Sub-Director Seccional', rolCodigo: ROLES.USUARIO_SECCION_ASISTENTE },
     { label: 'Coordinador de Adiestramiento', rolCodigo: ROLES.COORDINADOR_ADIESTRAMIENTO_SECCION },
     { label: 'Coordinador de Promoción', rolCodigo: ROLES.COORDINADOR_PROMOCION_SECCION },
     { label: 'Coordinador de Producción', rolCodigo: ROLES.COORDINADOR_PRODUCCION_SECCION },
@@ -56,7 +56,7 @@ const SUBROLES_POR_ROL = {
     { label: 'Zonas', rolCodigo: ROLES.ZONAS },
     { label: 'Grupos Locales', rolCodigo: ROLES.GRUPOS_LOCALES },
   ],
-  // "Coordinador Regional" es ahora el rol en si (primer item).
+  // "Director Regional" es ahora el rol en si (primer item).
   [ROLES.USUARIO_REGION]: [
     { label: 'Capellán Regional', rolCodigo: ROLES.CAPELLAN_REGIONAL },
     { label: 'Sub-Director Regional', rolCodigo: ROLES.USUARIO_REGION_ASISTENTE },
@@ -238,13 +238,13 @@ export function WorkspacesPopover({ data = [], sx, disabled = false, nombreForza
       <Avatar alt={option?.name} src={option?.logo} sx={{ width: 24, height: 24 }} />
     );
 
-  const renderButton = () => {
+  const renderButton = () => 
     // Solo el Administrador Global cambia de rol desde aqui. Para el resto, el
     // rol NO se elige: sale del cargo que ocupan en la directiva. Se deja el
     // nombre a la vista —es informacion util— pero sin boton, sin flecha y sin
     // menu: un desplegable que permitiera cambiarse el rol a uno mismo seria una
     // via de escalada de privilegios abierta a cualquiera.
-    return (
+     (
       <ButtonBase
         disableRipple
         disabled={disabled}
@@ -277,8 +277,8 @@ export function WorkspacesPopover({ data = [], sx, disabled = false, nombreForza
 
         <Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />
       </ButtonBase>
-    );
-  };
+    )
+  ;
 
   const handleCloseAll = useCallback(() => {
     closeSubmenu();

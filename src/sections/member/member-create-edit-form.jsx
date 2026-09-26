@@ -46,6 +46,11 @@ import {
   registrarFotoEntidadSubida,
 } from 'src/utils/firebase-photos';
 import {
+  casillasDelDiseno,
+  OPCION_OFICIAL_ESPECIAL,
+  casillaParaOficialEspecial,
+} from 'src/utils/oficial-especial-una-opcion.mjs';
+import {
   getOwnDestIdsForUser,
   esMiembroDeSuAlcance,
   canApproveMemberChanges,
@@ -109,15 +114,6 @@ import {
   desactivarAsignacionOrganigramaDirectivaDestacamento,
 } from 'src/services/organigrama-directiva-destacamentos-service';
 import {
-  NIVELES_DIRECTIVA,
-  DIVISIONES_DIRECTIVA,
-  guardarAsignacionDirectiva,
-  obtenerAsignacionesDirectiva,
-  obtenerCargosDirectivaCached,
-  obtenerAsignacionesDirectivaPorMiembro,
-  desactivarAsignacionesDirectivaPorNivel,
-} from 'src/services/directivas-organizacionales-service';
-import {
   getModuloSolicitud,
   ESTADOS_SOLICITUD_CAMBIO,
   MODULOS_SOLICITUD_CAMBIO,
@@ -128,6 +124,17 @@ import {
   resolverSolicitudCambioMiembro,
   obtenerSolicitudPendientePorMiembro,
 } from 'src/services/solicitudes-cambio-miembro-service';
+import {
+  NIVELES_DIRECTIVA,
+  DIVISIONES_DIRECTIVA,
+  obtenerDisenoDirectiva,
+  guardarDisenoDirectiva,
+  guardarAsignacionDirectiva,
+  obtenerAsignacionesDirectiva,
+  obtenerCargosDirectivaCached,
+  obtenerAsignacionesDirectivaPorMiembro,
+  desactivarAsignacionesDirectivaPorNivel,
+} from 'src/services/directivas-organizacionales-service';
 
 // components
 import { toast } from 'src/components/snackbar';
@@ -1442,6 +1449,44 @@ export function MemberCreateEditForm({
     }
   };
 
+  // "OFICIAL ESPECIAL" LLEGA COMO UNA SOLA OPCIÓN (ver
+  // `oficial-especial-una-opcion.mjs`): aquí se decide la casilla. Quien ya es
+  // Oficial conserva la suya; si no, la primera vacía del organigrama, y si no
+  // queda ninguna se crea la siguiente —igual que "Asignar miembros"—, para que
+  // la persona salga dibujada y no en una casilla que nadie ve.
+  const resolverCasillaDeOficial = async ({ value, idMiembro }) => {
+    if (value !== OPCION_OFICIAL_ESPECIAL) return value;
+
+    const [asignaciones, diseno] = await Promise.all([
+      obtenerAsignacionesDirectiva({ nivel: NIVELES_DIRECTIVA.nacional, idEntidad: 'nacional' }).catch(
+        () => []
+      ),
+      obtenerDisenoDirectiva({ nivel: NIVELES_DIRECTIVA.nacional, idEntidad: '' }).catch(() => null),
+    ]);
+    const casillasCreadas = casillasDelDiseno(diseno);
+    const casilla = casillaParaOficialEspecial({ idMiembro, asignaciones, casillasCreadas });
+
+    if (!casilla) {
+      throw new Error('No caben más: el organigrama admite veinte Oficiales Especiales.');
+    }
+
+    if (casilla.nodoACrear) {
+      const siguientes = [...casillasCreadas, casilla.nodoACrear];
+
+      await guardarDisenoDirectiva({
+        ...(diseno || {}),
+        nivel: NIVELES_DIRECTIVA.nacional,
+        idEntidad: '',
+        nombreEntidad: 'Directiva Nacional',
+        customNodeCounts: { ...(diseno?.customNodeCounts || {}), oficialesEspeciales: siguientes.length },
+        customNodeLists: { ...(diseno?.customNodeLists || {}), oficialesEspeciales: siguientes },
+        usuario: user,
+      });
+    }
+
+    return casilla.idPosicionDirectiva;
+  };
+
   const saveSelectedMemberCargos = async ({ idMiembro, formData }) => {
     // La misma regla que aplica el desplegable, repetida aqui a proposito: los
     // cargos de seccion, region y nacion son de supervision y los ocupan mayores
@@ -1456,7 +1501,9 @@ export function MemberCreateEditForm({
       saveSelectedCargo({
         // Un menor equivale a "Ninguno": ademas de no poder elegirlo, si arrastra
         // uno de antes se le retira al guardar.
-        value: esMenorDeEdad ? '' : formData.nationalLeadershipRole,
+        value: esMenorDeEdad
+          ? ''
+          : await resolverCasillaDeOficial({ value: formData.nationalLeadershipRole, idMiembro }),
         idMiembro,
         // Los mismos niveles que alimenta el desplegable "Cargo Nacional"
         // (ver MemberLeadershipAndOtherSection): son los que hay que limpiar si

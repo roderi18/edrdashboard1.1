@@ -55,9 +55,9 @@ export const GRUPOS_CUATRIENIO = Object.freeze({
 // sale el mismo `idPosicionDirectiva` que usa la directiva de hoy, y por eso el
 // organigrama historico se pinta con los componentes de siempre.
 //
-// En la seccion el Director ocupa la casilla "Coordinador Seccional" y el
-// Sub-Director la de "Sub-Coordinador": son los nombres que la organizacion usa
-// hoy para esos puestos.
+// En la seccion el Director ocupa la casilla `coordinador-seccional` y el
+// Sub-Director la de `sub-coordinador-seccional`: los ids son los de antes, pero
+// el organigrama ya las rotula "Director Seccional" y "Sub-Director Seccional".
 export const CARGOS_DIRECTIVA = Object.freeze([
   {
     id: 'director',
@@ -69,7 +69,9 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     },
     nodos: {
       nacional: 'director-nacional',
-      regional: 'directiva-regional',
+      // La casilla propia del Director Regional ("Directiva Regional" es solo el
+      // titulo del grupo, y quien se ponia ahi no tenia el rol de region).
+      regional: 'director-regional',
       seccional: 'coordinador-seccional',
     },
   },
@@ -539,9 +541,16 @@ export const ocupanteHistorico = (integrantesDeLaDirectiva = [], nivel, nodeId) 
   if (!posicion) return null;
 
   const filas = Array.isArray(integrantesDeLaDirectiva) ? integrantesDeLaDirectiva : [];
+  // Un cargo de la directiva va a la casilla que su cargo tiene HOY, no a la que
+  // se guardó: el Director Regional de 2022-2026 se guardó en la caja
+  // "Directiva Regional" (entonces no tenía casilla propia) y ahora tiene la
+  // suya. Sin esto salía en el título del grupo y su casilla quedaba vacía.
+  const posicionDeFila = (fila) =>
+    (fila?.grupo === GRUPOS_CUATRIENIO.directiva && posicionDelCargo(nivel, fila.cargo)) ||
+    fila?.idPosicionDirectiva;
   const integrante =
     filas.find(
-      (fila) => fila?.idPosicionDirectiva && fila.idPosicionDirectiva === posicion.idCargo
+      (fila) => fila?.idPosicionDirectiva && posicionDeFila(fila) === posicion.idCargo
     ) ||
     // Una fila guardada cuando su cargo aun no tenia casilla (el Secretario
     // Nacional de 2022-2026) lleva la posicion vacia: se reconoce por el cargo.

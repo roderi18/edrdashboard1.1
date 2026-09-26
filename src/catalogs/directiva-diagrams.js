@@ -151,6 +151,10 @@ export const REGIONAL_LEADERSHIP_DATA = {
   // Directiva Regional, no un cargo que alguien ocupe.
   ...createNode('consejo-ejecutivo', '', [
     createNode('directiva-regional', 'Directiva Regional', [
+      // El Director Regional tenía cargo en el catálogo (y el formulario de la
+      // región lo asigna) pero ninguna casilla: no salía en "Cargo Nacional" de
+      // la ficha y quien lo ocupaba no se veía en el organigrama.
+      createNode('director-regional', 'Director Regional'),
       createNode('sub-director-regional', 'Sub-Director Regional'),
       createNode('coordinador-adiestramiento', 'Coordinador de Adiestramiento'),
       createNode('coordinador-promocion', 'Coordinador de Promoción'),
@@ -167,8 +171,12 @@ export const REGIONAL_LEADERSHIP_DATA = {
 };
 
 export const SECTIONAL_LEADERSHIP_DATA = createNode('directiva-regional', 'Directiva Regional', [
-  createNode('coordinador-seccional', 'Coordinador Seccional', [
-    createNode('sub-coordinador-seccional', 'Sub-Coordinador Seccional'),
+  // El Director Seccional OCUPA la casilla que se llamaba "Coordinador
+  // Seccional" (es el mismo cargo, y el que da el rol de sección); el id del
+  // nodo no cambia para no perder las asignaciones ya guardadas. Igual con su
+  // Sub-Director.
+  createNode('coordinador-seccional', 'Director Seccional', [
+    createNode('sub-coordinador-seccional', 'Sub-Director Seccional'),
     createNode('coordinador-adiestramiento', 'Coordinador de Adiestramiento'),
     createNode('coordinador-promocion', 'Coordinador de Promoción'),
     createNode('coordinador-produccion', 'Coordinador de Producción'),

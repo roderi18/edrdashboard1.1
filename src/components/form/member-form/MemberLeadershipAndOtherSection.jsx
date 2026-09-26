@@ -177,6 +177,7 @@ export default function MemberLeadershipAndOtherSection({
                 noneLabel={esMenorDeEdad ? 'Ninguno (menor de edad)' : 'Ninguno'}
                 disabled={disabledCore || esMenorDeEdad}
                 etiquetas={etiquetasCargoNacional}
+                unaOpcionDeOficial
                 helperText={
                     puedeAsignarTitulo ? (
                         <Link

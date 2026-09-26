@@ -101,7 +101,7 @@ export default function SectionalGeneralSection({
             {/* Responsable de la sección. Va al lado del nombre, como el
                 Coordinador en el destacamento. */}
             <DirectivaMemberSelect
-                label="Coordinador Seccional"
+                label="Director Seccional"
                 disabled={disabled}
                 value={watch('directorId')}
                 onChange={(idMiembro) =>
