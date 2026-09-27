@@ -10,11 +10,13 @@ import Skeleton from '@mui/material/Skeleton';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 
+import { optimizeImageFile } from 'src/utils/image-optimizer';
 import {
   recordarImagenDelPerfil,
   imagenDelPerfilYaResuelta,
 } from 'src/utils/cache-visual-perfil-miembro.mjs';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { RecorteDeFoto } from './recorte-de-foto';
@@ -89,13 +91,23 @@ export function FotoDeMiembro({
     };
   }, [url]);
 
-  const alElegirArchivo = (evento) => {
+  const alElegirArchivo = async (evento) => {
     const archivo = evento.target.files?.[0];
 
     // Se limpia siempre: si no, elegir DOS VECES la misma foto no dispara nada.
     evento.target.value = '';
 
-    if (archivo) setPorRecortar(archivo);
+    if (!archivo) return;
+
+    // FOTO RECIÉN HECHA CON LA CÁMARA: llega enorme (12 MP), a veces sin tipo o
+    // en HEIC, y el recorte del celular se quedaba sin memoria y no subía (desde
+    // la galería sí). Se reduce ANTES de recortar; si no se puede leer, se dice.
+    try {
+      const reducida = await optimizeImageFile(archivo, 'general');
+      setPorRecortar(reducida || archivo);
+    } catch (fallo) {
+      toast.error(fallo?.message || 'No se pudo leer la foto. Elígela desde la galería.');
+    }
   };
 
   return (

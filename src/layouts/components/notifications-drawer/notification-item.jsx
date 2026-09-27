@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -112,6 +113,8 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
   const notificationRoute = getNotificationRoute(notification);
   const actionLabel = getNotificationActionLabel(notification);
   const esReporteProblema = notification.tipoNotificacion === 'reporte_problema';
+  const colorReporte =
+    COLOR_ESTADO_REPORTE[normalizarEstadoReporte(notification.metadatos?.reporteProblema?.estado)];
   const nombreReportante =
     String(notification.actorNombre || notification.metadatos?.reporteProblema?.nombre || '').trim() ||
     'Un miembro';
@@ -229,7 +232,7 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
           }}
         >
           {esReporteProblema ? (
-            <Iconify icon="solar:bug-bold" width={22} sx={{ color: 'error.main' }} />
+            <Iconify icon="solar:bug-bold" width={22} sx={{ color: `${colorReporte}.main` }} />
           ) : (
             <SvgIcon sx={{ width: 24, height: 24 }}>{renderIcon(notification.type)}</SvgIcon>
           )}
@@ -523,17 +526,19 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
           ...(esReporteProblema && {
             m: 0.75,
             width: 'calc(100% - 12px)',
-            border: `1px solid ${theme.vars.palette.error.main}`,
+            // El color sigue el estado del reporte: rojo Abierto, amarillo En
+            // progreso, verde Resuelto (igual que la tarjeta del chat).
+            border: `1px solid ${theme.vars.palette[colorReporte].main}`,
             borderRadius: 1.5,
-            bgcolor: 'error.lighter',
+            bgcolor: `${colorReporte}.lighter`,
             '&:hover': {
-              bgcolor: 'error.light',
+              bgcolor: `${colorReporte}.light`,
             },
             ...theme.applyStyles('dark', {
-              bgcolor: '#701C35',
-              borderColor: '#B05A70',
+              bgcolor: varAlpha(theme.vars.palette[colorReporte].mainChannel, 0.28),
+              borderColor: theme.vars.palette[colorReporte].main,
               color: '#fff',
-              '&:hover': { bgcolor: '#80243F' },
+              '&:hover': { bgcolor: varAlpha(theme.vars.palette[colorReporte].mainChannel, 0.4) },
               '& .MuiTypography-root': { color: '#fff' },
               '& .MuiTypography-colorTextSecondary': { color: 'rgba(255,255,255,0.78)' },
             }),

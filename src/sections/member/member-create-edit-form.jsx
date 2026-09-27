@@ -1982,6 +1982,16 @@ export function MemberCreateEditForm({
       // exitosa!" encima del error— y el guardado parecia haber funcionado. La
       // bandera la levanta quien atrapa el fallo; abajo se mira antes de anunciar.
       let algoFallo = false;
+      // AL CREAR, NO SE ESPERA PARA SIEMPRE. El miembro ya estaba guardado pero el
+      // botón se quedaba girando: tras el alta vienen la cuenta, los avisos, los
+      // cargos y la foto, y en el celular alguna de esas escrituras tardaba o no
+      // respondía. Ahora, una vez creado, se espera como mucho
+      // ESPERA_TRAS_CREAR_MS; lo que falte sigue por detrás y se vuelve a la lista.
+      let avisarCreado;
+      const miembroCreado = new Promise((resolve) => {
+        avisarCreado = resolve;
+      });
+      let yaEnLaLista = false;
 
       const tareaGuardado = (async () => {
         try {
@@ -2108,6 +2118,8 @@ export function MemberCreateEditForm({
               `Error de red o servidor (${res.status})`
             );
           }
+
+          if (!currentMember) avisarCreado();
 
           registrarAuditoriaSilenciosa({
             modulo: 'miembros',
@@ -2426,7 +2438,8 @@ export function MemberCreateEditForm({
             // API y vuelva a pintarse. Va fuera del `if`: el cargo pudo cambiar
             // aunque la ficha del miembro no se haya podido recuperar.
             setCargosVersion((version) => version + 1);
-          } else {
+          } else if (!yaEnLaLista) {
+            yaEnLaLista = true;
             router.push(paths.dashboard.level.member.root);
           }
         } catch (error) {
@@ -2452,7 +2465,19 @@ export function MemberCreateEditForm({
         return;
       }
 
-      await tareaGuardado;
+      // Termina la tarea, o, si el miembro ya está creado y lo demás tarda, se
+      // vuelve a la lista igualmente (lo que falte sigue en segundo plano).
+      const ESPERA_TRAS_CREAR_MS = 12000;
+      const terminada = await Promise.race([
+        tareaGuardado.then(() => true),
+        miembroCreado.then(() => esperar(ESPERA_TRAS_CREAR_MS)).then(() => false),
+      ]);
+
+      if (!terminada && !algoFallo && !yaEnLaLista) {
+        yaEnLaLista = true;
+        toast.success('Miembro creado. Terminando los últimos detalles en segundo plano.');
+        router.push(paths.dashboard.level.member.root);
+      }
     },
 
     (validationErrors) => {

@@ -190,17 +190,70 @@ export async function leerDimensionesDeImagen(file) {
   }
 }
 
+// FOTOS HECHAS CON LA CÁMARA DEL CELULAR.
+//
+// Desde la galería subían y recién hechas con la cámara no: algunos celulares
+// entregan la foto de la cámara SIN tipo (`file.type` vacío), así que no se
+// optimizaba y llegaba a Storage con 6-12 MB y sin `image/…`, y la regla la
+// rechazaba. Otros la entregan en HEIC, que el navegador no siempre sabe leer.
+// Ahora el tipo se deduce del nombre, se intenta leer también con
+// `createImageBitmap`, y si no se puede se explica qué hacer.
+const TIPO_POR_EXTENSION = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  gif: 'image/gif',
+};
+
+const tipoDeImagen = (file) => {
+  if (String(file.type || '').startsWith('image/')) return file.type;
+  const extension = String(file.name || '').split('.').pop()?.toLowerCase();
+  // Sin tipo ni extensión conocida, se intenta como imagen igualmente: es lo
+  // que manda la cámara en algunos Android.
+  return TIPO_POR_EXTENSION[extension] || (file.type ? '' : 'image/jpeg');
+};
+
+const leerImagen = async (file) => {
+  try {
+    return await loadImageElement(file);
+  } catch (errorImagen) {
+    if (typeof createImageBitmap === 'function') {
+      try {
+        const bitmap = await createImageBitmap(file);
+        return Object.assign(bitmap, { naturalWidth: bitmap.width, naturalHeight: bitmap.height });
+      } catch {
+        // cae al error de abajo
+      }
+    }
+    throw errorImagen;
+  }
+};
+
 export async function optimizeImageFile(file, presetOrOptions = 'general') {
   if (!(file instanceof File)) return file;
-  if (!String(file.type || '').startsWith('image/')) return file;
-  if (PRESERVE_MIME_TYPES.has(file.type)) return file;
+  const tipo = tipoDeImagen(file);
+  if (!tipo) return file;
+  if (PRESERVE_MIME_TYPES.has(tipo)) return file;
 
   const { maxWidth, maxHeight, quality, mimeType, maxSizeBytes, skipOptimizationBelowBytes } =
     getPresetOptions(presetOrOptions);
 
-  if (skipOptimizationBelowBytes && file.size < skipOptimizationBelowBytes) return file;
+  if (file.type && skipOptimizationBelowBytes && file.size < skipOptimizationBelowBytes) return file;
 
-  const image = await loadImageElement(file);
+  let image;
+  try {
+    image = await leerImagen(file);
+  } catch {
+    if (/hei[cf]/.test(tipo)) {
+      throw new Error(
+        'Este celular guardó la foto en formato HEIC y no se puede leer aquí. Elígela desde la galería o cambia la cámara a "Más compatible".'
+      );
+    }
+    throw new Error('No se pudo leer la foto. Vuelve a intentarlo o elígela desde la galería.');
+  }
   const { width, height } = getTargetDimensions({
     width: image.naturalWidth || image.width,
     height: image.naturalHeight || image.height,
@@ -228,7 +281,8 @@ export async function optimizeImageFile(file, presetOrOptions = 'general') {
       }
 
       if (!maxSizeBytes || blob.size <= maxSizeBytes) {
-        if (blob.size >= file.size && targetWidth === (image.naturalWidth || image.width)) {
+        // Sin tipo (cámara) se devuelve siempre la convertida: la original no pasaría la regla.
+        if (file.type && blob.size >= file.size && targetWidth === (image.naturalWidth || image.width)) {
           return file;
         }
 
@@ -253,7 +307,12 @@ export async function optimizeImageFile(file, presetOrOptions = 'general') {
   }
 
   if (!bestBlob) return file;
-  if (!maxSizeBytes && bestBlob.size >= file.size && width === (image.naturalWidth || image.width)) {
+  if (
+    file.type &&
+    !maxSizeBytes &&
+    bestBlob.size >= file.size &&
+    width === (image.naturalWidth || image.width)
+  ) {
     return file;
   }
 
