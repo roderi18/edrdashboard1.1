@@ -12,7 +12,7 @@ import {
 
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
-import Chip from "@mui/material/Chip";
+import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
@@ -27,18 +27,17 @@ import ToggleButton from "@mui/material/ToggleButton";
 import LinearProgress from "@mui/material/LinearProgress";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 
-import { Label } from "src/components/label";
 import { toast } from "src/components/snackbar";
 import { Iconify } from "src/components/iconify";
 import { Form, Field } from "src/components/hook-form";
 
 import { MapaDestacamentos } from "./portada";
 import { BuscarPersona } from "./buscar-persona";
+import { DatosMiembro, etiquetaCargo } from "./datos-miembro";
 import { PasosLaterales, PanelPorQueRegistrar } from "./paneles";
 import { PASOS, Esquema, CAMPOS_DEL_PASO, valoresIniciales } from "./esquema";
 import {
   DIAS,
-  POSICIONES,
   PROVINCIAS,
   sectoresDe,
   municipiosDe,
@@ -112,7 +111,7 @@ export function FormularioRegistro({
           remitente: {
             ...persona(v.remitente),
             telefono: v.remitente.telefono,
-            posicion: v.remitente.posicion,
+            posicion: etiquetaCargo(v.miembro.posicionDestacamento) || "Ninguna",
           },
           destacamento: {
             id:
@@ -137,8 +136,21 @@ export function FormularioRegistro({
             horaReunion: horaATexto(v.datos.horaReunion),
           },
         };
+        const m = v.miembro;
+        envio.miembro = {
+          nombres: v.remitente.modo === "existente" ? m.nombres : v.remitente.nombres,
+          apellidos: v.remitente.modo === "existente" ? m.apellidos : v.remitente.apellidos,
+          fechaNacimiento: m.fechaNacimiento ? dayjs(m.fechaNacimiento).format("YYYY-MM-DD") : "",
+          direccion: m.direccion,
+          sexo: m.sexo,
+          talla: m.talla,
+          cargoNacional: m.cargoNacional,
+          posicionDestacamento: m.posicionDestacamento,
+        };
         const form = new FormData();
         form.append("envio", JSON.stringify(envio));
+        // La foto solo viaja si la cambió (si no, es la URL de la que ya tiene).
+        if (m.foto instanceof File) form.append("fotoMiembro", m.foto);
         if (v.logo instanceof File) form.append("logo", v.logo);
         const res = await fetch("/api/envios", { method: "POST", body: form });
         const json = await res.json().catch(() => ({}));
@@ -154,10 +166,13 @@ export function FormularioRegistro({
   );
 
   const otroDestacamento = () => {
+    // La misma persona registra otro: se conservan sus datos y se vuelve al
+    // paso 1, donde ahora se elige el destacamento.
     const remitente = getValues("remitente");
-    reset({ ...valoresIniciales, remitente });
+    const miembro = getValues("miembro");
+    reset({ ...valoresIniciales, remitente, miembro });
     setEnviado(null);
-    setPaso(1);
+    setPaso(0);
   };
 
   return (
@@ -350,31 +365,45 @@ function PasoQuien({ destacamentos, secciones, cargando }) {
         etiqueta="Tu nombre *"
         textoNuevo="No estoy en la lista"
       />
-      <PasoDestacamento
-        destacamentos={destacamentos}
-        secciones={secciones}
-        cargando={cargando}
+      {/* Teléfono, posición y destacamento van dentro de "Tus datos de miembro". */}
+      <DatosMiembro
+        destacamento={
+          <PasoDestacamento
+            destacamentos={destacamentos}
+            secciones={secciones}
+            cargando={cargando}
+          />
+        }
       />
-      <Rejilla>
-        <Field.Phone
-          name="remitente.telefono"
-          label="Tu teléfono *"
-          defaultCountry="DO"
-          maxDigitos={10}
-          placeholder="Ej: 809 555 1234"
-        />
-        <Field.Select
-          name="remitente.posicion"
-          label="Posición en Destacamento *"
-        >
-          {POSICIONES.map((p) => (
-            <MenuItem key={p} value={p}>
-              {p}
-            </MenuItem>
-          ))}
-        </Field.Select>
-      </Rejilla>
     </Stack>
+  );
+}
+
+function PapelConBoton({ children, alPulsar, ...otros }) {
+  return (
+    <Paper {...otros}>
+      {children}
+      <Box
+        sx={{
+          p: 1,
+          borderTop: (t) => `dashed 1px ${t.vars.palette.divider}`,
+        }}
+      >
+        <Button
+          fullWidth
+          variant="soft"
+          startIcon={<Iconify icon="solar:add-circle-linear" />}
+          // mousedown, no click: con click el campo pierde el foco y la lista
+          // se cierra antes de que el botón reciba la pulsación.
+          onMouseDown={(e) => {
+            e.preventDefault();
+            alPulsar?.();
+          }}
+        >
+          Mi destacamento no está
+        </Button>
+      </Box>
+    </Paper>
   );
 }
 
@@ -556,6 +585,10 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
           );
         }}
         noOptionsText='No aparece. Pulsa "Mi destacamento no está".'
+        // "Mi destacamento no está" va dentro del desplegable, fijo abajo: la
+        // lista se desplaza por encima y el botón siempre queda a la vista.
+        slots={{ paper: PapelConBoton }}
+        slotProps={{ paper: { alPulsar: () => cambiarModo("nuevo") } }}
         loadingText="Cargando destacamentos…"
         renderInput={(params) => (
           <TextField
@@ -568,79 +601,7 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
         )}
       />
 
-      {elegido && (
-        <Card variant="outlined" sx={{ p: 2.5 }}>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={2.5}
-            sx={{ alignItems: { sm: "center" } }}
-          >
-            <Box
-              component="img"
-              alt=""
-              src={elegido.foto || "/logo/emblema-erd.png"}
-              sx={{
-                width: 88,
-                height: 88,
-                borderRadius: 2,
-                objectFit: "cover",
-                bgcolor: "background.neutral",
-              }}
-            />
-            <Stack spacing={1} sx={{ minWidth: 0 }}>
-              <Typography variant="h6">
-                {nombreDeDestacamento(elegido)}
-              </Typography>
-              <Stack
-                direction="row"
-                spacing={1}
-                sx={{ flexWrap: "wrap", rowGap: 1 }}
-              >
-                <Chip
-                  size="small"
-                  icon={<Iconify icon="mingcute:location-fill" />}
-                  label={elegido.region || "Sin región"}
-                />
-                <Chip
-                  size="small"
-                  label={`Sección ${elegido.seccion || "—"}`}
-                />
-                {elegido.estado === "inactivo" && (
-                  <Label color="error">Inactivo</Label>
-                )}
-              </Stack>
-              <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                Pastor: {elegido.pastor || "sin registrar"} · Iglesia:{" "}
-                {elegido.iglesia || "sin registrar"}
-              </Typography>
-              <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                Dirección:{" "}
-                {[
-                  elegido.direccion.provincia,
-                  elegido.direccion.municipio,
-                  elegido.direccion.sector,
-                  elegido.direccion.calle,
-                ]
-                  .filter(Boolean)
-                  .join(", ") || "sin registrar"}
-              </Typography>
-            </Stack>
-          </Stack>
-          <Alert severity="info" sx={{ mt: 2 }}>
-            En los siguientes pasos verás estos datos para completarlos o
-            corregirlos.
-          </Alert>
-        </Card>
-      )}
-
-      <Box>
-        <Button
-          startIcon={<Iconify icon="solar:add-circle-linear" />}
-          onClick={() => cambiarModo("nuevo")}
-        >
-          Mi destacamento no está
-        </Button>
-      </Box>
+      {/* Sin ficha del destacamento aquí: sus datos se revisan en los pasos siguientes. */}
     </Stack>
   );
 }
@@ -799,8 +760,20 @@ function PasoUbicacion() {
 // ---------------------------------------------------------------- paso 5
 
 function PasoLideres() {
-  const { control } = useFormContext();
+  const { control, setValue, getValues } = useFormContext();
   const elegido = useWatch({ control, name: "destacamento.elegido" });
+  const coordinador = useWatch({ control, name: "datos.coordinador.miembro" });
+  const remitente = useWatch({ control, name: "remitente.miembro" });
+
+  // Si el coordinador es quien llena el formulario, su teléfono es el que ya
+  // escribió al inicio (solo si aquí aún no hay uno).
+  useEffect(() => {
+    if (!coordinador?.id || String(coordinador.id) !== String(remitente?.id)) return;
+    if (getValues("datos.coordinador.telefono")) return;
+    setValue("datos.coordinador.telefono", getValues("remitente.telefono") || "", {
+      shouldValidate: true,
+    });
+  }, [coordinador?.id, remitente?.id, getValues, setValue]);
   return (
     <Stack spacing={4}>
       <Stack spacing={2}>
@@ -836,11 +809,7 @@ function PasoLideres() {
           label="Teléfono del coordinador"
           defaultCountry="DO"
           maxDigitos={10}
-          helperText={
-            elegido?.coordinadorTieneTelefono
-              ? "Ya hay uno registrado: escríbelo solo si cambió."
-              : ""
-          }
+        
         />
       </Stack>
     </Stack>
@@ -1011,7 +980,7 @@ function PasoConfirmacion({ secciones }) {
           <Iconify icon="solar:user-id-bold" sx={{ color: "text.secondary" }} />
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
             Enviado por <strong>{persona(v.remitente)}</strong> ·{" "}
-            {v.remitente.posicion} · {v.remitente.telefono}
+            {etiquetaCargo(v.miembro.posicionDestacamento) || "Sin posición"} · {v.remitente.telefono}
           </Typography>
         </Stack>
       </Card>

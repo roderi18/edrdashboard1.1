@@ -1,12 +1,10 @@
 import 'server-only';
 
-import { randomUUID } from 'node:crypto';
-
 import * as z from 'zod';
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { db, bucket } from './firebase.mjs';
-import { leerSecciones, leerDestacamentos } from './datos.mjs';
+import { leerSecciones, leerDestacamentos, leerMiembroParaComparar } from './datos.mjs';
 
 // ----------------------------------------------------------------------
 // GUARDAR UN ENVÍO (solo servidor).
@@ -44,6 +42,32 @@ export const EsquemaEnvio = z.object({
     id: z.union([z.number(), z.string()]).nullable().optional(),
     idSeccion: z.union([z.number(), z.string()]).nullable().optional(),
   }),
+  // "Tus datos de miembro" (todo opcional).
+  miembro: z
+    .object({
+      nombres: t(60).optional().default(''),
+      apellidos: t(60).optional().default(''),
+      fechaNacimiento: z
+        .string()
+        .regex(/^(\d{4}-\d{2}-\d{2})?$/, 'Fecha no válida')
+        .optional()
+        .default(''),
+      direccion: z
+        .object({
+          provincia: t(60).optional().default(''),
+          municipio: t(80).optional().default(''),
+          sector: t(100).optional().default(''),
+          calle: t(120).optional().default(''),
+        })
+        .optional()
+        .default({}),
+      sexo: z.enum(['', 'M', 'F']).optional().default(''),
+      talla: t(5).optional().default(''),
+      cargoNacional: t(100).optional().default(''),
+      posicionDestacamento: t(100).optional().default(''),
+    })
+    .optional()
+    .nullable(),
   datos: z.object({
     nombre: t(100).min(2),
     numero: t(6).regex(/^\d*$/, 'Solo números').optional().default(''),
@@ -95,7 +119,24 @@ const cambiosEntre = (antes, despues) => {
     .map(([campo, despues_]) => ({ campo, antes: a[campo] ?? null, despues: despues_ ?? null }));
 };
 
-export async function guardarEnvio({ envio, logo, ip }) {
+// Sube una imagen del envío con token de descarga (el dashboard la usa tal cual).
+async function subirImagen(ref, archivo, nombre) {
+  const ext = LOGO_TIPOS[archivo.type];
+  if (!ext) throw new Error('La imagen debe ser PNG, JPG o WEBP.');
+  if (archivo.size > LOGO_MAX) throw new Error('La imagen pesa más de 2 MB.');
+  const ruta = `${CARPETA_LOGOS}/${ref.id}/${nombre}.${ext}`;
+  const token = globalThis.crypto.randomUUID();
+  const b = bucket();
+  await b.file(ruta).save(Buffer.from(await archivo.arrayBuffer()), {
+    contentType: archivo.type,
+    resumable: false,
+    metadata: { metadata: { firebaseStorageDownloadTokens: token } },
+  });
+  const url = `https://firebasestorage.googleapis.com/v0/b/${b.name}/o/${encodeURIComponent(ruta)}?alt=media&token=${token}`;
+  return { ruta, url, tipo: archivo.type, tamano: archivo.size };
+}
+
+export async function guardarEnvio({ envio, logo, fotoMiembro, ip }) {
   const destacamentos = await leerDestacamentos();
   const secciones = await leerSecciones();
   const existente = envio.destacamento.id
@@ -130,24 +171,21 @@ export async function guardarEnvio({ envio, logo, ip }) {
   };
 
   const ref = db().collection(COLECCION).doc();
-  let logoGuardado = null;
-  if (logo) {
-    const ext = LOGO_TIPOS[logo.type];
-    if (!ext) throw new Error('El logo debe ser PNG, JPG o WEBP.');
-    if (logo.size > LOGO_MAX) throw new Error('El logo pesa más de 2 MB.');
-    const ruta = `${CARPETA_LOGOS}/${ref.id}/logo.${ext}`;
-    // Con token de descarga: el dashboard lo usa como foto del destacamento al
-    // cargarlo, sin depender de quién pueda leer esta carpeta.
-    const token = randomUUID();
-    const b = bucket();
-    await b.file(ruta).save(Buffer.from(await logo.arrayBuffer()), {
-      contentType: logo.type,
-      resumable: false,
-      metadata: { metadata: { firebaseStorageDownloadTokens: token } },
-    });
-    const url = `https://firebasestorage.googleapis.com/v0/b/${b.name}/o/${encodeURIComponent(ruta)}?alt=media&token=${token}`;
-    logoGuardado = { ruta, url, tipo: logo.type, tamano: logo.size };
-  }
+  const logoGuardado = logo ? await subirImagen(ref, logo, 'logo') : null;
+  const fotoMiembroGuardada = fotoMiembro ? await subirImagen(ref, fotoMiembro, 'foto-miembro') : null;
+
+  // Lo registrado hoy del miembro que envía, para ver qué cambia. Se lee aquí
+  // (con fecha y dirección) y nunca vuelve al navegador.
+  const idRemitente = envio.remitente.idMiembro;
+  const miembroAntes = idRemitente ? await leerMiembroParaComparar(idRemitente).catch(() => null) : null;
+  // Lo vacío no cuenta como cambio: en el formulario significa "no lo toco".
+  const soloLleno = (o) =>
+    Object.fromEntries(
+      Object.entries(o || {})
+        .map(([k, v]) => [k, v && typeof v === 'object' ? soloLleno(v) : v])
+        .filter(([, v]) => (v && typeof v === 'object' ? Object.keys(v).length : v !== '' && v != null))
+    );
+  const miembroEnviado = envio.miembro ? soloLleno(envio.miembro) : null;
 
   const nombreRemitente = `${envio.remitente.nombres} ${envio.remitente.apellidos}`.trim();
   await ref.set({
@@ -172,6 +210,10 @@ export async function guardarEnvio({ envio, logo, ip }) {
     antes,
     cambios: antes ? cambiosEntre(antes, comparable) : [],
     logo: logoGuardado,
+    miembro: miembroEnviado,
+    miembroAntes,
+    cambiosMiembro: miembroAntes && miembroEnviado ? cambiosEntre(miembroAntes, miembroEnviado) : [],
+    fotoMiembro: fotoMiembroGuardada,
     // Solo para detectar abusos; no es un dato de la persona.
     ipAproximada: String(ip || '').split(',')[0].trim().replace(/\.\d+$/, '.x'),
   });

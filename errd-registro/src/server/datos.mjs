@@ -225,3 +225,72 @@ export async function buscarMiembros(consulta) {
     .slice(0, 10)
     .map(({ m }) => m);
 }
+
+// ---------------------------------------------------------------- ficha del miembro
+
+// Lo que se precarga al elegir un nombre. La página es pública y sin sesión:
+// SOLO lo no sensible (nombre, sexo, talla, destacamento, cargos y foto). La
+// fecha de nacimiento, el teléfono y la dirección no salen nunca del servidor;
+// la persona los escribe si quiere actualizarlos.
+const cargosDe = async (idMiembro) => {
+  const snap = await db()
+    .collection('asignacionesDirectiva')
+    .where('idMiembro', 'in', [String(idMiembro), Number(idMiembro)])
+    .get();
+  const activas = snap.docs.map((d) => d.data()).filter((a) => a.activo !== false && !a.fechaFin);
+  return {
+    posicionDestacamento: activas.find((a) => a.nivel === 'destacamento')?.idPosicionDirectiva || '',
+    cargoNacional: activas.find((a) => a.nivel !== 'destacamento')?.idPosicionDirectiva || '',
+  };
+};
+
+const fotoDeMiembro = async (idMiembro) => {
+  const snap = await db()
+    .collection('fotos')
+    .where('tipoEntidad', '==', 'miembro')
+    .where('idEntidad', '==', String(idMiembro))
+    .get();
+  const f = snap.docs.map((d) => d.data()).find((x) => x.tipoFoto === 'perfil' && x.estado === 'activo');
+  return f?.urlFoto || '';
+};
+
+/** Datos no sensibles de un miembro elegible, o null si no es elegible. */
+export async function leerFichaMiembro(id) {
+  const elegible = (await miembrosElegibles()).find((m) => String(m.id) === String(id));
+  if (!elegible) return null;
+  const crudo = (await leerMiembrosCrudos()).find((m) => String(m.idMiembros) === String(id)) || {};
+  const [cargos, foto] = await Promise.all([
+    cargosDe(id).catch(() => ({ posicionDestacamento: '', cargoNacional: '' })),
+    fotoDeMiembro(id).catch(() => ''),
+  ]);
+  return {
+    id: elegible.id,
+    nombres: texto(crudo.nombres),
+    apellidos: texto(crudo.apellidos),
+    sexo: ['M', 'F'].includes(texto(crudo.genero)) ? texto(crudo.genero) : '',
+    talla: texto(crudo.sizeCamisas),
+    idDestacamento: elegible.idDestacamento,
+    ...cargos,
+    foto,
+  };
+}
+
+/** Lo registrado HOY de un miembro, completo, para comparar en el servidor (nunca va al navegador). */
+export async function leerMiembroParaComparar(id) {
+  const crudo = (await leerMiembrosCrudos()).find((m) => String(m.idMiembros) === String(id));
+  if (!crudo) return null;
+  const cargos = await cargosDe(id).catch(() => ({ posicionDestacamento: '', cargoNacional: '' }));
+  const [provincia = '', municipio = '', sector = '', ...resto] = texto(crudo.direccion)
+    .split(',')
+    .map((p) => p.trim());
+  return {
+    nombres: texto(crudo.nombres),
+    apellidos: texto(crudo.apellidos),
+    fechaNacimiento: texto(crudo.fechaNacimiento).slice(0, 10),
+    direccion: { provincia, municipio, sector, calle: resto.join(', ') },
+    sexo: texto(crudo.genero),
+    talla: texto(crudo.sizeCamisas),
+    idDestacamento: crudo.idDestacamento ?? null,
+    ...cargos,
+  };
+}

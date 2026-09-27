@@ -29,7 +29,7 @@ export const PASOS = [
 // Qué campos valida cada paso (para `trigger`).
 export const CAMPOS_DEL_PASO = {
   // El destacamento va en el mismo paso, debajo del nombre (se pone solo).
-  quien: ['remitente', 'destacamento'],
+  quien: ['remitente', 'destacamento', 'miembro'],
   general: ['datos.nombre', 'datos.numero', 'datos.iglesia', 'datos.cantidadMiembros'],
   ubicacion: ['datos.direccion'],
   lideres: ['datos.pastor', 'datos.coordinador'],
@@ -46,7 +46,8 @@ export const Esquema = z
       nombres: z.string().trim(),
       apellidos: z.string().trim(),
       telefono: z.string().trim().refine((v) => telefonoValido(v) && v, 'Escribe tu teléfono'),
-      posicion: requerido('Elige tu posición'),
+      // Sale de "Nivel posición en tu Destacamento" al enviar (ya no hay otra lista).
+      posicion: z.string().trim(),
     }),
     destacamento: z.object({
       modo: z.enum(['existente', 'nuevo']),
@@ -54,6 +55,23 @@ export const Esquema = z
       idSeccion: z.any().nullable(),
     }),
     logo: z.any().nullable(),
+    // "Tus datos de miembro": todo opcional; lo que se deje vacío no cambia.
+    miembro: z.object({
+      foto: z.any().nullable(),
+      nombres: z.string().trim().max(60),
+      apellidos: z.string().trim().max(60),
+      fechaNacimiento: z.any().nullable(),
+      direccion: z.object({
+        provincia: z.string().trim(),
+        municipio: z.string().trim(),
+        sector: z.string().trim(),
+        calle: z.string().trim().max(120),
+      }),
+      sexo: z.string(),
+      talla: z.string(),
+      cargoNacional: z.string(),
+      posicionDestacamento: z.string().min(1, 'Elige tu posición en el destacamento'),
+    }),
     datos: z.object({
       nombre: requerido('Escribe el nombre del destacamento'),
       numero: z.string().trim().regex(/^\d{0,6}$/, 'Solo números'),
@@ -106,6 +124,17 @@ export const valoresIniciales = {
   remitente: { modo: 'existente', miembro: null, nombres: '', apellidos: '', telefono: '', posicion: '' },
   destacamento: { modo: 'existente', elegido: null, idSeccion: null },
   logo: null,
+  miembro: {
+    foto: null,
+    nombres: '',
+    apellidos: '',
+    fechaNacimiento: null,
+    direccion: { provincia: '', municipio: '', sector: '', calle: '' },
+    sexo: '',
+    talla: '',
+    cargoNacional: '',
+    posicionDestacamento: '',
+  },
   datos: {
     nombre: '',
     numero: '',

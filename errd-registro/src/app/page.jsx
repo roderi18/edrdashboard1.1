@@ -5,8 +5,8 @@ import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 
-import { FormularioRegistro } from 'src/sections/registro/formulario-registro';
 import { Pie, Portada, Encabezado } from 'src/sections/registro/portada';
+import { FormularioRegistro } from 'src/sections/registro/formulario-registro';
 
 // ----------------------------------------------------------------------
 // La única página: portada + formulario de registro/actualización.

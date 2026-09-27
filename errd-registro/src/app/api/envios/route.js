@@ -26,9 +26,12 @@ export async function POST(req) {
     if (resultado.data.trampa) return Response.json({ ok: true });
 
     const logo = form.get('logo');
+    const fotoMiembro = form.get('fotoMiembro');
+    const archivo = (a) => (a && typeof a === 'object' && a.size ? a : null);
     const { id } = await guardarEnvio({
       envio: resultado.data,
-      logo: logo && typeof logo === 'object' && logo.size ? logo : null,
+      logo: archivo(logo),
+      fotoMiembro: archivo(fotoMiembro),
       ip,
     });
 
