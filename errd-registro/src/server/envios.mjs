@@ -4,7 +4,7 @@ import * as z from 'zod';
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { db, bucket } from './firebase.mjs';
-import { leerSecciones, leerDestacamentos, leerMiembroParaComparar } from './datos.mjs';
+import { leerSecciones, codigoDeMiembro, leerDestacamentos, leerMiembroParaComparar } from './datos.mjs';
 
 // ----------------------------------------------------------------------
 // GUARDAR UN ENVÍO (solo servidor).
@@ -187,6 +187,11 @@ export async function guardarEnvio({ envio, logo, fotoMiembro, ip }) {
     );
   const miembroEnviado = envio.miembro ? soloLleno(envio.miembro) : null;
 
+  // El código del miembro lo pone el servidor: el navegador nunca lo ve ni lo manda.
+  const [codigoRemitente, codigoCoordinador] = await Promise.all([
+    codigoDeMiembro(envio.remitente.idMiembro).catch(() => null),
+    codigoDeMiembro(envio.datos.coordinador.idMiembro).catch(() => null),
+  ]);
   const nombreRemitente = `${envio.remitente.nombres} ${envio.remitente.apellidos}`.trim();
   await ref.set({
     id: ref.id,
@@ -198,6 +203,7 @@ export async function guardarEnvio({ envio, logo, fotoMiembro, ip }) {
       nombre: nombreRemitente,
       idMiembro: envio.remitente.idMiembro ? String(envio.remitente.idMiembro) : null,
       esPersonaNueva: !envio.remitente.idMiembro,
+      codigoMiembro: codigoRemitente,
       telefono: envio.remitente.telefono,
       posicion: envio.remitente.posicion,
     },
@@ -206,7 +212,7 @@ export async function guardarEnvio({ envio, logo, fotoMiembro, ip }) {
     numeroDestacamento: datos.numero || '',
     seccion: { id: String(seccion.id), nombre: seccion.nombre },
     region: { id: String(seccion.idRegion ?? ''), nombre: seccion.region },
-    datos,
+    datos: { ...datos, coordinador: { ...datos.coordinador, codigoMiembro: codigoCoordinador } },
     antes,
     cambios: antes ? cambiosEntre(antes, comparable) : [],
     logo: logoGuardado,

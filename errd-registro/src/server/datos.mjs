@@ -294,3 +294,10 @@ export async function leerMiembroParaComparar(id) {
     ...cargos,
   };
 }
+
+/** Código de miembro (EDR-…) por id. SOLO para guardarlo en el envío: nunca va al navegador. */
+export async function codigoDeMiembro(id) {
+  if (!id) return null;
+  const crudo = (await leerMiembrosCrudos()).find((m) => String(m.idMiembros) === String(id));
+  return texto(crudo?.codigoMiembro) || null;
+}

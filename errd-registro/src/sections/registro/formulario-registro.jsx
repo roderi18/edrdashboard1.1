@@ -24,6 +24,7 @@ import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import Autocomplete from "@mui/material/Autocomplete";
 import ToggleButton from "@mui/material/ToggleButton";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import LinearProgress from "@mui/material/LinearProgress";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 
@@ -31,6 +32,7 @@ import { toast } from "src/components/snackbar";
 import { Iconify } from "src/components/iconify";
 import { Form, Field } from "src/components/hook-form";
 
+import { FotoMovil } from "./foto-movil";
 import { MapaDestacamentos } from "./portada";
 import { BuscarPersona } from "./buscar-persona";
 import { DatosMiembro, etiquetaCargo } from "./datos-miembro";
@@ -611,6 +613,7 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
 function PasoGeneral() {
   const { control } = useFormContext();
   const elegido = useWatch({ control, name: "destacamento.elegido" });
+  const esMovil = useMediaQuery((t) => t.breakpoints.down("md"));
   return (
     <Stack spacing={3}>
       <Rejilla>
@@ -659,7 +662,12 @@ function PasoGeneral() {
             },
           }}
         >
-          <Field.Upload name="logo" optimizationPreset="avatar" />
+          {/* En el celular, un botón corto para elegir la foto; en pantalla grande, la caja de arrastrar. */}
+          {esMovil ? (
+            <FotoMovil name="logo" />
+          ) : (
+            <Field.Upload name="logo" optimizationPreset="avatar" />
+          )}
           {elegido?.foto && (
             <Stack spacing={1} sx={{ alignItems: "center" }}>
               <Box

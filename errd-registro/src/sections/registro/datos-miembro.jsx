@@ -160,7 +160,7 @@ export function DatosMiembro({ destacamento }) {
         <Typography variant="subtitle1">Tus datos de miembro</Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           Revisa y corrige lo que haga falta. Por tu privacidad, la fecha de nacimiento y la
-          dirección no se muestran: escríbelas solo si quieres actualizarlas.
+          dirección no se muestran. Esta información solo estará bajo el poder de Oficinal Nacional, Rep. Dom.
         </Typography>
       </Box>
 
