@@ -1,10 +1,11 @@
-import { getDoc } from 'firebase/firestore';
+import { getDoc, getDocs, collection } from 'firebase/firestore';
 
 import { leerConCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import {
   ESTADOS_DESTACAMENTO,
   etiquetaEstadoDestacamento,
   normalizarEstadoDestacamento,
+  COLECCION_ESTADO_DESTACAMENTOS,
 } from 'src/utils/estado-destacamento.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -34,6 +35,21 @@ export function leerEstadoDeDestacamento(idDestacamento) {
   return leerConCache(`estado-destacamento:${idDestacamento}`, async () => {
     const snap = await getDoc(referenciaDeEstadoDeDestacamento(idDestacamento));
     return normalizarEstadoDestacamento(snap.exists() ? snap.data()?.estado : null);
+  });
+}
+
+/**
+ * Todos los estados de una vez, para la lista: id → estado. El que no tiene
+ * documento no sale (y es Activo). Una lectura por destacamento eran cientos.
+ */
+export function leerEstadosDeDestacamentos() {
+  if (!isFirebaseConfigured || !FIRESTORE) return Promise.resolve(new Map());
+
+  return leerConCache('estado-destacamento:todos', async () => {
+    const snap = await getDocs(collection(FIRESTORE, COLECCION_ESTADO_DESTACAMENTOS));
+    return new Map(
+      snap.docs.map((d) => [String(d.id), normalizarEstadoDestacamento(d.data()?.estado)])
+    );
   });
 }
 

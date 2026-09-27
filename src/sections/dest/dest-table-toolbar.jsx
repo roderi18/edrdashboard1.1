@@ -14,6 +14,7 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { printTablePdf } from 'src/utils/download-table-pdf';
+import { OPCIONES_ESTADO_DESTACAMENTO } from 'src/utils/estado-destacamento.mjs';
 import { getCell, formatExcelDate, uploadExcelRows } from 'src/utils/excel-upload';
 
 import { authHeaders } from 'src/services/member-service';
@@ -45,6 +46,9 @@ export function DestTableToolbar({
   // columna se ignora y el destacamento entra sin numero, como al crearlo a
   // mano.
   canAssignDestNumber = false,
+  // Filtro por estado (Registrado, Activo, Inactivo, No reconocido); vacío = todos.
+  filtroEstado = [],
+  onFiltroEstado,
 }) {
   const menuActions = usePopover();
   const uploadInputRef = useRef(null);
@@ -272,6 +276,21 @@ export function DestTableToolbar({
           </Box>
         )}
 
+        {!isMobile && onFiltroEstado && (
+          <Box sx={{ display: 'flex', alignItems: 'center', width: { xs: '100%', md: 'auto' } }}>
+            {renderFilterSelect(
+              'estado',
+              'Estado',
+              OPCIONES_ESTADO_DESTACAMENTO,
+              filtroEstado,
+              (event) => {
+                const v = event.target.value;
+                onFiltroEstado(typeof v === 'string' ? v.split(',') : v);
+              }
+            )}
+          </Box>
+        )}
+
         {!isMobile && showSectionFilter && (
           <Box
             sx={{
@@ -319,17 +338,37 @@ export function DestTableToolbar({
               }}
             />
 
-            {showSectionFilter && (
+            {(showSectionFilter || onFiltroEstado) && (
               <TableToolbarMobileFilter
-                hasActiveFilters={currentFilters.sectionalName.length}
+                hasActiveFilters={
+                  (showSectionFilter ? currentFilters.sectionalName.length : 0) + filtroEstado.length
+                }
                 filtersConfig={[
-                  {
-                    key: 'sectionalName',
-                    label: 'Sección',
-                    value: currentFilters.sectionalName,
-                    onChange: handleFilterSectionalFullName,
-                    options: options.sectionalName,
-                  },
+                  ...(onFiltroEstado
+                    ? [
+                        {
+                          key: 'estado',
+                          label: 'Estado',
+                          value: filtroEstado,
+                          onChange: (event) => {
+                            const v = event.target.value;
+                            onFiltroEstado(typeof v === 'string' ? v.split(',') : v);
+                          },
+                          options: OPCIONES_ESTADO_DESTACAMENTO,
+                        },
+                      ]
+                    : []),
+                  ...(showSectionFilter
+                    ? [
+                        {
+                          key: 'sectionalName',
+                          label: 'Sección',
+                          value: currentFilters.sectionalName,
+                          onChange: handleFilterSectionalFullName,
+                          options: options.sectionalName,
+                        },
+                      ]
+                    : []),
                 ]}
               />
             )}

@@ -1,3 +1,11 @@
+import {
+  COLOR_ESTADO_DESTACAMENTO,
+  etiquetaEstadoDestacamento,
+  normalizarEstadoDestacamento,
+} from 'src/utils/estado-destacamento.mjs';
+
+import { Label } from 'src/components/label';
+
 import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
 // ----------------------------------------------------------------------
@@ -48,7 +56,12 @@ export function DestCard({ dest, sx, ...other }) {
     coordinatorName === UNKNOWN_COORDINATOR ? coordinatorName : `Coord. ${coordinatorName}`;
   const sectionalLine =
     sectionalName === UNKNOWN_SECTIONAL ? sectionalName : `Secci\u00f3n ${sectionalName}`;
-  const regionalLine = regionalName ? `Regi\u00f3n ${regionalName}` : '';
+  // Las regiones ya se llaman "Regi\u00f3n Este": sin esto sal\u00eda "Regi\u00f3n Regi\u00f3n Este".
+  const regionalLine = !regionalName
+    ? ''
+    : /^regi[o\u00f3]n\b/i.test(regionalName)
+      ? regionalName
+      : `Regi\u00f3n ${regionalName}`;
 
   return (
     <CompactEntityCard
@@ -67,6 +80,16 @@ export function DestCard({ dest, sx, ...other }) {
         },
         {
           text: sectionalLine,
+          // El estado va a la derecha de la sección.
+          adorno: (
+            <Label
+              variant="soft"
+              color={COLOR_ESTADO_DESTACAMENTO[normalizarEstadoDestacamento(dest?.estado)]}
+              sx={{ height: 20, fontSize: 11 }}
+            >
+              {etiquetaEstadoDestacamento(dest?.estado)}
+            </Label>
+          ),
           href:
             sectionalName !== UNKNOWN_SECTIONAL
               ? `/dashboard/level/sectional?sectional=${encodeURIComponent(sectionalName)}`

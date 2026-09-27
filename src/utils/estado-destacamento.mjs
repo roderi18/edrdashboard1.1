@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// ESTADO DEL DESTACAMENTO (Activo / Inactivo).
+// ESTADO DEL DESTACAMENTO (Registrado / Activo / Inactivo / No reconocido).
 //
 // Lo lleva el registro nacional, igual que el número: solo lo mueven el
 // Administrador Global y la Oficina Nacional (`puedeCambiarEstadoDeDestacamento`).
@@ -12,20 +12,54 @@
 export const COLECCION_ESTADO_DESTACAMENTOS = 'estado_destacamentos';
 
 export const ESTADOS_DESTACAMENTO = {
+  registrado: 'registrado',
   activo: 'activo',
   inactivo: 'inactivo',
+  noReconocido: 'no_reconocido',
 };
 
+// En este orden salen en el desplegable.
 export const OPCIONES_ESTADO_DESTACAMENTO = [
-  { value: ESTADOS_DESTACAMENTO.activo, label: 'Activo' },
-  { value: ESTADOS_DESTACAMENTO.inactivo, label: 'Inactivo' },
+  {
+    value: ESTADOS_DESTACAMENTO.registrado,
+    label: 'Registrado',
+    descripcion: 'Destacamento activo y paga su renovación de membresía a la Oficina Nacional.',
+  },
+  {
+    value: ESTADOS_DESTACAMENTO.activo,
+    label: 'Activo',
+    descripcion: 'Destacamento activo, pero no paga su renovación.',
+  },
+  {
+    value: ESTADOS_DESTACAMENTO.inactivo,
+    label: 'Inactivo',
+    descripcion: 'Destacamento no funciona en la iglesia local.',
+  },
+  {
+    value: ESTADOS_DESTACAMENTO.noReconocido,
+    label: 'No reconocido',
+    descripcion: 'Destacamento en formación, sin número asignado.',
+  },
 ];
 
-/** Lo que venga (ausente, mayúsculas, basura) acaba en uno de los dos estados. */
-export const normalizarEstadoDestacamento = (valor) =>
-  String(valor ?? '').trim().toLowerCase() === ESTADOS_DESTACAMENTO.inactivo
-    ? ESTADOS_DESTACAMENTO.inactivo
-    : ESTADOS_DESTACAMENTO.activo;
+const VALORES = new Set(Object.values(ESTADOS_DESTACAMENTO));
+
+/** Lo que venga (ausente, mayúsculas, "No reconocido", basura) acaba en uno de los cuatro. */
+export const normalizarEstadoDestacamento = (valor) => {
+  const limpio = String(valor ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+  return VALORES.has(limpio) ? limpio : ESTADOS_DESTACAMENTO.activo;
+};
+
+// Color del Label en las listas (paleta del tema).
+export const COLOR_ESTADO_DESTACAMENTO = {
+  registrado: 'success',
+  activo: 'info',
+  inactivo: 'error',
+  no_reconocido: 'default',
+};
 
 export const etiquetaEstadoDestacamento = (valor) =>
   OPCIONES_ESTADO_DESTACAMENTO.find((o) => o.value === normalizarEstadoDestacamento(valor)).label;

@@ -27,6 +27,8 @@ export function CompactEntityTableCell({
   cellSx,
   // Texto del aviso de advertencia sobre la foto (vacío = sin aviso).
   avatarAviso = '',
+  // Algo más debajo del subtítulo (p. ej. el estado del destacamento).
+  extra = null,
 }) {
   const hasHref = Boolean(href);
   const titleSx = {
@@ -85,6 +87,8 @@ export function CompactEntityTableCell({
                 {subtitle}
               </Box>
             ))}
+
+          {extra}
         </Stack>
       </Box>
     </TableCell>

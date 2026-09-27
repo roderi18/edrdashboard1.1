@@ -23,6 +23,7 @@ import { sortOwnFirst } from 'src/utils/sort-own-first';
 import { normalizeText } from 'src/utils/normalize-text';
 import { countMembersByDestId } from 'src/utils/member-count';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
+import { ESTADOS_DESTACAMENTO } from 'src/utils/estado-destacamento.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
 import {
   getOwnDestIdsForUser,
@@ -55,6 +56,7 @@ import { getRegionals } from 'src/services/regional-service';
 import { useLecturasVivas } from 'src/lib/avisos-de-lecturas';
 import { getSectionals } from 'src/services/sectional-service';
 import { getDests, getDestsApi, deleteDestApi } from 'src/services/dest-service';
+import { leerEstadosDeDestacamentos } from 'src/services/estado-destacamentos-service';
 import { obtenerAsignacionesDirectivaMiembros } from 'src/services/directivas-organizacionales-service';
 
 import { Label } from 'src/components/label';
@@ -540,12 +542,33 @@ export function DestListView({ sectionalId = null }) {
   // Orden inicial: primero los destacamentos del alcance del usuario (el propio
   // y, para los cargos seccionales/regionales, los de su sección o región). Si el
   // usuario ordena por una columna, manda su criterio (ver `sortOwnFirst`).
+  // Estado de cada destacamento (Registrado, Activo…): una sola lectura para
+  // toda la lista; el que no tiene documento es Activo.
+  const [estados, setEstados] = useState(() => new Map());
+  useEffect(() => {
+    let vigente = true;
+    leerEstadosDeDestacamentos()
+      .then((mapa) => vigente && setEstados(mapa))
+      .catch(() => {});
+    return () => {
+      vigente = false;
+    };
+  }, []);
+  const tableDataConEstado = useMemo(
+    () =>
+      tableData.map((row) => ({
+        ...row,
+        estado: estados.get(String(row.id)) || ESTADOS_DESTACAMENTO.activo,
+      })),
+    [tableData, estados]
+  );
+
   const dataSinFiltroInfo = useMemo(() => {
     // La seccion acota, no abre: lo que llega en `tableData` ya paso por
     // `filterDestsByMemberScope`.
     const inputData = esPestanaDeSeccion
-      ? tableData.filter((row) => String(row?.sectionalId ?? '') === String(sectionalId))
-      : tableData;
+      ? tableDataConEstado.filter((row) => String(row?.sectionalId ?? '') === String(sectionalId))
+      : tableDataConEstado;
 
     const filtered = applyFilter({
       inputData,
@@ -576,7 +599,7 @@ export function DestListView({ sectionalId = null }) {
         ownScope.regionIds.has(normalizeDestId(row.regionalId))
     );
   }, [
-    tableData,
+    tableDataConEstado,
     table.order,
     table.orderBy,
     table.hasUserSorted,
@@ -590,13 +613,18 @@ export function DestListView({ sectionalId = null }) {
   // Filtro "Completos / Incompletos" junto al porcentaje. Va aparte y después:
   // el porcentaje se calcula sobre la lista SIN este filtro, o siempre daría 0% o 100%.
   const [filtroInfo, setFiltroInfo] = useState('todos');
+  // Filtro por estado, a la derecha del buscador (vacío = todos).
+  const [filtroEstado, setFiltroEstado] = useState([]);
   const dataFiltered = useMemo(() => {
-    if (!verInfoCompleta || filtroInfo === 'todos') return dataSinFiltroInfo;
+    const porEstado = filtroEstado.length
+      ? dataSinFiltroInfo.filter((row) => filtroEstado.includes(row.estado))
+      : dataSinFiltroInfo;
+    if (!verInfoCompleta || filtroInfo === 'todos') return porEstado;
     const quiereCompletos = filtroInfo === 'completos';
-    return dataSinFiltroInfo.filter(
+    return porEstado.filter(
       (row) => Array.isArray(row.infoFaltante) && (row.infoFaltante.length === 0) === quiereCompletos
     );
-  }, [dataSinFiltroInfo, filtroInfo, verInfoCompleta]);
+  }, [dataSinFiltroInfo, filtroInfo, verInfoCompleta, filtroEstado]);
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
@@ -703,6 +731,11 @@ export function DestListView({ sectionalId = null }) {
             options={{ sectionalName: distinctSectionalFullName }}
             showSectionFilter={!isDestacamentoAdminRole(user)}
             canAssignDestNumber={puedeAsignarNumeroDeDestacamento(user)}
+            filtroEstado={filtroEstado}
+            onFiltroEstado={(valor) => {
+              table.onResetPage();
+              setFiltroEstado(valor);
+            }}
           />
 
           {canReset && (

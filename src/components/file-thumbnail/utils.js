@@ -35,7 +35,7 @@ export const FILE_FORMATS = {
   illustrator: ['ai', 'eps'],
 };
 export const CUSTOM_FOLDER_ICONS = {
-  exploradores: '/icons/exploradores.png',
+  exploradores: '/sistemaAscenso/Academia Ministerial/exploradores.webp',
 };
 
 export const EXTRA_EXTENSIONS = ['folder'];

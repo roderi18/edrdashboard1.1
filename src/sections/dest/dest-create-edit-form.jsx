@@ -21,6 +21,7 @@ import { countMembersByDestId } from 'src/utils/member-count';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { construirResumenMiembro } from 'src/utils/leadership-assignments';
+import { etiquetaEstadoDestacamento } from 'src/utils/estado-destacamento.mjs';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import {
   getOwnRegionIdsForUser,
@@ -146,12 +147,21 @@ const disabledReadableFieldSx = {
 
 const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
   const church = churches.find((c) => String(c.id) === String(dest.churchId)) || {};
-  const direccionParts = (church.address || '')
-    .split(',')
-    .map(p => p.trim())
-    .filter(Boolean);
+  // Se lee por POSICIONES y sin quitar los huecos: "Provincia, Municipio, , Calle"
+  // (sin sector) perdía el hueco con filter(Boolean) y la calle caía en el
+  // sector, así que no se veía ninguna de las dos. Con tres partes, la tercera
+  // es la calle salvo que sea un sector conocido.
+  const direccionParts = (church.address || '').split(',').map((p) => p.trim());
+  if (
+    direccionParts.length === 3 &&
+    !barriosData.some((b) => b.nombre === direccionParts[2])
+  ) {
+    direccionParts.splice(2, 0, '');
+  }
 
-  const [provinceName = '', municipioName = '', sectorName = '', street = ''] = direccionParts;
+  const [provinceName = '', municipioName = '', sectorName = '', ...resto] = direccionParts;
+  // La calle puede llevar comas propias ("C/ 5, esq. 8").
+  const street = resto.join(', ');
   const province = provinces.find(p => p.nombre?.trim() === provinceName);
   const municipio = municipios.find(m => m.nombre === municipioName);
   const sector = sectores.find(s => s.nombre === sectorName);
@@ -328,7 +338,7 @@ export function DestCreateEditForm({ currentDest }) {
         return;
       }
 
-      toast.success(`Destacamento ${estado === 'inactivo' ? 'inactivo' : 'activo'}.`);
+      toast.success(`Estado del destacamento: ${etiquetaEstadoDestacamento(estado)}.`);
     } catch (error) {
       console.error('[destacamento] no se pudo guardar el estado', error);
       setDestStatus(anterior);

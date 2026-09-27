@@ -12,7 +12,10 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
-import { puedeEntrarAAdministracion } from 'src/utils/org-level-access';
+import {
+  puedeEntrarAAdministracion,
+  puedeRevisarActualizacionesDeDestacamentos,
+} from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -64,6 +67,13 @@ const NAV_ITEMS = [
     label: 'Sonidos',
     icon: <Iconify width={24} icon="solar:volume-loud-bold" />,
     href: paths.dashboard.admin.sonidos,
+  },
+  {
+    label: 'Actualización de destacamentos',
+    icon: <Iconify width={24} icon="solar:inbox-in-bold" />,
+    href: paths.dashboard.admin.actualizacionesDestacamentos,
+    // Solo la ven quienes revisan los envíos de la landing.
+    soloSi: puedeRevisarActualizacionesDeDestacamentos,
   },
 ];
 
@@ -175,7 +185,7 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
           },
         }}
       >
-        {NAV_ITEMS.map((tab) => (
+        {NAV_ITEMS.filter((tab) => !tab.soloSi || tab.soloSi(user)).map((tab) => (
           <Tab
             component={RouterLink}
             key={tab.href}

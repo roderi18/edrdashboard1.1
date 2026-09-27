@@ -11,6 +11,11 @@ import ListItemButton from '@mui/material/ListItemButton';
 import { useRouter } from 'src/routes/hooks';
 
 import { fToNow } from 'src/utils/format-time';
+import {
+  COLOR_ESTADO_REPORTE,
+  etiquetaEstadoReporte,
+  normalizarEstadoReporte,
+} from 'src/utils/estado-reporte-problema.mjs';
 
 import {
   esNotificacionDeCumpleanos,
@@ -244,7 +249,14 @@ export function NotificationItem({ notification, onClickNotification, onMarkAsAt
               <Box component="span" sx={{ fontWeight: 'fontWeightBold' }}>
                 {nombreReportante}
               </Box>{' '}
-              reportó un problema.
+              reportó un problema.{' '}
+              {/* El estado lo cambian los Administradores Globales desde el chat. */}
+              <Label
+                color={COLOR_ESTADO_REPORTE[normalizarEstadoReporte(notification.metadatos?.reporteProblema?.estado)]}
+                sx={{ ml: 0.5, height: 20, fontSize: 11, verticalAlign: 'middle' }}
+              >
+                {etiquetaEstadoReporte(notification.metadatos?.reporteProblema?.estado)}
+              </Label>
             </Box>
           ) : (
             readerContent(notification.title)

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
 import Popover from '@mui/material/Popover';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
@@ -15,7 +17,16 @@ import { fToNow } from 'src/utils/format-time';
 import { fDopCurrency } from 'src/utils/format-number';
 import { fraseDeCumpleanos } from 'src/utils/chat-sistema.mjs';
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
+import {
+  ESTADOS_REPORTE,
+  COLOR_ESTADO_REPORTE,
+  etiquetaEstadoReporte,
+  normalizarEstadoReporte,
+} from 'src/utils/estado-reporte-problema.mjs';
 
+import { cambiarEstadoDeReporte } from 'src/services/bug-report-service';
+
+import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
@@ -287,6 +298,129 @@ const renderMessageBodyText = (text = '', metadata = {}, participants = []) => {
       </Box>
     ));
 };
+
+// Tarjeta del reporte de problema: su color sigue el estado (Abierto en rojo,
+// En progreso en amarillo, Resuelto en verde) y abajo van los botones para
+// cambiarlo. El cambio lo escribe el servidor en el mensaje, así que se ve al
+// momento en el chat de todos los Administradores Globales.
+function TarjetaReporteProblema({ reporte }) {
+  const [guardando, setGuardando] = useState('');
+  const estado = normalizarEstadoReporte(reporte.estado);
+  const color = COLOR_ESTADO_REPORTE[estado];
+
+  const cambiar = async (nuevo) => {
+    setGuardando(nuevo);
+    try {
+      await cambiarEstadoDeReporte({ idReporte: reporte.id, estado: nuevo });
+      toast.success(`Reporte: ${etiquetaEstadoReporte(nuevo)}.`);
+    } catch (error) {
+      toast.error(error.message || 'No se pudo cambiar el estado.');
+    } finally {
+      setGuardando('');
+    }
+  };
+
+  return (
+    <Box
+      sx={[
+        (theme) => ({
+          p: 1.25,
+          borderRadius: 1.25,
+          border: `1px solid ${theme.vars.palette[color].main}`,
+          bgcolor: `${color}.lighter`,
+        }),
+        (theme) =>
+          theme.applyStyles('dark', {
+            bgcolor: varAlpha(theme.vars.palette[color].mainChannel, 0.24),
+            color: '#fff',
+            '& .MuiTypography-root.MuiTypography-caption': {
+              color: 'rgba(255,255,255,0.78)',
+            },
+          }),
+      ]}
+    >
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+        <Avatar src={reporte.fotoUrl} alt={reporte.nombre} sx={{ width: 34, height: 34 }}>
+          <Iconify icon="solar:bug-bold" width={18} />
+        </Avatar>
+        <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+          <Typography variant="subtitle2" noWrap>
+            {reporte.nombre}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {new Date(reporte.fecha).toLocaleString('es-DO', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })}
+          </Typography>
+        </Box>
+        <Label color={color} variant="filled">
+          {etiquetaEstadoReporte(estado)}
+        </Label>
+      </Stack>
+      <Typography component="div" variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+        {reporte.mensaje}
+      </Typography>
+      {reporte.ruta && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+          Pantalla: {reporte.ruta}
+        </Typography>
+      )}
+      {reporte.estadoPorNombre && estado !== ESTADOS_REPORTE.abierto && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          {etiquetaEstadoReporte(estado)} · {reporte.estadoPorNombre}
+          {reporte.estadoEn
+            ? ` · ${new Date(reporte.estadoEn).toLocaleString('es-DO', {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              })}`
+            : ''}
+        </Typography>
+      )}
+      <Stack direction="row" spacing={1} sx={{ mt: 1.25, flexWrap: 'wrap', rowGap: 1 }}>
+        {estado === ESTADOS_REPORTE.resuelto ? (
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            loading={guardando === ESTADOS_REPORTE.abierto}
+            startIcon={<Iconify icon="solar:restart-bold" />}
+            onClick={() => cambiar(ESTADOS_REPORTE.abierto)}
+          >
+            Reabrir
+          </Button>
+        ) : (
+          <>
+            {estado !== ESTADOS_REPORTE.enProgreso && (
+              <Button
+                size="small"
+                variant="soft"
+                color="warning"
+                loading={guardando === ESTADOS_REPORTE.enProgreso}
+                disabled={!!guardando}
+                startIcon={<Iconify icon="solar:settings-bold" />}
+                onClick={() => cambiar(ESTADOS_REPORTE.enProgreso)}
+              >
+                En progreso
+              </Button>
+            )}
+            <Button
+              size="small"
+              variant="soft"
+              color="success"
+              loading={guardando === ESTADOS_REPORTE.resuelto}
+              disabled={!!guardando}
+              startIcon={<Iconify icon="solar:check-circle-bold" />}
+              onClick={() => cambiar(ESTADOS_REPORTE.resuelto)}
+            >
+              Marcar como resuelto
+            </Button>
+          </>
+        )}
+      </Stack>
+    </Box>
+  );
+}
 
 export function ChatMessageItem({
   message,
@@ -562,53 +696,7 @@ export function ChatMessageItem({
           )}
 
           {message.metadata?.reporteProblema ? (
-            <Box
-              sx={[
-                {
-                  p: 1.25,
-                  borderRadius: 1.25,
-                  border: (theme) => `1px solid ${theme.vars.palette.error.main}`,
-                  bgcolor: 'error.lighter',
-                },
-                (theme) => theme.applyStyles('dark', {
-                  bgcolor: '#701C35',
-                  borderColor: '#B05A70',
-                  color: '#fff',
-                  '& .MuiTypography-root.MuiTypography-caption': {
-                    color: 'rgba(255,255,255,0.78)',
-                  },
-                }),
-              ]}
-            >
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Avatar
-                  src={message.metadata.reporteProblema.fotoUrl}
-                  alt={message.metadata.reporteProblema.nombre}
-                  sx={{ width: 34, height: 34 }}
-                >
-                  <Iconify icon="solar:bug-bold" width={18} />
-                </Avatar>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="subtitle2" noWrap>
-                    {message.metadata.reporteProblema.nombre}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(message.metadata.reporteProblema.fecha).toLocaleString('es-DO', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
-                  </Typography>
-                </Box>
-              </Stack>
-              <Typography component="div" variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {message.metadata.reporteProblema.mensaje}
-              </Typography>
-              {message.metadata.reporteProblema.ruta && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                  Pantalla: {message.metadata.reporteProblema.ruta}
-                </Typography>
-              )}
-            </Box>
+            <TarjetaReporteProblema reporte={message.metadata.reporteProblema} />
           ) : message.metadata?.cumpleanosSistema ? (
             <TarjetaDeCumpleanos
               cumpleanos={message.metadata.cumpleanosSistema}

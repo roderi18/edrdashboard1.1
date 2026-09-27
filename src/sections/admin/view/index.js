@@ -7,3 +7,4 @@ export * from './admin-notifications-view';
 export * from './admin-system-health-view';
 export * from './admin-role-combinations-view';
 export * from './admin-permissions-catalog-view';
+export * from './admin-actualizaciones-destacamentos-view';

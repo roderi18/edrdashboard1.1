@@ -19,10 +19,8 @@ export function OrganizationalTabs({ children, value, sx, ...other }) {
   return (
     <Box
       ref={wrapperRef}
-      sx={[
-        { borderBottom: (theme) => `1px solid ${theme.vars.palette.divider}` },
-        ...(Array.isArray(sx) ? sx : [sx]),
-      ]}
+      // Sin línea gris debajo, como las pestañas de la ficha del destacamento.
+      sx={Array.isArray(sx) ? sx : [sx]}
     >
       <Tabs
         value={value}

@@ -7,28 +7,55 @@ import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
 import ToggleButton from '@mui/material/ToggleButton';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import { useTheme, useMediaQuery } from '@mui/material';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
+import { isAdminGlobal } from 'src/utils/org-level-access';
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 import { esCarpetaDePremios } from 'src/utils/insignias-de-premios.mjs';
-import { resumirProgresoDeAscenso } from 'src/utils/progreso-de-ascenso.mjs';
 import {
   isDestacamentoApprovalRole,
   canEditAcademiaMinisterial,
   isCoordinadorDestacamentoRole,
 } from 'src/utils/member-access';
+import {
+  unirPremios,
+  aplicarNombres,
+  aplicarImagenes,
+  quitarEliminados,
+  origenDelProgreso,
+  motivoParaNoMover,
+  aplicarUbicaciones,
+  motivoParaNoRenombrar,
+} from 'src/utils/premios-personalizados.mjs';
 
 import { _awards } from 'src/_mock/_awards';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { sincronizarProgresoAscensoFirebase } from 'src/services/member-awards-service';
 import { hayProgresoEnCache, getAwardsProgressCache } from 'src/services/awards-progress-cache';
+import {
+  moverPremio,
+  renombrarPremio,
+  eliminarPremios,
+  leerNombresDePremios,
+  leerImagenesDePremios,
+  leerPremiosEliminados,
+  cambiarImagenDePremio,
+  leerUbicacionesDePremios,
+  leerPremiosPersonalizados,
+} from 'src/services/premios-personalizados-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { UploadAvatar } from 'src/components/upload';
 import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { detectFileFormat } from 'src/components/file-thumbnail';
@@ -40,10 +67,10 @@ import { useAuthContext } from 'src/auth/hooks';
 import { AwardsManagerTable } from '../awards-manager-table';
 import { AwardsManagerFilters } from '../awards-manager-filters';
 import { FileManagerFileItem } from '../awards-manager-file-item';
-import { AwardsProgressSummary } from '../awards-progress-summary';
 import { AwardsManagerGridView } from '../awards-manager-grid-view';
 import { FileManagerFolderItem } from '../awards-manager-folder-item';
 import { buildStatusChangeMessage } from '../utils/status-change-message';
+import { AwardsAgregarPremioDialog } from '../awards-agregar-premio-dialog';
 import { AwardsManagerFiltersResult } from '../awards-manager-filters-result';
 import { AwardsManagerCreateFolderDialog } from '../awards-manager-create-folder-dialog';
 import { irACarpeta, useAwardsFolderNavigation } from '../hooks/use-awards-folder-navigation';
@@ -162,15 +189,147 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   useEffect(() => {
-    // Cuadrícula por defecto en todas las pantallas (la lista sigue a un clic);
-    // en el móvil, además, la tabla compacta por si se cambia a lista.
-    setDisplayMode('grid');
+    // En el móvil, la tabla compacta por si se cambia a lista. La vista de
+    // partida (lista o cuadrícula) la decide el efecto de la carpeta, más abajo.
     table.setDense(isMobile);
   }, [isMobile]);
 
   const [displayMode, setDisplayMode] = useState('grid');
   const [renderMode, setRenderMode] = useState('list');
-  const [tableData, setTableData] = useState(_awards);
+  // Árbol BASE (catálogo + añadidos, sin movimientos): ahí vive el progreso de
+  // cada miembro. `tableData` es el mismo árbol con los movimientos aplicados.
+  const [arbolBase, setArbolBase] = useState(_awards);
+  const [ubicaciones, setUbicaciones] = useState({});
+  const [nombres, setNombres] = useState({});
+  const [imagenes, setImagenes] = useState({});
+  const [eliminados, setEliminados] = useState({});
+  const tableData = useMemo(() => {
+    const movido = quitarEliminados(aplicarImagenes(
+      aplicarNombres(aplicarUbicaciones(arbolBase, ubicaciones), nombres),
+      imagenes
+    ), eliminados);
+    // Un premio movido lleva la división y el sistema de ORIGEN: su completado y
+    // su certificado se leen y se guardan allí, así no cambian al moverlo.
+    return movido.map((n) => {
+      if (!n.parentIdOriginal) return n;
+      const origen = origenDelProgreso(arbolBase, n);
+      return { ...n, progresoDivision: origen.division, progresoSistema: origen.sistema };
+    });
+  }, [arbolBase, ubicaciones, nombres, imagenes, eliminados]);
+  const setTableData = (actualizar) =>
+    setArbolBase((prev) => (typeof actualizar === 'function' ? actualizar(prev) : actualizar));
+  // Los premios que el Administrador Global añadió y movió desde aquí.
+  useEffect(() => {
+    let vigente = true;
+    leerPremiosPersonalizados()
+      .then((lista) => vigente && setArbolBase(unirPremios(_awards, lista)))
+      .catch(() => {});
+    leerUbicacionesDePremios()
+      .then((mapa) => vigente && setUbicaciones(mapa || {}))
+      .catch(() => {});
+    leerNombresDePremios()
+      .then((mapa) => vigente && setNombres(mapa || {}))
+      .catch(() => {});
+    leerImagenesDePremios()
+      .then((mapa) => vigente && setImagenes(mapa || {}))
+      .catch(() => {});
+    leerPremiosEliminados()
+      .then((mapa) => vigente && setEliminados(mapa || {}))
+      .catch(() => {});
+    return () => {
+      vigente = false;
+    };
+  }, []);
+
+  // Arrastrar un premio o una carpeta encima de otra carpeta (Administrador Global).
+  const moverNodo = async (idNodo, idDestino) => {
+    const motivo = motivoParaNoMover(tableData, idNodo, idDestino);
+    if (motivo) {
+      toast.warning(motivo);
+      return;
+    }
+    const nodo = tableData.find((n) => n.id === idNodo);
+    const destino = tableData.find((n) => n.id === idDestino);
+    const antes = ubicaciones;
+    setUbicaciones((prev) => ({ ...prev, [idNodo]: idDestino }));
+    try {
+      await moverPremio({
+        idNodo,
+        nombreNodo: nodo?.name,
+        idDestino,
+        nombreDestino: destino?.name,
+        idOrigen: nodo?.parentId,
+        usuario: user,
+      });
+      toast.success(`"${nodo?.name}" movido a "${destino?.name}".`);
+    } catch (error) {
+      setUbicaciones(antes);
+      toast.error(error.message || 'No se pudo mover.');
+    }
+  };
+  const puedeMover = isAdminGlobal(user);
+
+  // Cambiar la imagen (menú ⋮, Administrador Global).
+  const [cambiandoImagen, setCambiandoImagen] = useState(null);
+  const [imagenNueva, setImagenNueva] = useState(null);
+  const [guardandoImagen, setGuardandoImagen] = useState(false);
+  const abrirCambiarImagen = (id) => {
+    const nodo = tableData.find((n) => n.id === id);
+    if (!nodo) return;
+    setCambiandoImagen(nodo);
+    setImagenNueva(null);
+  };
+  const guardarImagen = async () => {
+    setGuardandoImagen(true);
+    try {
+      const url = await cambiarImagenDePremio({
+        idNodo: cambiandoImagen.id,
+        nombreNodo: cambiandoImagen.name,
+        archivo: imagenNueva,
+        usuario: user,
+      });
+      setImagenes((prev) => ({ ...prev, [cambiandoImagen.id]: url }));
+      toast.success('Imagen cambiada.');
+      setCambiandoImagen(null);
+    } catch (error) {
+      toast.error(error.message || 'No se pudo cambiar la imagen.');
+    } finally {
+      setGuardandoImagen(false);
+    }
+  };
+
+  // Cambiar el nombre (menú ⋮ de la tarjeta, Administrador Global).
+  const [renombrando, setRenombrando] = useState(null);
+  const [nombreNuevo, setNombreNuevo] = useState('');
+  const [guardandoNombre, setGuardandoNombre] = useState(false);
+  const abrirRenombrar = (id) => {
+    const nodo = tableData.find((n) => n.id === id);
+    if (!nodo) return;
+    setRenombrando(nodo);
+    setNombreNuevo(nodo.name);
+  };
+  const guardarNombre = async () => {
+    const motivo = motivoParaNoRenombrar(renombrando, nombreNuevo);
+    if (motivo) {
+      toast.warning(motivo);
+      return;
+    }
+    const antes = nombres;
+    const limpio = nombreNuevo.trim();
+    setGuardandoNombre(true);
+    setNombres((prev) => ({ ...prev, [renombrando.id]: limpio }));
+    try {
+      await renombrarPremio({ idNodo: renombrando.id, antes: renombrando.name, nombre: limpio, usuario: user });
+      toast.success('Nombre cambiado.');
+      setRenombrando(null);
+    } catch (error) {
+      setNombres(antes);
+      toast.error(error.message || 'No se pudo cambiar el nombre.');
+    } finally {
+      setGuardandoNombre(false);
+    }
+  };
+  const agregarPremio = useBoolean();
   // Se arranca con lo que ya hay en memoria: volver a la pestaña (o saltar de
   // carpeta) pinta al momento, y la lectura de Firestore solo lo refresca.
   // Antes arrancaba vacío y la tabla enseñaba ceros hasta que llegaba.
@@ -321,13 +480,14 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
 
   // La selección es de la carpeta en que se hizo: al cambiar de carpeta se
   // vacía, para que "Completar" nunca actúe sobre premios que no se ven.
-  // Y cada carpeta abre en cuadrícula: pasar a lista en una no arrastra la
-  // lista a las siguientes (antes se quedaba en todas).
+  // Y cada carpeta abre en su vista: las carpetas finales (solo premios) siempre
+  // en cuadrícula; las demás, en lista en pantalla grande y en cuadrícula en el
+  // móvil. Pasar a otra vista en una carpeta no la arrastra a las siguientes.
   useEffect(() => {
     table.onSelectAllRows(false, []);
-    setDisplayMode('grid');
+    setDisplayMode(esCarpetaDePremios(normalizedFolder, tableData) || isMobile ? 'grid' : 'list');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [normalizedFolder]);
+  }, [normalizedFolder, isMobile]);
 
   useEffect(() => {
     if (!showStatusFilter && currentFilters.status?.length) {
@@ -385,7 +545,23 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
     let tieneCertificado = false;
     let vecesGanado = 0;
 
-    if (isSistemaAscensoDeepSubFolder) {
+    // Premio movido: su progreso sigue en la carpeta y división de origen.
+    if (item.parentIdOriginal && item.type !== 'folder') {
+      const { data = {} } = getAwardsProgressCache(memberId);
+      const carpeta = item.parentIdOriginal;
+      const enAscenso = item.progresoSistema === SISTEMA_ASCENSO_ID;
+      const nodo = enAscenso
+        ? data.sistemaAscenso?.[item.progresoDivision]?.[carpeta]?.[item.id]
+        : data.academia?.[carpeta]?.[item.id];
+      realStatus =
+        (enAscenso
+          ? statusStorage?.sistemaAscenso?.[item.progresoDivision]?.[carpeta]?.[item.id]
+          : statusStorage?.academia?.[carpeta]?.[item.id]) ?? null;
+      tieneCertificado = Boolean(nodo?.certificate);
+      vecesGanado = enAscenso
+        ? Number(nodo?.timesCompleted) || (realStatus === 'completado' ? 1 : 0)
+        : 0;
+    } else if (isSistemaAscensoDeepSubFolder) {
       const divisionId = folderBreadcrumbs[sistemaAscensoIndex + 1]?.id;
       realStatus =
         statusStorage?.sistemaAscenso?.[divisionId]?.[normalizedFolder]?.[item.id] ?? null;
@@ -410,6 +586,9 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
 
     return {
       ...item,
+      // Un premio movido escribe su progreso en la carpeta de origen (la lista
+      // y las acciones usan `parentId` para saber dónde guardarlo).
+      ...(item.parentIdOriginal && item.type !== 'folder' && { parentId: item.parentIdOriginal }),
       status: realStatus,
       tieneCertificado,
       vecesGanado,
@@ -472,13 +651,6 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
     [isRootFolder, terminoBuscado, nombresNormalizados]
   );
 
-  // Resumen de la raíz: se recalcula con el mismo `statusStorage` que pinta la
-  // tabla, así que al marcar un adiestramiento se mueve a la vez que su fila.
-  const resumenDeProgreso = useMemo(
-    () => resumirProgresoDeAscenso(tableData, statusStorage),
-    [tableData, statusStorage]
-  );
-
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
@@ -495,30 +667,40 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
     }
   }, []);
 
+  // ELIMINAR ES GLOBAL Y DEFINITIVO: antes solo se quitaba de la pantalla y al
+  // volver a entrar reaparecía. Ahora se guarda (Administrador Global) y deja de
+  // verse para todos; el progreso de los miembros no se borra.
+  const eliminarGlobal = async (ids) => {
+    if (!isAdminGlobal(user)) {
+      toast.error('Solo el Administrador Global puede eliminar premios o carpetas.');
+      return;
+    }
+    const nodos = tableData.filter((n) => ids.includes(n.id));
+    const antes = eliminados;
+    setEliminados((prev) => ({ ...prev, ...Object.fromEntries(ids.map((id) => [id, true])) }));
+    try {
+      await eliminarPremios({ nodos, usuario: user });
+      toast.success(ids.length > 1 ? 'Elementos eliminados.' : 'Elemento eliminado.');
+    } catch (error) {
+      setEliminados(antes);
+      toast.error(error.message || 'No se pudo eliminar.');
+    }
+  };
+
   const handleDeleteItem = useCallback(
     (id) => {
-      if (readOnly) return;
-      const deleteRow = tableData.filter((row) => row.id !== id);
-
-      toast.success('Elemento eliminado.');
-
-      setTableData(deleteRow);
-
+      eliminarGlobal([id]);
       table.onUpdatePageDeleteRow(dataInPage.length);
     },
-    [dataInPage.length, table, tableData]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dataInPage.length, table, tableData, eliminados, user]
   );
 
   const handleDeleteItems = useCallback(() => {
-    if (readOnly) return;
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
-
-    toast.success('Elementos eliminados.');
-
-    setTableData(deleteRows);
-
+    eliminarGlobal(table.selected);
     table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataFiltered.length, dataInPage.length, table, tableData, eliminados, user]);
 
   // SELECCIÓN MÚLTIPLE en las carpetas con insignia: Ctrl/Cmd + clic marca
   // tarjetas y "Completar" las completa todas de una vez (`completarPremiosAscenso`:
@@ -545,8 +727,9 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
     const nombreGrupo = folderBreadcrumbs[folderBreadcrumbs.length - 1]?.name;
 
     return items.map((item) => ({
-      sectionId,
-      parentId: normalizedFolder,
+      // Un premio movido se guarda en su carpeta y división de origen.
+      sectionId: item.parentIdOriginal ? item.progresoDivision : sectionId,
+      parentId: item.parentIdOriginal ?? normalizedFolder,
       rowId: item.id,
       metadata: {
         nombreItemAscenso: item.name,
@@ -739,6 +922,19 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
         />
       </Box>
 
+      {/* "Agregar" (premio o carpeta): solo el Administrador Global, en cualquier
+          carpeta menos la raíz (donde solo van los dos programas). */}
+      {isAdminGlobal(user) && !isRootFolder && !isGlobalSearch && (
+        <Button
+          variant="contained"
+          startIcon={<Iconify icon="mingcute:add-line" />}
+          onClick={agregarPremio.onTrue}
+          sx={{ flexShrink: 0, height: 44 }}
+        >
+          Agregar
+        </Button>
+      )}
+
       {/* TOGGLE: en pantalla pequeña no sale. Allí la pestaña va siempre en
           cuadrícula y el botón solo quitaba sitio al buscador y al filtro. */}
       <Box
@@ -915,6 +1111,8 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
             notFound={notFound}
             onOpenConfirm={confirmDialog.onTrue}
             readOnly={effectiveReadOnly}
+            onRenombrar={puedeMover ? abrirRenombrar : undefined}
+            onCambiarImagen={puedeMover ? abrirCambiarImagen : undefined}
           />
         )}
       </Box>
@@ -948,6 +1146,10 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
             onOpenConfirm={confirmDialog.onTrue}
             onOpenFolder={openFolder}
             readOnly={effectiveReadOnly}
+            puedeMover={puedeMover}
+            onMover={moverNodo}
+            onRenombrar={puedeMover ? abrirRenombrar : undefined}
+            onCambiarImagen={puedeMover ? abrirCambiarImagen : undefined}
           />
         )}
       </Box>
@@ -1084,6 +1286,68 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
 
   return (
     <>
+      <Dialog
+        fullWidth
+        maxWidth="xs"
+        open={!!cambiandoImagen}
+        onClose={() => !guardandoImagen && setCambiandoImagen(null)}
+      >
+        <DialogTitle>Cambiar imagen · {cambiandoImagen?.name}</DialogTitle>
+        <DialogContent>
+          <UploadAvatar
+            value={imagenNueva || cambiandoImagen?.imagenUrl || imagenDelPremio(cambiandoImagen) || null}
+            onDrop={(files) => setImagenNueva(files?.[0] || null)}
+            sx={{ my: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={() => setCambiandoImagen(null)}
+            disabled={guardandoImagen}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={guardarImagen}
+            loading={guardandoImagen}
+            disabled={!imagenNueva}
+          >
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog fullWidth maxWidth="xs" open={!!renombrando} onClose={() => !guardandoNombre && setRenombrando(null)}>
+        <DialogTitle>Cambiar nombre</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label={renombrando?.type === 'folder' ? 'Nombre de la carpeta' : 'Nombre del premio'}
+            value={nombreNuevo}
+            onChange={(event) => setNombreNuevo(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && guardarNombre()}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" color="inherit" onClick={() => setRenombrando(null)} disabled={guardandoNombre}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={guardarNombre} loading={guardandoNombre}>
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <AwardsAgregarPremioDialog
+        open={agregarPremio.value}
+        onClose={agregarPremio.onFalse}
+        carpeta={folderBreadcrumbs[folderBreadcrumbs.length - 1]}
+        usuario={user}
+        onCreado={(premio) => setTableData((prev) => unirPremios(prev, [premio]))}
+      />
       {/* Dentro de la ficha ya hay un DashboardContent alrededor, y el de aquí
           sumaba su relleno al de fuera: abajo, 128 px vacíos que no dejaban ver
           la raíz sin desplazarse; a los lados, 40 px por lado que estrechaban
@@ -1135,10 +1399,6 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
           {renderFilters()}
           {showCertificateRequiredNotice && renderCertificateRequiredNotice()}
           {canReset && renderResults()}
-          {/* Solo en la raíz: dentro de un programa ya se está viendo su detalle. */}
-          {isRootFolder && !isGlobalSearch && progresoListo && (
-            <AwardsProgressSummary resumen={resumenDeProgreso} onAbrirPrograma={openFolder} />
-          )}
         </Stack>
 
         {!progresoListo ? (

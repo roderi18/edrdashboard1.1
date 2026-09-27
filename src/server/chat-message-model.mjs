@@ -218,6 +218,12 @@ const normalizeMetadata = (value) => {
       fecha: reporterDate,
       mensaje: reporterMessage,
       ...(reporterRoute && { ruta: reporterRoute }),
+      // Estado que ponen los Administradores Globales (En progreso, Resuelto).
+      ...(['abierto', 'en_progreso', 'resuelto'].includes(reporteProblema.estado) && {
+        estado: reporteProblema.estado,
+        estadoPorNombre: cleanText(reporteProblema.estadoPorNombre).slice(0, 160),
+        estadoEn: normalizeIso(reporteProblema.estadoEn, ''),
+      }),
     };
   }
 

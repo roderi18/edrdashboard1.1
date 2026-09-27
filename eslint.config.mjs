@@ -239,6 +239,7 @@ export default [
       'src/services/pines-miembros-apply.js',
       // Mismo caso: las cintas y medallas añadidas desde EXPLORA Designer.
       'src/services/insignias-personalizadas-apply.js',
+      'src/services/premios-personalizados-apply.js',
       // Mismo caso: el estatus de cada miembro, que mueve la regla de asistencia
       // despues de registrarlo en Historial.
       'src/services/estatus-miembros-apply.js',

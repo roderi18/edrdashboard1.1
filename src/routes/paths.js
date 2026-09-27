@@ -240,6 +240,7 @@ export const paths = {
       // Se mudo a EXPLORA Designer; la direccion vieja redirige alli.
       paleta: `${ROOTS.DASHBOARD}/everest?seccion=paleta`,
       sonidos: `${ROOTS.DASHBOARD}/admin/sonidos`,
+      actualizacionesDestacamentos: `${ROOTS.DASHBOARD}/admin/actualizaciones-destacamentos`,
     },
     job: {
       root: `${ROOTS.DASHBOARD}/job`,

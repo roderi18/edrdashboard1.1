@@ -20,6 +20,17 @@
         "3032"
       ],
       "port": 3032
+    },
+    {
+      "name": "errd-registro",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "C:/Users/rdpr1/OneDrive/Escritorio/errd-registro",
+        "run",
+        "dev"
+      ],
+      "port": 3040
     }
   ]
 }

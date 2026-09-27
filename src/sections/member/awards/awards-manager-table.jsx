@@ -59,6 +59,9 @@ export function AwardsManagerTable({
   isSistemaAscenso,
   isSistemaAscensoRootFolder,
   readOnly = false,
+  // "Cambiar nombre" en el menú de cada fila (Administrador Global).
+  onRenombrar,
+  onCambiarImagen,
 
   ...other
 }) {
@@ -269,6 +272,8 @@ export function AwardsManagerTable({
                     onSelectRow={() => onSelectRow(row.id)}
                     onDeleteRow={() => onDeleteRow(row.id)}
                     readOnly={readOnly}
+                    onRenombrar={onRenombrar ? () => onRenombrar(row.id) : undefined}
+                    onCambiarImagen={onCambiarImagen ? () => onCambiarImagen(row.id) : undefined}
                   />
                 ))}
 

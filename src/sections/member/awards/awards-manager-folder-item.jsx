@@ -27,7 +27,17 @@ import { AwardsManagerCreateFolderDialog } from './awards-manager-create-folder-
 
 // ----------------------------------------------------------------------
 
-export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete, onOpen, ...other }) {
+export function FileManagerFolderItem({
+  sx,
+  folder,
+  selected,
+  onSelect,
+  onDelete,
+  onOpen,
+  onRenombrar,
+  onCambiarImagen,
+  ...other
+}) {
 
   const shareDialog = useBoolean();
   const confirmDialog = useBoolean();
@@ -101,6 +111,30 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
+        {onRenombrar && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              onRenombrar();
+            }}
+          >
+            <Iconify icon="solar:pen-bold" />
+            Cambiar nombre
+          </MenuItem>
+        )}
+
+        {onCambiarImagen && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              onCambiarImagen();
+            }}
+          >
+            <Iconify icon="solar:gallery-add-bold" />
+            Cambiar imagen
+          </MenuItem>
+        )}
+
         <MenuItem
           onClick={() => {
             menuActions.onClose();
@@ -133,16 +167,20 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Eliminar
-        </MenuItem>
+        {/* Eliminar es global y definitivo: solo el Administrador Global
+            (el mismo que recibe "Cambiar nombre"). */}
+        {onRenombrar && (
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Eliminar
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -219,6 +257,7 @@ export function FileManagerFolderItem({ sx, folder, selected, onSelect, onDelete
 
         <AwardsItemIcon
           id={folder.id}
+          imagenUrl={folder.imagenUrl}
           // parentId={folder.parentId}
           folder={folder}
           fileType="folder"

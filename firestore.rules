@@ -1339,11 +1339,29 @@ service cloud.firestore {
     // cuenta (sale en la ficha); lo mueven solo el Administrador Global y la
     // Oficina Nacional, como el numero. Sin esta regla caia en el comodin del
     // final y cualquier sesion podia dar de baja un destacamento.
+    // Senda del Instructor del miembro (IF, IC…). La lee y escribe la ficha del
+    // miembro; quién puede editarla lo decide la pantalla, como el resto de la ficha.
+    match /senda_instructor_miembros/{idMiembros} {
+      allow read, write: if esUsuarioDelSistema();
+    }
+
     match /estado_destacamentos/{idDestacamento} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal()
         || esOficinaNacional()
         || ejerceRol('oficina_nacional');
+    }
+
+    // ACTUALIZACIONES DE DESTACAMENTOS que mandan los directivos desde la landing
+    // externa. La landing escribe por su servidor (Admin SDK), nunca desde el
+    // navegador: aqui nadie crea. Las leen y resuelven (cargar, cambiar o
+    // descartar) el Administrador Global y la Oficina Nacional. Nada de esto
+    // toca el padron hasta que ellos lo cargan.
+    match /actualizaciones_destacamentos/{idActualizacion} {
+      allow read, update: if esAdministradorGlobal()
+        || esOficinaNacional()
+        || ejerceRol('oficina_nacional');
+      allow create, delete: if false;
     }
 
     match /cintas_miembros/{idMiembros} {
@@ -1376,6 +1394,19 @@ service cloud.firestore {
     // descripción). Salen en todos los perfiles, así que las lee cualquiera con
     // cuenta; las añade solo el Administrador Global, como todo el Designer.
     match /insignias_personalizadas/{idInsignia} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
+    // Premios añadidos desde la pestaña de premios (Sistema de Ascenso y
+    // Academia Ministerial): los ven todos, los añade el Administrador Global.
+    match /premios_personalizados/{idPremio} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
+    // Dónde está cada premio o carpeta movido (arrastrar, Administrador Global).
+    match /configuracion_premios/{idDocumento} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();
     }

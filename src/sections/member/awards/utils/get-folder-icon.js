@@ -1,47 +1,49 @@
 export const FOLDER_ICON_CONFIG = {
     'academia-ministerial': {
-        src: '/icons/academia-ministerial.png',
+        src: '/sistemaAscenso/Academia Ministerial/academia-ministerial.webp',
         size: 42,
     },
     'sistema-de-ascenso': {
-        src: '/icons/exploradores-del-rey.png',
+        src: '/sistemaAscenso/Academia Ministerial/exploradores-del-rey.webp',
         size: 42,
     },
     exploradores: {
-        src: '/icons/exploradores.png',
+        src: '/sistemaAscenso/Academia Ministerial/exploradores.webp',
         size: 40,
     },
     seguidores: {
-        src: '/icons/seguidores.png',
+        src: '/sistemaAscenso/Academia Ministerial/seguidores.webp',
         size: 40,
     },
     pioneros: {
-        src: '/icons/pioneros.png',
+        src: '/sistemaAscenso/Academia Ministerial/pioneros.webp',
         size: 40,
     },
     navegantes: {
-        src: '/icons/navegantes.png',
+        src: '/sistemaAscenso/Academia Ministerial/navegantes.webp',
         size: 40,
     },
     instructor: {
-        src: '/icons/academia-ministerial.png',
+        src: '/sistemaAscenso/Academia Ministerial/academia-ministerial.webp',
         size: 40,
     },
     'lider-juvenil': {
-        src: '/icons/ilj.png',
+        src: '/sistemaAscenso/Academia Ministerial/ilj.webp',
         size: 40,
     },
     'lider-de-destacamento': {
-        src: '/icons/cuadro-avanzado.png',
+        src: '/sistemaAscenso/Academia Ministerial/cuadro-avanzado.webp',
         size: 36,
     },
     'lider-organizacional': {
-        src: '/icons/lider-organizacional.png',
+        src: '/sistemaAscenso/Academia Ministerial/lider-organizacional.webp',
         size: 36,
     },
 };
 
-export function getFolderIcon({ id }) {
+export function getFolderIcon({ id, imagenUrl }) {
+    // Las carpetas añadidas desde la aplicación traen su imagen.
+    if (imagenUrl) return { src: imagenUrl, size: 36 };
     if (!id) return null;
 
     const key = id.toLowerCase();

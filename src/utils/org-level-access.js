@@ -1002,6 +1002,12 @@ export const puedeCambiarEstadoDeDestacamento = (user = {}) =>
 export const puedeVerInfoCompletaDeDestacamentos = (user = {}) =>
   ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
 
+// Las actualizaciones que mandan los directivos desde la landing externa no
+// entran solas en el padrón: las revisan (cargar, cambiar o descartar) el
+// Administrador Global y la Oficina Nacional, por cualquiera de sus cargos.
+export const puedeRevisarActualizacionesDeDestacamentos = (user = {}) =>
+  ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
+
 // Los diez cargos del Consejo Ejecutivo y el rol generico "Consejo Ejecutivo",
 // por cualquiera de los cargos de la persona.
 export const ejerceConsejoEjecutivo = (user = {}) =>

@@ -98,6 +98,11 @@ export const CompactEntityCard = memo(function CompactEntityCard({
     );
   };
 
+  // El título es la ficha misma: aunque se llame "Destacamento Desconocido 88"
+  // existe y se puede abrir. La regla de "desconocido" es para las líneas
+  // ("Coord. Desconocido"), que no llevan a ningún sitio.
+  const puedeAbrirTitulo = !disabled && Boolean(href) && href !== '#';
+
   const isInternalHref = (hrefValue) => String(hrefValue || '').startsWith('/');
   const titleLinkProps = isInternalHref(href)
     ? { component: RouterLink, href }
@@ -168,7 +173,7 @@ export const CompactEntityCard = memo(function CompactEntityCard({
       ]}
       {...other}
     >
-      {canUseHref(href, title) ? (
+      {puedeAbrirTitulo ? (
         <Link {...titleLinkProps} color="inherit" underline="none">
           {renderAvatar()}
         </Link>
@@ -178,7 +183,7 @@ export const CompactEntityCard = memo(function CompactEntityCard({
 
       <ListItemText
         primary={
-          canUseHref(href, title) ? (
+          puedeAbrirTitulo ? (
             <Link
               {...titleLinkProps}
               color="inherit"
@@ -235,6 +240,12 @@ export const CompactEntityCard = memo(function CompactEntityCard({
                     }
                   >
                     {line.text}
+                  </Box>
+                )}
+                {/* Algo al final de la línea (p. ej. el estado del destacamento). */}
+                {line.adorno && (
+                  <Box component="span" sx={{ ml: 1, flexShrink: 0, display: 'inline-flex' }}>
+                    {line.adorno}
                   </Box>
                 )}
               </Box>

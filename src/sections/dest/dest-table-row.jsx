@@ -8,6 +8,13 @@ import { RouterLink } from 'src/routes/components';
 
 import { capitalizeWords, formatChurchName } from 'src/utils/text-format';
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
+import {
+  COLOR_ESTADO_DESTACAMENTO,
+  etiquetaEstadoDestacamento,
+  normalizarEstadoDestacamento,
+} from 'src/utils/estado-destacamento.mjs';
+
+import { Label } from 'src/components/label';
 
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
 import { CompactEntityRowActions } from 'src/sections/common/compact-entity-row-actions';
@@ -63,6 +70,15 @@ export function DestTableRow({
         avatarUrl={row.avatarUrl}
         // Sin coordinador, pastor, iglesia o dirección: aviso sobre la foto.
         avatarAviso={row.avisoInfo}
+        extra={
+          <Label
+            variant="soft"
+            color={COLOR_ESTADO_DESTACAMENTO[normalizarEstadoDestacamento(row.estado)]}
+            sx={{ mt: 0.5, height: 20, fontSize: 11 }}
+          >
+            {etiquetaEstadoDestacamento(row.estado)}
+          </Label>
+        }
       />
 
       <CompactEntityTableCell

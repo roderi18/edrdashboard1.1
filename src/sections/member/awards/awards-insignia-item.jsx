@@ -32,7 +32,8 @@ export const TARJETA_INSIGNIA = {
   insignia: 72,
   anchoMinimo: 118,
   // Premio sin completar: la insignia un 15 % transparente (1 = opaca).
-  opacidadSinCompletar: 0.60,
+  opacidadSinCompletar: 1.0
+  ,
   // Premio completado: check verde en la esquina superior izquierda; amarillo
   // si está completado pero todavía sin certificado.
   iconoCompletado: 'solar:check-circle-bold',
@@ -68,7 +69,10 @@ export const HUECO_DE_INSIGNIAS = { xs: 1.5, sm: 2.5 };
  * icono del PDF en el mismo hueco).
  */
 export const imagenDelPremio = (premio) =>
-  imagenDeInsignia(premio?.parentId, premio?.name) ||
+  // Los añadidos desde la aplicación traen su imagen (ver premios-personalizados.mjs).
+  premio?.imagenUrl ||
+  // Renombrado: la imagen se sigue buscando con su nombre de siempre.
+  imagenDeInsignia(premio?.parentId, premio?.nameOriginal ?? premio?.name) ||
   getCustomFileIcon({ id: premio?.type === 'folder' ? null : premio?.id })?.src ||
   null;
 

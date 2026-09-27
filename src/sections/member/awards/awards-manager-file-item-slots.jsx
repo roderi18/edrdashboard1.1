@@ -56,10 +56,10 @@ export const FileItemActionOverlay = styled('span')({
 });
 
 // ----------------------------------------------------------------------
-export function AwardsItemIcon({ id, fileType, checked, hovered, onChange, sx }) {
+export function AwardsItemIcon({ id, imagenUrl, fileType, checked, hovered, onChange, sx }) {
 
   const isFolder = fileType === 'folder';
-  const custom = isFolder ? getFolderIcon({ id }) : null;
+  const custom = isFolder ? getFolderIcon({ id, imagenUrl }) : null;
 
   const renderIcon = () => {
     // PDF / archivos

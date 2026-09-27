@@ -128,6 +128,7 @@ export function MemberFormFieldsCard({
                 diasRestantesCI={diasRestantesCI}
                 isEdit
                 disabled={readOnlyEffective}
+                idMiembro={currentMember?.idMiembros ?? currentMember?.id ?? null}
               />
             )}
           </>

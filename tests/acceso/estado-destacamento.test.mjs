@@ -57,11 +57,14 @@ test('ningun otro cargo lo mueve', () => {
   });
 });
 
-test('solo hay dos estados y lo que no se sabe es Activo', () => {
+test('cuatro estados en su orden y lo que no se sabe es Activo', () => {
   assert.deepEqual(
     OPCIONES_ESTADO_DESTACAMENTO.map((o) => o.label),
-    ['Activo', 'Inactivo']
+    ['Registrado', 'Activo', 'Inactivo', 'No reconocido']
   );
+  assert.equal(normalizarEstadoDestacamento('No reconocido'), 'no_reconocido');
+  assert.equal(normalizarEstadoDestacamento('registrado'), 'registrado');
+  assert.equal(etiquetaEstadoDestacamento('no_reconocido'), 'No reconocido');
   assert.equal(normalizarEstadoDestacamento(undefined), 'activo');
   assert.equal(normalizarEstadoDestacamento('INACTIVO'), 'inactivo');
   assert.equal(normalizarEstadoDestacamento('otra cosa'), 'activo');

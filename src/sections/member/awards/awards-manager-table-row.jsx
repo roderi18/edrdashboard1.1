@@ -61,6 +61,8 @@ export function AwardsManagerTableRow({
   onSelectRow,
   onDeleteRow,
   onRename,
+  onRenombrar,
+  onCambiarImagen,
   isRootFolder = false,
   isAcademiaSubFolder = false,
   isAcademiaMinisterial = false,
@@ -72,7 +74,7 @@ export function AwardsManagerTableRow({
   showThumbnail = true,
   readOnly = false,
 }) {
-  const folderIcon = getFolderIcon({ id: row.id });
+  const folderIcon = getFolderIcon({ id: row.id, imagenUrl: row.imagenUrl });
 
   const [, forceUpdate] = useState(0);
 
@@ -243,6 +245,30 @@ export function AwardsManagerTableRow({
             certificate={ascensoCertificate}
             onClose={menuActions.onClose}
           />
+        )}
+
+        {onRenombrar && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              onRenombrar();
+            }}
+          >
+            <Iconify icon="solar:pen-bold" />
+            Cambiar nombre
+          </MenuItem>
+        )}
+
+        {onCambiarImagen && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              onCambiarImagen();
+            }}
+          >
+            <Iconify icon="solar:gallery-add-bold" />
+            Cambiar imagen
+          </MenuItem>
         )}
 
         <MenuItem
@@ -491,7 +517,7 @@ export function AwardsManagerTableRow({
                 }
 
                 // 📁 Carpetas
-                const customFolder = getFolderIcon({ id: row.id });
+                const customFolder = getFolderIcon({ id: row.id, imagenUrl: row.imagenUrl });
 
                 return (
                   <Box

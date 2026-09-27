@@ -185,6 +185,14 @@ export default function DestGeneralSection({
                     onChange={(event) => onEstadoChange?.(event.target.value)}
                     fullWidth
                     disabled={estadoDisabled}
+                    // Cerrado se ve solo el nombre; la explicación va en la lista.
+                    slotProps={{
+                        select: {
+                            renderValue: (valor) =>
+                                OPCIONES_ESTADO_DESTACAMENTO.find((o) => o.value === valor)?.label ??
+                                valor,
+                        },
+                    }}
                     helperText={
                         estadoDisabled
                             ? 'Lo cambian el Administrador Global y la Oficina Nacional.'
@@ -192,8 +200,15 @@ export default function DestGeneralSection({
                     }
                 >
                     {OPCIONES_ESTADO_DESTACAMENTO.map((opcion) => (
-                        <MenuItem key={opcion.value} value={opcion.value}>
-                            {opcion.label}
+                        <MenuItem
+                            key={opcion.value}
+                            value={opcion.value}
+                            sx={{ display: 'block', whiteSpace: 'normal', maxWidth: 360 }}
+                        >
+                            <Typography variant="body2">{opcion.label}</Typography>
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                {opcion.descripcion}
+                            </Typography>
                         </MenuItem>
                     ))}
                 </TextField>

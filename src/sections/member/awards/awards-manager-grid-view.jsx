@@ -28,7 +28,54 @@ import { imagenDelPremio, HUECO_DE_INSIGNIAS, COLUMNAS_DE_INSIGNIAS } from './aw
 
 // ----------------------------------------------------------------------
 
-export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteItem, onOpenConfirm, onOpenFolder, readOnly = false }) {
+export function AwardsManagerGridView({
+  table,
+  dataFiltered,
+  allData,
+  onDeleteItem,
+  onOpenConfirm,
+  onOpenFolder,
+  readOnly = false,
+  // Arrastrar un premio o una carpeta encima de una carpeta para moverlo
+  // (solo el Administrador Global).
+  puedeMover = false,
+  onMover,
+  // "Cambiar nombre" en el menú de cada tarjeta (Administrador Global).
+  onRenombrar,
+  onCambiarImagen,
+}) {
+  const [sobre, setSobre] = useState(null);
+  const arrastrable = (item) =>
+    puedeMover
+      ? {
+          draggable: true,
+          onDragStart: (event) => {
+            event.dataTransfer.setData('text/premio', item.id);
+            event.dataTransfer.effectAllowed = 'move';
+          },
+        }
+      : {};
+  const soltable = (carpeta) =>
+    puedeMover
+      ? {
+          onDragOver: (event) => {
+            if (!event.dataTransfer.types.includes('text/premio')) return;
+            event.preventDefault();
+            setSobre(carpeta.id);
+          },
+          onDragLeave: () => setSobre((s) => (s === carpeta.id ? null : s)),
+          onDrop: (event) => {
+            event.preventDefault();
+            setSobre(null);
+            const id = event.dataTransfer.getData('text/premio');
+            if (id && id !== carpeta.id) onMover?.(id, carpeta.id);
+          },
+        }
+      : {};
+  const marcoDeSoltar = (carpeta) =>
+    sobre === carpeta.id
+      ? { outline: (t) => `2px dashed ${t.vars.palette.primary.main}`, borderRadius: 2 }
+      : {};
   const { user } = useAuthContext();
   const { selected, onSelectRow: onSelectItem, onSelectAllRows: onSelectAllItems } = table;
   const memberId = table?.memberId;
@@ -166,8 +213,8 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
           {dataFiltered
             .filter((i) => i.type === 'folder')
             .map((folder) => (
+              <Box key={folder.id} {...arrastrable(folder)} {...soltable(folder)} sx={marcoDeSoltar(folder)}>
               <FileManagerFolderItem
-                key={folder.id}
                 folder={{
                   ...folder,
                   memberId: table.memberId,
@@ -177,7 +224,10 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
                 onSelect={() => onSelectItem(folder.id)}
                 onDelete={() => onDeleteItem(folder.id)}
                 onOpen={() => onOpenFolder(folder.id)}
+                onRenombrar={onRenombrar ? () => onRenombrar(folder.id) : undefined}
+                onCambiarImagen={onCambiarImagen ? () => onCambiarImagen(folder.id) : undefined}
               />
+              </Box>
             ))}
         </Box>
       </Collapse>
@@ -298,8 +348,8 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
         >
           {orderedItems.map((item) =>
             item.type === 'folder' ? (
+              <Box key={item.id} {...arrastrable(item)} {...soltable(item)} sx={marcoDeSoltar(item)}>
               <FileManagerFolderItem
-                key={item.id}
                 folder={{
                   ...item,
                   memberId: table.memberId,
@@ -309,8 +359,12 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
                 onSelect={() => onSelectItem(item.id)}
                 onDelete={() => onDeleteItem(item.id)}
                 onOpen={() => onOpenFolder?.(item.id)}
+                onRenombrar={onRenombrar ? () => onRenombrar(item.id) : undefined}
+                onCambiarImagen={onCambiarImagen ? () => onCambiarImagen(item.id) : undefined}
               />
+              </Box>
             ) : (
+              <Box key={item.id} {...arrastrable(item)}>
               <FileManagerFileItem
                 isGridView
                 insignia={conInsignia}
@@ -320,17 +374,28 @@ export function AwardsManagerGridView({ table, dataFiltered, allData, onDeleteIt
                 file={{
                   ...item,
                   memberId: table.memberId,
-                  parentId: parentId ?? item.parentId,
-                  systemSent: table.systemSent,
-                  sectionId: table.sectionId,
+                  // Movido: su progreso (completado, certificado) sigue en el origen.
+                  parentId: item.parentIdOriginal ?? parentId ?? item.parentId,
+                  systemSent: item.progresoSistema
+                    ? item.progresoSistema === 'sistema-de-ascenso'
+                      ? 'sistemaAscenso'
+                      : 'academia'
+                    : table.systemSent,
+                  sectionId: item.parentIdOriginal ? item.progresoDivision : table.sectionId,
                   imagenInsignia: conInsignia
-                    ? imagenDelPremio({ ...item, parentId: parentId ?? item.parentId })
+                    ? imagenDelPremio({
+                        ...item,
+                        parentId: item.parentIdOriginal ?? parentId ?? item.parentId,
+                      })
                     : null,
                 }}
                 selected={selected.includes(item.id)}
                 onSelect={() => onSelectItem(item.id)}
                 onDelete={() => onDeleteItem(item.id)}
+                onRenombrar={onRenombrar ? () => onRenombrar(item.id) : undefined}
+                onCambiarImagen={onCambiarImagen ? () => onCambiarImagen(item.id) : undefined}
               />
+              </Box>
             )
           )}
 

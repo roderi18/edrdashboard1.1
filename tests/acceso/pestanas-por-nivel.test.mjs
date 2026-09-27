@@ -52,10 +52,12 @@ test('la pestaña acota lo que el alcance ya deja ver, no lo abre', () => {
   const listaDests = leer('src/sections/dest/view/dest-list-view.jsx');
   const listaSecciones = leer('src/sections/sectional/view/sectional-list-view.jsx');
 
-  // Se filtra `tableData`, que es lo que ya paso por el filtro de alcance.
+  // Se filtra `tableData` (en destacamentos, su copia con el estado de cada uno,
+  // `tableDataConEstado`), que es lo que ya paso por el filtro de alcance.
+  assert.match(listaDests, /tableDataConEstado = useMemo\(\s*\(\) =>\s*tableData\.map/);
   assert.match(
     listaDests,
-    /esPestanaDeSeccion\s*\n?\s*\? tableData\.filter\(\(row\) => String\(row\?\.sectionalId \?\? ''\) === String\(sectionalId\)\)/
+    /esPestanaDeSeccion\s*\n?\s*\? tableDataConEstado\.filter\(\(row\) => String\(row\?\.sectionalId \?\? ''\) === String\(sectionalId\)\)/
   );
   assert.match(
     listaSecciones,
