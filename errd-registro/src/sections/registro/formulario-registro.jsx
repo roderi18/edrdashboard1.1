@@ -136,6 +136,7 @@ export function FormularioRegistro({
               telefono: v.datos.coordinador.telefono || "",
             },
             horaReunion: horaATexto(v.datos.horaReunion),
+            horaReunionFin: horaATexto(v.datos.horaReunionFin),
           },
         };
         const m = v.miembro;
@@ -836,17 +837,24 @@ function PasoReuniones() {
         />
         <SiNo name="datos.rritrackActivo" label="RRITrack activo" />
       </Rejilla>
+      {/* Todo el ancho: en una columna de dos dejaba un hueco al lado. */}
+      <Field.Select name="datos.diaReunion" label="Día de reunión *">
+        {DIAS.map((d) => (
+          <MenuItem key={d} value={d}>
+            {d}
+          </MenuItem>
+        ))}
+      </Field.Select>
       <Rejilla>
-        <Field.Select name="datos.diaReunion" label="Día de reunión *">
-          {DIAS.map((d) => (
-            <MenuItem key={d} value={d}>
-              {d}
-            </MenuItem>
-          ))}
-        </Field.Select>
         <Field.TimePicker
           name="datos.horaReunion"
-          label="Horario de reunión *"
+          label="Horario de reunión: desde *"
+          ampm
+          format="hh:mm A"
+        />
+        <Field.TimePicker
+          name="datos.horaReunionFin"
+          label="Hasta *"
           ampm
           format="hh:mm A"
         />
@@ -924,7 +932,7 @@ function PasoConfirmacion({ secciones }) {
     ],
     [
       "Reunión",
-      `${v.datos.diaReunion} · ${v.datos.horaReunion ? dayjs(v.datos.horaReunion).format("hh:mm A") : "—"}`,
+      `${v.datos.diaReunion} · ${v.datos.horaReunion ? dayjs(v.datos.horaReunion).format("hh:mm A") : "—"} a ${v.datos.horaReunionFin ? dayjs(v.datos.horaReunionFin).format("hh:mm A") : "—"}`,
     ],
     [
       "Logo",

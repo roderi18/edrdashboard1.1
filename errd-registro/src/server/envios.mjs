@@ -91,6 +91,7 @@ export const EsquemaEnvio = z.object({
     rritrackActivo: z.boolean(),
     diaReunion: t(20).min(2),
     horaReunion: t(10).regex(/^\d{2}:\d{2}$/, 'Hora no válida'),
+    horaReunionFin: t(10).regex(/^(\d{2}:\d{2})?$/, 'Hora no válida').optional().default(''),
   }),
 });
 

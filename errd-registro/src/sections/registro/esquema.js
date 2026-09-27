@@ -19,10 +19,10 @@ const telefonoValido = (v) => !v || digitosNacionales(v) === 10;
 
 export const PASOS = [
   { id: 'quien', titulo: '¿Quién llena el formulario?', corto: 'Tus datos', icono: 'solar:user-id-bold' },
-  { id: 'general', titulo: 'Información general', corto: 'Información general', icono: 'solar:file-text-bold' },
+  { id: 'general', titulo: 'Información de Destacamento', corto: 'Información de Dest.', icono: 'solar:file-text-bold' },
+  { id: 'reuniones', titulo: 'Registro y reuniones', corto: 'Horario y reuniones', icono: 'solar:calendar-date-bold' },
   { id: 'ubicacion', titulo: 'Ubicación de la iglesia', corto: 'Ubicación', icono: 'mingcute:location-fill' },
   { id: 'lideres', titulo: 'Líderes y contacto', corto: 'Líderes y contacto', icono: 'solar:users-group-rounded-bold' },
-  { id: 'reuniones', titulo: 'Registro y reuniones', corto: 'Horario y reuniones', icono: 'solar:calendar-date-bold' },
   { id: 'confirmacion', titulo: 'Confirmación', corto: 'Confirmación', icono: 'solar:check-circle-bold' },
 ];
 
@@ -33,7 +33,7 @@ export const CAMPOS_DEL_PASO = {
   general: ['datos.nombre', 'datos.numero', 'datos.iglesia', 'datos.cantidadMiembros'],
   ubicacion: ['datos.direccion'],
   lideres: ['datos.pastor', 'datos.coordinador'],
-  reuniones: ['datos.registradoOfnc', 'datos.rritrackActivo', 'datos.diaReunion', 'datos.horaReunion'],
+  reuniones: ['datos.registradoOfnc', 'datos.rritrackActivo', 'datos.diaReunion', 'datos.horaReunion', 'datos.horaReunionFin'],
   confirmacion: [],
 };
 
@@ -98,7 +98,9 @@ export const Esquema = z
       registradoOfnc: z.boolean({ error: 'Elige Sí o No' }).nullable().refine((v) => v !== null, 'Elige Sí o No'),
       rritrackActivo: z.boolean({ error: 'Elige Sí o No' }).nullable().refine((v) => v !== null, 'Elige Sí o No'),
       diaReunion: requerido('Elige el día'),
-      horaReunion: z.any().refine((v) => Boolean(v), 'Elige el horario'),
+      horaReunion: z.any().refine((v) => Boolean(v), 'Elige la hora de inicio'),
+      // Hasta qué hora. El padrón solo guarda la de inicio: esta va en el envío.
+      horaReunionFin: z.any().refine((v) => Boolean(v), 'Elige la hora de fin'),
     }),
   })
   .superRefine((valor, ctx) => {
@@ -115,6 +117,12 @@ export const Esquema = z
     persona(valor.datos.coordinador, ['datos', 'coordinador']);
     if (valor.destacamento.modo === 'existente' && !valor.destacamento.elegido)
       ctx.addIssue({ code: 'custom', path: ['destacamento', 'elegido'], message: 'Elige tu destacamento' });
+    // "Hasta" después de "desde" (se comparan solo horas y minutos).
+    const minutos = (h) => (h && typeof h.hour === 'function' ? h.hour() * 60 + h.minute() : null);
+    const ini = minutos(valor.datos.horaReunion);
+    const fin = minutos(valor.datos.horaReunionFin);
+    if (ini !== null && fin !== null && fin <= ini)
+      ctx.addIssue({ code: 'custom', path: ['datos', 'horaReunionFin'], message: 'Debe ser después de la hora de inicio' });
     if (valor.destacamento.modo === 'nuevo' && !valor.destacamento.idSeccion)
       ctx.addIssue({ code: 'custom', path: ['destacamento', 'idSeccion'], message: 'Elige la sección' });
   });
@@ -147,5 +155,6 @@ export const valoresIniciales = {
     rritrackActivo: null,
     diaReunion: '',
     horaReunion: null,
+    horaReunionFin: null,
   },
 };
