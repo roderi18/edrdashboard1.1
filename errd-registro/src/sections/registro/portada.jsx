@@ -82,6 +82,7 @@ export function Encabezado() {
             {[
               ["Inicio", "#inicio"],
               ["Registrar destacamento", "#registrar"],
+              ["Contacto", "#contacto-correo"],
             ].map(([t, href]) => (
               <Link
                 key={href}
@@ -322,7 +323,10 @@ function Barra({ valor, total, color, etiqueta, detalle }) {
   const ancho = total ? Math.min(100, (valor / total) * 100) : 0;
   return (
     <Box>
-      <Stack direction="row" sx={{ mb: 0.5, justifyContent: "space-between", gap: 1 }}>
+      <Stack
+        direction="row"
+        sx={{ mb: 0.5, justifyContent: "space-between", gap: 1 }}
+      >
         <Typography variant="subtitle2" noWrap sx={textoClaro}>
           {etiqueta}
         </Typography>
@@ -392,7 +396,9 @@ function ListaInscritos({ destacamentos, sx }) {
       texto: d.numero ? `Dest. ${d.numero}` : d.nombre || "Sin número",
       orden: Number(d.numero) || 99999,
     }))
-    .sort((a, b) => a.region.localeCompare(b.region, "es") || a.orden - b.orden);
+    .sort(
+      (a, b) => a.region.localeCompare(b.region, "es") || a.orden - b.orden,
+    );
   return (
     <Box
       sx={[
@@ -409,34 +415,39 @@ function ListaInscritos({ destacamentos, sx }) {
     >
       <Typography
         variant="subtitle2"
-        sx={{ ...textoClaro, pb: 1, mb: 0.5, borderBottom: "solid 1px rgba(255,255,255,0.25)" }}
+        sx={{
+          ...textoClaro,
+          pb: 1,
+          mb: 0.5,
+          borderBottom: "solid 1px rgba(255,255,255,0.25)",
+        }}
       >
         Destacamentos actualizados
       </Typography>
       {/* Solo la lista se desplaza; el título queda fijo arriba. */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 0.5 }}>
-      {filas.length ? (
-        filas.map((f, i) => (
-          <Typography
-            key={i}
-            variant="caption"
-            component="div"
-            noWrap
-            sx={{
-              ...textoClaro,
-              py: 0.5,
-              fontSize: 11.5,
-              borderBottom: "dashed 1px rgba(255,255,255,0.12)",
-            }}
-          >
-            {f.region} - {f.texto}
+        {filas.length ? (
+          filas.map((f, i) => (
+            <Typography
+              key={i}
+              variant="caption"
+              component="div"
+              noWrap
+              sx={{
+                ...textoClaro,
+                py: 0.5,
+                fontSize: 11.5,
+                borderBottom: "dashed 1px rgba(255,255,255,0.12)",
+              }}
+            >
+              {f.region} - {f.texto}
+            </Typography>
+          ))
+        ) : (
+          <Typography variant="caption" sx={textoSuave}>
+            Aún no hay destacamentos actualizados.
           </Typography>
-        ))
-      ) : (
-        <Typography variant="caption" sx={textoSuave}>
-          Aún no hay destacamentos actualizados.
-        </Typography>
-      )}
+        )}
       </Box>
     </Box>
   );
@@ -444,7 +455,7 @@ function ListaInscritos({ destacamentos, sx }) {
 
 function LeyendaRegiones({ destacamentos, secciones }) {
   const iconoDeRegion = new Map(
-    secciones.filter((s) => s.fotoRegion).map((s) => [s.region, s.fotoRegion])
+    secciones.filter((s) => s.fotoRegion).map((s) => [s.region, s.fotoRegion]),
   );
   return (
     <Stack
@@ -466,7 +477,10 @@ function LeyendaRegiones({ destacamentos, secciones }) {
           titulo={r.nombre}
           lista={destacamentos.filter((d) => d.region === r.nombre)}
         >
-          <Stack spacing={0.25} sx={{ alignItems: "center", minWidth: 56, cursor: "default" }}>
+          <Stack
+            spacing={0.25}
+            sx={{ alignItems: "center", minWidth: 56, cursor: "default" }}
+          >
             {iconoDeRegion.get(r.nombre) ? (
               <Box
                 component="img"
@@ -482,7 +496,12 @@ function LeyendaRegiones({ destacamentos, secciones }) {
               />
             ) : (
               <Box
-                sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: `${r.color}.main` }}
+                sx={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  bgcolor: `${r.color}.main`,
+                }}
               />
             )}
             <Typography
@@ -491,7 +510,10 @@ function LeyendaRegiones({ destacamentos, secciones }) {
             >
               {r.nombre.replace("Región ", "")}
             </Typography>
-            <Typography variant="caption" sx={{ color: "common.white", opacity: 0.8, lineHeight: 1.2 }}>
+            <Typography
+              variant="caption"
+              sx={{ color: "common.white", opacity: 0.8, lineHeight: 1.2 }}
+            >
               {destacamentos.filter((d) => d.region === r.nombre).length} dest.
             </Typography>
           </Stack>
@@ -504,10 +526,15 @@ function LeyendaRegiones({ destacamentos, secciones }) {
 /** El recuadro del mapa (portada y ventana del móvil): el total fijo arriba y,
  *  debajo, un carrusel con el mapa y tres gráficos. `destacamentos`: los que ya
  *  enviaron; `padron`: todos, para el "de su total". */
-export function MapaDestacamentos({ destacamentos, secciones = [], padron = [] }) {
+export function MapaDestacamentos({
+  destacamentos,
+  secciones = [],
+  padron = [],
+}) {
   const [vista, setVista] = useState(0);
   const [toqueX, setToqueX] = useState(null);
-  const mover = (paso) => setVista((v) => (v + paso + VISTAS.length) % VISTAS.length);
+  const mover = (paso) =>
+    setVista((v) => (v + paso + VISTAS.length) % VISTAS.length);
   const actual = VISTAS[vista].id;
 
   const flecha = (paso, icono, lado) => (
@@ -524,7 +551,9 @@ export function MapaDestacamentos({ destacamentos, secciones = [], padron = [] }
         color: "common.white",
         bgcolor: varAlpha(t.vars.palette.primary.darkerChannel, 0.7),
         border: `solid 1px ${varAlpha(t.vars.palette.primary.lightChannel, 0.4)}`,
-        "&:hover": { bgcolor: varAlpha(t.vars.palette.primary.darkerChannel, 0.9) },
+        "&:hover": {
+          bgcolor: varAlpha(t.vars.palette.primary.darkerChannel, 0.9),
+        },
       })}
     >
       <Iconify icon={icono} />
@@ -562,7 +591,9 @@ export function MapaDestacamentos({ destacamentos, secciones = [], padron = [] }
             sx={(t) => ({
               // Fondo oscuro detrás del gráfico: sobre la foto se leía poco.
               borderRadius: 2,
-              bgcolor: { md: varAlpha(t.vars.palette.primary.darkerChannel, 0.72) },
+              bgcolor: {
+                md: varAlpha(t.vars.palette.primary.darkerChannel, 0.72),
+              },
               display: "flex",
               flexDirection: "column",
               gap: 2,
@@ -595,12 +626,19 @@ export function MapaDestacamentos({ destacamentos, secciones = [], padron = [] }
               }}
             >
               <Box sx={{ alignSelf: "center" }}>
-                <VistaAvanceRegion destacamentos={destacamentos} padron={padron} />
+                <VistaAvanceRegion
+                  destacamentos={destacamentos}
+                  padron={padron}
+                />
               </Box>
               {/* Sin sitio a la derecha del recuadro, la lista va dentro. */}
               <ListaInscritos
                 destacamentos={destacamentos}
-                sx={{ maxHeight: { xs: 200, md: 1 }, height: { md: 1 }, [LLEGA_FUERA]: { display: "none" } }}
+                sx={{
+                  maxHeight: { xs: 200, md: 1 },
+                  height: { md: 1 },
+                  [LLEGA_FUERA]: { display: "none" },
+                }}
               />
             </Box>
           </Box>
@@ -658,7 +696,9 @@ export function MapaDestacamentos({ destacamentos, secciones = [], padron = [] }
               width: i === vista ? 22 : 8,
               transition: "width .2s",
               bgcolor:
-                i === vista ? "common.white" : varAlpha(t.vars.palette.common.whiteChannel, 0.4),
+                i === vista
+                  ? "common.white"
+                  : varAlpha(t.vars.palette.common.whiteChannel, 0.4),
             })}
           />
         ))}
@@ -687,7 +727,10 @@ export function MapaDestacamentos({ destacamentos, secciones = [], padron = [] }
         <Typography variant="h3" sx={{ typography: { xs: "h5", md: "h3" } }}>
           {destacamentos.length || "—"}
         </Typography>
-        <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: 13, md: 12 } }}>
+        <Typography
+          variant="caption"
+          sx={{ opacity: 0.8, fontSize: { xs: 13, md: 12 } }}
+        >
           Destacamentos actualizados
         </Typography>
       </Card>
@@ -874,18 +917,95 @@ export function Pie() {
       sx={(t) => ({
         bgcolor: t.vars.palette.primary.darker,
         color: "common.white",
-        py: 5,
+        py: 2.5,
         mt: { xs: 4, md: 6 },
       })}
     >
       <Container maxWidth="xl">
-        {/* La marca y el aviso de derechos, centrados. */}
+        {/* La marca y, a su derecha, el contacto; debajo, los derechos. */}
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={4}
           sx={{ justifyContent: "center", alignItems: "center" }}
         >
-          <Marca claro />
+          {/* Los derechos, justo bajo el lema de la marca. */}
+          <Stack
+            spacing={0.75}
+            sx={{ alignItems: { xs: "center", md: "flex-start" } }}
+          >
+            <Marca claro />
+            <Typography variant="caption" sx={{ opacity: 0.6 }}>
+              © {new Date().getFullYear()} Exploradores del Rey. Todos los
+              derechos reservados.
+            </Typography>
+          </Stack>
+          {/* Separador vertical entre la marca y el contacto (solo en pantalla ancha). */}
+          <Box
+            sx={{
+              display: { xs: "none", md: "block" },
+              alignSelf: "stretch",
+              borderLeft: "solid 1px rgba(255,255,255,0.2)",
+            }}
+          />
+          {/* Contacto: a donde escribir si algo del registro no funciona. Destino
+              del enlace "Contacto" de la cabecera. */}
+          <Stack
+            id="contacto-correo"
+            spacing={0.25}
+            sx={{
+              alignItems: { xs: "center", md: "flex-start" },
+              textAlign: { xs: "center", md: "left" },
+              scrollMarginTop: 24,
+            }}
+          >
+            <Typography
+              variant="overline"
+              sx={{ opacity: 0.7, letterSpacing: 1.5 }}
+            >
+              Contacto
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.85, maxWidth: 420 }}>
+              ¿Dudas o problemas con el registro de tu destacamento? Escríbenos.
+            </Typography>
+            <Link
+              href="mailto:tecnologia@errd.org.do?subject=Registro%20de%20destacamentos"
+              color="inherit"
+              underline="hover"
+              sx={{
+                gap: 1,
+                display: "inline-flex",
+                alignItems: "center",
+                fontWeight: 600,
+              }}
+            >
+              <Iconify icon="solar:letter-bold" width={20} />
+              tecnologia@errd.org.do
+            </Link>
+            <Typography variant="caption" sx={{ opacity: 0.6 }}>
+              Comité de Tecnología · Exploradores del Rey, Rep. Dom.
+            </Typography>
+          </Stack>
+          {/* Logo de ERRD República Dominicana, a la derecha del contacto. Es una
+              copia recortada y reducida (13 KB) del PNG original de 3300 px. */}
+          <Box
+            sx={{
+              display: { xs: "none", md: "block" },
+              alignSelf: "stretch",
+              borderLeft: "solid 1px rgba(255,255,255,0.2)",
+            }}
+          />
+          <Box
+            component="img"
+            src="/logo/errd-logo-blanco.webp"
+            alt="Exploradores del Rey, República Dominicana"
+            loading="lazy"
+            // Solo en pantalla ancha y a la altura de la marca del pie (44 px).
+            sx={{
+              display: { xs: "none", md: "block" },
+              height: 44,
+              width: 199,
+            }}
+          />
           {/* En pantallas anchas la frase se parte en varias líneas a la derecha,
               en vez de estirarse en una sola. */}
           {/* <Typography
@@ -901,13 +1021,6 @@ export function Pie() {
             Influir en la vida de más niños y jóvenes que nunca, de una manera más efectiva que nunca.
           </Typography> */}
         </Stack>
-        <Typography
-          variant="caption"
-          sx={{ display: "block", mt: 1, opacity: 0.6, textAlign: "center" }}
-        >
-          © {new Date().getFullYear()} Exploradores del Rey. Todos los derechos
-          reservados.
-        </Typography>
       </Container>
     </Box>
   );
