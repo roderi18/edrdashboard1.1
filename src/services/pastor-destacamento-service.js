@@ -5,7 +5,7 @@ import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 
 import { updateChurchApi } from './church-service';
-import { getMembers , authHeaders } from './member-service';
+import { getMembers, authHeaders, invalidateMembersCache } from './member-service';
 import { guardarAsignacionDirectiva } from './directivas-organizacionales-service';
 import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 
@@ -108,6 +108,11 @@ export async function registrarMiembroBasico({
   } catch {
     datos = null;
   }
+
+  // La lista de miembros guardada ya no vale: sin esto, la siguiente búsqueda
+  // (otro envío de la misma carga que nombra a esta persona) no la veía y la
+  // creaba otra vez.
+  invalidateMembersCache();
 
   if (!res.ok) {
     throw new Error(
