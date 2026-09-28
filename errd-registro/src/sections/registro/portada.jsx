@@ -108,7 +108,8 @@ const EN_MAPA = { baoruco: "Bahoruco", "sanchez ramirez": "Sánchez Ramírez" };
 const REGIONES = [
   {
     nombre: "Región Norte",
-    color: "info",
+    // Colores de cada región: Norte amarillo, Central azul, Sur rojo, Este verde.
+    color: "warning",
     provincias: [
       "Monte Cristi",
       "Dajabón",
@@ -127,7 +128,7 @@ const REGIONES = [
   },
   {
     nombre: "Región Central",
-    color: "success",
+    color: "primary",
     provincias: [
       "Distrito Nacional",
       "Santo Domingo",
@@ -137,7 +138,7 @@ const REGIONES = [
   },
   {
     nombre: "Región Sur",
-    color: "warning",
+    color: "error",
     provincias: [
       "Azua",
       "Bahoruco",
@@ -153,7 +154,7 @@ const REGIONES = [
   },
   {
     nombre: "Región Este",
-    color: "error",
+    color: "success",
     provincias: [
       "El Seibo",
       "Hato Mayor",
@@ -282,9 +283,10 @@ function MapaRD({ destacamentos }) {
               component="circle"
               r={14}
               sx={(t) => ({
-                fill: t.vars.palette.warning.main,
-                stroke: "#fff",
-                strokeWidth: 3,
+                // Blanco: amarillo, como antes, no se veía sobre el Norte (ahora amarillo).
+                fill: t.vars.palette.common.white,
+                stroke: t.vars.palette.primary.darker,
+                strokeWidth: 2,
               })}
             />
             <text
