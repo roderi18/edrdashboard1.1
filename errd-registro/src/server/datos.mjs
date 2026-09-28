@@ -43,6 +43,47 @@ async function conCache(clave, leer) {
   return releer();
 }
 
+// ------------------------------------------------ la primera visita, al instante
+//
+// Un servidor recién arrancado tiene la memoria vacía, y el primero que entraba
+// esperaba a la API .NET (hasta 17 s, porque devuelve el padrón entero). Las
+// listas PÚBLICAS (secciones y destacamentos, sin teléfonos ni fechas) se guardan
+// también en Firestore: al arrancar se sirve la última buena al momento y se
+// renueva por detrás. Los miembros NO se guardan aquí: llevan datos personales.
+const COLECCION_COPIAS = 'landing_registro_copias';
+
+const leerCopia = async (clave) => {
+  try {
+    const doc = await db().collection(COLECCION_COPIAS).doc(clave).get();
+    const d = doc.exists ? doc.data() : null;
+    return d?.json ? { valor: JSON.parse(d.json), en: Number(d.en) || 0 } : null;
+  } catch {
+    return null;
+  }
+};
+
+const guardarCopia = (clave, valor) =>
+  db()
+    .collection(COLECCION_COPIAS)
+    .doc(clave)
+    .set({ json: JSON.stringify(valor), en: Date.now() })
+    .catch((error) => console.warn('[copias] no se pudo guardar', clave, error.message));
+
+async function conCacheDurable(clave, leer) {
+  // Cada relectura buena de la API deja la copia al día.
+  const leerYGuardar = async () => {
+    const valor = await leer();
+    guardarCopia(clave, valor);
+    return valor;
+  };
+  if (!cache.has(clave)) {
+    const copia = await leerCopia(clave);
+    // Se sirve la copia marcada como vencida: conCache la renueva por detrás.
+    if (copia && !cache.has(clave)) cache.set(clave, { valor: copia.valor, en: 0 });
+  }
+  return conCache(clave, leerYGuardar);
+}
+
 async function pedir(ruta, cuerpo) {
   const res = await fetch(`${API}/${ruta}`, {
     method: cuerpo ? 'POST' : 'GET',
@@ -74,7 +115,7 @@ const esRelleno = (v) => {
 // ---------------------------------------------------------------- secciones
 
 export const leerSecciones = () =>
-  conCache('secciones', async () => {
+  conCacheDurable('secciones', async () => {
     const [secciones, regiones, fotosRegion] = await Promise.all([
       pedir('Secciones/GetAllSecciones'),
       pedir('Regiones/GetAllRegiones'),
@@ -128,7 +169,7 @@ async function estadosDeDestacamentos() {
 }
 
 export const leerDestacamentos = () =>
-  conCache('destacamentos', async () => {
+  conCacheDurable('destacamentos', async () => {
     const [destacamentos, iglesias, secciones, miembros, fotos, coordinadores, estados] = await Promise.all([
       pedir('Destacamentos/GetAllDestacamentos'),
       pedir('Iglesias/GetAllIglesias'),

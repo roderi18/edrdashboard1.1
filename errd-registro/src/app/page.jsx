@@ -1,12 +1,46 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import Skeleton from '@mui/material/Skeleton';
 import Container from '@mui/material/Container';
 
 import { Pie, Portada, Encabezado } from 'src/sections/registro/portada';
-import { FormularioRegistro } from 'src/sections/registro/formulario-registro';
+
+// El formulario es lo más pesado de la página (validación, calendarios, teléfono,
+// subida de fotos): se descarga aparte para que la portada salga antes, con un
+// esqueleto de su misma forma mientras llega. Sin servidor: recupera el borrador
+// de este dispositivo, que el servidor no puede conocer.
+const FormularioRegistro = dynamic(
+  () => import('src/sections/registro/formulario-registro').then((m) => m.FormularioRegistro),
+  { ssr: false, loading: () => <EsqueletoFormulario /> }
+);
+
+function EsqueletoFormulario() {
+  return (
+    <Box
+      sx={{
+        gap: 3,
+        display: 'grid',
+        alignItems: 'start',
+        gridTemplateColumns: { xs: '1fr', lg: '260px minmax(0, 1fr) 280px' },
+      }}
+    >
+      <Skeleton variant="rounded" height={360} sx={{ display: { xs: 'none', lg: 'block' } }} />
+      <Card sx={{ p: { xs: 2.5, md: 4 } }}>
+        <Skeleton height={8} sx={{ mb: 3 }} />
+        <Skeleton width="60%" height={40} sx={{ mb: 3 }} />
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} variant="rounded" height={56} sx={{ mb: 2 }} />
+        ))}
+      </Card>
+      <Skeleton variant="rounded" height={360} sx={{ display: { xs: 'none', lg: 'block' } }} />
+    </Box>
+  );
+}
 
 // ----------------------------------------------------------------------
 // La única página: portada + formulario de registro/actualización.
@@ -20,7 +54,7 @@ export default function Page() {
   // El mapa cuenta los destacamentos que ya enviaron, no el padrón entero.
   const [enviados, setEnviados] = useState([]);
   const leerEnviados = useCallback(() => {
-    fetch('/api/envios')
+    fetch('/api/envios/')
       .then((r) => (r.ok ? r.json() : []))
       .then((e) => Array.isArray(e) && setEnviados(e))
       .catch(() => {});
@@ -30,8 +64,8 @@ export default function Page() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/destacamentos').then((r) => (r.ok ? r.json() : Promise.reject(r))),
-      fetch('/api/secciones').then((r) => (r.ok ? r.json() : Promise.reject(r))),
+      fetch('/api/destacamentos/').then((r) => (r.ok ? r.json() : Promise.reject(r))),
+      fetch('/api/secciones/').then((r) => (r.ok ? r.json() : Promise.reject(r))),
     ])
       .then(([d, s]) => {
         setDestacamentos(Array.isArray(d) ? d : []);

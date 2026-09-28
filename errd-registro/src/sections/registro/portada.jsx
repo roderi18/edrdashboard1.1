@@ -310,18 +310,31 @@ export function MapaDestacamentos({ destacamentos, secciones = [] }) {
     secciones.filter((s) => s.fotoRegion).map((s) => [s.region, s.fotoRegion]),
   );
   return (
-    <Box sx={{ position: "relative" }}>
-      <MapaRD destacamentos={destacamentos} />
-      {/* Encima del mapa, en el hueco del mar bajo el sur y el este. */}
+    // En pantallas pequeñas (la ventana del móvil) el total, el mapa y las
+    // regiones van uno debajo del otro: encima del mapa lo tapaban. Desde md,
+    // el total y las regiones flotan sobre el mar, como siempre.
+    <Box
+      sx={{
+        position: "relative",
+        display: { xs: "flex", md: "block" },
+        flexDirection: "column",
+        gap: 2,
+      }}
+    >
+      <Box sx={{ order: { xs: 2, md: 0 } }}>
+        <MapaRD destacamentos={destacamentos} />
+      </Box>
       <Stack
         direction="row"
         sx={{
+          order: 3,
           gap: 1.5,
           justifyContent: "center",
-          position: "absolute",
-          left: "30%",
-          right: 0,
-          bottom: "2%",
+          py: { xs: 1, md: 0 },
+          position: { md: "absolute" },
+          left: { md: "30%" },
+          right: { md: 0 },
+          bottom: { md: "2%" },
         }}
       >
         {REGIONES.map((r) => (
@@ -376,17 +389,26 @@ export function MapaDestacamentos({ destacamentos, secciones = [] }) {
       </Stack>
       <Card
         sx={(t) => ({
-          p: 2,
-          top: 0,
-          right: 0,
-          position: "absolute",
+          order: 1,
+          p: { xs: 1, md: 2 },
+          px: { xs: 2 },
+          top: { md: 0 },
+          right: { md: 0 },
+          position: { md: "absolute" },
+          alignSelf: { xs: "center", md: "auto" },
+          display: "flex",
+          flexDirection: { xs: "row", md: "column" },
+          alignItems: { xs: "baseline", md: "flex-start" },
+          gap: { xs: 1, md: 0 },
           color: "common.white",
           bgcolor: `${varAlpha(t.vars.palette.primary.darkerChannel, 0.8)}`,
           border: `solid 1px ${varAlpha(t.vars.palette.primary.lightChannel, 0.4)}`,
         })}
       >
-        <Typography variant="h3">{destacamentos.length || "—"}</Typography>
-        <Typography variant="caption" sx={{ opacity: 0.8 }}>
+        <Typography variant="h3" sx={{ typography: { xs: "h5", md: "h3" } }}>
+          {destacamentos.length || "—"}
+        </Typography>
+        <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: 13, md: 12 } }}>
           Destacamentos actualizados
         </Typography>
       </Card>

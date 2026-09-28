@@ -113,7 +113,7 @@ const Rejilla = ({ children }) => (
 );
 
 export function DatosMiembro({ destacamento }) {
-  const { control, setValue } = useFormContext();
+  const { control, setValue, getValues } = useFormContext();
   const modo = useWatch({ control, name: 'remitente.modo' });
   const elegido = useWatch({ control, name: 'remitente.miembro' });
   const [cargando, setCargando] = useState(false);
@@ -122,6 +122,9 @@ export function DatosMiembro({ destacamento }) {
   const idElegido = elegido?.id;
   useEffect(() => {
     if (!idElegido) return undefined;
+    // Ya precargada (p. ej. al recuperar el borrador tras recargar): volver a
+    // pedirla pisaba lo que la persona había corregido.
+    if (String(getValues('miembro.idPrecargado') ?? '') === String(idElegido)) return undefined;
     const control_ = new AbortController();
     setCargando(true);
     fetch(`/api/miembros/${encodeURIComponent(idElegido)}/`, { signal: control_.signal })
@@ -133,11 +136,12 @@ export function DatosMiembro({ destacamento }) {
         // Un cargo que no está en la lista corta se deja para que lo elija.
         const opcion = opcionDe(OPCIONES_POSICION, f.posicionDestacamento);
         setValue('miembro.posicionDestacamento', opcion?.value || '');
+        setValue('miembro.idPrecargado', idElegido);
       })
       .catch(() => {})
       .finally(() => setCargando(false));
     return () => control_.abort();
-  }, [idElegido, setValue]);
+  }, [idElegido, setValue, getValues]);
 
   if (modo === 'existente' && !elegido) return null;
 

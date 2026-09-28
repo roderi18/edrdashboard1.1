@@ -38,10 +38,12 @@ import { BuscarPersona } from "./buscar-persona";
 import { DatosMiembro, etiquetaCargo } from "./datos-miembro";
 import { PasosLaterales, PanelPorQueRegistrar } from "./paneles";
 import { PASOS, Esquema, CAMPOS_DEL_PASO, valoresIniciales } from "./esquema";
+import { useBorradorDelRegistro, borrarBorradorDelRegistro } from "./borrador-local";
 import {
   DIAS,
   PROVINCIAS,
   sectoresDe,
+  mismoNombre,
   municipiosDe,
 } from "./catalogo";
 
@@ -88,6 +90,12 @@ export function FormularioRegistro({
     defaultValues: valoresIniciales,
   });
   const { handleSubmit, trigger, reset, getValues } = methods;
+  const { restaurado, empezarDeNuevo } = useBorradorDelRegistro({
+    methods,
+    iniciales: valoresIniciales,
+    paso,
+    setPaso,
+  });
 
   const siguiente = async () => {
     const valido = await trigger(CAMPOS_DEL_PASO[PASOS[paso].id]);
@@ -114,6 +122,11 @@ export function FormularioRegistro({
           trampa: v.trampa || "",
           remitente: {
             ...persona(v.remitente),
+            // Con nombre y apellidos separados en su ficha, esos (partir el
+            // nombre completo equivocaba los compuestos).
+            ...(v.remitente.modo === "existente" && v.miembro.nombres
+              ? { nombres: v.miembro.nombres, apellidos: v.miembro.apellidos }
+              : {}),
             telefono: v.remitente.telefono,
             posicion: etiquetaCargo(v.miembro.posicionDestacamento) || "Ninguna",
           },
@@ -150,10 +163,17 @@ export function FormularioRegistro({
         const form = new FormData();
         form.append("envio", JSON.stringify(envio));
         if (v.logo instanceof File) form.append("logo", v.logo);
-        const res = await fetch("/api/envios", { method: "POST", body: form });
+        // Con la barra final: sin ella el servidor responde con una redirección
+        // y el navegador volvía a subir el envío entero (logo incluido).
+        // La landing no tiene sesión ni Historial: su envío queda "pendiente" y
+        // lo aplica el dashboard, que sí pasa por proponerCambio().
+        // eslint-disable-next-line no-restricted-syntax
+        const res = await fetch("/api/envios/", { method: "POST", body: form });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || "No se pudo enviar.");
         setEnviado({ nombre: v.datos.nombre, numero: v.datos.numero });
+        // Ya está en el servidor: el borrador de este dispositivo sobra.
+        borrarBorradorDelRegistro();
         // El mapa suma al que acaba de enviar sin recargar la página.
         onEnviado?.();
       } catch (error) {
@@ -215,6 +235,20 @@ export function FormularioRegistro({
             />
 
             <Cabecera paso={paso} />
+
+            {restaurado && (
+              <Alert
+                severity="success"
+                sx={{ mb: 3 }}
+                action={
+                  <Button color="inherit" size="small" onClick={empezarDeNuevo}>
+                    Empezar de nuevo
+                  </Button>
+                }
+              >
+                Recuperamos lo que habías escrito en este dispositivo.
+              </Alert>
+            )}
 
             {errorCarga && (
               <Alert severity="warning" sx={{ mb: 3 }}>
@@ -432,10 +466,8 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
       setValue("datos.iglesia", sinRelleno(d.iglesia));
       setValue("datos.direccion", {
         provincia:
-          PROVINCIAS.find(
-            (p) =>
-              p.nombre.toLowerCase() === d.direccion.provincia.toLowerCase(),
-          )?.nombre || "",
+          PROVINCIAS.find((p) => mismoNombre(p.nombre, d.direccion?.provincia))
+            ?.nombre || "",
         municipio: d.direccion.municipio || "",
         sector: d.direccion.sector || "",
         calle: d.direccion.calle || "",
@@ -467,6 +499,11 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
         DIAS.includes(d.diaReunion) ? d.diaReunion : "",
       );
       setValue("datos.horaReunion", textoAHora(d.horaReunion));
+      // Lo que no viene del padrón se vacía: al cambiar de destacamento, el
+      // logo, la cantidad y la hora de fin del anterior se enviaban con este.
+      setValue("datos.horaReunionFin", null);
+      setValue("datos.cantidadMiembros", "");
+      setValue("logo", null);
     },
     [setValue, fijarElegido, trigger],
   );

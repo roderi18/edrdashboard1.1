@@ -39,7 +39,7 @@ export function BuscarPersona({ ruta, etiqueta, textoNuevo = 'No está en la lis
   // Al abrir, se despierta la lista en el servidor para que la primera
   // búsqueda no tenga que esperar a la API.
   useEffect(() => {
-    fetch('/api/miembros?q=').catch(() => {});
+    fetch('/api/miembros/?q=').catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export function BuscarPersona({ ruta, etiqueta, textoNuevo = 'No está en la lis
     // La API tarda a veces; a los 15 s se corta para no quedar esperando para siempre.
     const limite = setTimeout(() => control_.abort(), 15000);
     const espera = setTimeout(() => {
-      fetch(`/api/miembros?q=${encodeURIComponent(q)}`, { signal: control_.signal })
+      fetch(`/api/miembros/?q=${encodeURIComponent(q)}`, { signal: control_.signal })
         .then((r) => (r.ok ? r.json() : []))
         .then((lista) => {
           const ok = Array.isArray(lista) ? lista : [];

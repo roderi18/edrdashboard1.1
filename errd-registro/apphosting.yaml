@@ -2,7 +2,9 @@
 # Sin cuenta de servicio: en App Hosting el Admin SDK usa las credenciales del
 # propio servidor (ver src/server/firebase.mjs).
 runConfig:
-  minInstances: 0
+  # Uno siempre encendido: con 0, el primero que entraba tras un rato sin
+  # visitas esperaba a que arrancara el servidor.
+  minInstances: 1
   maxInstances: 2
 env:
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET

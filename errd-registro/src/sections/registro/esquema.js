@@ -142,6 +142,8 @@ export const valoresIniciales = {
     talla: '',
     cargoNacional: '',
     posicionDestacamento: '',
+    // De qué persona se precargó la ficha (ver datos-miembro.jsx).
+    idPrecargado: null,
   },
   datos: {
     nombre: '',
