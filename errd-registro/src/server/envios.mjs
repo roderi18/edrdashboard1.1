@@ -225,5 +225,62 @@ export async function guardarEnvio({ envio, logo, fotoMiembro, ip }) {
     ipAproximada: String(ip || '').split(',')[0].trim().replace(/\.\d+$/, '.x'),
   });
 
+  enviadosEnCache = null;
   return { id: ref.id };
+}
+
+// ---------------------------------------------------------------- mapa de la portada
+
+// Un destacamento cuenta UNA vez aunque envíe varias veces. Los del padrón se
+// reconocen por su id; los nuevos (sin id) por sección + nombre, sin tildes ni
+// mayúsculas, para que "Los Pinos" y "los pinos" no sumen dos.
+const sinTildes = (v) =>
+  String(v ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+export const claveDeDestacamento = (e) =>
+  e.destacamento?.id
+    ? `id:${e.destacamento.id}`
+    : `nuevo:${e.seccion?.id ?? ''}:${sinTildes(e.destacamento?.nombre ?? e.nombreDestacamento)}`;
+
+/** Un elemento por destacamento, con lo que pinta el mapa (nombre, número, provincia y región)
+ *  del envío más reciente. Sin datos de personas: esto va al navegador. */
+export function destacamentosQueEnviaron(lista) {
+  const porClave = new Map();
+  lista.forEach((e) => {
+    const clave = claveDeDestacamento(e);
+    const previo = porClave.get(clave);
+    if (!previo || (e.creadoEn ?? 0) >= (previo.creadoEn ?? 0)) porClave.set(clave, e);
+  });
+  return [...porClave.entries()].map(([clave, e]) => ({
+    id: clave,
+    nombre: e.datos?.nombre || e.destacamento?.nombre || e.nombreDestacamento || '',
+    numero: e.datos?.numero || e.destacamento?.numero || '',
+    direccion: { provincia: e.datos?.direccion?.provincia || '' },
+    region: e.region?.nombre || '',
+  }));
+}
+
+// Lo pide cada visita: 30 s en memoria para no leer la colección entera cada vez.
+// Guardar un envío la vacía, y quien acaba de enviar se ve contado al momento.
+let enviadosEnCache = null;
+export async function leerDestacamentosQueEnviaron() {
+  if (enviadosEnCache && Date.now() - enviadosEnCache.en < 30000) return enviadosEnCache.valor;
+  const snap = await db()
+    .collection(COLECCION)
+    .where('origen', '==', 'errd-registro')
+    .select('destacamento', 'nombreDestacamento', 'seccion', 'region', 'datos.direccion.provincia', 'datos.nombre', 'datos.numero', 'creadoEn')
+    .get();
+  const valor = destacamentosQueEnviaron(
+    snap.docs.map((d) => {
+      const e = d.data();
+      return { ...e, creadoEn: e.creadoEn?.toMillis?.() ?? 0 };
+    })
+  );
+  enviadosEnCache = { valor, en: Date.now() };
+  return valor;
 }

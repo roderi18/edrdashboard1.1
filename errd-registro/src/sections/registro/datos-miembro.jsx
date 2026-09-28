@@ -1,21 +1,17 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useWatch, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 
 import cargosDirectiva from 'src/data/cargos-directiva.json';
 
 import { Field } from 'src/components/hook-form';
-
-import { PROVINCIAS, sectoresDe, municipiosDe } from './catalogo';
 
 // ----------------------------------------------------------------------
 // "TUS DATOS DE MIEMBRO": los mismos campos de la ficha del miembro del
@@ -57,13 +53,22 @@ export const OPCIONES_CARGO_NACIONAL = sinRepetir(
   cargosDirectiva.filter((c) => c.nivel !== 'destacamento')
 ).map((c) => ({ ...c, grupo: GRUPO_NIVEL[c.nivel] || 'Otros' }));
 
+// Solo los cargos que llenan este formulario. "Líder de Grupo" existe en cada
+// división del padrón; aquí basta uno, y la casilla exacta la decide quien lo
+// aplique en el dashboard. "Otro cargo" no es una casilla: solo avisa.
+const POSICIONES_DEL_FORMULARIO = [
+  'destacamento-coordinador-destacamento',
+  'destacamento-coordinador-asistente-destacamento',
+  'destacamento-pastor',
+  'destacamento-exploradores-lider-grupo',
+];
+
 export const OPCIONES_POSICION = [
-  { value: 'none', label: 'Ninguna', grupo: '' },
-  ...sinRepetir(cargosDirectiva.filter((c) => c.nivel === 'destacamento')).map((c) => ({
-    ...c,
-    label: c.nombreDivision ? `${c.label} (${c.nombreDivision})` : c.label,
-    grupo: c.nombreDivision || 'General',
-  })),
+  ...POSICIONES_DEL_FORMULARIO.map((v) => {
+    const c = cargosDirectiva.find((x) => x.value === v);
+    return { value: v, label: c?.label || v, grupo: '' };
+  }),
+  { value: 'otro', label: 'Otro cargo', grupo: '' },
 ];
 
 // La casilla guardada puede ser otra del mismo cargo (p. ej. Oficial Especial 7):
@@ -111,19 +116,7 @@ export function DatosMiembro({ destacamento }) {
   const { control, setValue } = useFormContext();
   const modo = useWatch({ control, name: 'remitente.modo' });
   const elegido = useWatch({ control, name: 'remitente.miembro' });
-  const provincia = useWatch({ control, name: 'miembro.direccion.provincia' });
-  const municipio = useWatch({ control, name: 'miembro.direccion.municipio' });
-  const municipios = useMemo(() => municipiosDe(provincia), [provincia]);
-  const [sectores, setSectores] = useState([]);
   const [cargando, setCargando] = useState(false);
-
-  useEffect(() => {
-    let vigente = true;
-    sectoresDe(municipio, provincia).then((lista) => vigente && setSectores(lista));
-    return () => {
-      vigente = false;
-    };
-  }, [municipio, provincia]);
 
   // Al elegir (o cambiar) el nombre se precarga su ficha; lo sensible queda vacío.
   const idElegido = elegido?.id;
@@ -135,17 +128,11 @@ export function DatosMiembro({ destacamento }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((f) => {
         if (!f) return;
-        setValue('miembro', {
-          foto: f.foto || null,
-          nombres: f.nombres || '',
-          apellidos: f.apellidos || '',
-          fechaNacimiento: null,
-          direccion: { provincia: '', municipio: '', sector: '', calle: '' },
-          sexo: f.sexo || '',
-          talla: f.talla || '',
-          cargoNacional: f.cargoNacional || '',
-          posicionDestacamento: f.posicionDestacamento || 'none',
-        });
+        setValue('miembro.nombres', f.nombres || '');
+        setValue('miembro.apellidos', f.apellidos || '');
+        // Un cargo que no está en la lista corta se deja para que lo elija.
+        const opcion = opcionDe(OPCIONES_POSICION, f.posicionDestacamento);
+        setValue('miembro.posicionDestacamento', opcion?.value || '');
       })
       .catch(() => {})
       .finally(() => setCargando(false));
@@ -155,29 +142,18 @@ export function DatosMiembro({ destacamento }) {
   if (modo === 'existente' && !elegido) return null;
 
   return (
-    <Stack spacing={3} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2, border: (t) => `dashed 1px ${t.vars.palette.divider}` }}>
-      <Box>
-        <Typography variant="subtitle1">Tus datos de miembro</Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Revisa y corrige lo que haga falta. Por tu privacidad, la fecha de nacimiento y la
-          dirección no se muestran. Esta información solo estará bajo el poder de Oficinal Nacional, Rep. Dom.
-        </Typography>
-      </Box>
+    // Sin recuadro ni título: van seguidos de "Tu nombre", en el mismo bloque.
+    <Stack spacing={3}>
 
       {cargando ? (
         <Stack spacing={2}>
-          <Skeleton variant="circular" width={120} height={120} sx={{ mx: 'auto' }} />
           <Skeleton height={56} />
           <Skeleton height={56} />
         </Stack>
       ) : (
         <>
-          <Box sx={{ textAlign: 'center' }}>
-            <Field.UploadAvatar name="miembro.foto" optimizationToast={false} />
-            <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
-              Tu foto de perfil. Pulsa para cambiarla (PNG, JPG o WEBP).
-            </Typography>
-          </Box>
+          {/* Orden: destacamento (se pone solo), nombre, teléfono y posición. */}
+          {destacamento}
 
           {modo === 'existente' && (
             <Rejilla>
@@ -194,84 +170,11 @@ export function DatosMiembro({ destacamento }) {
               maxDigitos={10}
               placeholder="Ej: 809 555 1234"
             />
-            <Field.DatePicker
-              name="miembro.fechaNacimiento"
-              label="Fecha de nacimiento"
-              format="DD/MM/YYYY"
-              disableFuture
-            />
-            <Field.Select name="miembro.sexo" label="Sexo">
-              {SEXOS.map((s) => (
-                <MenuItem key={s.value} value={s.value}>
-                  {s.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
-          </Rejilla>
-
-          <Typography variant="subtitle2">Dirección</Typography>
-          <Rejilla>
-            <Field.Autocomplete
-              name="miembro.direccion.provincia"
-              label="Provincia"
-              options={PROVINCIAS.map((p) => p.nombre)}
-              onChange={(_, v) => {
-                setValue('miembro.direccion.provincia', v || '');
-                setValue('miembro.direccion.municipio', '');
-                setValue('miembro.direccion.sector', '');
-              }}
-            />
-            <Field.Autocomplete
-              name="miembro.direccion.municipio"
-              label="Municipio"
-              disabled={!provincia}
-              options={municipios.map((m) => m.nombre)}
-              onChange={(_, v) => {
-                setValue('miembro.direccion.municipio', v || '');
-                setValue('miembro.direccion.sector', '');
-              }}
-            />
-            <Field.Autocomplete
-              name="miembro.direccion.sector"
-              label="Sector"
-              freeSolo
-              disabled={!municipio}
-              options={sectores}
-              onInputChange={(_, v) => setValue('miembro.direccion.sector', v || '')}
-            />
-            <Field.Text name="miembro.direccion.calle" label="Calle / Número" placeholder="Ej: C/ Principal #123" />
-          </Rejilla>
-
-          <Typography variant="subtitle2">Destacamento y cargos</Typography>
-          {/* Destacamento a la izquierda y su posición al lado, como en la ficha de la app. */}
-          <Box
-            sx={{
-              gap: 3,
-              display: 'grid',
-              alignItems: 'start',
-              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            }}
-          >
-            {destacamento}
             <SelectorCargo
               name="miembro.posicionDestacamento"
-              label="Nivel posición en tu Destacamento *"
+              label="Posición en tu Destacamento *"
               opciones={OPCIONES_POSICION}
             />
-          </Box>
-          <Rejilla>
-            <SelectorCargo
-              name="miembro.cargoNacional"
-              label="Cargo Nacional"
-              opciones={OPCIONES_CARGO_NACIONAL}
-            />
-            <Field.Select name="miembro.talla" label="Size T-Shirt">
-              {TALLAS.map((t) => (
-                <MenuItem key={t} value={t}>
-                  {t}
-                </MenuItem>
-              ))}
-            </Field.Select>
           </Rejilla>
         </>
       )}

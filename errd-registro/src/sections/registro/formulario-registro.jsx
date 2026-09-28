@@ -75,6 +75,8 @@ export function FormularioRegistro({
   secciones,
   cargando,
   errorCarga,
+  enviados = [],
+  onEnviado,
 }) {
   const [paso, setPaso] = useState(0);
   const [enviado, setEnviado] = useState(null);
@@ -143,22 +145,17 @@ export function FormularioRegistro({
         envio.miembro = {
           nombres: v.remitente.modo === "existente" ? m.nombres : v.remitente.nombres,
           apellidos: v.remitente.modo === "existente" ? m.apellidos : v.remitente.apellidos,
-          fechaNacimiento: m.fechaNacimiento ? dayjs(m.fechaNacimiento).format("YYYY-MM-DD") : "",
-          direccion: m.direccion,
-          sexo: m.sexo,
-          talla: m.talla,
-          cargoNacional: m.cargoNacional,
           posicionDestacamento: m.posicionDestacamento,
         };
         const form = new FormData();
         form.append("envio", JSON.stringify(envio));
-        // La foto solo viaja si la cambió (si no, es la URL de la que ya tiene).
-        if (m.foto instanceof File) form.append("fotoMiembro", m.foto);
         if (v.logo instanceof File) form.append("logo", v.logo);
         const res = await fetch("/api/envios", { method: "POST", body: form });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || "No se pudo enviar.");
         setEnviado({ nombre: v.datos.nombre, numero: v.datos.numero });
+        // El mapa suma al que acaba de enviar sin recargar la página.
+        onEnviado?.();
       } catch (error) {
         toast.error(error.message || "No se pudo enviar. Inténtalo de nuevo.");
       } finally {
@@ -195,7 +192,7 @@ export function FormularioRegistro({
           <Enviado
             enviado={enviado}
             onOtro={otroDestacamento}
-            destacamentos={destacamentos}
+            destacamentos={enviados}
             secciones={secciones}
           />
         ) : (
@@ -271,7 +268,7 @@ export function FormularioRegistro({
                   loading={enviando}
                   startIcon={<Iconify icon="custom:send-fill" />}
                 >
-                  Enviar para revisión
+                  Enviar a Oficina Nacional
                 </Button>
               )}
             </Stack>
@@ -636,7 +633,7 @@ function PasoGeneral() {
         />
         <Field.Text
           name="datos.cantidadMiembros"
-          label="Cantidad aproximada de miembros"
+          label="Cantidad de miembros en Destacamento"
           type="number"
           placeholder="Ej: 35"
           slotProps={{ htmlInput: { min: 0, max: 2000 } }}
@@ -1021,7 +1018,7 @@ function Enviado({ enviado, onOtro, destacamentos, secciones }) {
         {enviado.numero
           ? `El destacamento #${enviado.numero} · `
           : "El destacamento "}
-        {enviado.nombre} quedó pendiente de revisión por la Oficina Nacional. Si
+        {enviado.nombre} fue recibido por la Oficina Nacional. Si
         hace falta, te contactaremos al teléfono que nos dejaste.
       </Typography>
       {/* Los dos botones juntos, con menos separación que el resto. */}

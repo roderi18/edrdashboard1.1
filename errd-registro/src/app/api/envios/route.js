@@ -1,6 +1,22 @@
-import { guardarEnvio, superaLimite, EsquemaEnvio } from 'src/server/envios.mjs';
+import {
+  guardarEnvio,
+  superaLimite,
+  EsquemaEnvio,
+  leerDestacamentosQueEnviaron,
+} from 'src/server/envios.mjs';
 
 export const dynamic = 'force-dynamic';
+
+// Los destacamentos que ya enviaron su información, uno por destacamento (el
+// mapa de la portada). Solo provincia y región: nada de personas.
+export async function GET() {
+  try {
+    return Response.json(await leerDestacamentosQueEnviaron());
+  } catch (error) {
+    console.error('[api/envios GET]', error);
+    return Response.json({ error: 'No se pudieron leer los envíos.' }, { status: 502 });
+  }
+}
 
 // Guarda un envío como "pendiente". Llega como multipart: `envio` (JSON) y,
 // si lo hay, `logo` (archivo).
