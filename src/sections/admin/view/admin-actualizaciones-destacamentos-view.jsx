@@ -43,6 +43,8 @@ import { EmptyContent } from 'src/components/empty-content';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { CuentaRegresivaLandingCard } from '../cuenta-regresiva-landing-card';
+
 // ----------------------------------------------------------------------
 // BANDEJA "ACTUALIZACIÓN DE DESTACAMENTOS".
 //
@@ -435,6 +437,9 @@ export function AdminActualizacionesDestacamentosView() {
   }
 
   return (
+    <>
+    {/* La cuenta atrás de la landing: se elige aquí y la página la aplica sola. */}
+    <CuentaRegresivaLandingCard user={user} />
     <Card>
       <InterruptorCargaAutomatica user={user} />
       <Stack
@@ -597,6 +602,7 @@ export function AdminActualizacionesDestacamentosView() {
         />
       )}
     </Card>
+    </>
   );
 }
 

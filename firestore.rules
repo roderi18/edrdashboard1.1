@@ -1367,6 +1367,15 @@ service cloud.firestore {
     // toca el padron hasta que ellos lo cargan.
     // El interruptor de carga automática de esa bandeja
     // (src/utils/carga-automatica-actualizaciones.mjs).
+    // La cuenta atrás de la landing de registro (src/utils/cuenta-regresiva-landing.mjs).
+    // La landing la lee por su servidor (Admin SDK); aquí solo la cambian
+    // el Administrador Global y la Oficina Nacional.
+    match /configuracion_landing_registro/{idConfiguracion} {
+      allow read, write: if esAdministradorGlobal()
+        || esOficinaNacional()
+        || ejerceRol('oficina_nacional');
+    }
+
     match /configuracion_actualizaciones_destacamentos/{idConfiguracion} {
       allow read, write: if esAdministradorGlobal()
         || esOficinaNacional()

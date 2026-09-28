@@ -246,6 +246,7 @@ export default [
       // Mismo caso: el estado (Activo / Inactivo) de un destacamento.
       'src/services/estado-destacamentos-apply.js',
       'src/services/evaluacion-destacamento-apply.js',
+      'src/services/cuenta-regresiva-landing-apply.js',
       // Los borradores de EXPLORA Designer: lo que el Administrador Global esta
       // editando y aun no publico. No lo ve nadie mas y no cambia nada de la
       // organizacion; registrar cada autoguardado llenaria Historial de ruido.

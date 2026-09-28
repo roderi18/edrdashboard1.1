@@ -115,6 +115,10 @@ export const AMBITOS_CAMBIO = {
   // cambian el Administrador Global y la Oficina Nacional: se aplica en el acto
   // y queda en Historial. Vive en Firestore, no en la API .NET.
   evaluacionDestacamento: 'evaluacion_destacamento',
+  // La cuenta atrás de la landing de registro (fecha de cierre y opciones). Solo
+  // la cambian el Administrador Global y la Oficina Nacional: en el acto y con
+  // Historial.
+  cuentaRegresivaLanding: 'cuenta_regresiva_landing',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.
