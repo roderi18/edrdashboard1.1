@@ -11,3 +11,5 @@ env:
     value: systexploradores.firebasestorage.app
   - variable: API_NET_URL
     value: https://systexploradores.somee.com/api
+  - variable: RESEND_API_KEY
+    secret: resend-api-key

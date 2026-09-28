@@ -4,6 +4,7 @@ import * as z from "zod";
 import { FieldValue } from "firebase-admin/firestore";
 
 import { db, bucket } from "./firebase.mjs";
+import { avisarPorCorreo } from "./correo.mjs";
 import {
   leerSecciones,
   codigoDeMiembro,
@@ -270,7 +271,7 @@ export async function guardarEnvio({ envio, logo, fotoMiembro, ip, rafaga = fals
   ]);
   const nombreRemitente =
     `${envio.remitente.nombres} ${envio.remitente.apellidos}`.trim();
-  await ref.set({
+  const registro = {
     id: ref.id,
     estado: "pendiente",
     origen: "errd-registro",
@@ -317,9 +318,21 @@ export async function guardarEnvio({ envio, logo, fotoMiembro, ip, rafaga = fals
       .split(",")[0]
       .trim()
       .replace(/\.\d+$/, ".x"),
-  });
-
+  };
+  await ref.set(registro);
   enviadosEnCache = null;
+
+  // Aviso a tecnologia@errd.org.do. Va DESPUÉS de guardar y nunca falla el
+  // envío: si el correo no sale, lo guardado sigue ahí y queda anotado aquí.
+  const correoEnviado = await avisarPorCorreo({
+    ...registro,
+    fecha: new Date(),
+    logoUrl: logoGuardado?.url || "",
+  });
+  await ref
+    .update({ correoAviso: { enviado: correoEnviado, en: FieldValue.serverTimestamp() } })
+    .catch(() => {});
+
   return { id: ref.id };
 }
 
