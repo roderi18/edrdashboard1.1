@@ -111,6 +111,10 @@ export const AMBITOS_CAMBIO = {
   // la API .NET: una propuesta suya aprobada como `destacamento` se habria
   // enviado al padron.
   estadoDestacamento: 'estado_destacamento',
+  // La evaluación del destacamento (No. de evaluación y sus dos fechas). Solo la
+  // cambian el Administrador Global y la Oficina Nacional: se aplica en el acto
+  // y queda en Historial. Vive en Firestore, no en la API .NET.
+  evaluacionDestacamento: 'evaluacion_destacamento',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.

@@ -1,9 +1,25 @@
 import { ref, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  setDoc,
+  updateDoc,
+  increment,
+  collection,
+  onSnapshot,
+  runTransaction,
+  serverTimestamp,
+} from 'firebase/firestore';
+
+import {
+  RESERVA_MS,
+  DOC_CARGA_AUTOMATICA,
+  COLECCION_CONFIG_ACTUALIZACIONES,
+} from 'src/utils/carga-automatica-actualizaciones.mjs';
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { getChurches } from './church-service';
+import { notificarCargaAutomatica } from './notificar-oficina-nacional-service';
 import { updateDestApi, mapApiDestToUI, aplicarFotoDestacamento } from './dest-service';
 
 // ----------------------------------------------------------------------
@@ -117,7 +133,7 @@ async function marcar(id, estado, usuario) {
 }
 
 /** Carga en el padrón los envíos elegidos. Devuelve { cargadas, omitidas, fallidas }. */
-export async function cargarActualizaciones(filas, usuario) {
+export async function cargarActualizaciones(filas, usuario, { automatica = false } = {}) {
   const resultado = { cargadas: 0, omitidas: [], fallidas: [] };
   const [crudos, iglesias] = await Promise.all([leerDestacamentosCrudos(), getChurches()]);
 
@@ -144,7 +160,8 @@ export async function cargarActualizaciones(filas, usuario) {
         destMeetingDays: datos.diaReunion || antes.destMeetingDays,
         destMeetingTimes: datos.horaReunion || antes.destMeetingTimes,
       };
-      await updateDestApi(despues, { usuario, antes });
+      // La automática avisa con su propio mensaje (ver `cargarAutomaticamente`).
+      await updateDestApi(despues, { usuario, antes, sinAviso: automatica });
       if (fila.logo?.ruta) {
         const urlFoto =
           fila.logo.url || (await getDownloadURL(ref(FIREBASE_STORAGE, fila.logo.ruta)));
@@ -170,4 +187,98 @@ export async function descartarActualizaciones(filas, usuario) {
   await Promise.all(
     filas.map((fila) => marcar(fila.id, ESTADOS_ACTUALIZACION.descartada, usuario))
   );
+}
+
+// ----------------------------------------------------------------------
+// CARGA AUTOMÁTICA (ver src/utils/carga-automatica-actualizaciones.mjs).
+// ----------------------------------------------------------------------
+
+const refConfig = () => doc(FIRESTORE, COLECCION_CONFIG_ACTUALIZACIONES, DOC_CARGA_AUTOMATICA);
+
+/** Escucha el interruptor: { activa, desde, activadaPor }. */
+export function escucharCargaAutomatica(alCambiar) {
+  if (!isFirebaseConfigured || !FIRESTORE) {
+    alCambiar({ activa: false });
+    return () => {};
+  }
+  return onSnapshot(
+    refConfig(),
+    (snap) => alCambiar(snap.exists() ? snap.data() : { activa: false }),
+    () => alCambiar({ activa: false })
+  );
+}
+
+/**
+ * Enciende o apaga la carga automática. `desde` marca la hora de encendido: solo
+ * se cargan solos los envíos que lleguen después.
+ */
+export async function cambiarCargaAutomatica(activa, usuario) {
+  const quien = {
+    id: String(usuario?.idMiembros ?? usuario?.id ?? ''),
+    nombre: usuario?.displayName || usuario?.nombre || '',
+  };
+  // Es un ajuste de la bandeja, como su estado: lo que se carga luego sí pasa
+  // por proponerCambio en updateDestApi.
+  // eslint-disable-next-line no-restricted-syntax
+  await setDoc(
+    refConfig(),
+    activa
+      ? { activa: true, desde: Date.now(), activadaPor: quien, cambiadaEn: serverTimestamp() }
+      : { activa: false, desactivadaPor: quien, cambiadaEn: serverTimestamp() },
+    { merge: true }
+  );
+}
+
+/** Reserva un envío para esta sesión. false si otra ya lo tomó o dejó de estar pendiente. */
+async function reservar(id, uid) {
+  const referencia = doc(FIRESTORE, COLECCION_ACTUALIZACIONES_DESTACAMENTOS, id);
+  return runTransaction(FIRESTORE, async (transaccion) => {
+    const actual = (await transaccion.get(referencia)).data() || {};
+    const hasta = Number(actual.cargaAutomatica?.reservadoHasta) || 0;
+    if ((actual.estado || 'pendiente') !== 'pendiente' || hasta > Date.now()) return false;
+    transaccion.update(referencia, {
+      'cargaAutomatica.reservadoHasta': Date.now() + RESERVA_MS,
+      'cargaAutomatica.reservadoPor': uid,
+    });
+    return true;
+  });
+}
+
+/**
+ * Carga un envío solo y avisa. Nunca lanza: un fallo cuenta un intento y libera
+ * la reserva para reintentarlo (hasta INTENTOS_MAXIMOS; luego, a mano).
+ */
+export async function cargarAutomaticamente(fila, usuario) {
+  const uid = String(usuario?.uid ?? usuario?.id ?? '');
+  const referencia = doc(FIRESTORE, COLECCION_ACTUALIZACIONES_DESTACAMENTOS, fila.id);
+  try {
+    if (!(await reservar(fila.id, uid))) return false;
+    const { cargadas } = await cargarActualizaciones([fila], usuario, { automatica: true });
+    if (!cargadas) throw new Error('La carga no se completó.');
+    // eslint-disable-next-line no-restricted-syntax
+    await updateDoc(referencia, {
+      'cargaAutomatica.cargadaEn': serverTimestamp(),
+      'cargaAutomatica.reservadoHasta': 0,
+    });
+    notificarCargaAutomatica({
+      destacamento: {
+        id: fila.destacamento?.id,
+        nombre: [fila.nombreDestacamento || fila.destacamento?.nombre, fila.numeroDestacamento]
+          .filter(Boolean)
+          .join(' '),
+      },
+      enviadoPor: fila.enviadoPor?.nombre || '',
+      usuario,
+    }).catch((error) => console.warn('[carga automática] no se pudo avisar', error));
+    return true;
+  } catch (error) {
+    console.error('[carga automática] no se pudo cargar', fila.id, error);
+    // eslint-disable-next-line no-restricted-syntax
+    await updateDoc(referencia, {
+      'cargaAutomatica.intentos': increment(1),
+      'cargaAutomatica.reservadoHasta': 0,
+      'cargaAutomatica.ultimoError': String(error?.message || error).slice(0, 200),
+    }).catch(() => {});
+    return false;
+  }
 }

@@ -23,7 +23,7 @@ test('la navegación común coloca nombre, tabs y ruta en ese orden', () => {
     'utf8'
   );
   const titulo = navegacion.indexOf('<CustomBreadcrumbs heading={heading}');
-  const tabs = navegacion.indexOf('<Tabs value={value}');
+  const tabs = navegacion.indexOf('<Tabs value=');
   const ruta = navegacion.indexOf("{ name: 'Panel', href: paths.dashboard.root }");
 
   assert.ok(titulo >= 0 && titulo < tabs);

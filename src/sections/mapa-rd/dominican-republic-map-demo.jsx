@@ -9,8 +9,12 @@ import Switch from '@mui/material/Switch';
 import Tooltip from '@mui/material/Tooltip';
 import SvgIcon from '@mui/material/SvgIcon';
 import Snackbar from '@mui/material/Snackbar';
+import { useTheme } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
+
+import { REGIONES_RD, regionDeProvincia } from 'src/utils/regiones-de-provincias.mjs';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -32,6 +36,7 @@ const PROVINCE_PATHS = provincias.features.map((provincia) => ({
   id: provincia.properties.iso,
   path: crearContorno(provincia.geometry, geografia.geometry),
   nombre: provincia.properties.name,
+  region: regionDeProvincia(provincia.properties.name),
   posicion: proyectarNombre(provincia.properties.label),
   lineas: provincia.properties.name.split(' ').reduce((lineas, palabra) => {
     const ultima = lineas.length - 1;
@@ -57,7 +62,13 @@ const CONTROL_SX = {
 export function DominicanRepublicMapDemo() {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
+  const theme = useTheme();
+  // "Ver regiones": cada provincia con el color de su región, como en el mapa de
+  // la landing de registro (Norte amarillo, Central azul, Sur rojo, Este verde).
+  const [mostrarRegiones, setMostrarRegiones] = useState(false);
   const [mostrarProvincias, setMostrarProvincias] = useState(false);
+  // Con las regiones se ven también las divisiones: son las mismas provincias.
+  const conDivisiones = mostrarProvincias || mostrarRegiones;
   const [mostrarNombres, setMostrarNombres] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pantallaAmpliada, setPantallaAmpliada] = useState(false);
@@ -174,7 +185,7 @@ export function DominicanRepublicMapDemo() {
               fillRule="evenodd"
               filter="url(#country-shadow)"
             />
-            {mostrarProvincias && (
+            {conDivisiones && (
               <g
                 clipPath="url(#country-clip)"
                 pointerEvents="none"
@@ -184,9 +195,14 @@ export function DominicanRepublicMapDemo() {
                   <path
                     key={provincia.id}
                     d={provincia.path}
-                    fill="none"
-                    stroke="#a2c9d7"
-                    strokeOpacity={0.65}
+                    fill={
+                      mostrarRegiones && provincia.region
+                        ? theme.palette[provincia.region.color].main
+                        : 'none'
+                    }
+                    fillOpacity={0.9}
+                    stroke={mostrarRegiones ? '#ffffff' : '#a2c9d7'}
+                    strokeOpacity={mostrarRegiones ? 0.6 : 0.65}
                     strokeWidth={1}
                     strokeLinejoin="round"
                     vectorEffect="non-scaling-stroke"
@@ -204,7 +220,7 @@ export function DominicanRepublicMapDemo() {
               vectorEffect="non-scaling-stroke"
               pointerEvents="none"
             />
-            {mostrarProvincias && mostrarNombres && (
+            {conDivisiones && mostrarNombres && (
               <g pointerEvents="none" data-testid="nombres-provinciales">
                 {PROVINCE_PATHS.map((provincia) => {
                   // El Distrito Nacional es pequeño: su rótulo se separa hacia el mar.
@@ -369,6 +385,38 @@ export function DominicanRepublicMapDemo() {
       >
         <Stack>
           <FormControlLabel
+            label="Ver regiones"
+            labelPlacement="start"
+            sx={{
+              m: 0,
+              gap: 1,
+              justifyContent: 'space-between',
+              '& .MuiFormControlLabel-label': { fontSize: 14, fontWeight: 600 },
+            }}
+            control={
+              <Switch
+                checked={mostrarRegiones}
+                onChange={(_, checked) => setMostrarRegiones(checked)}
+                slotProps={{ input: { 'aria-label': 'Ver regiones por colores' } }}
+              />
+            }
+          />
+          {mostrarRegiones && (
+            <Box
+              data-testid="leyenda-regiones"
+              sx={{ py: 0.5, gap: 0.75, display: 'grid', gridTemplateColumns: '1fr 1fr' }}
+            >
+              {REGIONES_RD.map((region) => (
+                <Stack key={region.nombre} direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                  <Box
+                    sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: `${region.color}.main` }}
+                  />
+                  <Typography variant="caption">{region.nombre.replace('Región ', '')}</Typography>
+                </Stack>
+              ))}
+            </Box>
+          )}
+          <FormControlLabel
             label="Provincias"
             labelPlacement="start"
             sx={{
@@ -391,7 +439,7 @@ export function DominicanRepublicMapDemo() {
           <FormControlLabel
             label="Nombres de provincias"
             labelPlacement="start"
-            disabled={!mostrarProvincias}
+            disabled={!conDivisiones}
             sx={{
               m: 0,
               gap: 1,
@@ -401,7 +449,7 @@ export function DominicanRepublicMapDemo() {
             }}
             control={
               <Switch
-                checked={mostrarProvincias && mostrarNombres}
+                checked={conDivisiones && mostrarNombres}
                 onChange={(_, checked) => setMostrarNombres(checked)}
                 slotProps={{ input: { 'aria-label': 'Mostrar nombres de provincias' } }}
               />

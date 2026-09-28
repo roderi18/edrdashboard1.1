@@ -1,5 +1,5 @@
-import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import { getOwnRegionIdsForUser, getOwnSectionIdsForUser } from 'src/utils/member-access';
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
     saveItem,
     getStorageCollection,
@@ -455,7 +455,7 @@ const escribirDestacamento = async (payload) => {
     return texto;
 };
 
-export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
+export const updateDestApi = async (data, { usuario, antes = null, sinAviso = false } = {}) => {
     const payload = buildDestPayload(data);
     const cambios = compararParaHistorial(antes, data);
 
@@ -485,6 +485,9 @@ export const updateDestApi = async (data, { usuario, antes = null } = {}) => {
             idSolicitud: resultado.idSolicitud,
         };
     }
+
+    // La carga automatica de la bandeja manda su propio aviso (`sinAviso`).
+    if (sinAviso) return { pendienteDeAprobacion: false };
 
     // Aplicado. Que el aviso falle no puede tumbar un guardado que ya se
     // escribio, asi que va por detras y sin await.

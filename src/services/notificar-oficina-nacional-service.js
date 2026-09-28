@@ -247,6 +247,36 @@ export async function notificarDestacamentoActualizado({
 }
 
 /**
+ * Un envío de la landing cargado SOLO (carga automática de la bandeja). Sustituye
+ * al aviso de "X modificó…": ese nombraría a quien tenía el dashboard abierto,
+ * como si lo hubiera hecho a mano.
+ */
+export async function notificarCargaAutomatica({ destacamento = {}, enviadoPor = '', usuario = {} } = {}) {
+  const destinatarios = await obtenerDestinatarios();
+  if (!destinatarios.length) return null;
+
+  const nombre = destacamento?.nombre || 'un destacamento';
+  return crearNotificacionAdmin({
+    tipoNotificacion: 'destacamento_carga_automatica',
+    modulo: 'destacamentos',
+    titulo: 'Destacamento actualizado automáticamente',
+    mensaje: `Se cargó ${nombre} desde la página de actualización${
+      enviadoPor ? ` (enviado por ${enviadoPor})` : ''
+    }.`,
+    prioridad: 'informativa',
+    entidadTipo: 'destacamento',
+    entidadId: String(destacamento?.id || ''),
+    ruta: destacamento?.id
+      ? `/dashboard/level/dest/${destacamento.id}/edit`
+      : '/dashboard/admin/actualizaciones-destacamentos',
+    etiquetaAccion: 'Ver',
+    metadatos: { idDestacamento: destacamento?.id, cargaAutomatica: true },
+    usuario,
+    idsDestinatariosPrecalculados: destinatarios,
+  });
+}
+
+/**
  * Foto de destacamento sugerida: se ve la de antes y la de despues.
  *
  * Una foto no se juzga por su nombre de archivo. El aviso lleva las dos

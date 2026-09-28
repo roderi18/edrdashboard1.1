@@ -6,6 +6,7 @@ import { paths } from 'src/routes/paths';
 import { useParams, usePathname } from 'src/routes/hooks';
 
 import { puedeVerHistoriaDeDestacamento } from 'src/utils/member-access';
+import { puedeVerEvaluacionDeDestacamento } from 'src/utils/org-level-access';
 
 import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -92,6 +93,14 @@ export function DestEditLayout({ children, ...other }) {
             href: `/dashboard/level/dest/${destId}/edit/history`,
             // El Consejo Ejecutivo solo ve la de su propio destacamento.
             oculto: !puedeVerHistoriaDeDestacamento(user, destId),
+        },
+        {
+            // No. de evaluación, fecha de evaluación y de entrega del
+            // reconocimiento: solo Administrador Global y Oficina Nacional.
+            label: 'Evaluación',
+            icon: <Iconify width={24} icon="solar:medal-ribbon-star-bold" />,
+            href: `/dashboard/level/dest/${destId}/edit/evaluation`,
+            oculto: !puedeVerEvaluacionDeDestacamento(user),
         },
     ].filter((item) => !item.oculto);
 

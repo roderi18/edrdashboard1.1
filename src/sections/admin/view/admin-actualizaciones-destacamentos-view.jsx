@@ -8,6 +8,7 @@ import Table from '@mui/material/Table';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Switch from '@mui/material/Switch';
 import Dialog from '@mui/material/Dialog';
 import Checkbox from '@mui/material/Checkbox';
 import TableRow from '@mui/material/TableRow';
@@ -21,6 +22,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import TableContainer from '@mui/material/TableContainer';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { puedeRevisarActualizacionesDeDestacamentos } from 'src/utils/org-level-access';
 
@@ -28,6 +30,8 @@ import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import {
   ESTADOS_ACTUALIZACION,
   cargarActualizaciones,
+  cambiarCargaAutomatica,
+  escucharCargaAutomatica,
   descartarActualizaciones,
   escucharActualizacionesDeDestacamentos,
 } from 'src/services/actualizaciones-destacamentos-service';
@@ -63,12 +67,12 @@ const TEXTO_ESTADO = {
 const fechaCorta = (fecha) =>
   fecha
     ? fecha.toLocaleString('es-DO', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
     : '—';
 
 const destacamentoDe = (fila) =>
@@ -181,31 +185,6 @@ const COLUMNAS = [
   // Tus datos de miembro (quien envía). Vacío = no lo quiso cambiar.
   { titulo: 'Miembro: nombres', valor: (fila) => fila.miembro?.nombres || '', ancho: 20 },
   { titulo: 'Miembro: apellidos', valor: (fila) => fila.miembro?.apellidos || '', ancho: 20 },
-  {
-    titulo: 'Miembro: fecha de nacimiento',
-    valor: (fila) => fila.miembro?.fechaNacimiento || '',
-    ancho: 14,
-  },
-  {
-    titulo: 'Miembro: dirección',
-    valor: (fila) =>
-      ['provincia', 'municipio', 'sector', 'calle']
-        .map((k) => fila.miembro?.direccion?.[k])
-        .filter(Boolean)
-        .join(', '),
-    ancho: 40,
-  },
-  {
-    titulo: 'Miembro: sexo',
-    valor: (fila) => ({ M: 'Masculino', F: 'Femenino' })[fila.miembro?.sexo] || '',
-    ancho: 12,
-  },
-  { titulo: 'Miembro: Size T-Shirt', valor: (fila) => fila.miembro?.talla || '', ancho: 10 },
-  {
-    titulo: 'Miembro: Cargo Nacional',
-    valor: (fila) => nombreDeCargo(fila.miembro?.cargoNacional),
-    ancho: 30,
-  },
   {
     titulo: 'Miembro: Nivel posición en tu Destacamento',
     valor: (fila) => nombreDeCargo(fila.miembro?.posicionDestacamento),
@@ -441,6 +420,7 @@ export function AdminActualizacionesDestacamentosView() {
 
   return (
     <Card>
+      <InterruptorCargaAutomatica user={user} />
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={2}
@@ -592,5 +572,66 @@ export function AdminActualizacionesDestacamentosView() {
         />
       )}
     </Card>
+  );
+}
+
+// ----------------------------------------------------------------------
+// "Cargar automáticamente": con él encendido, lo que llegue DESDE AHORA se carga
+// solo y se avisa (ver src/utils/carga-automatica-actualizaciones.mjs). Lo que
+// ya espera en la bandeja sigue siendo manual.
+
+function InterruptorCargaAutomatica({ user }) {
+  const [config, setConfig] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => escucharCargaAutomatica(setConfig), []);
+
+  const cambiar = async (_, activa) => {
+    setGuardando(true);
+    try {
+      await cambiarCargaAutomatica(activa, user);
+      toast.success(
+        activa
+          ? 'Carga automática encendida: lo que llegue desde ahora se cargará solo.'
+          : 'Carga automática apagada: lo nuevo esperará a que se cargue a mano.'
+      );
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo cambiar la carga automática.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const activa = Boolean(config?.activa);
+  const desde = activa && config?.desde ? new Date(config.desde).toLocaleString('es-DO') : '';
+
+  return (
+    <Box
+      sx={{
+        px: 3,
+        py: 2,
+        gap: 2,
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottom: (theme) => `dashed 1px ${theme.vars.palette.divider}`,
+      }}
+    >
+      <Box sx={{ minWidth: 0, flex: '1 1 320px' }}>
+        <Typography variant="subtitle2">Cargar automáticamente</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          {activa
+            ? `Encendida desde ${desde}${config?.activadaPor?.nombre ? ` por ${config.activadaPor.nombre}` : ''}. Lo que llegue se carga solo y se avisa. Los destacamentos nuevos siguen siendo manuales.`
+            : 'Apagada: cada envío espera aquí a que alguien lo cargue.'}
+        </Typography>
+      </Box>
+      <FormControlLabel
+        label={activa ? 'Encendida' : 'Apagada'}
+        disabled={config === null || guardando}
+        control={<Switch checked={activa} onChange={cambiar} />}
+        sx={{ m: 0 }}
+      />
+    </Box>
   );
 }

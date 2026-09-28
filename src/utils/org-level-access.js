@@ -996,6 +996,13 @@ export const puedeEditarDirectivaHistorica = (user = {}) =>
 export const puedeCambiarEstadoDeDestacamento = (user = {}) =>
   ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
 
+// LA EVALUACIÓN DEL DESTACAMENTO (No. de evaluación, fecha de evaluación y de
+// entrega del reconocimiento): la ven y la cambian solo el Administrador Global
+// y la Oficina Nacional, por cualquiera de sus cargos. Ver
+// `src/utils/evaluacion-destacamento.mjs`.
+export const puedeVerEvaluacionDeDestacamento = (user = {}) =>
+  ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
+
 // El porcentaje "Dest. Info. Completa" de la lista de destacamentos es una
 // medida de la carga del Listado Nacional: la siguen quienes la hacen, el
 // Administrador Global y la Oficina Nacional (por cualquiera de sus cargos).

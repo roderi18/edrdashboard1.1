@@ -18,7 +18,9 @@ export function OrganizationalProfileNavigation({ heading, nivel, nivelHref, tab
     <>
       <CustomBreadcrumbs heading={heading} sx={{ mb: 3 }} />
 
-      <Tabs value={value} sx={{ mb: 2 }}>
+      {/* Una pestaña que aún no sale (la que depende del cargo, mientras carga la
+          sesión) no puede ser el valor: MUI se quejaba en la consola. */}
+      <Tabs value={tabs.some((tab) => tab.href === value) ? value : false} sx={{ mb: 2 }}>
         {tabs.map((tab) => (
           <OrganizationalTab key={tab.href} tab={tab} value={tab.href} />
         ))}

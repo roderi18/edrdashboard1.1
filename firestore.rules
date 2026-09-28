@@ -1345,6 +1345,14 @@ service cloud.firestore {
       allow read, write: if esUsuarioDelSistema();
     }
 
+    // La evaluación del destacamento: solo la ven y la cambian el Administrador
+    // Global y la Oficina Nacional (src/utils/evaluacion-destacamento.mjs).
+    match /evaluaciones_destacamentos/{idDestacamento} {
+      allow read, write: if esAdministradorGlobal()
+        || esOficinaNacional()
+        || ejerceRol('oficina_nacional');
+    }
+
     match /estado_destacamentos/{idDestacamento} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal()
@@ -1357,11 +1365,27 @@ service cloud.firestore {
     // navegador: aqui nadie crea. Las leen y resuelven (cargar, cambiar o
     // descartar) el Administrador Global y la Oficina Nacional. Nada de esto
     // toca el padron hasta que ellos lo cargan.
+    // El interruptor de carga automática de esa bandeja
+    // (src/utils/carga-automatica-actualizaciones.mjs).
+    match /configuracion_actualizaciones_destacamentos/{idConfiguracion} {
+      allow read, write: if esAdministradorGlobal()
+        || esOficinaNacional()
+        || ejerceRol('oficina_nacional');
+    }
+
     match /actualizaciones_destacamentos/{idActualizacion} {
       allow read, update: if esAdministradorGlobal()
         || esOficinaNacional()
         || ejerceRol('oficina_nacional');
       allow create, delete: if false;
+    }
+
+    // Copia de las listas públicas de la landing de registro (secciones y
+    // destacamentos) para responder al instante tras arrancar. Solo la escribe
+    // y la lee el servidor de la landing (Admin SDK); sin esto, el comodín del
+    // final la dejaría escribible por cualquier sesión.
+    match /landing_registro_copias/{clave} {
+      allow read, write: if false;
     }
 
     match /cintas_miembros/{idMiembros} {

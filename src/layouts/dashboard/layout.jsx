@@ -41,6 +41,7 @@ import {
 
 import { buzonesQueAtiende } from 'src/sections/chat/utils/buzones-del-chat';
 import { useNoLeidosEnVivo } from 'src/sections/chat/hooks/use-no-leidos-en-vivo';
+import { useCargaAutomaticaDeActualizaciones } from 'src/sections/admin/use-carga-automatica-actualizaciones';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { puedeUsarSelectorDeRol } from 'src/auth/permissions/admin-role-switch-policy';
@@ -141,6 +142,9 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const isMailRoute = pathname?.startsWith(paths.dashboard.mail);
 
   const { user } = useAuthContext();
+  // Con la carga automática encendida, esta sesión carga sola lo que llegue a la
+  // bandeja de actualizaciones (si puede revisarla). Ver el propio hook.
+  useCargaAutomaticaDeActualizaciones(user);
   const [cargaSecundariaLista, setCargaSecundariaLista] = useState(false);
   // La cuenta administrativa de siempre (admin001) llega con `role: 'admin'`;
   // una sesion que es administrativa por ocupar un cargo, no.
