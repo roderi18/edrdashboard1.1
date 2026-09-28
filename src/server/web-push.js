@@ -3,6 +3,7 @@ import 'server-only';
 import webpush from 'web-push';
 
 import { WEB_PUSH_VAPID_PUBLIC_KEY } from 'src/utils/web-push-key';
+import { OPCIONES_ENVIO_PUSH } from 'src/utils/web-push-opciones.mjs';
 
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 
@@ -60,7 +61,9 @@ export async function enviarPushAUsuarios({
     url: rutaSegura,
   });
   const respuesta = await Promise.allSettled(
-    registros.map((registro) => webpush.sendNotification(registro.subscription, payload, { TTL: 60 * 60 }))
+    registros.map((registro) =>
+      webpush.sendNotification(registro.subscription, payload, OPCIONES_ENVIO_PUSH)
+    )
   );
 
   const paraEliminar = [];

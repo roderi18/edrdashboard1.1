@@ -355,7 +355,10 @@ const guardarNotificacionConfigurada = async (notificacion) => {
       .doc(notificacionConfigurada.id)
       .set(notificacionConfigurada);
 
-    enviarPushAUsuarios({
+    // SE ESPERA AL PUSH ANTES DE RESPONDER. Lanzado "por detrás", la función
+    // del servidor terminaba al devolver la respuesta y el envío quedaba
+    // congelado: el aviso no salía, o salía con el siguiente mensaje.
+    await enviarPushAUsuarios({
       idsUsuarios: notificacionConfigurada.idsDestinatarios,
       titulo: notificacionConfigurada.titulo,
       mensaje: notificacionConfigurada.mensajeVisual || notificacionConfigurada.mensaje,

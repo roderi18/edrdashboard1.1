@@ -15,6 +15,7 @@ import {
 } from '../../src/server/cumpleanos-core.mjs';
 import { enviarCumpleanosPorChatDeSistema } from '../../src/server/chat-sistema-envio.mjs';
 import { WEB_PUSH_VAPID_PUBLIC_KEY } from '../../src/utils/web-push-key.js';
+import { OPCIONES_ENVIO_PUSH } from '../../src/utils/web-push-opciones.mjs';
 import {
   leerMiembros,
   leerFotosDeMiembros,
@@ -97,7 +98,7 @@ const enviarPushDeCumpleanos = async (db, aviso, idsDestinatarios) => {
     });
     const resultados = await Promise.allSettled(
       suscripciones.map(({ subscription }) =>
-        webpush.sendNotification(subscription, payload, { TTL: 60 * 60 })
+        webpush.sendNotification(subscription, payload, OPCIONES_ENVIO_PUSH)
       )
     );
     const caducadas = [];

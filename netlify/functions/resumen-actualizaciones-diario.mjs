@@ -3,6 +3,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import webpush from 'web-push';
 
 import { WEB_PUSH_VAPID_PUBLIC_KEY } from '../../src/utils/web-push-key.js';
+import { OPCIONES_ENVIO_PUSH } from '../../src/utils/web-push-opciones.mjs';
 import { COLECCION_NOTIFICACIONES } from '../../src/server/cumpleanos-core.mjs';
 import {
   COLECCION_ACTUALIZACIONES,
@@ -91,7 +92,7 @@ const enviarPush = async (db, aviso) => {
     const payload = JSON.stringify({ title: aviso.titulo, body: aviso.mensaje, url: aviso.ruta });
     const resultados = await Promise.allSettled(
       suscripciones.map(({ subscription }) =>
-        webpush.sendNotification(subscription, payload, { TTL: 60 * 60 })
+        webpush.sendNotification(subscription, payload, OPCIONES_ENVIO_PUSH)
       )
     );
 
