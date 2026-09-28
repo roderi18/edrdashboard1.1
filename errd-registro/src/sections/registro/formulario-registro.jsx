@@ -213,6 +213,7 @@ export function FormularioRegistro({
             enviado={enviado}
             onOtro={otroDestacamento}
             destacamentos={enviados}
+            padron={destacamentos}
             secciones={secciones}
           />
         ) : (
@@ -1038,7 +1039,7 @@ function PasoConfirmacion({ secciones }) {
   );
 }
 
-function Enviado({ enviado, onOtro, destacamentos, secciones }) {
+function Enviado({ enviado, onOtro, destacamentos, secciones, padron }) {
   const [verMapa, setVerMapa] = useState(false);
   return (
     <Stack
@@ -1105,6 +1106,7 @@ function Enviado({ enviado, onOtro, destacamentos, secciones }) {
             <Iconify icon="mingcute:close-line" />
           </IconButton>
           <MapaDestacamentos
+            padron={padron}
             destacamentos={destacamentos}
             secciones={secciones}
           />

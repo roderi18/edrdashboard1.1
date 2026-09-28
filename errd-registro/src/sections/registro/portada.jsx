@@ -303,16 +303,236 @@ function MapaRD({ destacamentos }) {
   );
 }
 
-/** El mapa con la leyenda de regiones y el total: el de la portada, y el de la
- *  ventana "Ver mapa de Destacamentos" en el móvil (donde la portada lo oculta). */
-export function MapaDestacamentos({ destacamentos, secciones = [] }) {
+// ---------------------------------------------------------------- vistas del carrusel
+//
+// El recuadro del mapa es un carrusel: Mapa, Avance por región, Ritmo diario y
+// Top secciones. Todas salen de lo que la página ya tiene (los que enviaron y el
+// padrón): no piden nada al servidor. Solo se pinta la vista abierta.
+// Colores: cada región con el suyo (el del mapa), para que "Central" sea verde en
+// todas; lo que mide una sola cosa (ritmo, secciones), en un solo azul.
+
+const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+
+const textoClaro = { color: "common.white" };
+const textoSuave = { color: "common.white", opacity: 0.75 };
+
+function Barra({ valor, total, color, etiqueta, detalle }) {
+  const ancho = total ? Math.min(100, (valor / total) * 100) : 0;
+  return (
+    <Box>
+      <Stack direction="row" sx={{ mb: 0.5, justifyContent: "space-between", gap: 1 }}>
+        <Typography variant="subtitle2" noWrap sx={textoClaro}>
+          {etiqueta}
+        </Typography>
+        <Typography variant="caption" sx={{ ...textoSuave, flexShrink: 0 }}>
+          {detalle}
+        </Typography>
+      </Stack>
+      <Box
+        sx={(t) => ({
+          height: 10,
+          borderRadius: 1,
+          overflow: "hidden",
+          bgcolor: varAlpha(t.vars.palette.common.whiteChannel, 0.12),
+        })}
+      >
+        <Box
+          sx={(t) => ({
+            height: 1,
+            width: `${ancho}%`,
+            minWidth: valor ? 6 : 0,
+            borderRadius: 1,
+            bgcolor: color(t),
+            transition: "width .6s ease",
+          })}
+        />
+      </Box>
+    </Box>
+  );
+}
+
+function VistaAvanceRegion({ destacamentos, padron }) {
+  return (
+    <Stack spacing={2.5} sx={{ px: { xs: 1, md: 2 } }}>
+      {REGIONES.map((r) => {
+        const total = padron.filter((d) => d.region === r.nombre).length;
+        const lista = destacamentos.filter((d) => d.region === r.nombre);
+        return (
+          <ListaFlotante key={r.nombre} titulo={r.nombre} lista={lista}>
+            <Box>
+              <Barra
+                etiqueta={r.nombre.replace("Región ", "")}
+                detalle={`${lista.length} / ${total || "—"} · ${pct(lista.length, total)}%`}
+                valor={lista.length}
+                total={total}
+                color={(t) => t.vars.palette[r.color].main}
+              />
+            </Box>
+          </ListaFlotante>
+        );
+      })}
+    </Stack>
+  );
+}
+
+const VISTAS = [
+  { id: "mapa", titulo: "Mapa" },
+  { id: "region", titulo: "Avance por región" },
+];
+
+// Los destacamentos que ya enviaron, uno por línea: "Región Central - Dest. 18".
+// Con scroll: pueden ser cientos.
+const LLEGA_FUERA = "@media (min-width: 1760px)";
+function ListaInscritos({ destacamentos, sx }) {
+  const filas = destacamentos
+    .map((d) => ({
+      region: d.region || "Sin región",
+      texto: d.numero ? `Dest. ${d.numero}` : d.nombre || "Sin número",
+      orden: Number(d.numero) || 99999,
+    }))
+    .sort((a, b) => a.region.localeCompare(b.region, "es") || a.orden - b.orden);
+  return (
+    <Box
+      sx={[
+        (t) => ({
+          p: 1.5,
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: 2,
+          bgcolor: varAlpha(t.vars.palette.primary.darkerChannel, 0.72),
+          border: `solid 1px ${varAlpha(t.vars.palette.primary.lightChannel, 0.25)}`,
+        }),
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+    >
+      <Typography
+        variant="subtitle2"
+        sx={{ ...textoClaro, pb: 1, mb: 0.5, borderBottom: "solid 1px rgba(255,255,255,0.25)" }}
+      >
+        Destacamentos actualizados
+      </Typography>
+      {/* Solo la lista se desplaza; el título queda fijo arriba. */}
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 0.5 }}>
+      {filas.length ? (
+        filas.map((f, i) => (
+          <Typography
+            key={i}
+            variant="caption"
+            component="div"
+            noWrap
+            sx={{
+              ...textoClaro,
+              py: 0.5,
+              fontSize: 11.5,
+              borderBottom: "dashed 1px rgba(255,255,255,0.12)",
+            }}
+          >
+            {f.region} - {f.texto}
+          </Typography>
+        ))
+      ) : (
+        <Typography variant="caption" sx={textoSuave}>
+          Aún no hay destacamentos actualizados.
+        </Typography>
+      )}
+      </Box>
+    </Box>
+  );
+}
+
+function LeyendaRegiones({ destacamentos, secciones }) {
   const iconoDeRegion = new Map(
-    secciones.filter((s) => s.fotoRegion).map((s) => [s.region, s.fotoRegion]),
+    secciones.filter((s) => s.fotoRegion).map((s) => [s.region, s.fotoRegion])
   );
   return (
-    // En pantallas pequeñas (la ventana del móvil) el total, el mapa y las
-    // regiones van uno debajo del otro: encima del mapa lo tapaban. Desde md,
-    // el total y las regiones flotan sobre el mar, como siempre.
+    <Stack
+      direction="row"
+      sx={{
+        order: 3,
+        gap: 1.5,
+        justifyContent: "center",
+        py: { xs: 1, md: 0 },
+        position: { md: "absolute" },
+        left: { md: "30%" },
+        right: { md: 0 },
+        bottom: { md: "2%" },
+      }}
+    >
+      {REGIONES.map((r) => (
+        <ListaFlotante
+          key={r.nombre}
+          titulo={r.nombre}
+          lista={destacamentos.filter((d) => d.region === r.nombre)}
+        >
+          <Stack spacing={0.25} sx={{ alignItems: "center", minWidth: 56, cursor: "default" }}>
+            {iconoDeRegion.get(r.nombre) ? (
+              <Box
+                component="img"
+                src={iconoDeRegion.get(r.nombre)}
+                alt={r.nombre}
+                sx={(t) => ({
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  border: `2px solid ${t.vars.palette[r.color].main}`,
+                })}
+              />
+            ) : (
+              <Box
+                sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: `${r.color}.main` }}
+              />
+            )}
+            <Typography
+              variant="caption"
+              sx={{ color: "common.white", fontWeight: 600, lineHeight: 1.2 }}
+            >
+              {r.nombre.replace("Región ", "")}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "common.white", opacity: 0.8, lineHeight: 1.2 }}>
+              {destacamentos.filter((d) => d.region === r.nombre).length} dest.
+            </Typography>
+          </Stack>
+        </ListaFlotante>
+      ))}
+    </Stack>
+  );
+}
+
+/** El recuadro del mapa (portada y ventana del móvil): el total fijo arriba y,
+ *  debajo, un carrusel con el mapa y tres gráficos. `destacamentos`: los que ya
+ *  enviaron; `padron`: todos, para el "de su total". */
+export function MapaDestacamentos({ destacamentos, secciones = [], padron = [] }) {
+  const [vista, setVista] = useState(0);
+  const [toqueX, setToqueX] = useState(null);
+  const mover = (paso) => setVista((v) => (v + paso + VISTAS.length) % VISTAS.length);
+  const actual = VISTAS[vista].id;
+
+  const flecha = (paso, icono, lado) => (
+    <IconButton
+      aria-label={paso > 0 ? "Siguiente gráfico" : "Gráfico anterior"}
+      onClick={() => mover(paso)}
+      size="small"
+      sx={(t) => ({
+        top: "50%",
+        zIndex: 2,
+        [lado]: { xs: -4, md: -8 },
+        position: "absolute",
+        transform: "translateY(-50%)",
+        color: "common.white",
+        bgcolor: varAlpha(t.vars.palette.primary.darkerChannel, 0.7),
+        border: `solid 1px ${varAlpha(t.vars.palette.primary.lightChannel, 0.4)}`,
+        "&:hover": { bgcolor: varAlpha(t.vars.palette.primary.darkerChannel, 0.9) },
+      })}
+    >
+      <Iconify icon={icono} />
+    </IconButton>
+  );
+
+  return (
+    // En pantallas pequeñas el total, la vista y los puntos van uno debajo del
+    // otro: encima del mapa lo tapaban. Desde md, el total y la leyenda flotan
+    // sobre el mar, como siempre.
     <Box
       sx={{
         position: "relative",
@@ -321,82 +541,139 @@ export function MapaDestacamentos({ destacamentos, secciones = [] }) {
         gap: 2,
       }}
     >
-      <Box sx={{ order: { xs: 2, md: 0 } }}>
-        <MapaRD destacamentos={destacamentos} />
+      <Box
+        onTouchStart={(e) => setToqueX(e.touches[0].clientX)}
+        onTouchEnd={(e) => {
+          if (toqueX === null) return;
+          const dx = e.changedTouches[0].clientX - toqueX;
+          if (Math.abs(dx) > 40) mover(dx < 0 ? 1 : -1);
+          setToqueX(null);
+        }}
+        sx={{ order: 2, position: "relative", px: { xs: 4.5, md: 0 } }}
+      >
+        {actual === "mapa" ? (
+          <MapaRD destacamentos={destacamentos} />
+        ) : (
+          // Mismo alto que el mapa en pantallas grandes: la portada no salta al
+          // cambiar de vista.
+          <Box
+            sx={(t) => ({
+              // Fondo oscuro detrás del gráfico: sobre la foto se leía poco.
+              borderRadius: 2,
+              bgcolor: { md: varAlpha(t.vars.palette.primary.darkerChannel, 0.72) },
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              minHeight: { xs: 280, md: 0 },
+              aspectRatio: { md: `${MAPA_ANCHO + 20} / ${MAPA_ALTO + 20}` },
+              py: { md: 3.5 },
+              px: { md: 5 },
+            })}
+          >
+            {/* En esta vista el total va como un solo texto centrado, sin tarjeta. */}
+            <Box sx={{ textAlign: "center" }}>
+              <Typography variant="h5" sx={textoClaro}>
+                {destacamentos.length} Destacamentos actualizados
+              </Typography>
+              <Typography variant="overline" sx={textoSuave}>
+                {VISTAS[vista].titulo}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                flex: 1,
+                gap: 3,
+                minHeight: 0,
+                display: "grid",
+                // Una sola fila del alto que queda: la lista no puede crecer más
+                // que el recuadro (con 40 se salía y tapaba las barras).
+                gridTemplateRows: { md: "minmax(0, 1fr)" },
+                gridTemplateColumns: { xs: "1fr", md: "1fr 190px" },
+                [LLEGA_FUERA]: { gridTemplateColumns: "1fr" },
+              }}
+            >
+              <Box sx={{ alignSelf: "center" }}>
+                <VistaAvanceRegion destacamentos={destacamentos} padron={padron} />
+              </Box>
+              {/* Sin sitio a la derecha del recuadro, la lista va dentro. */}
+              <ListaInscritos
+                destacamentos={destacamentos}
+                sx={{ maxHeight: { xs: 200, md: 1 }, height: { md: 1 }, [LLEGA_FUERA]: { display: "none" } }}
+              />
+            </Box>
+          </Box>
+        )}
+        {/* Con sitio a la derecha (pantallas anchas), la lista va fuera, del
+            mismo alto que el recuadro, sin mover nada de la portada. */}
+        {actual === "region" && (
+          <ListaInscritos
+            destacamentos={destacamentos}
+            sx={{
+              display: "none",
+              top: 0,
+              bottom: 0,
+              width: 200,
+              position: "absolute",
+              left: "calc(100% + 16px)",
+              [LLEGA_FUERA]: { display: "flex" },
+            }}
+          />
+        )}
+        {flecha(-1, "eva:arrow-ios-back-fill", "left")}
+        {flecha(1, "eva:arrow-ios-forward-fill", "right")}
       </Box>
+
+      {actual === "mapa" && (
+        <LeyendaRegiones destacamentos={destacamentos} secciones={secciones} />
+      )}
+
+      {/* Puntos: qué vista está abierta; también sirven para saltar a una. */}
       <Stack
         direction="row"
         sx={{
-          order: 3,
-          gap: 1.5,
+          order: 4,
+          gap: 1,
           justifyContent: "center",
-          py: { xs: 1, md: 0 },
           position: { md: "absolute" },
-          left: { md: "30%" },
+          left: { md: 0 },
           right: { md: 0 },
-          bottom: { md: "2%" },
+          bottom: { md: -18 },
         }}
       >
-        {REGIONES.map((r) => (
-          <ListaFlotante
-            key={r.nombre}
-            titulo={r.nombre}
-            lista={destacamentos.filter((d) => d.region === r.nombre)}
-          >
-            <Stack
-              spacing={0.25}
-              sx={{ alignItems: "center", minWidth: 56, cursor: "default" }}
-            >
-              {iconoDeRegion.get(r.nombre) ? (
-                <Box
-                  component="img"
-                  src={iconoDeRegion.get(r.nombre)}
-                  alt={r.nombre}
-                  sx={(t) => ({
-                    width: 44,
-                    height: 44,
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                    border: `2px solid ${t.vars.palette[r.color].main}`,
-                  })}
-                />
-              ) : (
-                <Box
-                  sx={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: "50%",
-                    bgcolor: `${r.color}.main`,
-                  }}
-                />
-              )}
-              <Typography
-                variant="caption"
-                sx={{ color: "common.white", fontWeight: 600, lineHeight: 1.2 }}
-              >
-                {r.nombre.replace("Región ", "")}
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{ color: "common.white", opacity: 0.8, lineHeight: 1.2 }}
-              >
-                {destacamentos.filter((d) => d.region === r.nombre).length}{" "}
-                dest.
-              </Typography>
-            </Stack>
-          </ListaFlotante>
+        {VISTAS.map((v, i) => (
+          <Box
+            key={v.id}
+            component="button"
+            type="button"
+            aria-label={v.titulo}
+            onClick={() => setVista(i)}
+            sx={(t) => ({
+              p: 0,
+              border: 0,
+              height: 8,
+              cursor: "pointer",
+              borderRadius: 4,
+              width: i === vista ? 22 : 8,
+              transition: "width .2s",
+              bgcolor:
+                i === vista ? "common.white" : varAlpha(t.vars.palette.common.whiteChannel, 0.4),
+            })}
+          />
         ))}
       </Stack>
+
       <Card
         sx={(t) => ({
           order: 1,
+          // En "Avance por región" el total va dentro, como texto centrado.
           p: { xs: 1, md: 2 },
           px: { xs: 2 },
           top: { md: 0 },
           right: { md: 0 },
+          zIndex: 3,
           position: { md: "absolute" },
           alignSelf: { xs: "center", md: "auto" },
-          display: "flex",
+          display: actual === "region" ? "none" : "flex",
           flexDirection: { xs: "row", md: "column" },
           alignItems: { xs: "baseline", md: "flex-start" },
           gap: { xs: 1, md: 0 },
@@ -419,7 +696,7 @@ export function MapaDestacamentos({ destacamentos, secciones = [] }) {
 // `destacamentos`: los que ya enviaron su información (uno por destacamento).
 // Solo en pantallas pequeñas, donde la portada no enseña el mapa: un botón que
 // lo abre en una ventana (la misma que la de "¡Gracias!" del formulario).
-function BotonMapaDeInscritos({ destacamentos, secciones }) {
+function BotonMapaDeInscritos({ destacamentos, secciones, padron }) {
   const [abierto, setAbierto] = useState(false);
   return (
     <Box sx={{ display: { xs: "flex", md: "none" }, justifyContent: "center" }}>
@@ -497,6 +774,7 @@ function BotonMapaDeInscritos({ destacamentos, secciones }) {
             <Iconify icon="mingcute:close-line" />
           </IconButton>
           <MapaDestacamentos
+            padron={padron}
             destacamentos={destacamentos}
             secciones={secciones}
           />
@@ -506,7 +784,7 @@ function BotonMapaDeInscritos({ destacamentos, secciones }) {
   );
 }
 
-export function Portada({ destacamentos, secciones = [] }) {
+export function Portada({ destacamentos, secciones = [], padron = [] }) {
   return (
     <Box
       id="inicio"
@@ -554,6 +832,7 @@ export function Portada({ destacamentos, secciones = [] }) {
             </Typography>
             <CuentaRegresiva />
             <BotonMapaDeInscritos
+              padron={padron}
               destacamentos={destacamentos}
               secciones={secciones}
             />
@@ -563,12 +842,18 @@ export function Portada({ destacamentos, secciones = [] }) {
             sx={{
               position: "relative",
               display: { xs: "none", md: "block" },
-              maxWidth: 620,
+              // Un poco más grande que antes (620).
+              maxWidth: 660,
               justifySelf: "end",
               width: 1,
+              // Con la lista fuera (pantallas anchas), el bloque se corre un poco a
+              // la izquierda para que la lista no quede pegada al borde. Correrlo
+              // todo lo que mide la lista pisaba el título.
+              [LLEGA_FUERA]: { mr: "48px", width: "calc(100% - 48px)" },
             }}
           >
             <MapaDestacamentos
+              padron={padron}
               destacamentos={destacamentos}
               secciones={secciones}
             />

@@ -46,6 +46,21 @@ function EsqueletoFormulario() {
 // La única página: portada + formulario de registro/actualización.
 // ----------------------------------------------------------------------
 
+// SOLO EN DESARROLLO (npm run dev): 40 destacamentos de mentira para ver el
+// scroll de la lista del mapa. Viven en memoria, solo se pintan en la portada,
+// no se guardan en ningún sitio y en producción esta lista está vacía.
+const REGIONES_DEMO = ['Región Norte', 'Región Central', 'Región Sur', 'Región Este'];
+const DEMO_SOLO_EN_DESARROLLO =
+  process.env.NODE_ENV === 'development'
+    ? Array.from({ length: 40 }, (_, i) => ({
+        id: `demo:${i}`,
+        numero: String(300 + i),
+        nombre: `Demo ${i + 1}`,
+        region: REGIONES_DEMO[i % 4],
+        direccion: { provincia: '' },
+      }))
+    : [];
+
 export default function Page() {
   const [destacamentos, setDestacamentos] = useState([]);
   const [secciones, setSecciones] = useState([]);
@@ -80,7 +95,11 @@ export default function Page() {
   return (
     <Box sx={{ bgcolor: 'background.neutral', minHeight: '100vh' }}>
       <Encabezado />
-      <Portada destacamentos={enviados} secciones={secciones} />
+      <Portada
+        destacamentos={[...enviados, ...DEMO_SOLO_EN_DESARROLLO]}
+        padron={destacamentos}
+        secciones={secciones}
+      />
       <Container maxWidth="xl" sx={{ mt: { xs: 4, md: 6 } }}>
         <FormularioRegistro
           destacamentos={destacamentos}
