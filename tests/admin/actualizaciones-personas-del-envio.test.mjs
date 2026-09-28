@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  cambiosDeFicha,
   personasDelEnvio,
   esLaMismaPersona,
   esElMiembroDelEnvio,
@@ -111,4 +112,39 @@ test('la bandeja dice a quién se creó', () => {
   );
   assert.equal(textoPersonasCreadas({}), '');
   assert.equal(textoPersonasCreadas(undefined), '');
+});
+
+// Rolando Figuereo (coordinador) y Enrique Rodríguez (quien envió) ya existían:
+// la carga no les ponía el teléfono del formulario y Enrique seguía en
+// "Provisional" siendo de Los Tira Piedras.
+test('quien envía deja su teléfono aunque la ficha tuviera otro', () => {
+  const { ponerTelefono } = cambiosDeFicha({
+    destacamentoFicha: '516',
+    telefonoFicha: '+18090000001',
+    telefonoEnvio: '+18098973930',
+    esSuyo: true,
+    idProvisional: '234',
+  });
+  assert.equal(ponerTelefono, true);
+});
+
+test('el teléfono del coordinador solo llena un hueco', () => {
+  const base = { destacamentoFicha: '516', telefonoEnvio: '+18298109763', esSuyo: false };
+  assert.equal(cambiosDeFicha({ ...base, telefonoFicha: '' }).ponerTelefono, true);
+  assert.equal(cambiosDeFicha({ ...base, telefonoFicha: '+18095550000' }).ponerTelefono, false);
+});
+
+test('el mismo número escrito distinto no se vuelve a guardar', () => {
+  const { ponerTelefono } = cambiosDeFicha({
+    destacamentoFicha: '516',
+    telefonoFicha: '8098973930',
+    telefonoEnvio: '+18098973930',
+    esSuyo: true,
+  });
+  assert.equal(ponerTelefono, false);
+});
+
+test('quien está en Provisional pasa al destacamento del envío', () => {
+  assert.equal(cambiosDeFicha({ destacamentoFicha: '234', idProvisional: '234' }).mover, true);
+  assert.equal(cambiosDeFicha({ destacamentoFicha: '516', idProvisional: '234' }).mover, false);
 });

@@ -17,6 +17,7 @@ import {
 } from 'src/utils/carga-automatica-actualizaciones.mjs';
 import {
   nombreCompleto,
+  cambiosDeFicha,
   personasDelEnvio,
   esElMiembroDelEnvio,
   esDestacamentoProvisional,
@@ -253,11 +254,11 @@ const POSICION_COORDINADOR = DIRECTIVA_POSITIONS.find(
 );
 
 /**
- * Cambia a un miembro de destacamento en el padrón. UpdateMiembros reescribe la
- * ficha entera (lo que no se manda queda vacío), así que se reenvía todo lo que
- * ya tenía; solo cambia el destacamento y, si no tenía teléfono, el del envío.
+ * Cambia el destacamento y el teléfono de un miembro en el padrón. UpdateMiembros
+ * reescribe la ficha entera (lo que no se manda queda vacío), así que se reenvía
+ * todo lo que ya tenía y solo cambian esos dos datos.
  */
-async function pasarAlDestacamento({ miembro, idDestacamento, telefono = '', usuario }) {
+async function actualizarFichaDelPadron({ miembro, idDestacamento, telefono, usuario }) {
   const antes = miembro;
   await updateMemberApi(
     {
@@ -271,7 +272,7 @@ async function pasarAlDestacamento({ miembro, idDestacamento, telefono = '', usu
       ocupacion: miembro.ocupation || null,
       fechaCreacion: miembro.createdAt ?? null,
       idDestacamento: Number(idDestacamento),
-      telefono: miembro.phoneNumber || telefono || null,
+      telefono: telefono || null,
       direccion: miembro.memberAddress || null,
       correo: miembro.email || null,
       idDivision: miembro.idDivision ?? null,
@@ -375,33 +376,55 @@ async function asegurarPersonasDelEnvio({
 
   if (mismaPersona && idCoordinador) ids.enviador = idCoordinador;
 
-  if (!idCoordinador || !POSICION_COORDINADOR) return { creadas, avisos, ids };
-
-  // EL COORDINADOR QUE ESTABA EN "PROVISIONAL" PASA A SU DESTACAMENTO. Si no, era
-  // coordinador de un destacamento en cuya lista de miembros no salía.
-  const fichaCoordinador = lista.find((m) => String(m?.id) === String(idCoordinador));
-  if (
-    fichaCoordinador &&
-    idProvisional &&
-    destacamentoDe(fichaCoordinador) === String(idProvisional)
-  ) {
+  // LA FICHA DE QUIEN YA EXISTÍA. Antes solo se guardaba el teléfono de quien se
+  // creaba: Rolando Figuereo (coordinador) y Enrique Rodríguez (quien envió)
+  // seguían sin teléfono aunque lo escribieron en el formulario, y Enrique seguía
+  // en "Provisional" siendo de Los Tira Piedras. Ahora:
+  // - Quien está en "Provisional" pasa al destacamento del envío.
+  // - Quien envía deja SU teléfono ("Tu teléfono"): es suyo, manda sobre el de
+  //   la ficha. El del coordinador lo escribió otro: solo llena un hueco.
+  const completarFicha = async (persona, id, { esSuyo }) => {
+    const ficha = lista.find((m) => String(m?.id) === String(id));
+    if (!ficha) return; // Recién creada: ya nació con destacamento y teléfono.
+    const telefonoFicha = ficha.phoneNumber || '';
+    const telefonoEnvio = persona.telefono || '';
+    const { mover, ponerTelefono } = cambiosDeFicha({
+      destacamentoFicha: destacamentoDe(ficha),
+      telefonoFicha,
+      telefonoEnvio,
+      esSuyo,
+      idProvisional,
+    });
+    if (!mover && !ponerTelefono) return;
     try {
-      await pasarAlDestacamento({
-        miembro: fichaCoordinador,
-        idDestacamento,
-        telefono: coordinador.telefono,
+      await actualizarFichaDelPadron({
+        miembro: ficha,
+        idDestacamento: mover ? idDestacamento : destacamentoDe(ficha),
+        telefono: ponerTelefono ? telefonoEnvio : telefonoFicha,
         usuario,
       });
-      creadas.movidos = [
-        ...(creadas.movidos || []).filter((m) => m.idMiembro !== String(idCoordinador)),
-        { idMiembro: String(idCoordinador), nombre: nombreCompleto(coordinador) },
-      ];
+      const quien = { idMiembro: String(id), nombre: nombreCompleto(persona) };
+      if (mover)
+        creadas.movidos = [
+          ...(creadas.movidos || []).filter((m) => m.idMiembro !== quien.idMiembro),
+          quien,
+        ];
+      if (ponerTelefono)
+        creadas.telefonos = [
+          ...(creadas.telefonos || []).filter((m) => m.idMiembro !== quien.idMiembro),
+          { ...quien, telefono: telefonoEnvio },
+        ];
     } catch (error) {
       avisos.push(
-        `${nombreCompleto(coordinador)} sigue en Provisional: ${error.message || 'no se pudo mover'}`
+        `No se actualizó la ficha de ${nombreCompleto(persona)}: ${error.message || 'error del padrón'}`
       );
     }
-  }
+  };
+  if (ids.coordinador) await completarFicha(coordinador, ids.coordinador, { esSuyo: mismaPersona });
+  if (ids.enviador && ids.enviador !== ids.coordinador)
+    await completarFicha(enviador, ids.enviador, { esSuyo: true });
+
+  if (!idCoordinador || !POSICION_COORDINADOR) return { creadas, avisos, ids };
 
   // SIEMPRE queda de coordinador quien pusieron en esa casilla del formulario,
   // lo haya enviado quien lo haya enviado (regla de la Oficina Nacional).
@@ -447,7 +470,8 @@ async function asegurarPersonasDelEnvio({
 
 /**
  * Carga en el padrón los envíos elegidos. Devuelve { cargadas, omitidas, fallidas,
- * iglesiasCreadas, iglesiasFallidas, personasCreadas, personasMovidas, avisosPersonas }.
+ * iglesiasCreadas, iglesiasFallidas, personasCreadas, personasMovidas, telefonosPuestos,
+ * avisosPersonas }.
  */
 export async function cargarActualizaciones(filas, usuario, { automatica = false } = {}) {
   const resultado = {
@@ -458,6 +482,7 @@ export async function cargarActualizaciones(filas, usuario, { automatica = false
     iglesiasFallidas: [],
     personasCreadas: [],
     personasMovidas: [],
+    telefonosPuestos: [],
     avisosPersonas: [],
   };
   const [crudos, iglesias] = await Promise.all([leerDestacamentosCrudos(), getChurches()]);
@@ -516,6 +541,7 @@ export async function cargarActualizaciones(filas, usuario, { automatica = false
       const altas = (c) => [c?.coordinador, c?.enviador].filter((p) => p?.idMiembro).length;
       const antesCreadas = altas(fila.personasCreadas);
       const antesMovidos = (fila.personasCreadas?.movidos || []).length;
+      const antesTelefonos = (fila.personasCreadas?.telefonos || []).length;
       const { creadas, avisos, ids } = await asegurarPersonasDelEnvio({
         fila,
         idDestacamento: crudo.idDestacamento,
@@ -526,6 +552,10 @@ export async function cargarActualizaciones(filas, usuario, { automatica = false
       if (altas(creadas) > antesCreadas) resultado.personasCreadas.push(nombre);
       if ((creadas.movidos || []).length > antesMovidos)
         resultado.personasMovidas.push(...creadas.movidos.slice(antesMovidos).map((m) => m.nombre));
+      if ((creadas.telefonos || []).length > antesTelefonos)
+        resultado.telefonosPuestos.push(
+          ...creadas.telefonos.slice(antesTelefonos).map((m) => m.nombre)
+        );
       resultado.avisosPersonas.push(...avisos.map((aviso) => `${nombre}: ${aviso}`));
 
       await marcar(fila.id, ESTADOS_ACTUALIZACION.cargada, usuario, {

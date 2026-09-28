@@ -118,3 +118,24 @@ export function textoPersonasCreadas(creadas) {
   if (enviador) return 'Se creó persona que envía';
   return '';
 }
+
+/**
+ * Qué se cambia en la ficha de alguien que YA existía:
+ * - `mover`: estaba en "Provisional" y pasa al destacamento del envío.
+ * - `ponerTelefono`: quien envía deja SU teléfono ("Tu teléfono") aunque la
+ *   ficha tuviera otro; el del coordinador lo escribió otra persona y solo
+ *   llena un hueco.
+ */
+export function cambiosDeFicha({
+  destacamentoFicha,
+  telefonoFicha,
+  telefonoEnvio,
+  esSuyo,
+  idProvisional,
+}) {
+  const mover = Boolean(idProvisional) && String(destacamentoFicha) === String(idProvisional);
+  const ponerTelefono =
+    Boolean(digitos(telefonoEnvio)) &&
+    (esSuyo ? digitos(telefonoEnvio) !== digitos(telefonoFicha) : !digitos(telefonoFicha));
+  return { mover, ponerTelefono };
+}

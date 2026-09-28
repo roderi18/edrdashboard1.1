@@ -398,6 +398,7 @@ export function AdminActualizacionesDestacamentosView() {
         iglesiasFallidas = [],
         personasCreadas = [],
         personasMovidas = [],
+        telefonosPuestos = [],
         avisosPersonas = [],
       } = await cargarActualizaciones(seleccion, user);
       if (cargadas)
@@ -419,6 +420,8 @@ export function AdminActualizacionesDestacamentosView() {
         toast.info(`Personas nuevas dadas de alta en: ${personasCreadas.join(', ')}`);
       if (personasMovidas.length)
         toast.info(`Pasan de Provisional a su destacamento: ${personasMovidas.join(', ')}`);
+      if (telefonosPuestos.length)
+        toast.info(`Teléfono puesto en la ficha de: ${telefonosPuestos.join(', ')}`);
       if (avisosPersonas.length)
         toast.warning(avisosPersonas.join(' · '), { duration: 15000 });
       setElegidas([]);
