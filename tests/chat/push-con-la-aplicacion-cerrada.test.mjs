@@ -32,3 +32,11 @@ test('todo envío push usa esas opciones, nunca unas propias', () => {
 test('el chat espera al push antes de responder', () => {
   assert.match(leer('src/app/api/chat/route.js'), /await enviarPushAUsuarios\(/);
 });
+
+test('un servidor sin claves push no marca el aviso como intentado', () => {
+  const ruta = leer('src/app/api/push/notificacion/route.js');
+  const comprobacion = ruta.indexOf('webPushConfigurado()');
+  const marca = ruta.indexOf('pushIntentadoPor');
+  assert.ok(comprobacion > 0, 'la ruta comprueba las claves');
+  assert.ok(comprobacion < marca, 'y lo hace antes de marcar el aviso');
+});
