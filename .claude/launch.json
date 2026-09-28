@@ -26,7 +26,7 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "--prefix",
-        "C:/Users/rdpr1/OneDrive/Escritorio/errd-registro",
+        "C:/Users/rdpr1/Desktop/errd-registro/errd-registro",
         "run",
         "dev"
       ],
