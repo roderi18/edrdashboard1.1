@@ -37,6 +37,7 @@ import { MapaDestacamentos } from "./portada";
 import { BuscarPersona } from "./buscar-persona";
 import { DatosMiembro, etiquetaCargo } from "./datos-miembro";
 import { PasosLaterales, PanelPorQueRegistrar } from "./paneles";
+import { fechaDeCierre, useCuentaRegresiva } from "./use-cuenta-regresiva";
 import { PASOS, Esquema, CAMPOS_DEL_PASO, valoresIniciales } from "./esquema";
 import { useBorradorDelRegistro, borrarBorradorDelRegistro } from "./borrador-local";
 import {
@@ -83,6 +84,16 @@ export function FormularioRegistro({
   const [paso, setPaso] = useState(0);
   const [enviado, setEnviado] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  // Plazo cerrado desde el dashboard: no se envía (el servidor también lo rechaza).
+  const { config: cuenta, desfase } = useCuentaRegresiva();
+  const [ahora, setAhora] = useState(null);
+  useEffect(() => {
+    setAhora(Date.now());
+    const id = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const plazoCerrado =
+    ahora !== null && cuenta.cerrarAlTerminar && Date.parse(cuenta.cierre) <= ahora + desfase;
 
   const methods = useForm({
     mode: "onTouched",
@@ -251,6 +262,14 @@ export function FormularioRegistro({
               </Alert>
             )}
 
+            {plazoCerrado && (
+              <Alert severity="warning" sx={{ mb: 3 }}>
+                El plazo de actualización terminó el {fechaDeCierre(cuenta.cierre)}. Ya no se
+                reciben envíos. Si necesitas actualizar tu destacamento, escribe a
+                tecnologia@errd.org.do.
+              </Alert>
+            )}
+
             {errorCarga && (
               <Alert severity="warning" sx={{ mb: 3 }}>
                 {errorCarga}
@@ -301,6 +320,7 @@ export function FormularioRegistro({
                   onClick={onSubmit}
                   color="primary"
                   loading={enviando}
+                  disabled={plazoCerrado}
                   startIcon={<Iconify icon="custom:send-fill" />}
                 >
                   Enviar a Oficina Nacional

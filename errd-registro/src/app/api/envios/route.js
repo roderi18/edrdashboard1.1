@@ -1,3 +1,4 @@
+import { formularioCerrado, leerCuentaRegresiva } from "src/server/cuenta-regresiva.mjs";
 import {
   enRafaga,
   anotarEnvio,
@@ -26,6 +27,15 @@ export async function GET() {
 // Guarda un envío como "pendiente". Llega como multipart: `envio` (JSON) y,
 // si lo hay, `logo` (archivo).
 export async function POST(req) {
+  // Plazo cerrado desde el dashboard ("Cerrar el formulario al llegar a cero"):
+  // la página ya no deja enviar, y aquí se comprueba por si llega igual.
+  if (formularioCerrado(await leerCuentaRegresiva())) {
+    return Response.json(
+      { error: "El plazo de actualización terminó: ya no se reciben envíos." },
+      { status: 403 },
+    );
+  }
+
   const ip =
     req.headers.get("x-forwarded-for") ||
     req.headers.get("x-real-ip") ||

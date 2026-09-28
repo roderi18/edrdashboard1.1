@@ -7,13 +7,14 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-// ----------------------------------------------------------------------
-// Cuenta atrás hasta el cierre de la actualización. Se fija en hora de Santo
-// Domingo (UTC-4, sin horario de verano) para que el plazo sea el mismo
-// aunque quien mire tenga el reloj en otra zona.
-// ----------------------------------------------------------------------
+import { fechaDeCierre, useCuentaRegresiva } from './use-cuenta-regresiva';
 
-export const CIERRE_ACTUALIZACION = new Date('2026-10-12T23:59:59-04:00');
+// ----------------------------------------------------------------------
+// Cuenta atrás hasta el cierre de la actualización. La fecha, el texto y si se
+// enseña se eligen en el dashboard (bandeja de actualizaciones) y llegan en vivo
+// (ver use-cuenta-regresiva.js). Cuenta con la hora del servidor, en Santo
+// Domingo, para que el plazo sea el mismo para todos.
+// ----------------------------------------------------------------------
 
 const partes = (ms) => {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -26,6 +27,7 @@ const partes = (ms) => {
 };
 
 export function CuentaRegresiva() {
+  const { config, desfase, cargada } = useCuentaRegresiva();
   // null en el servidor: la hora del servidor y la del navegador no coinciden
   // y React avisaría de un desajuste al hidratar.
   const [ahora, setAhora] = useState(null);
@@ -36,12 +38,16 @@ export function CuentaRegresiva() {
     return () => clearInterval(id);
   }, []);
 
-  const restante = ahora === null ? null : CIERRE_ACTUALIZACION.getTime() - ahora;
+  // Oculta desde el dashboard: no se enseña nada.
+  if (!config.mostrar) return null;
+
+  const restante =
+    ahora === null || !cargada ? null : Date.parse(config.cierre) - (ahora + desfase);
 
   if (restante !== null && restante <= 0) {
     return (
-      <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>
-        El plazo de actualización terminó el lunes 12 de octubre.
+      <Typography variant="subtitle1" sx={{ opacity: 0.9, textAlign: { xs: 'center', md: 'left' } }}>
+        El plazo de actualización terminó el {fechaDeCierre(config.cierre)}.
       </Typography>
     );
   }
@@ -50,7 +56,7 @@ export function CuentaRegresiva() {
     // Centrada en pantallas pequeñas; a la izquierda, con el texto, en las grandes.
     <Stack spacing={1} sx={{ alignItems: { xs: 'center', md: 'flex-start' }, textAlign: { xs: 'center', md: 'left' } }}>
       <Typography variant="subtitle2" sx={{ opacity: 0.85 }}>
-        Resta para finalizar la actualización:
+        {config.texto}
       </Typography>
       <Stack direction="row" spacing={{ xs: 1, sm: 1.5 }}>
         {partes(restante ?? 0).map((p) => (
