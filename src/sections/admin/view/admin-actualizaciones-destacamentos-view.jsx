@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
@@ -24,7 +25,12 @@ import DialogActions from '@mui/material/DialogActions';
 import TableContainer from '@mui/material/TableContainer';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
+import { textoPersonasCreadas } from 'src/utils/personas-del-envio.mjs';
 import { puedeRevisarActualizacionesDeDestacamentos } from 'src/utils/org-level-access';
+import { textoRepetido, repeticionesPorEnvio } from 'src/utils/actualizaciones-repetidas.mjs';
 
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import {
@@ -86,6 +92,22 @@ const destacamentoDe = (fila) =>
   ]
     .filter(Boolean)
     .join(' ') || 'Destacamento nuevo';
+
+// A qué ficha lleva cada nombre de la tabla. El destacamento nuevo aún no
+// tiene ficha; quien envía, sí en cuanto existe (o la carga lo creó o lo halló).
+const idDestacamentoDe = (fila) => (fila.esNuevo ? null : fila.destacamento?.id || null);
+const idEnviadorDe = (fila) =>
+  fila.enviadoPor?.idMiembro || fila.idsPersonas?.enviador || fila.personasCreadas?.enviador?.idMiembro || null;
+
+// Un nombre que lleva a su ficha, o solo el texto si no hay ficha a la que ir.
+function EnlaceAFicha({ href, children }) {
+  if (!href) return children;
+  return (
+    <Link component={RouterLink} href={href} color="inherit" underline="hover" sx={{ fontWeight: 600 }}>
+      {children}
+    </Link>
+  );
+}
 
 // Las mismas columnas de la tabla, para que el Excel diga lo mismo que la pantalla.
 // TODO lo que llena el directivo en la landing, una columna por campo, para
@@ -349,6 +371,7 @@ export function AdminActualizacionesDestacamentosView() {
   const [elegidas, setElegidas] = useState([]);
   const [trabajando, setTrabajando] = useState(false);
   const [abierta, setAbierta] = useState(null);
+  const repetidos = repeticionesPorEnvio(filas || []);
 
   // Se marcan las pendientes y también las cargadas, para volver a cargarlas.
   const marcables = (filas || []).filter(
@@ -367,8 +390,16 @@ export function AdminActualizacionesDestacamentosView() {
   const handleCargar = async () => {
     setTrabajando(true);
     try {
-      const { cargadas, omitidas, fallidas, iglesiasCreadas = [], iglesiasFallidas = [] } =
-        await cargarActualizaciones(seleccion, user);
+      const {
+        cargadas,
+        omitidas,
+        fallidas,
+        iglesiasCreadas = [],
+        iglesiasFallidas = [],
+        personasCreadas = [],
+        personasMovidas = [],
+        avisosPersonas = [],
+      } = await cargarActualizaciones(seleccion, user);
       if (cargadas)
         toast.success(`${cargadas} cargada${cargadas === 1 ? '' : 's'} en la aplicación.`);
       if (omitidas.length)
@@ -383,6 +414,13 @@ export function AdminActualizacionesDestacamentosView() {
         );
       if (iglesiasFallidas.length)
         toast.error(`El destacamento se cargó, pero no su iglesia: ${iglesiasFallidas.join(', ')}`);
+      // El coordinador y quien envía: altas nuevas y lo que no se pudo hacer.
+      if (personasCreadas.length)
+        toast.info(`Personas nuevas dadas de alta en: ${personasCreadas.join(', ')}`);
+      if (personasMovidas.length)
+        toast.info(`Pasan de Provisional a su destacamento: ${personasMovidas.join(', ')}`);
+      if (avisosPersonas.length)
+        toast.warning(avisosPersonas.join(' · '), { duration: 15000 });
       setElegidas([]);
     } catch (fallo) {
       console.error('[actualizaciones de destacamentos] no se pudieron cargar', fallo);
@@ -547,9 +585,27 @@ export function AdminActualizacionesDestacamentosView() {
                     onChange={() => alternar(fila.id)}
                   />
                 </TableCell>
-                <TableCell sx={{ whiteSpace: 'nowrap' }}>{fechaCorta(fila.fechaEnvio)}</TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  {fechaCorta(fila.fechaEnvio)}
+                  {/* El mismo destacamento mandó el formulario más de una vez. */}
+                  {repetidos[fila.id] > 0 && (
+                    <Typography variant="caption" sx={{ display: 'block', color: 'warning.main', fontWeight: 600 }}>
+                      {textoRepetido(repetidos[fila.id])}
+                    </Typography>
+                  )}
+                </TableCell>
                 <TableCell>
-                  {destacamentoDe(fila)}
+                  <EnlaceAFicha
+                    href={idDestacamentoDe(fila) && paths.dashboard.level.dest.edit(idDestacamentoDe(fila))}
+                  >
+                    {destacamentoDe(fila)}
+                  </EnlaceAFicha>
+                  {/* Quién dio de alta la carga: el coordinador, quien envía o los dos. */}
+                  {textoPersonasCreadas(fila.personasCreadas) && (
+                    <Label color="info" variant="soft" sx={{ display: 'flex', width: 'fit-content', mt: 0.5 }}>
+                      {textoPersonasCreadas(fila.personasCreadas)}
+                    </Label>
+                  )}
                   {/* Lo que dijo quien lo envió: el padrón no guarda este dato. */}
                   {fila.datos?.cantidadMiembros != null && fila.datos.cantidadMiembros !== '' && (
                     <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
@@ -560,7 +616,11 @@ export function AdminActualizacionesDestacamentosView() {
                 <TableCell>{fila.seccion?.nombre || fila.nombreSeccion || '—'}</TableCell>
                 <TableCell>{fila.region?.nombre || fila.nombreRegion || '—'}</TableCell>
                 <TableCell>
-                  {fila.enviadoPor?.nombre || fila.nombreRemitente || '—'}
+                  <EnlaceAFicha
+                    href={idEnviadorDe(fila) && paths.dashboard.level.member.edit(idEnviadorDe(fila))}
+                  >
+                    {fila.enviadoPor?.nombre || fila.nombreRemitente || '—'}
+                  </EnlaceAFicha>
                   {fila.enviadoPor?.codigoMiembro && (
                     <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
                       {fila.enviadoPor.codigoMiembro}

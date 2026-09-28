@@ -15,13 +15,27 @@ import {
   DOC_CARGA_AUTOMATICA,
   COLECCION_CONFIG_ACTUALIZACIONES,
 } from 'src/utils/carga-automatica-actualizaciones.mjs';
+import {
+  nombreCompleto,
+  personasDelEnvio,
+  esElMiembroDelEnvio,
+  esDestacamentoProvisional,
+} from 'src/utils/personas-del-envio.mjs';
 
+import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
+import { getMembers, updateMemberApi } from './member-service';
+import { registrarMiembroBasico } from './pastor-destacamento-service';
 import { AMBITOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 import { notificarCargaAutomatica } from './notificar-oficina-nacional-service';
 import { updateDestApi, mapApiDestToUI, aplicarFotoDestacamento } from './dest-service';
 import { getChurches, crearIglesiaConTexto, actualizarIglesiaConTexto } from './church-service';
+import {
+  guardarAsignacionDirectiva,
+  obtenerAsignacionesDirectiva,
+  desactivarAsignacionesDirectivaPorNivel,
+} from './directivas-organizacionales-service';
 
 // ----------------------------------------------------------------------
 // ACTUALIZACIONES DE DESTACAMENTOS (`actualizaciones_destacamentos`).
@@ -86,11 +100,12 @@ export function escucharActualizacionesDeDestacamentos(alCambiar, alFallar) {
 // así que quedan en Historial igual que una edición hecha a mano.
 //
 // Del envío se aplica: nombre, número, dirección, registro en la Oficina
-// Nacional, RRITrack, día y hora, y el logo como foto del destacamento.
-// La IGLESIA no se toca nunca desde aquí, ni su dirección: UpdateIglesia de la
-// API .NET crea otra iglesia cuando no reconoce el correo (y las hay sin él),
-// así que la carga duplicaba iglesias. Pastor y coordinador tampoco se tocan.
-// Un destacamento NUEVO tampoco se crea
+// Nacional, RRITrack, día y hora, el logo como foto del destacamento y, si no
+// tiene teléfono, el del pastor.
+// La iglesia (nombre, pastor, su teléfono y dirección) va aparte, en
+// `cargarIglesia`. Las personas, en `asegurarPersonasDelEnvio`: quien no exista
+// se crea, y el coordinador del formulario queda SIEMPRE en su casilla.
+// Un destacamento NUEVO no se crea
 // solo: le falta su iglesia en el padrón y se crea desde Destacamentos.
 // ----------------------------------------------------------------------
 
@@ -121,7 +136,7 @@ async function leerDestacamentosCrudos() {
   return lista;
 }
 
-async function marcar(id, estado, usuario) {
+async function marcar(id, estado, usuario, extra = {}) {
   // Es el estado de la bandeja, no un cambio de la organización: lo que se
   // carga ya pasa por proponerCambio en updateDestApi.
   // eslint-disable-next-line no-restricted-syntax
@@ -132,6 +147,7 @@ async function marcar(id, estado, usuario) {
       id: String(usuario?.idMiembros ?? usuario?.id ?? ''),
       nombre: usuario?.displayName || usuario?.nombre || '',
     },
+    ...extra,
   });
 }
 
@@ -139,6 +155,17 @@ async function marcar(id, estado, usuario) {
 const telefonoDelPadron = (valor) => {
   const digitos = String(valor ?? '').replace(/\D/g, '');
   return digitos.length === 11 && digitos.startsWith('1') ? digitos.slice(1) : digitos;
+};
+
+// EL TELÉFONO DEL PASTOR TAMBIÉN VA AL DESTACAMENTO, SI NO TIENE UNO.
+//
+// La carga lo guardaba solo en la iglesia, pero el "Teléfono" que enseña la
+// ficha (bajo "Información de la Iglesia") es el del destacamento: el pastor
+// ponía su número y la ficha seguía vacía. Solo rellena el hueco; un teléfono
+// que el destacamento ya tenga no se pisa. Va como lo guarda la ficha (+1…).
+const telefonoDelDestacamento = (valor) => {
+  const digitos = telefonoDelPadron(valor);
+  return digitos.length === 10 ? `+1${digitos}` : '';
 };
 
 /**
@@ -221,10 +248,220 @@ async function cargarIglesia({ fila, iglesia, direccion, usuario }) {
   return resultado;
 }
 
-/** Carga en el padrón los envíos elegidos. Devuelve { cargadas, omitidas, fallidas, iglesiasCreadas, iglesiasFallidas }. */
+const POSICION_COORDINADOR = DIRECTIVA_POSITIONS.find(
+  (posicion) => posicion.idCargo === 'destacamento-coordinador-destacamento'
+);
+
+/**
+ * Cambia a un miembro de destacamento en el padrón. UpdateMiembros reescribe la
+ * ficha entera (lo que no se manda queda vacío), así que se reenvía todo lo que
+ * ya tenía; solo cambia el destacamento y, si no tenía teléfono, el del envío.
+ */
+async function pasarAlDestacamento({ miembro, idDestacamento, telefono = '', usuario }) {
+  const antes = miembro;
+  await updateMemberApi(
+    {
+      idMiembros: Number(miembro.id),
+      codigoMiembro: miembro.memberId ?? null,
+      nombres: miembro.firstName ?? null,
+      apellidos: miembro.lastName ?? null,
+      genero: miembro.gender || null,
+      fechaNacimiento: miembro.birthDate ?? null,
+      sizeCamisas: miembro.shirtSize || null,
+      ocupacion: miembro.ocupation || null,
+      fechaCreacion: miembro.createdAt ?? null,
+      idDestacamento: Number(idDestacamento),
+      telefono: miembro.phoneNumber || telefono || null,
+      direccion: miembro.memberAddress || null,
+      correo: miembro.email || null,
+      idDivision: miembro.idDivision ?? null,
+      instructorCertificadoCi: Boolean(miembro.InstructorCertificadoCI),
+      estatusVigenciaCi: Boolean(miembro.EstatusVigenciaCI),
+      fechaInicioCertificado: miembro.FechaInicioCI ?? null,
+      fechaFinCertificado: miembro.FechaVencimientoCI ?? null,
+      estatusMiembro: miembro.status || 'active',
+    },
+    { usuario, antes }
+  );
+}
+
+/**
+ * EL COORDINADOR Y QUIEN ENVÍA, EN LA APLICACIÓN.
+ *
+ * Quien no exista se da de alta en el destacamento (con su nombre y teléfono; el
+ * resto de la ficha queda como pendiente, igual que el Pastor) y el coordinador
+ * pasa a su casilla: si la ocupaba otro, sale y queda en la Historia. Antes de
+ * crear se busca a la persona en el destacamento y en "Provisional", y en
+ * una recarga se reutiliza lo ya creado: volver a cargar no duplica personas.
+ *
+ * Devuelve { creadas, avisos }: `creadas` es lo que se guarda en el envío para
+ * la bandeja ({ coordinador, enviador } con { idMiembro, nombre }).
+ */
+async function asegurarPersonasDelEnvio({
+  fila,
+  idDestacamento,
+  idProvisional = null,
+  nombreDestacamento,
+  usuario,
+}) {
+  const { coordinador, enviador, mismaPersona } = personasDelEnvio(fila);
+  const creadas = { ...(fila.personasCreadas || {}) };
+  const avisos = [];
+  // Los ids finales de las dos personas: la bandeja enlaza a su ficha.
+  const ids = {};
+  if (!coordinador && !enviador) return { creadas, avisos, ids };
+
+  const miembros = await getMembers().catch(() => []);
+  const lista = Array.isArray(miembros) ? miembros : [];
+  const destacamentoDe = (m) => String(m?.destId ?? m?.idDestacamento ?? '');
+  // Se busca en su destacamento y en "Provisional", donde el padrón deja a
+  // quien aún no tiene uno: Wagner Betances y Federico Muñoz ya estaban ahí y
+  // se habrían creado otra vez. Primero su destacamento.
+  const dondeBuscar = [String(idDestacamento), idProvisional && String(idProvisional)].filter(
+    Boolean
+  );
+  const buscar = (persona) => {
+    for (const donde of dondeBuscar) {
+      const encontrado = lista.find(
+        (m) =>
+          destacamentoDe(m) === donde &&
+          esElMiembroDelEnvio(persona, {
+            nombres: m.firstName ?? m.nombres,
+            apellidos: m.lastName ?? m.apellidos,
+            telefono: m.phoneNumber ?? m.telefono,
+          })
+      );
+      if (encontrado) return encontrado.id;
+    }
+    return null;
+  };
+
+  // El id de la persona: el del envío, lo creado en una carga anterior, alguien
+  // del destacamento que ya sea ella, o un alta nueva (que se apunta en `creadas`).
+  const resolver = async (persona, clave) => {
+    if (persona.idMiembro) return persona.idMiembro;
+    if (creadas[clave]?.idMiembro) return String(creadas[clave].idMiembro);
+    const existente = buscar(persona);
+    if (existente) return String(existente);
+    const idNuevo = await registrarMiembroBasico({
+      nombres: persona.nombres,
+      apellidos: persona.apellidos,
+      telefono: persona.telefono,
+      idDestacamento,
+    });
+    if (!idNuevo) throw new Error(`No se encontró a ${nombreCompleto(persona)} tras darlo de alta.`);
+    creadas[clave] = { idMiembro: String(idNuevo), nombre: nombreCompleto(persona) };
+    return String(idNuevo);
+  };
+
+  let idCoordinador = null;
+  if (coordinador) {
+    try {
+      idCoordinador = await resolver(coordinador, 'coordinador');
+      ids.coordinador = idCoordinador;
+    } catch (error) {
+      avisos.push(error.message || `No se pudo crear a ${nombreCompleto(coordinador)}.`);
+    }
+  }
+
+  // Si quien envía ES el coordinador, ya está resuelto: no se crea otra vez.
+  if (enviador && !(mismaPersona && idCoordinador)) {
+    try {
+      ids.enviador = await resolver(enviador, 'enviador');
+    } catch (error) {
+      avisos.push(error.message || `No se pudo crear a ${nombreCompleto(enviador)}.`);
+    }
+  }
+
+  if (mismaPersona && idCoordinador) ids.enviador = idCoordinador;
+
+  if (!idCoordinador || !POSICION_COORDINADOR) return { creadas, avisos, ids };
+
+  // EL COORDINADOR QUE ESTABA EN "PROVISIONAL" PASA A SU DESTACAMENTO. Si no, era
+  // coordinador de un destacamento en cuya lista de miembros no salía.
+  const fichaCoordinador = lista.find((m) => String(m?.id) === String(idCoordinador));
+  if (
+    fichaCoordinador &&
+    idProvisional &&
+    destacamentoDe(fichaCoordinador) === String(idProvisional)
+  ) {
+    try {
+      await pasarAlDestacamento({
+        miembro: fichaCoordinador,
+        idDestacamento,
+        telefono: coordinador.telefono,
+        usuario,
+      });
+      creadas.movidos = [
+        ...(creadas.movidos || []).filter((m) => m.idMiembro !== String(idCoordinador)),
+        { idMiembro: String(idCoordinador), nombre: nombreCompleto(coordinador) },
+      ];
+    } catch (error) {
+      avisos.push(
+        `${nombreCompleto(coordinador)} sigue en Provisional: ${error.message || 'no se pudo mover'}`
+      );
+    }
+  }
+
+  // SIEMPRE queda de coordinador quien pusieron en esa casilla del formulario,
+  // lo haya enviado quien lo haya enviado (regla de la Oficina Nacional).
+  const asignaciones = await obtenerAsignacionesDirectiva({
+    nivel: 'destacamento',
+    idEntidad: idDestacamento,
+  }).catch(() => []);
+  const yaEsElCoordinador = asignaciones.some(
+    (a) =>
+      a.activo !== false &&
+      a.idPosicionDirectiva === POSICION_COORDINADOR.idCargo &&
+      String(a.idMiembro) === String(idCoordinador)
+  );
+  if (yaEsElCoordinador) return { creadas, avisos, ids };
+
+  try {
+    const guardada = await guardarAsignacionDirectiva({
+      nivel: 'destacamento',
+      idEntidad: idDestacamento,
+      nombreEntidad: nombreDestacamento,
+      idCargo: Number(POSICION_COORDINADOR.idCargoApi) || null,
+      idMiembro: idCoordinador,
+      idPosicionDirectiva: POSICION_COORDINADOR.idCargo,
+      division: POSICION_COORDINADOR.division ?? null,
+      orden: POSICION_COORDINADOR.orden || 1,
+      origen: 'actualizacion-destacamento',
+      activo: true,
+      nombreMiembro: nombreCompleto(coordinador),
+      usuario,
+    });
+    // Una persona, una casilla en su destacamento: la que tuviera antes se retira.
+    await desactivarAsignacionesDirectivaPorNivel({
+      idMiembro: idCoordinador,
+      nivel: 'destacamento',
+      conservarIdAsignacion: guardada?.idAsignacion || '',
+    }).catch(() => 0);
+  } catch (error) {
+    avisos.push(`${nombreCompleto(coordinador)}: ${error.message || 'no se asignó la casilla'}`);
+  }
+
+  return { creadas, avisos, ids };
+}
+
+/**
+ * Carga en el padrón los envíos elegidos. Devuelve { cargadas, omitidas, fallidas,
+ * iglesiasCreadas, iglesiasFallidas, personasCreadas, personasMovidas, avisosPersonas }.
+ */
 export async function cargarActualizaciones(filas, usuario, { automatica = false } = {}) {
-  const resultado = { cargadas: 0, omitidas: [], fallidas: [], iglesiasCreadas: [], iglesiasFallidas: [] };
+  const resultado = {
+    cargadas: 0,
+    omitidas: [],
+    fallidas: [],
+    iglesiasCreadas: [],
+    iglesiasFallidas: [],
+    personasCreadas: [],
+    personasMovidas: [],
+    avisosPersonas: [],
+  };
   const [crudos, iglesias] = await Promise.all([leerDestacamentosCrudos(), getChurches()]);
+  const idProvisional = crudos.find(esDestacamentoProvisional)?.idDestacamento ?? null;
 
   // Uno detrás de otro: la API .NET es lenta y en paralelo se caía.
   for (const fila of filas) {
@@ -248,6 +485,7 @@ export async function cargarActualizaciones(filas, usuario, { automatica = false
         rritrackActivo: datos.rritrackActivo ?? antes.rritrackActivo,
         destMeetingDays: datos.diaReunion || antes.destMeetingDays,
         destMeetingTimes: datos.horaReunion || antes.destMeetingTimes,
+        telefono: antes.telefono || telefonoDelDestacamento(datos.pastor?.telefono),
       };
       // La automática avisa con su propio mensaje (ver `cargarAutomaticamente`).
       // La iglesia ANTES que el destacamento: si hay que crearla, el destacamento
@@ -272,7 +510,28 @@ export async function cargarActualizaciones(filas, usuario, { automatica = false
           subidoPor: usuario?.uid || usuario?.id || '',
         });
       }
-      await marcar(fila.id, ESTADOS_ACTUALIZACION.cargada, usuario);
+      // Las personas, después del destacamento. Si algo falla, el destacamento
+      // ya quedó cargado y se avisa aparte.
+      // Solo cuentan las altas; `movidos` (de Provisional a su destacamento) va aparte.
+      const altas = (c) => [c?.coordinador, c?.enviador].filter((p) => p?.idMiembro).length;
+      const antesCreadas = altas(fila.personasCreadas);
+      const antesMovidos = (fila.personasCreadas?.movidos || []).length;
+      const { creadas, avisos, ids } = await asegurarPersonasDelEnvio({
+        fila,
+        idDestacamento: crudo.idDestacamento,
+        idProvisional,
+        nombreDestacamento: despues.name,
+        usuario,
+      });
+      if (altas(creadas) > antesCreadas) resultado.personasCreadas.push(nombre);
+      if ((creadas.movidos || []).length > antesMovidos)
+        resultado.personasMovidas.push(...creadas.movidos.slice(antesMovidos).map((m) => m.nombre));
+      resultado.avisosPersonas.push(...avisos.map((aviso) => `${nombre}: ${aviso}`));
+
+      await marcar(fila.id, ESTADOS_ACTUALIZACION.cargada, usuario, {
+        personasCreadas: creadas,
+        idsPersonas: ids,
+      });
       resultado.cargadas += 1;
     } catch (error) {
       console.error('[actualizaciones de destacamentos] no se pudo cargar', fila.id, error);
