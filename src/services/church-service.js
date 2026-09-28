@@ -102,6 +102,68 @@ export const createChurchApi = async (data) => {
     return parsed ?? { raw: text };
 };
 
+/**
+ * Actualiza una iglesia con la dirección YA en texto ("Provincia, Municipio,
+ * Sector, Calle"), como la manda la landing de registro. `updateChurchApi` la
+ * arma desde los ids del formulario, que aquí no hay.
+ *
+ * El correo tiene que ser EL QUE YA TIENE: UpdateIglesia crea otra iglesia cuando
+ * no lo reconoce. Quien llama no debe usarla con una iglesia sin correo.
+ */
+export const actualizarIglesiaConTexto = async ({ id, nombre, pastor, direccion, correo, telefono, idSeccion }) => {
+    if (!String(correo || '').trim()) {
+        throw new Error('La iglesia no tiene correo: actualizarla crearía otra.');
+    }
+    const res = await fetch('/api/churches/put/', {
+        method: 'PUT',
+        headers: await authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json, text/plain, */*' }),
+        body: JSON.stringify({ id, name: nombre, pastor, address: direccion, correo, telefono, sectionId: idSeccion }),
+        cache: 'no-store',
+    });
+    invalidarLecturas();
+    avisarAOtrasSesiones('iglesias:');
+    const text = await res.text();
+    let parsed = null;
+    try {
+        parsed = text ? JSON.parse(text) : null;
+    } catch {
+        parsed = null;
+    }
+    if (!res.ok || parsed?.success === false) {
+        throw new Error(parsed?.error || parsed?.Message || text || `Error actualizando iglesia (${res.status})`);
+    }
+    return parsed;
+};
+
+/**
+ * Crea una iglesia con la dirección ya en texto y devuelve su id. Es la salida
+ * cuando UpdateIglesia de la API .NET falla (desde el 28/09/2026 responde 500 a
+ * todo): se crea la iglesia con los datos buenos y el destacamento pasa a
+ * apuntar a ella. Sin correo se inventa uno único (el backend no admite vacío).
+ */
+export const crearIglesiaConTexto = async ({ nombre, pastor, direccion, telefono, idSeccion, correo }) => {
+    const correoUnico =
+        String(correo || '').trim() ||
+        `nomail_iglesia_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@mail.com`;
+    const res = await fetch('/api/churches/post/', {
+        method: 'POST',
+        headers: await authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json, text/plain, */*' }),
+        body: JSON.stringify({ idIglesia: 0, nombre, pastor, telefono, direccion, correo: correoUnico, idSeccion }),
+        cache: 'no-store',
+    });
+    invalidarLecturas();
+    avisarAOtrasSesiones('iglesias:');
+    if (!res.ok) throw new Error(`No se pudo crear la iglesia (${res.status}).`);
+    // SetIglesia no devuelve el id: se busca por el correo, que es único.
+    const lista = await fetch(`/api/churches/?t=${Date.now()}`, { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null);
+    const filas = Array.isArray(lista) ? lista : lista?.data || lista?.Data || [];
+    const creada = filas.find((iglesia) => String(iglesia.correo) === correoUnico);
+    if (!creada) throw new Error('La iglesia se creó pero no aparece en la lista.');
+    return String(creada.idIglesia);
+};
+
 export const updateChurchApi = async (data) => {
     const payload = buildChurchPayload(data);
     const res = await fetch('/api/churches/put/', {

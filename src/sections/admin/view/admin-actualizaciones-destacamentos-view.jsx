@@ -357,7 +357,8 @@ export function AdminActualizacionesDestacamentosView() {
   const handleCargar = async () => {
     setTrabajando(true);
     try {
-      const { cargadas, omitidas, fallidas } = await cargarActualizaciones(seleccion, user);
+      const { cargadas, omitidas, fallidas, iglesiasCreadas = [], iglesiasFallidas = [] } =
+        await cargarActualizaciones(seleccion, user);
       if (cargadas)
         toast.success(`${cargadas} cargada${cargadas === 1 ? '' : 's'} en la aplicación.`);
       if (omitidas.length)
@@ -365,6 +366,13 @@ export function AdminActualizacionesDestacamentosView() {
           `Sin cargar (destacamento nuevo, créalo en Destacamentos): ${omitidas.join(', ')}`
         );
       if (fallidas.length) toast.error(`No se pudieron cargar: ${fallidas.join(', ')}`);
+      // La iglesia (nombre, pastor, dirección) va aparte del destacamento.
+      if (iglesiasCreadas.length)
+        toast.info(
+          `Iglesia nueva con los datos enviados (la API no deja editar la anterior): ${iglesiasCreadas.join(', ')}`
+        );
+      if (iglesiasFallidas.length)
+        toast.error(`El destacamento se cargó, pero no su iglesia: ${iglesiasFallidas.join(', ')}`);
       setElegidas([]);
     } catch (fallo) {
       console.error('[actualizaciones de destacamentos] no se pudieron cargar', fallo);
@@ -526,7 +534,15 @@ export function AdminActualizacionesDestacamentosView() {
                   />
                 </TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>{fechaCorta(fila.fechaEnvio)}</TableCell>
-                <TableCell>{destacamentoDe(fila)}</TableCell>
+                <TableCell>
+                  {destacamentoDe(fila)}
+                  {/* Lo que dijo quien lo envió: el padrón no guarda este dato. */}
+                  {fila.datos?.cantidadMiembros != null && fila.datos.cantidadMiembros !== '' && (
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                      {fila.datos.cantidadMiembros} miembros aprox.
+                    </Typography>
+                  )}
+                </TableCell>
                 <TableCell>{fila.seccion?.nombre || fila.nombreSeccion || '—'}</TableCell>
                 <TableCell>{fila.region?.nombre || fila.nombreRegion || '—'}</TableCell>
                 <TableCell>

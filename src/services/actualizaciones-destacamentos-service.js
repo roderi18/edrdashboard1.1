@@ -18,9 +18,10 @@ import {
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
-import { getChurches } from './church-service';
+import { AMBITOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 import { notificarCargaAutomatica } from './notificar-oficina-nacional-service';
 import { updateDestApi, mapApiDestToUI, aplicarFotoDestacamento } from './dest-service';
+import { getChurches, crearIglesiaConTexto, actualizarIglesiaConTexto } from './church-service';
 
 // ----------------------------------------------------------------------
 // ACTUALIZACIONES DE DESTACAMENTOS (`actualizaciones_destacamentos`).
@@ -104,8 +105,10 @@ const direccionEnTexto = (direccion = {}, anterior = '') =>
     direccion.calle,
   ]
     .map((parte) => String(parte ?? '').trim())
-    .filter(Boolean)
+    // Las cuatro posiciones siempre, aunque alguna vaya vacía: la ficha lee por
+    // posición y, sin el hueco del sector, la calle caía en su sitio.
     .join(', ')
+    .replace(/^(, )+$/, '')
     // La API .NET rechaza direcciones de más de 100 caracteres.
     .slice(0, 100);
 
@@ -132,9 +135,95 @@ async function marcar(id, estado, usuario) {
   });
 }
 
-/** Carga en el padrón los envíos elegidos. Devuelve { cargadas, omitidas, fallidas }. */
+// "+18097510322" → "8097510322": el padrón guarda los teléfonos sin el +1.
+const telefonoDelPadron = (valor) => {
+  const digitos = String(valor ?? '').replace(/\D/g, '');
+  return digitos.length === 11 && digitos.startsWith('1') ? digitos.slice(1) : digitos;
+};
+
+/**
+ * LA IGLESIA DEL ENVÍO: nombre, pastor, su teléfono y la dirección (con sector y
+ * calle). La ficha del destacamento lee la dirección de la iglesia, así que sin
+ * esto lo que el directivo corrigió no se veía en la aplicación.
+ *
+ * Primero se intenta actualizar la iglesia (con SU correo: UpdateIglesia crea
+ * otra si no lo reconoce). Si no tiene correo o la API falla —UpdateIglesia
+ * responde 500 a todo desde el 28/09/2026—, se CREA una iglesia con los datos
+ * buenos y el destacamento pasa a apuntar a ella. La anterior queda sin
+ * destacamento; no se borra.
+ *
+ * Devuelve { estado, idIglesia }: el id con el que debe quedar el destacamento.
+ */
+async function cargarIglesia({ fila, iglesia, direccion, usuario }) {
+  const datos = fila.datos || {};
+  const antes = {
+    nombre: iglesia?.name || '',
+    pastor: iglesia?.pastor || '',
+    telefono: iglesia?.telefono || '',
+    direccion: iglesia?.address || '',
+  };
+  const despues = {
+    nombre: String(datos.iglesia || '').trim() || antes.nombre,
+    pastor: String(datos.pastor?.nombre || '').trim() || antes.pastor,
+    telefono: telefonoDelPadron(datos.pastor?.telefono) || antes.telefono,
+    direccion: direccion || antes.direccion,
+  };
+  const etiquetas = {
+    nombre: 'Iglesia',
+    pastor: 'Pastor',
+    telefono: 'Teléfono del pastor',
+    direccion: 'Dirección',
+  };
+  const cambios = Object.keys(etiquetas)
+    .filter((campo) => String(antes[campo] ?? '') !== String(despues[campo] ?? ''))
+    .map((campo) => ({
+      campo,
+      etiqueta: etiquetas[campo],
+      antes: antes[campo] || null,
+      despues: despues[campo] || null,
+    }));
+  if (iglesia && !cambios.length) return { estado: 'sin_cambios', idIglesia: String(iglesia.id) };
+
+  let resultado = { estado: 'actualizada', idIglesia: String(iglesia?.id || '') };
+  await proponerCambio({
+    ambito: AMBITOS_CAMBIO.destacamento,
+    entidad: {
+      tipo: 'iglesia',
+      id: String(iglesia?.id || ''),
+      nombre: despues.nombre,
+      ruta: '/dashboard/level/dest',
+    },
+    cambios,
+    usuario,
+    aplicarDirecto: true,
+    descripcion: `Iglesia ${despues.nombre} actualizada desde la página de actualización.`,
+    aplicar: async () => {
+      if (iglesia && String(iglesia.correo || '').trim()) {
+        try {
+          await actualizarIglesiaConTexto({
+            id: iglesia.id,
+            ...despues,
+            correo: iglesia.correo,
+            idSeccion: iglesia.idSeccion,
+          });
+          return;
+        } catch (error) {
+          console.warn('[actualizaciones de destacamentos] UpdateIglesia falló; se crea', error);
+        }
+      }
+      const idNueva = await crearIglesiaConTexto({
+        ...despues,
+        idSeccion: iglesia?.idSeccion || fila.seccion?.id,
+      });
+      resultado = { estado: 'creada', idIglesia: idNueva };
+    },
+  });
+  return resultado;
+}
+
+/** Carga en el padrón los envíos elegidos. Devuelve { cargadas, omitidas, fallidas, iglesiasCreadas, iglesiasFallidas }. */
 export async function cargarActualizaciones(filas, usuario, { automatica = false } = {}) {
-  const resultado = { cargadas: 0, omitidas: [], fallidas: [] };
+  const resultado = { cargadas: 0, omitidas: [], fallidas: [], iglesiasCreadas: [], iglesiasFallidas: [] };
   const [crudos, iglesias] = await Promise.all([leerDestacamentosCrudos(), getChurches()]);
 
   // Uno detrás de otro: la API .NET es lenta y en paralelo se caía.
@@ -161,7 +250,18 @@ export async function cargarActualizaciones(filas, usuario, { automatica = false
         destMeetingTimes: datos.horaReunion || antes.destMeetingTimes,
       };
       // La automática avisa con su propio mensaje (ver `cargarAutomaticamente`).
+      // La iglesia ANTES que el destacamento: si hay que crearla, el destacamento
+      // se guarda ya apuntando a la nueva. Si falla, el destacamento se carga igual.
+      try {
+        const { estado, idIglesia } = await cargarIglesia({ fila, iglesia, direccion, usuario });
+        if (idIglesia) despues.churchId = idIglesia;
+        if (estado === 'creada') resultado.iglesiasCreadas.push(nombre);
+      } catch (errorIglesia) {
+        console.error('[actualizaciones de destacamentos] no se cargó la iglesia', fila.id, errorIglesia);
+        resultado.iglesiasFallidas.push(nombre);
+      }
       await updateDestApi(despues, { usuario, antes, sinAviso: automatica });
+
       if (fila.logo?.ruta) {
         const urlFoto =
           fila.logo.url || (await getDownloadURL(ref(FIREBASE_STORAGE, fila.logo.ruta)));
