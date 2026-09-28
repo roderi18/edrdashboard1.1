@@ -49,7 +49,9 @@ import { useAuthContext } from 'src/auth/hooks';
 // Aquí llega lo que los directivos registran o corrigen desde la landing
 // externa. Nada de esto está en el padrón: se revisa primero y luego se decide
 // si se carga o se descarta: se marcan con la casilla los que de verdad deben
-// entrar en la aplicación (solo los pendientes se pueden marcar).
+// entrar en la aplicación. Los ya cargados también se pueden marcar y volver a
+// cargar (por si la primera carga salió mal): la carga compara con lo que hay
+// en la aplicación y solo escribe lo que difiere. Los descartados, no.
 // ----------------------------------------------------------------------
 
 const COLOR_ESTADO = {
@@ -346,9 +348,15 @@ export function AdminActualizacionesDestacamentosView() {
   const [trabajando, setTrabajando] = useState(false);
   const [abierta, setAbierta] = useState(null);
 
-  const pendientes = (filas || []).filter((f) => f.estado === ESTADOS_ACTUALIZACION.pendiente);
-  // Una elegida que otro ya cargó o descartó deja de contar.
-  const seleccion = pendientes.filter((f) => elegidas.includes(f.id));
+  // Se marcan las pendientes y también las cargadas, para volver a cargarlas.
+  const marcables = (filas || []).filter(
+    (f) =>
+      f.estado === ESTADOS_ACTUALIZACION.pendiente || f.estado === ESTADOS_ACTUALIZACION.cargada
+  );
+  const pendientes = marcables;
+  // Una elegida que otro descartó mientras tanto deja de contar.
+  const seleccion = marcables.filter((f) => elegidas.includes(f.id));
+  const hayRecargas = seleccion.some((f) => f.estado === ESTADOS_ACTUALIZACION.cargada);
   const alternar = (id) =>
     setElegidas((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const alternarTodas = () =>
@@ -467,16 +475,19 @@ export function AdminActualizacionesDestacamentosView() {
           <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
             {seleccion.length} seleccionada{seleccion.length === 1 ? '' : 's'}
           </Typography>
-          <Button color="inherit" onClick={handleDescartar} disabled={trabajando}>
+          {/* Descartar algo ya cargado no deshace la carga: solo con pendientes. */}
+          <Button color="inherit" onClick={handleDescartar} disabled={trabajando || hayRecargas}>
             Descartar
           </Button>
           <Button
             variant="contained"
-            startIcon={<Iconify icon="solar:check-circle-bold" />}
+            startIcon={
+              <Iconify icon={hayRecargas ? 'solar:restart-bold' : 'solar:check-circle-bold'} />
+            }
             onClick={handleCargar}
             loading={trabajando}
           >
-            Cargar en la aplicación
+            {hayRecargas ? 'Volver a cargar' : 'Cargar en la aplicación'}
           </Button>
         </Stack>
       )}
@@ -497,7 +508,7 @@ export function AdminActualizacionesDestacamentosView() {
                   checked={!!pendientes.length && seleccion.length === pendientes.length}
                   indeterminate={seleccion.length > 0 && seleccion.length < pendientes.length}
                   onChange={alternarTodas}
-                  inputProps={{ 'aria-label': 'Elegir todas las pendientes' }}
+                  inputProps={{ 'aria-label': 'Elegir todas (pendientes y cargadas)' }}
                 />
               </TableCell>
               <TableCell>Recibida</TableCell>
@@ -526,10 +537,8 @@ export function AdminActualizacionesDestacamentosView() {
               <TableRow key={fila.id} hover selected={elegidas.includes(fila.id)}>
                 <TableCell padding="checkbox">
                   <Checkbox
-                    disabled={fila.estado !== ESTADOS_ACTUALIZACION.pendiente || trabajando}
-                    checked={
-                      elegidas.includes(fila.id) && fila.estado === ESTADOS_ACTUALIZACION.pendiente
-                    }
+                    disabled={!marcables.includes(fila) || trabajando}
+                    checked={elegidas.includes(fila.id) && marcables.includes(fila)}
                     onChange={() => alternar(fila.id)}
                   />
                 </TableCell>
