@@ -14,6 +14,7 @@ import { useColorScheme } from '@mui/material/styles';
 
 import { themeConfig } from 'src/theme/theme-config';
 import { primaryColorPresets } from 'src/theme/with-settings';
+import { fondoDelPanelDeMarca, propsDelPanelDeMarca } from 'src/layouts/components/panel-de-marca';
 
 import { Label } from '../../label';
 import { settingIcons } from './icons';
@@ -317,11 +318,14 @@ export function SettingsDrawer({ sx, defaultSettings }) {
       slotProps={{
         backdrop: { invisible: true },
         paper: {
+          // Del color de la barra lateral, con el mismo "En blanco" (ver panel-de-marca).
+          ...propsDelPanelDeMarca(settings.state.navBlanco),
           sx: [
             (theme) => ({
               ...theme.mixins.paperStyles(theme, {
                 color: varAlpha(theme.vars.palette.background.defaultChannel, 0.9),
               }),
+              ...fondoDelPanelDeMarca(theme, settings.state.navBlanco),
               width: 360,
             }),
             ...(Array.isArray(sx) ? sx : [sx]),
