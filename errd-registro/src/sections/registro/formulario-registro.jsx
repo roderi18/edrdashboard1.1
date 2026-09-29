@@ -565,6 +565,11 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
     [destacamentos, filtroRegion, filtroSeccion],
   );
 
+  // En el celular, "Tu destacamento" es un desplegable sin buscador: el
+  // buscador abría el teclado, que tapaba media lista. Región y Sección de
+  // arriba ya acortan la lista.
+  const esMovil = useMediaQuery((t) => t.breakpoints.down("md"));
+
   const cambiarModo = (nuevo) => {
     setValue("destacamento.modo", nuevo);
     fijarElegido(null);
@@ -640,6 +645,63 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
           );
         }}
       />
+      {esMovil ? (
+        <TextField
+          select
+          fullWidth
+          label="Tu destacamento *"
+          value={elegido ? String(elegido.id) : ""}
+          onChange={(e) => {
+            if (e.target.value === "__nuevo") {
+              cambiarModo("nuevo");
+              return;
+            }
+            elegir(
+              destacamentos.find((d) => String(d.id) === e.target.value) ||
+                null,
+            );
+          }}
+          error={!!errores.elegido}
+          helperText={
+            errores.elegido?.message ||
+            (cargando ? "Cargando destacamentos…" : "")
+          }
+          slotProps={{
+            select: {
+              MenuProps: {
+                slotProps: { paper: { sx: { maxHeight: 360 } } },
+              },
+            },
+          }}
+        >
+          {destacamentosFiltrados.flatMap((d, i) => [
+            ...((d.region || "Sin región") !==
+            (i ? destacamentosFiltrados[i - 1].region || "Sin región" : null)
+              ? [
+                  <ListSubheader key={`r-${d.region}-${i}`}>
+                    {d.region || "Sin región"}
+                  </ListSubheader>,
+                ]
+              : []),
+            <MenuItem key={d.id} value={String(d.id)}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" noWrap>
+                  {nombreDeDestacamento(d)}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "text.secondary" }}
+                >
+                  {d.seccion}
+                </Typography>
+              </Box>
+            </MenuItem>,
+          ])}
+          <MenuItem value="__nuevo" sx={{ fontWeight: 700 }}>
+            Mi destacamento no está
+          </MenuItem>
+        </TextField>
+      ) : (
       <Autocomplete
         options={destacamentosFiltrados}
         value={elegido}
@@ -705,6 +767,7 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
           />
         )}
       />
+      )}
 
       {/* Sin ficha del destacamento aquí: sus datos se revisan en los pasos siguientes. */}
     </Stack>
