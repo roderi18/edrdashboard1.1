@@ -120,9 +120,15 @@ export function Encabezado() {
               slotProps={{ paper: { sx: { mt: 1, minWidth: 180 } } }}
             >
               <MenuItem component="a" href="/estado-actualizacion/" onClick={cerrarDescarga}>Ver</MenuItem>
-              <MenuItem component="a" href="/estado-actualizacion/?descargar=pdf" onClick={cerrarDescarga}>Descargar PDF</MenuItem>
-              <MenuItem component="a" href="/estado-actualizacion/?descargar=png" onClick={cerrarDescarga}>Descargar PNG</MenuItem>
+              <MenuItem component="a" href="/estado-actualizacion/?descargar=pdf" target="descarga-estado-destacamentos" onClick={cerrarDescarga}>Descargar PDF</MenuItem>
+              <MenuItem component="a" href="/estado-actualizacion/?descargar=png" target="descarga-estado-destacamentos" onClick={cerrarDescarga}>Descargar PNG</MenuItem>
             </Menu>
+            <Box
+              component="iframe"
+              name="descarga-estado-destacamentos"
+              title="Preparación de la descarga del estado"
+              sx={{ display: 'none' }}
+            />
           </Stack>
         </Stack>
       </Container>
