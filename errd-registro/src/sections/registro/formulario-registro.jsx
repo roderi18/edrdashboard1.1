@@ -40,6 +40,7 @@ import { Form, Field } from "src/components/hook-form";
 import { FotoMovil } from "./foto-movil";
 import { MapaDestacamentos } from "./portada";
 import { BuscarPersona } from "./buscar-persona";
+import { BotonNoAparece } from "./boton-no-aparece";
 import { DatosMiembro, etiquetaCargo } from "./datos-miembro";
 import { PasosLaterales, PanelPorQueRegistrar } from "./paneles";
 import { fechaDeCierre, useCuentaRegresiva } from "./use-cuenta-regresiva";
@@ -418,10 +419,7 @@ function SiNo({ name, label }) {
 function PasoQuien({ destacamentos, secciones, cargando }) {
   return (
     <Stack spacing={3}>
-      <Typography variant="body2" sx={{ color: "text.secondary" }}>
-        Queremos saber quién envía cada corrección, para poder contactarte si
-        algo no está claro.
-      </Typography>
+  
       <BuscarPersona
         ruta="remitente"
         etiqueta="Tu nombre *"
@@ -738,17 +736,16 @@ function PasoDestacamento({ destacamentos: padron, secciones, cargando }) {
 
       {/* Fuera del desplegable, igual que "No estoy en la lista" de Tu nombre:
           dentro de la lista quedaba escondido hasta abrirla. */}
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: -2 }}>
-        <Typography variant="caption" sx={{ color: "text.secondary" }}>
-          ¿No aparece?
+      <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", gap: 1, mt: -2 }}>
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+          ¿Tu Destacamento no aparece?
         </Typography>
-        <Button
-          size="small"
-          startIcon={<Iconify icon="solar:add-circle-linear" />}
+        <BotonNoAparece
+          icono="solar:add-circle-linear"
           onClick={() => cambiarModo("nuevo")}
         >
           Mi destacamento no está
-        </Button>
+        </BotonNoAparece>
       </Stack>
 
       {/* Sin ficha del destacamento aquí: sus datos se revisan en los pasos siguientes. */}

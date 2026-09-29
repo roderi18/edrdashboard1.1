@@ -13,6 +13,8 @@ import Autocomplete from '@mui/material/Autocomplete';
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
+import { BotonNoAparece } from './boton-no-aparece';
+
 // ----------------------------------------------------------------------
 // Buscar a una persona entre los miembros de la app (mayores de edad o sin
 // fecha de nacimiento) o, si no aparece, escribir su nombre y apellido.
@@ -110,7 +112,16 @@ export function BuscarPersona({ ruta, etiqueta, textoNuevo = 'No está en la lis
   }
 
   return (
-    <Stack spacing={1}>
+    <Stack spacing={1.5}>
+      {/* Arriba del buscador: abajo y en texto plano pasaba desapercibido. */}
+      <Stack direction="row" sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          ¿Tu nombre no aparece?
+        </Typography>
+        <BotonNoAparece icono="solar:user-plus-linear" onClick={() => cambiarModo('nuevo')}>
+          {textoNuevo}
+        </BotonNoAparece>
+      </Stack>
       <Autocomplete
         options={opciones}
         value={miembro}
@@ -150,14 +161,6 @@ export function BuscarPersona({ ruta, etiqueta, textoNuevo = 'No está en la lis
           />
         )}
       />
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          ¿No aparece?
-        </Typography>
-        <Button size="small" startIcon={<Iconify icon="solar:user-plus-linear" />} onClick={() => cambiarModo('nuevo')}>
-          {textoNuevo}
-        </Button>
-      </Stack>
     </Stack>
   );
 }
