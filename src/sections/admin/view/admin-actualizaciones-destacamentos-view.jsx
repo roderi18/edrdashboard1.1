@@ -49,6 +49,7 @@ import { EmptyContent } from 'src/components/empty-content';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { CargaPorCamposDialog } from '../carga-por-campos-dialog';
 import { CuentaRegresivaLandingCard } from '../cuenta-regresiva-landing-card';
 
 // ----------------------------------------------------------------------
@@ -362,6 +363,44 @@ async function descargarExcel(filas) {
   URL.revokeObjectURL(enlace.href);
 }
 
+// Lo que dice la bandeja al terminar una carga (completa o por campos).
+function avisarResultado(resultado) {
+  const {
+    cargadas,
+    omitidas,
+    fallidas,
+    iglesiasCreadas = [],
+    iglesiasFallidas = [],
+    personasCreadas = [],
+    personasMovidas = [],
+    telefonosPuestos = [],
+    avisosPersonas = [],
+  } = resultado;
+  if (cargadas)
+    toast.success(`${cargadas} cargada${cargadas === 1 ? '' : 's'} en la aplicación.`);
+  if (omitidas.length)
+    toast.warning(
+      `Sin cargar (destacamento nuevo, créalo en Destacamentos): ${omitidas.join(', ')}`
+    );
+  if (fallidas.length) toast.error(`No se pudieron cargar: ${fallidas.join(', ')}`);
+  // La iglesia (nombre, pastor, dirección) va aparte del destacamento.
+  if (iglesiasCreadas.length)
+    toast.info(
+      `Iglesia nueva con los datos enviados (la API no deja editar la anterior): ${iglesiasCreadas.join(', ')}`
+    );
+  if (iglesiasFallidas.length)
+    toast.error(`El destacamento se cargó, pero no su iglesia: ${iglesiasFallidas.join(', ')}`);
+  // El coordinador y quien envía: altas nuevas y lo que no se pudo hacer.
+  if (personasCreadas.length)
+    toast.info(`Personas nuevas dadas de alta en: ${personasCreadas.join(', ')}`);
+  if (personasMovidas.length)
+    toast.info(`Pasan de Provisional a su destacamento: ${personasMovidas.join(', ')}`);
+  if (telefonosPuestos.length)
+    toast.info(`Teléfono puesto en la ficha de: ${telefonosPuestos.join(', ')}`);
+  if (avisosPersonas.length)
+    toast.warning(avisosPersonas.join(' · '), { duration: 15000 });
+}
+
 export function AdminActualizacionesDestacamentosView() {
   const { user } = useAuthContext();
   const puedeRevisar = puedeRevisarActualizacionesDeDestacamentos(user);
@@ -371,6 +410,7 @@ export function AdminActualizacionesDestacamentosView() {
   const [elegidas, setElegidas] = useState([]);
   const [trabajando, setTrabajando] = useState(false);
   const [abierta, setAbierta] = useState(null);
+  const [porCampos, setPorCampos] = useState(false);
   const repetidos = repeticionesPorEnvio(filas || []);
 
   // Se marcan las pendientes y también las cargadas, para volver a cargarlas.
@@ -390,40 +430,7 @@ export function AdminActualizacionesDestacamentosView() {
   const handleCargar = async () => {
     setTrabajando(true);
     try {
-      const {
-        cargadas,
-        omitidas,
-        fallidas,
-        iglesiasCreadas = [],
-        iglesiasFallidas = [],
-        personasCreadas = [],
-        personasMovidas = [],
-        telefonosPuestos = [],
-        avisosPersonas = [],
-      } = await cargarActualizaciones(seleccion, user);
-      if (cargadas)
-        toast.success(`${cargadas} cargada${cargadas === 1 ? '' : 's'} en la aplicación.`);
-      if (omitidas.length)
-        toast.warning(
-          `Sin cargar (destacamento nuevo, créalo en Destacamentos): ${omitidas.join(', ')}`
-        );
-      if (fallidas.length) toast.error(`No se pudieron cargar: ${fallidas.join(', ')}`);
-      // La iglesia (nombre, pastor, dirección) va aparte del destacamento.
-      if (iglesiasCreadas.length)
-        toast.info(
-          `Iglesia nueva con los datos enviados (la API no deja editar la anterior): ${iglesiasCreadas.join(', ')}`
-        );
-      if (iglesiasFallidas.length)
-        toast.error(`El destacamento se cargó, pero no su iglesia: ${iglesiasFallidas.join(', ')}`);
-      // El coordinador y quien envía: altas nuevas y lo que no se pudo hacer.
-      if (personasCreadas.length)
-        toast.info(`Personas nuevas dadas de alta en: ${personasCreadas.join(', ')}`);
-      if (personasMovidas.length)
-        toast.info(`Pasan de Provisional a su destacamento: ${personasMovidas.join(', ')}`);
-      if (telefonosPuestos.length)
-        toast.info(`Teléfono puesto en la ficha de: ${telefonosPuestos.join(', ')}`);
-      if (avisosPersonas.length)
-        toast.warning(avisosPersonas.join(' · '), { duration: 15000 });
+      avisarResultado(await cargarActualizaciones(seleccion, user));
       setElegidas([]);
     } catch (fallo) {
       console.error('[actualizaciones de destacamentos] no se pudieron cargar', fallo);
@@ -524,6 +531,14 @@ export function AdminActualizacionesDestacamentosView() {
           {/* Descartar algo ya cargado no deshace la carga: solo con pendientes. */}
           <Button color="inherit" onClick={handleDescartar} disabled={trabajando || hayRecargas}>
             Descartar
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Iconify icon="solar:list-bold" />}
+            onClick={() => setPorCampos(true)}
+            disabled={trabajando}
+          >
+            Cargar por campos
           </Button>
           <Button
             variant="contained"
@@ -645,6 +660,18 @@ export function AdminActualizacionesDestacamentosView() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Elegir qué datos del envío se aplican, con vista previa. */}
+      <CargaPorCamposDialog
+        open={porCampos}
+        onClose={() => setPorCampos(false)}
+        filas={seleccion}
+        user={user}
+        onTerminado={(resultado) => {
+          avisarResultado(resultado);
+          setElegidas([]);
+        }}
+      />
 
       {/* Ventana flotante con el detalle del envío elegido con el ojo. */}
       <Dialog fullWidth maxWidth="md" open={!!abierta} onClose={() => setAbierta(null)}>
