@@ -779,7 +779,7 @@ export function MapaDestacamentos({
 function BotonMapaDeInscritos({ destacamentos, secciones, padron }) {
   const [abierto, setAbierto] = useState(false);
   return (
-    <Box sx={{ display: { xs: "flex", md: "none" }, justifyContent: "center" }}>
+    <>
       <Button
         // El azul de la casa (el de "en cada rincón…"), relleno para que destaque.
         variant="contained"
@@ -788,8 +788,7 @@ function BotonMapaDeInscritos({ destacamentos, secciones, padron }) {
         startIcon={<Iconify icon="solar:map-bold" />}
         onClick={() => setAbierto(true)}
         sx={(t) => ({
-          px: 3,
-          fontWeight: 700,
+          ...MEDIDA_BOTON_MOVIL,
           position: "relative",
           boxShadow: t.vars.customShadows?.primary,
         })}
@@ -860,7 +859,63 @@ function BotonMapaDeInscritos({ destacamentos, secciones, padron }) {
           />
         </Box>
       </Dialog>
-    </Box>
+    </>
+  );
+}
+
+// "Descargar estado" en el móvil, donde el menú "Estado" del encabezado no se
+// ve. Mismo ancho y alto que "Ver mapa de inscritos" (MEDIDA_BOTON_MOVIL): antes
+// no existía y desde el celular no había forma de bajar el estado.
+function BotonDescargarEstado() {
+  const [ancla, setAncla] = useState(null);
+  const cerrar = () => setAncla(null);
+  return (
+    <>
+      <Button
+        variant="outlined"
+        color="inherit"
+        size="large"
+        startIcon={<Iconify icon="eva:cloud-download-fill" />}
+        endIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={16} />}
+        aria-haspopup="menu"
+        aria-expanded={Boolean(ancla)}
+        onClick={(e) => setAncla(e.currentTarget)}
+        sx={{ ...MEDIDA_BOTON_MOVIL, borderColor: "rgba(255,255,255,0.6)" }}
+      >
+        Descargar estado
+      </Button>
+      <Menu
+        anchorEl={ancla}
+        open={Boolean(ancla)}
+        onClose={cerrar}
+        slotProps={{ paper: { sx: { mt: 1, minWidth: 220 } } }}
+      >
+        <MenuItem component="a" href="/estado-actualizacion/" onClick={cerrar}>Ver</MenuItem>
+        <MenuItem component="a" href="/estado-actualizacion/?descargar=pdf" target="descarga-estado-movil" onClick={cerrar}>Descargar PDF</MenuItem>
+        <MenuItem component="a" href="/estado-actualizacion/?descargar=png" target="descarga-estado-movil" onClick={cerrar}>Descargar PNG</MenuItem>
+      </Menu>
+      <Box
+        component="iframe"
+        name="descarga-estado-movil"
+        title="Preparación de la descarga del estado"
+        sx={{ display: "none" }}
+      />
+    </>
+  );
+}
+
+// Los dos botones de la portada en el móvil, uno encima del otro y del mismo tamaño.
+const MEDIDA_BOTON_MOVIL = { width: 280, maxWidth: 1, height: 48, px: 3, fontWeight: 700 };
+
+function BotonesMovil(props) {
+  return (
+    <Stack
+      spacing={1.5}
+      sx={{ display: { xs: "flex", md: "none" }, alignItems: "center" }}
+    >
+      <BotonMapaDeInscritos {...props} />
+      <BotonDescargarEstado />
+    </Stack>
   );
 }
 
@@ -911,7 +966,7 @@ export function Portada({ destacamentos, secciones = [], padron = [] }) {
               a tener un registro nacional completo y al día.
             </Typography>
             <CuentaRegresiva />
-            <BotonMapaDeInscritos
+            <BotonesMovil
               padron={padron}
               destacamentos={destacamentos}
               secciones={secciones}

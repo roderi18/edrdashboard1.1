@@ -53,21 +53,26 @@ export const OPCIONES_CARGO_NACIONAL = sinRepetir(
   cargosDirectiva.filter((c) => c.nivel !== 'destacamento')
 ).map((c) => ({ ...c, grupo: GRUPO_NIVEL[c.nivel] || 'Otros' }));
 
-// Solo los cargos que llenan este formulario. "Líder de Grupo" existe en cada
-// división del padrón; aquí basta uno, y la casilla exacta la decide quien lo
-// aplique en el dashboard. "Otro cargo" no es una casilla: solo avisa.
-const POSICIONES_DEL_FORMULARIO = [
+// Todas las posiciones del destacamento, cada una una sola vez. En el padrón
+// "Líder de Grupo", "Guía de Patrulla"… se repiten en cada división
+// (Exploradores, Seguidores, Pioneros, Navegantes) y en cada patrulla; aquí sale
+// el nombre solo, sin la división, y la casilla exacta la decide quien lo
+// aplique en el dashboard. Primero los de todo el destacamento.
+// "Otro cargo" no es una casilla: solo avisa.
+const PRIMERO = [
   'destacamento-coordinador-destacamento',
   'destacamento-coordinador-asistente-destacamento',
   'destacamento-pastor',
-  'destacamento-exploradores-lider-grupo',
+  'destacamento-capellan',
+  'destacamento-consejo-destacamento',
 ];
+const DEL_DESTACAMENTO = cargosDirectiva.filter((c) => c.nivel === 'destacamento');
 
 export const OPCIONES_POSICION = [
-  ...POSICIONES_DEL_FORMULARIO.map((v) => {
-    const c = cargosDirectiva.find((x) => x.value === v);
-    return { value: v, label: c?.label || v, grupo: '' };
-  }),
+  ...sinRepetir([
+    ...PRIMERO.map((v) => DEL_DESTACAMENTO.find((c) => c.value === v)).filter(Boolean),
+    ...DEL_DESTACAMENTO,
+  ]).map((c) => ({ value: c.value, label: c.label, grupo: '' })),
   { value: 'otro', label: 'Otro cargo', grupo: '' },
 ];
 
@@ -78,7 +83,13 @@ const opcionDe = (opciones, valor) => {
   const directa = opciones.find((o) => o.value === valor);
   if (directa) return directa;
   const original = cargosDirectiva.find((c) => c.value === valor);
-  return original ? opciones.find((o) => o.label.startsWith(original.label)) || null : null;
+  if (!original) return null;
+  // Primero el nombre exacto: con startsWith, "Guía Mayor Auxiliar" caía en "Guía Mayor".
+  return (
+    opciones.find((o) => o.label === original.label) ||
+    opciones.find((o) => o.label.startsWith(original.label)) ||
+    null
+  );
 };
 
 export const etiquetaCargo = (valor) =>

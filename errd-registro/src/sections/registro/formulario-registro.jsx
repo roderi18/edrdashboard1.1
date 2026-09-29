@@ -147,8 +147,10 @@ export function FormularioRegistro({
                 ? v.destacamento.elegido?.id
                 : null,
             idSeccion:
+              // Si corrigió la sección del destacamento (selector de Sección),
+              // viaja esa; si no, la del padrón.
               v.destacamento.modo === "existente"
-                ? v.destacamento.elegido?.idSeccion
+                ? (v.destacamento.idSeccion ?? v.destacamento.elegido?.idSeccion)
                 : v.destacamento.idSeccion,
           },
           datos: {
@@ -478,6 +480,8 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
   const elegir = useCallback(
     (d) => {
       fijarElegido(d);
+      // La sección corregida era la del destacamento anterior.
+      setValue("destacamento.idSeccion", null);
       // Con el valor controlado, el error de "Elige tu destacamento" no se borraba solo.
       trigger("destacamento.elegido");
       if (!d) return;
@@ -541,6 +545,25 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remitente?.idDestacamento, destacamentos.length]);
 
+  // Región y sección, las del padrón de la app (/api/secciones). Filtran la
+  // lista y, con un destacamento elegido, enseñan las suyas.
+  const [filtroRegion, setFiltroRegion] = useState(null);
+  const [filtroSeccion, setFiltroSeccion] = useState(null);
+  const seccionDelElegido = elegido
+    ? secciones.find((s) => String(s.id) === String(idSeccion ?? elegido.idSeccion)) || null
+    : null;
+  const seccionElegida = seccionDelElegido || filtroSeccion;
+  const regionElegida = seccionDelElegido?.region || elegido?.region || filtroRegion;
+  const destacamentosFiltrados = useMemo(
+    () =>
+      destacamentos.filter((d) =>
+        filtroSeccion
+          ? String(d.idSeccion) === String(filtroSeccion.id)
+          : !filtroRegion || d.region === filtroRegion,
+      ),
+    [destacamentos, filtroRegion, filtroSeccion],
+  );
+
   const cambiarModo = (nuevo) => {
     setValue("destacamento.modo", nuevo);
     fijarElegido(null);
@@ -593,8 +616,31 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
 
   return (
     <Stack spacing={3}>
+      <SelectoresRegionSeccion
+        secciones={secciones}
+        region={regionElegida}
+        seccion={seccionElegida}
+        alCambiarRegion={(r) => {
+          setFiltroRegion(r);
+          setFiltroSeccion(null);
+          // Con un destacamento de otra región, se suelta: si no, la lista
+          // filtrada y el elegido se contradecían.
+          if (elegido && r && elegido.region !== r) elegir(null);
+          setValue("destacamento.idSeccion", null);
+        }}
+        alCambiarSeccion={(s) => {
+          setFiltroSeccion(s);
+          if (s) setFiltroRegion(s.region);
+          // Con un destacamento ya elegido, cambiar la sección es corregirla:
+          // se envía con el registro (queda pendiente de revisión).
+          setValue(
+            "destacamento.idSeccion",
+            elegido && s && String(s.id) !== String(elegido.idSeccion) ? s.id : null,
+          );
+        }}
+      />
       <Autocomplete
-        options={destacamentos}
+        options={destacamentosFiltrados}
         value={elegido}
         loading={cargando}
         groupBy={(d) => d.region || "Sin región"}
@@ -661,6 +707,34 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
 
       {/* Sin ficha del destacamento aquí: sus datos se revisan en los pasos siguientes. */}
     </Stack>
+  );
+}
+
+// Los dos selectores del paso: Región y, debajo de ella, sus secciones.
+function SelectoresRegionSeccion({ secciones, region, seccion, alCambiarRegion, alCambiarSeccion }) {
+  const regiones = useMemo(
+    () => [...new Set(secciones.map((s) => s.region).filter(Boolean))],
+    [secciones],
+  );
+  const opcionesSeccion = region ? secciones.filter((s) => s.region === region) : secciones;
+  return (
+    <Rejilla>
+      <Autocomplete
+        options={regiones}
+        value={region || null}
+        onChange={(_, r) => alCambiarRegion(r)}
+        renderInput={(params) => <TextField {...params} label="Región" />}
+      />
+      <Autocomplete
+        options={opcionesSeccion}
+        value={seccion || null}
+        groupBy={(s) => s.region}
+        getOptionLabel={(s) => s?.nombre || ""}
+        isOptionEqualToValue={(a, b) => String(a.id) === String(b.id)}
+        onChange={(_, s) => alCambiarSeccion(s)}
+        renderInput={(params) => <TextField {...params} label="Sección" />}
+      />
+    </Rejilla>
   );
 }
 
@@ -924,11 +998,10 @@ function PasoConfirmacion({ secciones }) {
   const { control } = useFormContext();
   const v = useWatch({ control });
   const d = v.destacamento.elegido;
-  const seccion = d
-    ? { nombre: d.seccion, region: d.region }
-    : secciones.find(
-        (s) => String(s.id) === String(v.destacamento.idSeccion),
-      ) || {};
+  // La sección corregida (si la hay) manda sobre la del padrón.
+  const seccion =
+    secciones.find((s) => String(s.id) === String(v.destacamento.idSeccion)) ||
+    (d ? { nombre: d.seccion, region: d.region } : {});
   const persona = (p) =>
     (p.modo === "existente"
       ? p.miembro?.nombre
