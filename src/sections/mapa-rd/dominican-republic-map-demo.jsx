@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -22,7 +22,13 @@ import provincias from './provincias.geo.json';
 import { useGestosMapa } from './use-gestos-mapa';
 import { MIN_ZOOM, MAX_ZOOM } from './gestos-mapa.mjs';
 import geografia from './republica-dominicana.geo.json';
+import { agruparPor } from './destacamentos-del-mapa.mjs';
 import { MAP_WIDTH, MAP_HEIGHT, crearContorno, crearProyeccion } from './geometria-mapa.mjs';
+import {
+  LeyendaDeRegiones,
+  NumerosDeProvincias,
+  useDestacamentosDelMapa,
+} from './destacamentos-en-mapa';
 import {
   MarcoEditable,
   PanelEditorMapa,
@@ -45,6 +51,7 @@ const PROVINCE_PATHS = provincias.features.map((provincia) => ({
     return lineas;
   }, []),
 }));
+const NOMBRES_DEL_MAPA = PROVINCE_PATHS.map((provincia) => provincia.nombre);
 const PANEL_SX = {
   bgcolor: 'rgba(7, 31, 58, .92)',
   color: 'common.white',
@@ -59,23 +66,31 @@ const CONTROL_SX = {
   '&.Mui-disabled': { color: 'rgba(255,255,255,.3)' },
 };
 
-export function DominicanRepublicMapDemo() {
+/** `alto`: pantalla entera por defecto; dentro del panel, lo que deja la cabecera. */
+export function DominicanRepublicMapDemo({ alto = '100dvh' } = {}) {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
   const theme = useTheme();
   // "Ver regiones": cada provincia con el color de su región, como en el mapa de
   // la landing de registro (Norte amarillo, Central azul, Sur rojo, Este verde).
-  const [mostrarRegiones, setMostrarRegiones] = useState(false);
-  const [mostrarProvincias, setMostrarProvincias] = useState(false);
+  const [mostrarRegiones, setMostrarRegiones] = useState(true);
+  const [mostrarProvincias, setMostrarProvincias] = useState(true);
   // Con las regiones se ven también las divisiones: son las mismas provincias.
   const conDivisiones = mostrarProvincias || mostrarRegiones;
-  const [mostrarNombres, setMostrarNombres] = useState(false);
+  const [mostrarNombres, setMostrarNombres] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pantallaAmpliada, setPantallaAmpliada] = useState(false);
   const editor = useComposicionMapa();
   const { vista, arrastrando, restablecer, ampliar, eventos } = useGestosMapa(svgRef);
   const { zoom, x, y } = vista;
   const pantallaCompleta = isFullscreen || pantallaAmpliada;
+  // Los destacamentos del padrón: un número por provincia y el total por región.
+  const destacamentos = useDestacamentosDelMapa(NOMBRES_DEL_MAPA);
+  const porProvincia = useMemo(() => agruparPor(destacamentos || [], 'provincia'), [destacamentos]);
+  const porRegion = useMemo(() => agruparPor(destacamentos || [], 'region'), [destacamentos]);
+  // La región señalada en la leyenda se pinta sobre el mapa.
+  const [regionSenalada, setRegionSenalada] = useState(null);
+  const contenedor = () => containerRef.current;
 
   useEffect(() => {
     const handleFullscreen = () => {
@@ -124,7 +139,7 @@ export function DominicanRepublicMapDemo() {
       ref={containerRef}
       sx={{
         width: 1,
-        height: '100dvh',
+        height: pantallaAmpliada ? '100dvh' : alto,
         position: pantallaAmpliada ? 'fixed' : 'relative',
         ...(pantallaAmpliada && { inset: 0, zIndex: 1500 }),
         overflow: 'hidden',
@@ -220,6 +235,22 @@ export function DominicanRepublicMapDemo() {
               vectorEffect="non-scaling-stroke"
               pointerEvents="none"
             />
+            {regionSenalada && (
+              <g clipPath="url(#country-clip)" pointerEvents="none" data-testid="region-senalada">
+                {PROVINCE_PATHS.filter((p) => p.region?.nombre === regionSenalada).map((p) => (
+                  <path
+                    key={p.id}
+                    d={p.path}
+                    fill={theme.palette[p.region.color].main}
+                    fillOpacity={0.9}
+                    stroke="#ffffff"
+                    strokeOpacity={0.6}
+                    strokeWidth={1}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              </g>
+            )}
             {conDivisiones && mostrarNombres && (
               <g pointerEvents="none" data-testid="nombres-provinciales">
                 {PROVINCE_PATHS.map((provincia) => {
@@ -272,9 +303,41 @@ export function DominicanRepublicMapDemo() {
                 })}
               </g>
             )}
+            {destacamentos && (
+              <NumerosDeProvincias
+                provincias={PROVINCE_PATHS}
+                porProvincia={porProvincia}
+                zoom={zoom}
+                subir={conDivisiones && mostrarNombres ? 22 / Math.sqrt(zoom) : 0}
+                contenedor={contenedor}
+              />
+            )}
           </g>
         </Box>
       </MarcoEditable>
+
+      {destacamentos && (
+        <LeyendaDeRegiones
+          porRegion={porRegion}
+          total={destacamentos.length}
+          sinProvincia={destacamentos.filter((d) => !d.provincia).length}
+          onSenalar={setRegionSenalada}
+          contenedor={contenedor}
+          sx={{
+            position: 'absolute',
+            zIndex: 1000,
+            // Centrada abajo; en pantallas estrechas, a lo ancho y por encima del
+            // panel de interruptores de la esquina, que si no la tapaba.
+            left: { xs: 16, md: '50%' },
+            right: { xs: 16, md: 'auto' },
+            transform: { md: 'translateX(-50%)' },
+            bottom: {
+              xs: 'calc(max(16px, env(safe-area-inset-bottom)) + 150px)',
+              md: 'max(16px, env(safe-area-inset-bottom))',
+            },
+          }}
+        />
+      )}
 
       <ElementosEditables editor={editor} contenedorRef={containerRef} />
       <PanelEditorMapa editor={editor} />

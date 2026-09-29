@@ -137,6 +137,7 @@ export const paths = {
       list: `${ROOTS.DASHBOARD}/level/list`,
       cards: `${ROOTS.DASHBOARD}/level/cards`,
       attendance: `${ROOTS.DASHBOARD}/level/attendance`,
+      datosDemograficos: `${ROOTS.DASHBOARD}/level/datos-demograficos`,
       profile: `${ROOTS.DASHBOARD}/level/profile`,
       account: `${ROOTS.DASHBOARD}/level/account`,
       edit: (id) => `${ROOTS.DASHBOARD}/level/${id}/edit`,

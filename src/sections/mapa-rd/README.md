@@ -2,7 +2,7 @@
 
 Ruta aislada: `/pruebas/mapa-republica-dominicana/`.
 
-Acceso desde el menú del Administrador Global: **Desarrollo · plantilla →
+Acceso: menú **Datos demográficos** (debajo de Asistencias), ruta `/dashboard/level/datos-demograficos`; la de `/pruebas` redirige ahí. Antes: **Desarrollo · plantilla →
 Pruebas → Mapa Rep. Dom.**. Pruebas aparece encima de Aplicación y utiliza el
 desplegable compartido del menú, con un casco de constructor registrado localmente.
 
@@ -20,7 +20,7 @@ las costas. La precisión es cartográfica, no catastral.
 
 El mapa no solicita datos geográficos a servicios externos durante su uso.
 
-La opción **Provincias** (esquina inferior derecha, desactivada inicialmente)
+La opción **Provincias** (esquina inferior derecha; "Ver regiones", Provincias y Nombres empiezan encendidos)
 superpone las 31 provincias y el Distrito Nacional, guardados en
 `provincias.geo.json`. Fuente: Natural Earth Admin 1, 1:10m, dominio público:
 https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-1-states-provinces/
@@ -56,3 +56,13 @@ que la composición se adapta a diferentes tamaños de pantalla y permanece solo
 en el navegador actual.
 
 Verificación de geometría y zoom: `node --test tests/mapa-rd/*.test.mjs`.
+
+**Destacamentos en el mapa** (como en la landing de registro, pero con el padrón
+entero): un número por provincia y, abajo, las cuatro regiones con su total. Al
+señalar un número o una región sale la lista de sus destacamentos (en el móvil, al
+tocar), y la región señalada se pinta sobre el mapa. La provincia sale de la
+dirección del destacamento (o de la de su iglesia); la región es la real
+(iglesia → sección → región). "Provisional" no cuenta, y los que no tienen
+provincia en el padrón solo suman en su región (la leyenda dice cuántos son).
+Piezas: `destacamentos-del-mapa.mjs` (regla) y `destacamentos-en-mapa.jsx`.
+Test: `tests/mapa-rd/destacamentos-en-el-mapa.test.mjs`.
