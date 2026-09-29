@@ -1,3 +1,4 @@
+import { registradoEnOficinaNacional } from 'src/utils/registrado-oficina-nacional.mjs';
 import { getOwnRegionIdsForUser, getOwnSectionIdsForUser } from 'src/utils/member-access';
 import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
@@ -135,7 +136,8 @@ export const mapApiDestToUI = (apiDest) => ({
         direccion: apiDest.direccion ?? '',
         concilio: apiDest.concilio ?? '',
         fechaInicio: apiDest.fechaInicio ?? '',
-        registradoOfnc: apiDest.registradoOfnc ?? true,
+        // Con número de destacamento, registrado siempre (ver la regla).
+        registradoOfnc: registradoEnOficinaNacional(apiDest.numero, apiDest.registradoOfnc),
         rritrackActivo: apiDest.rritrackActivo ?? false,
 
         country: '',
@@ -143,12 +145,9 @@ export const mapApiDestToUI = (apiDest) => ({
         destMeetingDays: apiDest.diaReunion ?? '',
         destMeetingTimes: apiDest.horaReunion ?? '',
 
-        membershipStatus:
-            apiDest.registradoOfnc === null
-                ? 'active'
-                : apiDest.registradoOfnc
-                    ? 'active'
-                    : 'banned',
+        membershipStatus: registradoEnOficinaNacional(apiDest.numero, apiDest.registradoOfnc)
+            ? 'active'
+            : 'banned',
 
         isVerified: apiDest.rritrackActivo ?? true,
 

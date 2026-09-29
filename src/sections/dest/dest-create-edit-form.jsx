@@ -24,6 +24,10 @@ import { construirResumenMiembro } from 'src/utils/leadership-assignments';
 import { etiquetaEstadoDestacamento } from 'src/utils/estado-destacamento.mjs';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import {
+  tieneNumeroDeDestacamento,
+  registradoEnOficinaNacional,
+} from 'src/utils/registrado-oficina-nacional.mjs';
+import {
   getOwnRegionIdsForUser,
   canMemberManageMembers,
   isCoordinadorDestacamentoRole,
@@ -174,7 +178,7 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
 
     coordinatorId: dest.coordinatorId ?? null,
 
-    registradoOfnc: dest.registradoOfnc ?? true,
+    registradoOfnc: registradoEnOficinaNacional(dest.destNumber, dest.registradoOfnc),
     rritrackActivo: dest.rritrackActivo ?? false,
 
     correo:
@@ -415,6 +419,15 @@ export function DestCreateEditForm({ currentDest }) {
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+
+  // Con número de destacamento, "Registrado en Oficina Nacional" va encendido y
+  // se guarda así: antes quedaban destacamentos con número y el interruptor apagado.
+  const conNumeroDeDestacamento = tieneNumeroDeDestacamento(watch('destNumber'));
+  useEffect(() => {
+    if (conNumeroDeDestacamento && methods.getValues('registradoOfnc') !== true) {
+      methods.setValue('registradoOfnc', true, { shouldDirty: true });
+    }
+  }, [conNumeroDeDestacamento, methods]);
 
   // `getValues()` y no `watch()`: `watch()` a secas suscribe al formulario
   // ENTERO y cada tecla repintaba todo el componente; escribir iba lento. Estos
@@ -1081,7 +1094,7 @@ export function DestCreateEditForm({ currentDest }) {
                 }}
               >
                 <StatusLabel
-                  value={watch('registradoOfnc')}
+                  value={conNumeroDeDestacamento || watch('registradoOfnc')}
                   activeText="Registrado"
                   inactiveText="sin registro oficial"
                   sx={{ position: 'static' }} // IMPORTANTE para dejar horizontalmente
@@ -1103,8 +1116,9 @@ export function DestCreateEditForm({ currentDest }) {
                 labelPlacement="start"
                 control={
                   <Switch
-                    checked={watch('registradoOfnc') ?? true}
-                    disabled={!canEditDest}
+                    // Con número, encendido y fijo: el número ya es el registro.
+                    checked={conNumeroDeDestacamento || (watch('registradoOfnc') ?? true)}
+                    disabled={!canEditDest || conNumeroDeDestacamento}
                     onChange={(event) =>
                       canEditDest &&
                       methods.setValue('registradoOfnc', event.target.checked, {
