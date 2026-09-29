@@ -6,8 +6,8 @@ import { useWatch, useFormContext } from 'react-hook-form';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Skeleton from '@mui/material/Skeleton';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
-import Autocomplete from '@mui/material/Autocomplete';
 
 import cargosDirectiva from 'src/data/cargos-directiva.json';
 
@@ -95,25 +95,31 @@ const opcionDe = (opciones, valor) => {
 export const etiquetaCargo = (valor) =>
   opcionDe([...OPCIONES_CARGO_NACIONAL, ...OPCIONES_POSICION], valor)?.label || '';
 
+// Un desplegable sin buscador: con una lista corta y de nombres conocidos, el
+// buscador obligaba a escribir o a abrir el teclado del celular para elegir.
 function SelectorCargo({ name, label, opciones }) {
   const { control, setValue, formState } = useFormContext();
   const valor = useWatch({ control, name });
   const error = name.split('.').reduce((o, k) => o?.[k], formState.errors)?.message;
   return (
-    <Autocomplete
-      options={opciones}
-      value={opcionDe(opciones, valor)}
-      groupBy={(o) => o.grupo}
-      getOptionLabel={(o) => o?.label || ''}
-      isOptionEqualToValue={(a, b) => a.value === b.value}
-      onChange={(_, o) =>
-        setValue(name, o?.value || '', { shouldDirty: true, shouldValidate: true })
+    <TextField
+      select
+      fullWidth
+      label={label}
+      value={opcionDe(opciones, valor)?.value || ''}
+      onChange={(e) =>
+        setValue(name, e.target.value, { shouldDirty: true, shouldValidate: true })
       }
-      renderInput={(params) => (
-        <TextField {...params} label={label} error={!!error} helperText={error} />
-      )}
-      slotProps={{ listbox: { sx: { maxHeight: 320 } } }}
-    />
+      error={!!error}
+      helperText={error}
+      slotProps={{ select: { MenuProps: { slotProps: { paper: { sx: { maxHeight: 320 } } } } } }}
+    >
+      {opciones.map((o) => (
+        <MenuItem key={o.value} value={o.value}>
+          {o.label}
+        </MenuItem>
+      ))}
+    </TextField>
   );
 }
 
