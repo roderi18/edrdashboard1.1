@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 
 import {
   puedeCrearseComoNuevo,
+  coincideConNumeroEnviado,
   candidatosParaEnvioNuevo,
 } from '../../src/utils/envio-destacamento-nuevo.mjs';
 
@@ -20,12 +21,22 @@ test('un envío con el número de uno existente lo propone y no deja crear', () 
   const c = candidatosParaEnvioNuevo(fila, padron);
   assert.equal(c[0].destacamento.idDestacamento, 361);
   assert.equal(c[0].motivo, 'numero');
+  assert.equal(coincideConNumeroEnviado(fila, c[0].destacamento), true);
   assert.equal(puedeCrearseComoNuevo(fila, padron), false);
 });
 
 test('coincide también por nombre, sin tildes ni mayúsculas', () => {
   const fila = { nombreDestacamento: 'aguilas del norte', numeroDestacamento: '' };
   assert.equal(candidatosParaEnvioNuevo(fila, padron)[0].motivo, 'nombre');
+  assert.equal(coincideConNumeroEnviado(fila, padron[1]), false);
+});
+
+test('para actualizar, el destacamento debe tener el mismo número enviado', () => {
+  const fila = { nombreDestacamento: 'Águilas del Norte', numeroDestacamento: '275' };
+  const candidatos = candidatosParaEnvioNuevo(fila, padron);
+  assert.equal(candidatos.length, 2);
+  assert.equal(coincideConNumeroEnviado(fila, padron[0]), true);
+  assert.equal(coincideConNumeroEnviado(fila, padron[1]), false);
 });
 
 test('sin coincidencias sí se puede crear; "Desconocido" y Provisional no emparejan', () => {

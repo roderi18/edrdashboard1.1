@@ -22,6 +22,8 @@ const numeroDe = (valor) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const numeroEnviadoDe = (fila) => numeroDe(fila?.numeroDestacamento ?? fila?.datos?.numero);
+
 // "Desconocido" y similares no son un nombre: no sirven para emparejar.
 const nombreUtil = (valor) => {
   const n = sinTildes(valor);
@@ -33,7 +35,7 @@ const nombreUtil = (valor) => {
  * numero) que podrían ser el del envío, con el motivo. Primero los de mismo número.
  */
 export function candidatosParaEnvioNuevo(fila, padron = []) {
-  const numero = numeroDe(fila?.numeroDestacamento ?? fila?.datos?.numero);
+  const numero = numeroEnviadoDe(fila);
   const nombre = nombreUtil(fila?.nombreDestacamento ?? fila?.datos?.nombre);
   const candidatos = [];
   padron.forEach((d) => {
@@ -44,6 +46,12 @@ export function candidatosParaEnvioNuevo(fila, padron = []) {
       candidatos.push({ destacamento: d, motivo: mismoNumero ? 'numero' : 'nombre' });
   });
   return candidatos.sort((a, b) => (a.motivo === b.motivo ? 0 : a.motivo === 'numero' ? -1 : 1));
+}
+
+/** Para actualizar sobre uno existente, el número debe ser exactamente el enviado. */
+export function coincideConNumeroEnviado(fila, destacamento) {
+  const numero = numeroEnviadoDe(fila);
+  return numero !== null && numeroDe(destacamento?.numero) === numero;
 }
 
 /** Crear nuevo solo cuando ninguno del padrón coincide. */

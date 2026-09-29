@@ -13,6 +13,7 @@ import {
 
 import {
   puedeCrearseComoNuevo,
+  coincideConNumeroEnviado,
   candidatosParaEnvioNuevo,
 } from 'src/utils/envio-destacamento-nuevo.mjs';
 import {
@@ -806,9 +807,13 @@ export async function cargarAutomaticamente(fila, usuario) {
 /** El padrón y los que podrían ser el destacamento del envío. */
 export async function leerOpcionesDeEnvioNuevo(fila) {
   const padron = (await leerDestacamentosCrudos()).filter((d) => !esDestacamentoProvisional(d));
+  const candidatos = candidatosParaEnvioNuevo(fila, padron);
   return {
     padron,
-    candidatos: candidatosParaEnvioNuevo(fila, padron),
+    candidatos,
+    candidatosActualizacion: candidatos.filter((c) =>
+      coincideConNumeroEnviado(fila, c.destacamento)
+    ),
     puedeCrear: puedeCrearseComoNuevo(fila, padron),
   };
 }
@@ -836,6 +841,14 @@ async function enlazarEnvio(fila, idDestacamento, usuario, { creado = false } = 
 
 /** Pone el envío sobre un destacamento que ya existe y lo carga. */
 export async function actualizarEnvioSobreDestacamento(fila, idDestacamento, usuario) {
+  const padron = (await leerDestacamentosCrudos()).filter((d) => !esDestacamentoProvisional(d));
+  const destino = padron.find((d) => String(d.idDestacamento) === String(idDestacamento));
+  if (!destino) throw new Error('No se encontró el destacamento elegido en el padrón.');
+  if (!coincideConNumeroEnviado(fila, destino)) {
+    throw new Error(
+      'Solo puedes actualizar sobre el destacamento que tenga el mismo número enviado desde la landing.'
+    );
+  }
   const enlazada = await enlazarEnvio(fila, idDestacamento, usuario);
   return cargarActualizaciones([enlazada], usuario);
 }

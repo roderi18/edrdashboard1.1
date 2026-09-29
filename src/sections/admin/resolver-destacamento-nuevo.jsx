@@ -43,7 +43,7 @@ export function ResolverDestacamentoNuevo({ fila, user, onTerminado }) {
       .then((o) => {
         if (!vivo) return;
         setOpciones(o);
-        setElegido(o.candidatos[0]?.destacamento || null);
+        setElegido(o.candidatosActualizacion?.[0]?.destacamento || null);
       })
       .catch((e) => vivo && setError(e.message || 'No se pudo leer el padrón.'));
     return () => {
@@ -68,8 +68,9 @@ export function ResolverDestacamentoNuevo({ fila, user, onTerminado }) {
   if (error) return <Alert severity="error">{error}</Alert>;
   if (!opciones) return <Skeleton variant="rounded" height={120} />;
 
-  const { padron, candidatos, puedeCrear } = opciones;
+  const { candidatos, candidatosActualizacion = [], puedeCrear } = opciones;
   const nombreEnvio = [fila.nombreDestacamento, fila.numeroDestacamento].filter(Boolean).join(' ');
+  const opcionesParaActualizar = candidatosActualizacion.map((c) => c.destacamento);
 
   return (
     <Stack spacing={2} sx={{ p: 2.5, borderRadius: 1.5, border: 1, borderColor: 'divider' }}>
@@ -88,21 +89,28 @@ export function ResolverDestacamentoNuevo({ fila, user, onTerminado }) {
         </Alert>
       )}
 
+      {!opcionesParaActualizar.length && (
+        <Alert severity="info">
+          No hay un destacamento con el mismo número enviado desde la landing. Solo se podrá
+          actualizar sobre uno existente cuando el número coincida exactamente.
+        </Alert>
+      )}
+
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
         <Autocomplete
           fullWidth
-          options={padron}
+          options={opcionesParaActualizar}
           value={elegido}
           onChange={(_, d) => setElegido(d)}
           getOptionLabel={etiquetaDe}
           isOptionEqualToValue={(a, b) => String(a.idDestacamento) === String(b.idDestacamento)}
           renderInput={(params) => (
-            <TextField {...params} size="small" label="Destacamento existente" />
+            <TextField {...params} size="small" label="Destacamento con el número enviado" />
           )}
         />
         <Button
           variant="contained"
-          disabled={!elegido}
+          disabled={!elegido || !opcionesParaActualizar.length}
           startIcon={<Iconify icon="solar:pen-bold" />}
           onClick={() => setConfirmar('actualizar')}
           sx={{ flexShrink: 0 }}
