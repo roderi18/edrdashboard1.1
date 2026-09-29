@@ -25,6 +25,7 @@ import { countMembersByDestId } from 'src/utils/member-count';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { ESTADOS_DESTACAMENTO } from 'src/utils/estado-destacamento.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { compararPorNumeroDeDestacamento } from 'src/utils/orden-por-numero-de-destacamento.mjs';
 import {
   getOwnDestIdsForUser,
   getOwnRegionIdsForUser,
@@ -163,7 +164,8 @@ const canModifyDest = (user, permissionCode, actionKey) => {
  */
 export function DestListView({ sectionalId = null }) {
   const esPestanaDeSeccion = Boolean(sectionalId);
-  const table = useTable();
+  // Por número de destacamento de entrada (antes, por nombre).
+  const table = useTable({ defaultOrderBy: 'destNumber' });
   const confirmDialog = useBoolean();
   const { user } = useAuthContext();
   const [sectionals, setSectionals] = useState([]);
@@ -572,7 +574,11 @@ export function DestListView({ sectionalId = null }) {
 
     const filtered = applyFilter({
       inputData,
-      comparator: getComparator(table.order, table.orderBy),
+      comparator:
+        table.orderBy === 'destNumber'
+          ? (a, b) =>
+              (table.order === 'desc' ? -1 : 1) * compararPorNumeroDeDestacamento(a, b)
+          : getComparator(table.order, table.orderBy),
       filters: currentFilters,
       members,
     });

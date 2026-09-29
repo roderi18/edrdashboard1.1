@@ -81,3 +81,27 @@ test('con todos los campos, el envío entero se ve como cambios legibles', () =>
     'No'
   );
 });
+
+// Qué se rompía: un envío que corregía la sección (Este Central II) se guardaba
+// bien, pero al cargarlo la iglesia se reenviaba con su sección vieja y el
+// destacamento seguía en Este Central I.
+test('la sección del envío manda al cargar si se elige ese campo', async () => {
+  const { seccionConCampos } = await import('../../src/utils/campos-de-carga.mjs');
+  const enviada = { id: '12', nombre: 'Este Central II' };
+  assert.equal(
+    seccionConCampos({ idSeccionAntes: '11', seccionEnviada: enviada, campos: camposElegidos() }),
+    '12'
+  );
+  assert.equal(
+    seccionConCampos({
+      idSeccionAntes: '11',
+      seccionEnviada: enviada,
+      campos: camposElegidos(['iglesiaNombre']),
+    }),
+    '11'
+  );
+  assert.equal(
+    seccionConCampos({ idSeccionAntes: '11', seccionEnviada: null, campos: camposElegidos() }),
+    '11'
+  );
+});
