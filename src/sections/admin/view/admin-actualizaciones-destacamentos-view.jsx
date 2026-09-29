@@ -50,6 +50,7 @@ import { EmptyContent } from 'src/components/empty-content';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { CargaPorCamposDialog } from '../carga-por-campos-dialog';
+import { ResolverDestacamentoNuevo } from '../resolver-destacamento-nuevo';
 import { CuentaRegresivaLandingCard } from '../cuenta-regresiva-landing-card';
 
 // ----------------------------------------------------------------------
@@ -676,7 +677,25 @@ export function AdminActualizacionesDestacamentosView() {
       {/* Ventana flotante con el detalle del envío elegido con el ojo. */}
       <Dialog fullWidth maxWidth="md" open={!!abierta} onClose={() => setAbierta(null)}>
         <DialogTitle>{abierta ? destacamentoDe(abierta) : ''}</DialogTitle>
-        <DialogContent dividers>{abierta && <DetalleEnvio fila={abierta} />}</DialogContent>
+        <DialogContent dividers>
+          {/* Un envío de destacamento nuevo sin cargar: decidir si es uno que ya
+              existe o si se crea. Antes solo se podía saltar. */}
+          {abierta?.esNuevo && abierta.estado !== ESTADOS_ACTUALIZACION.descartada && (
+            <ResolverDestacamentoNuevo
+              fila={abierta}
+              user={user}
+              onTerminado={(resultado) => {
+                avisarResultado(resultado);
+                setAbierta(null);
+              }}
+            />
+          )}
+          {abierta && (
+            <Box sx={{ mt: abierta.esNuevo ? 2 : 0 }}>
+              <DetalleEnvio fila={abierta} />
+            </Box>
+          )}
+        </DialogContent>
         <DialogActions>
           <Button variant="outlined" color="inherit" onClick={() => setAbierta(null)}>
             Cerrar

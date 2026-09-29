@@ -12,6 +12,10 @@ import {
 } from 'firebase/firestore';
 
 import {
+  puedeCrearseComoNuevo,
+  candidatosParaEnvioNuevo,
+} from 'src/utils/envio-destacamento-nuevo.mjs';
+import {
   RESERVA_MS,
   DOC_CARGA_AUTOMATICA,
   COLECCION_CONFIG_ACTUALIZACIONES,
@@ -37,8 +41,13 @@ import { getMembers, updateMemberApi } from './member-service';
 import { registrarMiembroBasico } from './pastor-destacamento-service';
 import { AMBITOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 import { notificarCargaAutomatica } from './notificar-oficina-nacional-service';
-import { updateDestApi, mapApiDestToUI, aplicarFotoDestacamento } from './dest-service';
 import { getChurches, crearIglesiaConTexto, actualizarIglesiaConTexto } from './church-service';
+import {
+  createDestApi,
+  updateDestApi,
+  mapApiDestToUI,
+  aplicarFotoDestacamento,
+} from './dest-service';
 import {
   guardarAsignacionDirectiva,
   obtenerAsignacionesDirectiva,
@@ -783,4 +792,94 @@ export async function cargarAutomaticamente(fila, usuario) {
     }).catch(() => {});
     return false;
   }
+}
+
+// ----------------------------------------------------------------------
+// ENVÍOS "DESTACAMENTO NUEVO": ACTUALIZAR SOBRE UNO EXISTENTE O CREARLO.
+// La carga los saltaba siempre. Ahora quien revisa elige (y lo confirma):
+// ponerlo sobre un destacamento del padrón, o crearlo nuevo, esto último solo
+// si ninguno coincide por número o nombre (ver envio-destacamento-nuevo.mjs).
+// En los dos casos el envío queda enlazado al destacamento y se carga como
+// cualquier actualización.
+// ----------------------------------------------------------------------
+
+/** El padrón y los que podrían ser el destacamento del envío. */
+export async function leerOpcionesDeEnvioNuevo(fila) {
+  const padron = (await leerDestacamentosCrudos()).filter((d) => !esDestacamentoProvisional(d));
+  return {
+    padron,
+    candidatos: candidatosParaEnvioNuevo(fila, padron),
+    puedeCrear: puedeCrearseComoNuevo(fila, padron),
+  };
+}
+
+/** Enlaza el envío a un destacamento del padrón. Devuelve la fila ya enlazada. */
+async function enlazarEnvio(fila, idDestacamento, usuario, { creado = false } = {}) {
+  const id = String(idDestacamento);
+  // Estado de la bandeja, como `marcar`: el cambio de la organización lo hace la carga.
+  // eslint-disable-next-line no-restricted-syntax
+  await updateDoc(doc(FIRESTORE, COLECCION_ACTUALIZACIONES_DESTACAMENTOS, fila.id), {
+    esNuevo: false,
+    'destacamento.id': id,
+    enlazado: {
+      idDestacamento: id,
+      creado,
+      en: serverTimestamp(),
+      por: {
+        id: String(usuario?.idMiembros ?? usuario?.id ?? ''),
+        nombre: usuario?.displayName || usuario?.nombre || '',
+      },
+    },
+  });
+  return { ...fila, esNuevo: false, destacamento: { ...(fila.destacamento || {}), id } };
+}
+
+/** Pone el envío sobre un destacamento que ya existe y lo carga. */
+export async function actualizarEnvioSobreDestacamento(fila, idDestacamento, usuario) {
+  const enlazada = await enlazarEnvio(fila, idDestacamento, usuario);
+  return cargarActualizaciones([enlazada], usuario);
+}
+
+/**
+ * Crea el destacamento (y su iglesia) con los datos del envío y lo carga. Se
+ * niega si en el padrón ya hay uno con el mismo número o nombre: sería un duplicado.
+ */
+export async function crearDestacamentoDesdeEnvio(fila, usuario) {
+  const { puedeCrear } = await leerOpcionesDeEnvioNuevo(fila);
+  if (!puedeCrear)
+    throw new Error('Ya existe un destacamento con ese número o nombre: actualiza sobre él.');
+  const idSeccion = fila.seccion?.id;
+  if (!idSeccion) throw new Error('El envío no trae sección: no se puede crear.');
+  const datos = fila.datos || {};
+  const direccion = direccionEnTexto(datos.direccion);
+  const idIglesia = await crearIglesiaConTexto({
+    nombre: String(datos.iglesia || '').trim() || `Iglesia de ${datos.nombre}`,
+    pastor: String(datos.pastor?.nombre || '').trim(),
+    telefono: telefonoDelPadron(datos.pastor?.telefono),
+    direccion,
+    idSeccion,
+  });
+  // Un correo único para encontrarlo después: SetDestacamento no devuelve el id.
+  const correo = `nomail_dest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@mail.com`;
+  const respuesta = await createDestApi(
+    {
+      name: String(datos.nombre || fila.nombreDestacamento || '').trim(),
+      destNumber: String(datos.numero || '').trim(),
+      churchId: idIglesia,
+      sectionId: idSeccion,
+      correo,
+      direccion,
+      registradoOfnc: datos.registradoOfnc ?? null,
+      rritrackActivo: datos.rritrackActivo ?? null,
+      destMeetingDays: String(datos.diaReunion || ''),
+      destMeetingTimes: String(datos.horaReunion || ''),
+    },
+    { usuario }
+  );
+  if (respuesta?.pendienteDeAprobacion)
+    throw new Error('Quedó como sugerencia: se enlazará cuando se apruebe el destacamento.');
+  const creado = (await leerDestacamentosCrudos()).find((d) => String(d.correo) === correo);
+  if (!creado) throw new Error('El destacamento se creó pero no aparece en la lista.');
+  const enlazada = await enlazarEnvio(fila, creado.idDestacamento, usuario, { creado: true });
+  return cargarActualizaciones([enlazada], usuario);
 }
