@@ -30,6 +30,7 @@ export const GRUPOS_DE_CAMPOS = [
       { id: 'iglesiaPastor', etiqueta: 'Pastor' },
       { id: 'iglesiaTelefono', etiqueta: 'Teléfono del pastor' },
       { id: 'iglesiaDireccion', etiqueta: 'Dirección de la iglesia' },
+      { id: 'iglesiaSeccion', etiqueta: 'Sección (la del envío)' },
     ],
   },
   {
@@ -53,6 +54,15 @@ export const camposElegidos = (lista) =>
   );
 
 const texto = (valor) => String(valor ?? '').trim();
+
+/**
+ * La sección con la que debe quedar la iglesia (y con ella el destacamento, que
+ * la hereda de su iglesia). Antes la carga reenviaba siempre la de la iglesia:
+ * un envío que corregía la sección ("Este Central II" en vez de "Este Central
+ * I") se guardaba bien pero la aplicación seguía con la vieja.
+ */
+export const seccionConCampos = ({ idSeccionAntes, seccionEnviada, campos }) =>
+  (campos.has('iglesiaSeccion') && texto(seccionEnviada?.id)) || texto(idSeccionAntes);
 const digitos = (valor) => {
   const d = String(valor ?? '').replace(/\D/g, '');
   return d.length === 11 && d.startsWith('1') ? d.slice(1) : d;

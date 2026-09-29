@@ -12,15 +12,16 @@ import {
 } from 'firebase/firestore';
 
 import {
-  camposElegidos,
-  destacamentoConCampos,
-  diferenciasDeDestacamento,
-} from 'src/utils/campos-de-carga.mjs';
-import {
   RESERVA_MS,
   DOC_CARGA_AUTOMATICA,
   COLECCION_CONFIG_ACTUALIZACIONES,
 } from 'src/utils/carga-automatica-actualizaciones.mjs';
+import {
+  camposElegidos,
+  seccionConCampos,
+  destacamentoConCampos,
+  diferenciasDeDestacamento,
+} from 'src/utils/campos-de-carga.mjs';
 import {
   nombreCompleto,
   cambiosDeFicha,
@@ -216,6 +217,21 @@ async function cargarIglesia({
       antes: antes[campo] || null,
       despues: despues[campo] || null,
     }));
+  // La sección va aparte: se compara por id y se enseña por nombre.
+  const idSeccionAntes = String(iglesia?.idSeccion || '');
+  const idSeccion = seccionConCampos({
+    idSeccionAntes,
+    seccionEnviada: fila.seccion,
+    campos,
+  });
+  if (idSeccion && idSeccion !== idSeccionAntes) {
+    cambios.push({
+      campo: 'seccion',
+      etiqueta: 'Sección',
+      antes: iglesia?.sectionalName || idSeccionAntes || null,
+      despues: fila.seccion?.nombre || idSeccion,
+    });
+  }
   // Sin nada que cambiar no se escribe (ni se crea una iglesia vacía).
   if (!cambios.length)
     return { estado: 'sin_cambios', idIglesia: iglesia ? String(iglesia.id) : '', cambios };
@@ -241,7 +257,7 @@ async function cargarIglesia({
             id: iglesia.id,
             ...despues,
             correo: iglesia.correo,
-            idSeccion: iglesia.idSeccion,
+            idSeccion: idSeccion || iglesia.idSeccion,
           });
           return;
         } catch (error) {
@@ -250,7 +266,7 @@ async function cargarIglesia({
       }
       const idNueva = await crearIglesiaConTexto({
         ...despues,
-        idSeccion: iglesia?.idSeccion || fila.seccion?.id,
+        idSeccion: idSeccion || fila.seccion?.id,
       });
       resultado = { estado: 'creada', idIglesia: idNueva, cambios };
     },
