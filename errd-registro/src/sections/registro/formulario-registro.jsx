@@ -12,7 +12,6 @@ import {
 
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
-import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
@@ -28,6 +27,11 @@ import ListSubheader from "@mui/material/ListSubheader";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import LinearProgress from "@mui/material/LinearProgress";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+
+import {
+  destacamentoQueQueda,
+  destacamentosSinDuplicados,
+} from "src/utils/destacamentos-sin-duplicados.mjs";
 
 import { toast } from "src/components/snackbar";
 import { Iconify } from "src/components/iconify";
@@ -437,37 +441,12 @@ function PasoQuien({ destacamentos, secciones, cargando }) {
   );
 }
 
-function PapelConBoton({ children, alPulsar, ...otros }) {
-  return (
-    <Paper {...otros}>
-      {children}
-      <Box
-        sx={{
-          p: 1,
-          borderTop: (t) => `dashed 1px ${t.vars.palette.divider}`,
-        }}
-      >
-        <Button
-          fullWidth
-          variant="soft"
-          startIcon={<Iconify icon="solar:add-circle-linear" />}
-          // mousedown, no click: con click el campo pierde el foco y la lista
-          // se cierra antes de que el botón reciba la pulsación.
-          onMouseDown={(e) => {
-            e.preventDefault();
-            alPulsar?.();
-          }}
-        >
-          Mi destacamento no está
-        </Button>
-      </Box>
-    </Paper>
-  );
-}
-
 // ---------------------------------------------------------------- destacamento (va dentro del paso 1, debajo del nombre)
 
-function PasoDestacamento({ destacamentos, secciones, cargando }) {
+function PasoDestacamento({ destacamentos: padron, secciones, cargando }) {
+  // Un destacamento por número: el padrón trae algunos repetidos y se queda el
+  // actualizado (el que tiene nombre).
+  const destacamentos = useMemo(() => destacamentosSinDuplicados(padron), [padron]);
   const { control, setValue, trigger, formState } = useFormContext();
   const modo = useWatch({ control, name: "destacamento.modo" });
   const {
@@ -539,9 +518,8 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
   const remitente = useWatch({ control, name: "remitente.miembro" });
   useEffect(() => {
     if (elegido || modo === "nuevo" || !remitente?.idDestacamento) return;
-    const suyo = destacamentos.find(
-      (d) => String(d.id) === String(remitente.idDestacamento),
-    );
+    // Si su ficha apunta al repetido que se quitó, se le pone el que queda.
+    const suyo = destacamentoQueQueda(padron, remitente.idDestacamento);
     if (suyo) elegir(suyo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remitente?.idDestacamento, destacamentos.length]);
@@ -652,10 +630,6 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
           label="Tu destacamento *"
           value={elegido ? String(elegido.id) : ""}
           onChange={(e) => {
-            if (e.target.value === "__nuevo") {
-              cambiarModo("nuevo");
-              return;
-            }
             elegir(
               destacamentos.find((d) => String(d.id) === e.target.value) ||
                 null,
@@ -697,9 +671,6 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
               </Box>
             </MenuItem>,
           ])}
-          <MenuItem value="__nuevo" sx={{ fontWeight: 700 }}>
-            Mi destacamento no está
-          </MenuItem>
         </TextField>
       ) : (
       <Autocomplete
@@ -752,10 +723,6 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
           );
         }}
         noOptionsText='No aparece. Pulsa "Mi destacamento no está".'
-        // "Mi destacamento no está" va dentro del desplegable, fijo abajo: la
-        // lista se desplaza por encima y el botón siempre queda a la vista.
-        slots={{ paper: PapelConBoton }}
-        slotProps={{ paper: { alPulsar: () => cambiarModo("nuevo") } }}
         loadingText="Cargando destacamentos…"
         renderInput={(params) => (
           <TextField
@@ -768,6 +735,21 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
         )}
       />
       )}
+
+      {/* Fuera del desplegable, igual que "No estoy en la lista" de Tu nombre:
+          dentro de la lista quedaba escondido hasta abrirla. */}
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: -2 }}>
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          ¿No aparece?
+        </Typography>
+        <Button
+          size="small"
+          startIcon={<Iconify icon="solar:add-circle-linear" />}
+          onClick={() => cambiarModo("nuevo")}
+        >
+          Mi destacamento no está
+        </Button>
+      </Stack>
 
       {/* Sin ficha del destacamento aquí: sus datos se revisan en los pasos siguientes. */}
     </Stack>
