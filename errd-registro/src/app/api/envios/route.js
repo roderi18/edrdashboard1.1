@@ -12,9 +12,10 @@ export const dynamic = "force-dynamic";
 
 // Los destacamentos que ya enviaron su información, uno por destacamento (el
 // mapa de la portada). Solo provincia y región: nada de personas.
-export async function GET() {
+export async function GET(req) {
   try {
-    return Response.json(await leerDestacamentosQueEnviaron());
+    const fresco = new URL(req.url).searchParams.get('fresco') === '1';
+    return Response.json(await leerDestacamentosQueEnviaron({ fresco }));
   } catch (error) {
     console.error("[api/envios GET]", error);
     return Response.json(

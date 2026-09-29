@@ -1,6 +1,6 @@
 export const MIN_ZOOM = 0.7;
 export const MAX_ZOOM = 8;
-export const VISTA_INICIAL = { zoom: 1, x: 0, y: 0 };
+export const VISTA_INICIAL = { zoom: 10, x: 0, y: 0 };
 
 // Mantiene el punto bajo el cursor o entre los dedos mientras cambia la escala.
 export function acercarEnPunto(vista, escala, origen, destino = origen) {

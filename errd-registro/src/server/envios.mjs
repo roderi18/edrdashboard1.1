@@ -374,11 +374,12 @@ export function destacamentosQueEnviaron(lista) {
   }));
 }
 
-// Lo pide cada visita: 30 s en memoria para no leer la colección entera cada vez.
-// Guardar un envío la vacía, y quien acaba de enviar se ve contado al momento.
+// La portada lo guarda 30 s para no leer la colección entera en cada visita.
+// El catálogo descargable puede pedir una lectura fresca justo antes de exportar.
+// Guardar un envío también vacía la caché.
 let enviadosEnCache = null;
-export async function leerDestacamentosQueEnviaron() {
-  if (enviadosEnCache && Date.now() - enviadosEnCache.en < 30000)
+export async function leerDestacamentosQueEnviaron({ fresco = false } = {}) {
+  if (!fresco && enviadosEnCache && Date.now() - enviadosEnCache.en < 30000)
     return enviadosEnCache.valor;
   const snap = await db()
     .collection(COLECCION)

@@ -24,8 +24,8 @@ import { destacamentosDelMapa, nombreDeDestacamento } from './destacamentos-del-
 // TAMAÑO DE LOS LOGOS DE LAS REGIONES en la leyenda de debajo del mapa, en
 // píxeles: el primero en el celular, el segundo en pantallas grandes. El aro de
 // color es ANCHO_ARO_LOGO. Cambia aquí y se ajustan los cuatro.
-export const TAMANO_LOGO_REGION = { xs: 56, md: 76 };
-const ANCHO_ARO_LOGO = 3;
+export const TAMANO_LOGO_REGION = { xs: 50, md: 54 };
+const ANCHO_ARO_LOGO = 2;
 
 const lista = (json) => (Array.isArray(json) ? json : json?.data || json?.Data || []);
 
@@ -260,9 +260,7 @@ export function LeyendaDeRegiones({ porRegion, total, sinProvincia, onSenalar, c
         component="p"
         sx={{ mt: 0.75, textAlign: 'center', opacity: 0.7 }}
       >
-        {total} destacamentos
-        {sinProvincia ? ` · ${sinProvincia} sin provincia en el padrón (no salen en el mapa)` : ''}
-      </Typography>
+        {total} destacamentos      </Typography>
     </Paper>
   );
 }

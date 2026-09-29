@@ -26,7 +26,7 @@ const partes = (ms) => {
   ];
 };
 
-export function CuentaRegresiva() {
+export function CuentaRegresiva({ compacta = false }) {
   const { config, desfase, cargada } = useCuentaRegresiva();
   // null en el servidor: la hora del servidor y la del navegador no coinciden
   // y React avisaría de un desajuste al hidratar.
@@ -63,7 +63,7 @@ export function CuentaRegresiva() {
           <Box
             key={p.texto}
             sx={(t) => ({
-              minWidth: { xs: 70, md: 78 },
+              minWidth: compacta ? { xs: 64, sm: 70, md: 78 } : { xs: 70, md: 78 },
               py: 0.5,
               px: 1,
               textAlign: 'center',
@@ -72,7 +72,7 @@ export function CuentaRegresiva() {
               border: `solid 1px ${varAlpha(t.vars.palette.common.whiteChannel, 0.2)}`,
             })}
           >
-            <Typography variant="h3" sx={{ fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
+            <Typography variant="h3" sx={{ fontVariantNumeric: 'tabular-nums', lineHeight: 1.1, fontSize: compacta ? { xs: 34, sm: 40, md: 48 } : undefined }}>
               {restante === null ? '--' : String(p.valor).padStart(2, '0')}
             </Typography>
             <Typography variant="caption" sx={{ display: 'block', fontSize: 11, opacity: 0.8 }}>

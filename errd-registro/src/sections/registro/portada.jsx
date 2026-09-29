@@ -6,10 +6,12 @@ import { varAlpha } from "minimal-shared/utils";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import Link from "@mui/material/Link";
+import Menu from "@mui/material/Menu";
 import Stack from "@mui/material/Stack";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import Tooltip from "@mui/material/Tooltip";
+import MenuItem from "@mui/material/MenuItem";
 import Container from "@mui/material/Container";
 import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
@@ -59,6 +61,9 @@ const Marca = ({ claro = false }) => (
 );
 
 export function Encabezado() {
+  const [anclaDescarga, setAnclaDescarga] = useState(null);
+  const cerrarDescarga = () => setAnclaDescarga(null);
+
   return (
     <Box
       component="header"
@@ -94,6 +99,30 @@ export function Encabezado() {
                 {t}
               </Link>
             ))}
+            <Link
+              component="button"
+              type="button"
+              color="inherit"
+              underline="hover"
+              variant="subtitle2"
+              aria-haspopup="menu"
+              aria-expanded={Boolean(anclaDescarga)}
+              onClick={(event) => setAnclaDescarga(event.currentTarget)}
+              sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, cursor: 'pointer' }}
+            >
+              Estado
+              <Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+            </Link>
+            <Menu
+              anchorEl={anclaDescarga}
+              open={Boolean(anclaDescarga)}
+              onClose={cerrarDescarga}
+              slotProps={{ paper: { sx: { mt: 1, minWidth: 180 } } }}
+            >
+              <MenuItem component="a" href="/estado-actualizacion/" onClick={cerrarDescarga}>Ver</MenuItem>
+              <MenuItem component="a" href="/estado-actualizacion/?descargar=pdf" onClick={cerrarDescarga}>Descargar PDF</MenuItem>
+              <MenuItem component="a" href="/estado-actualizacion/?descargar=png" onClick={cerrarDescarga}>Descargar PNG</MenuItem>
+            </Menu>
           </Stack>
         </Stack>
       </Container>
@@ -106,7 +135,7 @@ const EN_MAPA = { baoruco: "Bahoruco", "sanchez ramirez": "Sánchez Ramírez" };
 
 // Región de cada provincia (nombres del mapa), según dónde están hoy sus
 // destacamentos; las que aún no tienen ninguno, por cercanía.
-const REGIONES = [
+export const REGIONES = [
   {
     nombre: "Región Norte",
     // Colores de cada región: Norte amarillo, Central azul, Sur rojo, Este verde.
@@ -165,7 +194,7 @@ const REGIONES = [
     ],
   },
 ];
-const regionDe = (provincia) =>
+export const regionDe = (provincia) =>
   REGIONES.find((r) => r.provincias.some((x) => mismoNombre(x, provincia)));
 
 // Lista flotante de destacamentos al pasar por un número, una provincia o una
@@ -214,7 +243,7 @@ function ListaFlotante({ titulo, lista, children }) {
   );
 }
 
-const provinciaEnMapa = (p) => {
+export const provinciaEnMapa = (p) => {
   if (!p) return null;
   const clave =
     EN_MAPA[p.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")] || p;
@@ -365,7 +394,7 @@ function VistaAvanceRegion({ destacamentos, padron }) {
         const lista = destacamentos.filter((d) => d.region === r.nombre);
         return (
           <ListaFlotante key={r.nombre} titulo={r.nombre} lista={lista}>
-            <Box>
+            <Box sx={{ display: 'flex', justifyContent: { xs: 'center', md: 'flex-start' } }}>
               <Barra
                 etiqueta={r.nombre.replace("Región ", "")}
                 detalle={`${lista.length} / ${total || "—"} · ${pct(lista.length, total)}%`}
@@ -731,7 +760,7 @@ export function MapaDestacamentos({
           variant="caption"
           sx={{ opacity: 0.8, fontSize: { xs: 13, md: 12 } }}
         >
-          Destacamentos actualizados
+          Dests. actualizados
         </Typography>
       </Card>
     </Box>
