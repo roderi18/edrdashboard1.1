@@ -24,6 +24,7 @@ import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import Autocomplete from "@mui/material/Autocomplete";
 import ToggleButton from "@mui/material/ToggleButton";
+import ListSubheader from "@mui/material/ListSubheader";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import LinearProgress from "@mui/material/LinearProgress";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
@@ -710,30 +711,59 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
   );
 }
 
-// Los dos selectores del paso: Región y, debajo de ella, sus secciones.
+// Los dos selectores del paso: Región y, debajo de ella, sus secciones. Son
+// desplegables sin buscador: las listas son cortas y el buscador abría el
+// teclado del celular solo para elegir.
 function SelectoresRegionSeccion({ secciones, region, seccion, alCambiarRegion, alCambiarSeccion }) {
   const regiones = useMemo(
     () => [...new Set(secciones.map((s) => s.region).filter(Boolean))],
     [secciones],
   );
   const opcionesSeccion = region ? secciones.filter((s) => s.region === region) : secciones;
+  // Sin región elegida, las secciones van agrupadas bajo el nombre de la suya.
+  const itemsSeccion = opcionesSeccion.flatMap((s, i) => [
+    ...(!region && s.region !== opcionesSeccion[i - 1]?.region
+      ? [<ListSubheader key={`r-${s.region}`}>{s.region}</ListSubheader>]
+      : []),
+    <MenuItem key={s.id} value={String(s.id)}>
+      {s.nombre}
+    </MenuItem>,
+  ]);
+  const menu = { MenuProps: { slotProps: { paper: { sx: { maxHeight: 320 } } } } };
   return (
     <Rejilla>
-      <Autocomplete
-        options={regiones}
-        value={region || null}
-        onChange={(_, r) => alCambiarRegion(r)}
-        renderInput={(params) => <TextField {...params} label="Región" />}
-      />
-      <Autocomplete
-        options={opcionesSeccion}
-        value={seccion || null}
-        groupBy={(s) => s.region}
-        getOptionLabel={(s) => s?.nombre || ""}
-        isOptionEqualToValue={(a, b) => String(a.id) === String(b.id)}
-        onChange={(_, s) => alCambiarSeccion(s)}
-        renderInput={(params) => <TextField {...params} label="Sección" />}
-      />
+      <TextField
+        select
+        fullWidth
+        label="Región"
+        value={region || ""}
+        onChange={(e) => alCambiarRegion(e.target.value || null)}
+        slotProps={{ select: menu }}
+      >
+        <MenuItem value="">
+          <em>Todas</em>
+        </MenuItem>
+        {regiones.map((r) => (
+          <MenuItem key={r} value={r}>
+            {r}
+          </MenuItem>
+        ))}
+      </TextField>
+      <TextField
+        select
+        fullWidth
+        label="Sección"
+        value={seccion ? String(seccion.id) : ""}
+        onChange={(e) =>
+          alCambiarSeccion(secciones.find((s) => String(s.id) === e.target.value) || null)
+        }
+        slotProps={{ select: menu }}
+      >
+        <MenuItem value="">
+          <em>Todas</em>
+        </MenuItem>
+        {itemsSeccion}
+      </TextField>
     </Rejilla>
   );
 }
