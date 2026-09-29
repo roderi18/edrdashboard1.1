@@ -153,9 +153,10 @@ function Lamina({ padron, enviados, cuentaConfig, capturaAhora, imagenes, svgRef
         ['AVANCE NACIONAL', `${porcentaje(actualizados, padron.length)}%`, `${actualizados} de ${padron.length} registrados`, PALETA.azul],
         ['PENDIENTES', pendientes, 'Destacamentos aún por', PALETA.rojo],
       ].map(([titulo, valor, detalle, color], i) => {
-        const y = 520 + i * 69;
+        // 72 de alto (antes 62): la segunda línea de PENDIENTES caía fuera de la tarjeta.
+        const y = 520 + i * 78;
         return <g key={titulo}>
-          <Rect x={40} y={y} width={139} height={62} fill="#1d355a" stroke="#385e8c" rx={6} />
+          <Rect x={40} y={y} width={139} height={72} fill="#1d355a" stroke="#385e8c" rx={6} />
           <Txt x={48} y={y + 14} size={10} color={PALETA.suave}>{titulo}</Txt>
           <Txt x={48} y={y + 38} size={23} weight={700} color={color}>{valor}</Txt>
           <Txt x={48} y={y + 54} size={9} color={PALETA.suave}>{detalle}</Txt>
@@ -248,9 +249,10 @@ function Lamina({ padron, enviados, cuentaConfig, capturaAhora, imagenes, svgRef
           <Txt x={x + 10} y={876 + altoTarjetas - 17} size={10}>Meta: {lista.length} / {total} ({porcentaje(lista.length, total)}%)</Txt>
         </g>;
       })}
-      <Txt x={424} y={pieY - 14} size={10} color={PALETA.suave} anchor="middle">Estado generado el {fecha} (hora de Santo Domingo)</Txt>
-      <rect x="0" y={pieY} width={ANCHO} height="31" fill="#07111f" />
-      <Txt x={424} y={pieY + 20} size={10} color={PALETA.suave} anchor="middle">Exploradores del Rey • República Dominicana • Proceso Oficial de Actualización de Destacamentos</Txt>
+      {/* Las dos líneas del pie en la misma franja: la de la fecha quedaba fuera, encima. */}
+      <rect x="0" y={pieY - 26} width={ANCHO} height="57" fill="#07111f" />
+      <Txt x={424} y={pieY - 6} size={10} color={PALETA.suave} anchor="middle">Estado generado el {fecha} (hora de Santo Domingo)</Txt>
+      <Txt x={424} y={pieY + 14} size={10} color={PALETA.suave} anchor="middle">Exploradores del Rey • República Dominicana • Proceso Oficial de Actualización de Destacamentos</Txt>
     </svg>
   );
 }

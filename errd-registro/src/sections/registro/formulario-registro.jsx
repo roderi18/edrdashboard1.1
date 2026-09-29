@@ -12,7 +12,6 @@ import {
 
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
-import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
@@ -24,9 +23,15 @@ import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import Autocomplete from "@mui/material/Autocomplete";
 import ToggleButton from "@mui/material/ToggleButton";
+import ListSubheader from "@mui/material/ListSubheader";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import LinearProgress from "@mui/material/LinearProgress";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+
+import {
+  destacamentoQueQueda,
+  destacamentosSinDuplicados,
+} from "src/utils/destacamentos-sin-duplicados.mjs";
 
 import { toast } from "src/components/snackbar";
 import { Iconify } from "src/components/iconify";
@@ -436,37 +441,12 @@ function PasoQuien({ destacamentos, secciones, cargando }) {
   );
 }
 
-function PapelConBoton({ children, alPulsar, ...otros }) {
-  return (
-    <Paper {...otros}>
-      {children}
-      <Box
-        sx={{
-          p: 1,
-          borderTop: (t) => `dashed 1px ${t.vars.palette.divider}`,
-        }}
-      >
-        <Button
-          fullWidth
-          variant="soft"
-          startIcon={<Iconify icon="solar:add-circle-linear" />}
-          // mousedown, no click: con click el campo pierde el foco y la lista
-          // se cierra antes de que el botón reciba la pulsación.
-          onMouseDown={(e) => {
-            e.preventDefault();
-            alPulsar?.();
-          }}
-        >
-          Mi destacamento no está
-        </Button>
-      </Box>
-    </Paper>
-  );
-}
-
 // ---------------------------------------------------------------- destacamento (va dentro del paso 1, debajo del nombre)
 
-function PasoDestacamento({ destacamentos, secciones, cargando }) {
+function PasoDestacamento({ destacamentos: padron, secciones, cargando }) {
+  // Un destacamento por número: el padrón trae algunos repetidos y se queda el
+  // actualizado (el que tiene nombre).
+  const destacamentos = useMemo(() => destacamentosSinDuplicados(padron), [padron]);
   const { control, setValue, trigger, formState } = useFormContext();
   const modo = useWatch({ control, name: "destacamento.modo" });
   const {
@@ -538,9 +518,8 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
   const remitente = useWatch({ control, name: "remitente.miembro" });
   useEffect(() => {
     if (elegido || modo === "nuevo" || !remitente?.idDestacamento) return;
-    const suyo = destacamentos.find(
-      (d) => String(d.id) === String(remitente.idDestacamento),
-    );
+    // Si su ficha apunta al repetido que se quitó, se le pone el que queda.
+    const suyo = destacamentoQueQueda(padron, remitente.idDestacamento);
     if (suyo) elegir(suyo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remitente?.idDestacamento, destacamentos.length]);
@@ -563,6 +542,11 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
       ),
     [destacamentos, filtroRegion, filtroSeccion],
   );
+
+  // En el celular, "Tu destacamento" es un desplegable sin buscador: el
+  // buscador abría el teclado, que tapaba media lista. Región y Sección de
+  // arriba ya acortan la lista.
+  const esMovil = useMediaQuery((t) => t.breakpoints.down("md"));
 
   const cambiarModo = (nuevo) => {
     setValue("destacamento.modo", nuevo);
@@ -639,6 +623,56 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
           );
         }}
       />
+      {esMovil ? (
+        <TextField
+          select
+          fullWidth
+          label="Tu destacamento *"
+          value={elegido ? String(elegido.id) : ""}
+          onChange={(e) => {
+            elegir(
+              destacamentos.find((d) => String(d.id) === e.target.value) ||
+                null,
+            );
+          }}
+          error={!!errores.elegido}
+          helperText={
+            errores.elegido?.message ||
+            (cargando ? "Cargando destacamentos…" : "")
+          }
+          slotProps={{
+            select: {
+              MenuProps: {
+                slotProps: { paper: { sx: { maxHeight: 360 } } },
+              },
+            },
+          }}
+        >
+          {destacamentosFiltrados.flatMap((d, i) => [
+            ...((d.region || "Sin región") !==
+            (i ? destacamentosFiltrados[i - 1].region || "Sin región" : null)
+              ? [
+                  <ListSubheader key={`r-${d.region}-${i}`}>
+                    {d.region || "Sin región"}
+                  </ListSubheader>,
+                ]
+              : []),
+            <MenuItem key={d.id} value={String(d.id)}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" noWrap>
+                  {nombreDeDestacamento(d)}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "text.secondary" }}
+                >
+                  {d.seccion}
+                </Typography>
+              </Box>
+            </MenuItem>,
+          ])}
+        </TextField>
+      ) : (
       <Autocomplete
         options={destacamentosFiltrados}
         value={elegido}
@@ -689,10 +723,6 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
           );
         }}
         noOptionsText='No aparece. Pulsa "Mi destacamento no está".'
-        // "Mi destacamento no está" va dentro del desplegable, fijo abajo: la
-        // lista se desplaza por encima y el botón siempre queda a la vista.
-        slots={{ paper: PapelConBoton }}
-        slotProps={{ paper: { alPulsar: () => cambiarModo("nuevo") } }}
         loadingText="Cargando destacamentos…"
         renderInput={(params) => (
           <TextField
@@ -704,36 +734,81 @@ function PasoDestacamento({ destacamentos, secciones, cargando }) {
           />
         )}
       />
+      )}
+
+      {/* Fuera del desplegable, igual que "No estoy en la lista" de Tu nombre:
+          dentro de la lista quedaba escondido hasta abrirla. */}
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: -2 }}>
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          ¿No aparece?
+        </Typography>
+        <Button
+          size="small"
+          startIcon={<Iconify icon="solar:add-circle-linear" />}
+          onClick={() => cambiarModo("nuevo")}
+        >
+          Mi destacamento no está
+        </Button>
+      </Stack>
 
       {/* Sin ficha del destacamento aquí: sus datos se revisan en los pasos siguientes. */}
     </Stack>
   );
 }
 
-// Los dos selectores del paso: Región y, debajo de ella, sus secciones.
+// Los dos selectores del paso: Región y, debajo de ella, sus secciones. Son
+// desplegables sin buscador: las listas son cortas y el buscador abría el
+// teclado del celular solo para elegir.
 function SelectoresRegionSeccion({ secciones, region, seccion, alCambiarRegion, alCambiarSeccion }) {
   const regiones = useMemo(
     () => [...new Set(secciones.map((s) => s.region).filter(Boolean))],
     [secciones],
   );
   const opcionesSeccion = region ? secciones.filter((s) => s.region === region) : secciones;
+  // Sin región elegida, las secciones van agrupadas bajo el nombre de la suya.
+  const itemsSeccion = opcionesSeccion.flatMap((s, i) => [
+    ...(!region && s.region !== opcionesSeccion[i - 1]?.region
+      ? [<ListSubheader key={`r-${s.region}`}>{s.region}</ListSubheader>]
+      : []),
+    <MenuItem key={s.id} value={String(s.id)}>
+      {s.nombre}
+    </MenuItem>,
+  ]);
+  const menu = { MenuProps: { slotProps: { paper: { sx: { maxHeight: 320 } } } } };
   return (
     <Rejilla>
-      <Autocomplete
-        options={regiones}
-        value={region || null}
-        onChange={(_, r) => alCambiarRegion(r)}
-        renderInput={(params) => <TextField {...params} label="Región" />}
-      />
-      <Autocomplete
-        options={opcionesSeccion}
-        value={seccion || null}
-        groupBy={(s) => s.region}
-        getOptionLabel={(s) => s?.nombre || ""}
-        isOptionEqualToValue={(a, b) => String(a.id) === String(b.id)}
-        onChange={(_, s) => alCambiarSeccion(s)}
-        renderInput={(params) => <TextField {...params} label="Sección" />}
-      />
+      <TextField
+        select
+        fullWidth
+        label="Región"
+        value={region || ""}
+        onChange={(e) => alCambiarRegion(e.target.value || null)}
+        slotProps={{ select: menu }}
+      >
+        <MenuItem value="">
+          <em>Todas</em>
+        </MenuItem>
+        {regiones.map((r) => (
+          <MenuItem key={r} value={r}>
+            {r}
+          </MenuItem>
+        ))}
+      </TextField>
+      <TextField
+        select
+        fullWidth
+        label="Sección"
+        value={seccion ? String(seccion.id) : ""}
+        onChange={(e) =>
+          alCambiarSeccion(secciones.find((s) => String(s.id) === e.target.value) || null)
+        }
+        slotProps={{ select: menu }}
+      >
+        <MenuItem value="">
+          <em>Todas</em>
+        </MenuItem>
+        {itemsSeccion}
+      </TextField>
     </Rejilla>
   );
 }

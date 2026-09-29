@@ -210,7 +210,10 @@ export async function guardarEnvio({ envio, logo, fotoMiembro, ip, rafaga = fals
   if (envio.destacamento.id && !existente)
     throw new Error("El destacamento elegido no existe.");
 
-  const idSeccion = existente?.idSeccion ?? envio.destacamento.idSeccion;
+  // La sección que eligió quien envía manda: el formulario deja corregirla en
+  // un destacamento existente. Antes ganaba la del padrón y la corrección se
+  // perdía (enviado como Este Central II, guardado como Este Central I).
+  const idSeccion = envio.destacamento.idSeccion ?? existente?.idSeccion;
   const seccion = secciones.find((s) => String(s.id) === String(idSeccion));
   if (!seccion) throw new Error("Elige la sección del destacamento.");
 
