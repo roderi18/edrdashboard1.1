@@ -28,7 +28,7 @@ export function AwardsUpgrade({ sx, ...other }) {
       <Box
         component="img"
         alt="Upgrade Illustration"
-        src={`${CONFIG.assetsDir}/assets/illustrations/illustration-upgrade.webp`}
+        src={`${CONFIG.assetsDir}/plantilla/illustrations/illustration-upgrade.webp`}
         sx={{
           right: 16,
           zIndex: 9,
@@ -39,7 +39,7 @@ export function AwardsUpgrade({ sx, ...other }) {
       />
 
       <SvgColor
-        src={`${CONFIG.assetsDir}/assets/background/shape-circle-1.svg`}
+        src={`${CONFIG.assetsDir}/plantilla/background/shape-circle-1.svg`}
         sx={{
           zIndex: 8,
           width: 200,

@@ -1,42 +1,42 @@
 export const FOLDER_ICON_CONFIG = {
     'academia-ministerial': {
-        src: '/sistemaAscenso/Academia Ministerial/academia-ministerial.webp',
+        src: '/sistema-ascenso/academia-ministerial/academia-ministerial.webp',
         size: 42,
     },
     'sistema-de-ascenso': {
-        src: '/sistemaAscenso/Academia Ministerial/exploradores-del-rey.webp',
+        src: '/sistema-ascenso/academia-ministerial/exploradores-del-rey.webp',
         size: 42,
     },
     exploradores: {
-        src: '/sistemaAscenso/Academia Ministerial/exploradores.webp',
+        src: '/sistema-ascenso/academia-ministerial/exploradores.webp',
         size: 40,
     },
     seguidores: {
-        src: '/sistemaAscenso/Academia Ministerial/seguidores.webp',
+        src: '/sistema-ascenso/academia-ministerial/seguidores.webp',
         size: 40,
     },
     pioneros: {
-        src: '/sistemaAscenso/Academia Ministerial/pioneros.webp',
+        src: '/sistema-ascenso/academia-ministerial/pioneros.webp',
         size: 40,
     },
     navegantes: {
-        src: '/sistemaAscenso/Academia Ministerial/navegantes.webp',
+        src: '/sistema-ascenso/academia-ministerial/navegantes.webp',
         size: 40,
     },
     instructor: {
-        src: '/sistemaAscenso/Academia Ministerial/academia-ministerial.webp',
+        src: '/sistema-ascenso/academia-ministerial/academia-ministerial.webp',
         size: 40,
     },
     'lider-juvenil': {
-        src: '/sistemaAscenso/Academia Ministerial/ilj.webp',
+        src: '/sistema-ascenso/academia-ministerial/ilj.webp',
         size: 40,
     },
     'lider-de-destacamento': {
-        src: '/sistemaAscenso/Academia Ministerial/cuadro-avanzado.webp',
+        src: '/sistema-ascenso/academia-ministerial/cuadro-avanzado.webp',
         size: 36,
     },
     'lider-organizacional': {
-        src: '/sistemaAscenso/Academia Ministerial/lider-organizacional.webp',
+        src: '/sistema-ascenso/academia-ministerial/lider-organizacional.webp',
         size: 36,
     },
 };

@@ -90,7 +90,7 @@ export function AboutTestimonials({ sx, ...other }) {
           ...theme.mixins.bgGradient({
             images: [
               `linear-gradient(0deg, ${varAlpha(theme.vars.palette.grey['900Channel'], 0.9)}, ${varAlpha(theme.vars.palette.grey['900Channel'], 0.9)})`,
-              `url(${CONFIG.assetsDir}/assets/images/about/testimonials.webp)`,
+              `url(${CONFIG.assetsDir}/plantilla/images/about/testimonials.webp)`,
             ],
           }),
           overflow: 'hidden',

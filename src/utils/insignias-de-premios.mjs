@@ -8,7 +8,7 @@ import { _awards } from 'src/_mock/_awards.js';
 // Todas se pintan igual —tarjeta de insignia en cuadrícula, check, selección—;
 // ver `docs/premios-tarjeta-de-insignia.md`.
 //
-// La imagen de cada premio vive en `public/sistemaAscenso/<división>/<carpeta>/`
+// La imagen de cada premio vive en `public/sistema-ascenso/<división>/<carpeta>/`
 // con el nombre del premio en minúsculas y con guiones ("Ciencias Ambientales" →
 // `ciencias-ambientales.webp`). Se busca por NOMBRE y no por número de archivo:
 // la numeración antigua no seguía el orden del catálogo y ponía insignias de
@@ -18,7 +18,7 @@ import { _awards } from 'src/_mock/_awards.js';
 // libros), guías semanales y Academia Ministerial (esta usa sus iconos propios).
 // ----------------------------------------------------------------------
 
-const RAIZ = '/sistemaAscenso';
+const RAIZ = '/sistema-ascenso';
 
 const SISTEMAS_CON_PREMIOS = new Set(['sistema-de-ascenso', 'academia-ministerial']);
 

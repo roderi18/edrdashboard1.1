@@ -62,7 +62,7 @@ export function InvoicePDFViewer({ invoice, currentStatus }) {
 Font.register({
   family: 'Roboto',
   // fonts from public folder
-  fonts: [{ src: '/fonts/Roboto-Regular.ttf' }, { src: '/fonts/Roboto-Bold.ttf' }],
+  fonts: [{ src: '/fuentes/Roboto-Regular.ttf' }, { src: '/fuentes/Roboto-Bold.ttf' }],
 });
 
 const useStyles = () =>

@@ -383,7 +383,7 @@ const resolveTemplateForPdf = async (template) => {
 const convertPdfFileToImageDataUrl = async (file) => {
   const pdfjs = await import('pdfjs-dist/build/pdf.mjs');
 
-  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+  pdfjs.GlobalWorkerOptions.workerSrc = '/app/pdf.worker.min.mjs';
 
   const pdfDocument = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
   const page = await pdfDocument.getPage(1);

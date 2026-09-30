@@ -16,24 +16,24 @@ import { Iconify } from 'src/components/iconify';
 const CATEGORIES = [
   {
     label: 'Gestión de cuenta',
-    icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-account.svg`,
+    icon: `${CONFIG.assetsDir}/plantilla/icons/faqs/ic-account.svg`,
     href: '#',
   },
-  { label: 'Pagos', icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-payment.svg`, href: '#' },
-  { label: 'Entregas', icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-delivery.svg`, href: '#' },
+  { label: 'Pagos', icon: `${CONFIG.assetsDir}/plantilla/icons/faqs/ic-payment.svg`, href: '#' },
+  { label: 'Entregas', icon: `${CONFIG.assetsDir}/plantilla/icons/faqs/ic-delivery.svg`, href: '#' },
   {
     label: 'Problemas con productos',
-    icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-package.svg`,
+    icon: `${CONFIG.assetsDir}/plantilla/icons/faqs/ic-package.svg`,
     href: '#',
   },
   {
     label: 'Devoluciones y reembolsos',
-    icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-refund.svg`,
+    icon: `${CONFIG.assetsDir}/plantilla/icons/faqs/ic-refund.svg`,
     href: '#',
   },
   {
     label: 'Garantías y seguridad',
-    icon: `${CONFIG.assetsDir}/assets/icons/faqs/ic-assurances.svg`,
+    icon: `${CONFIG.assetsDir}/plantilla/icons/faqs/ic-assurances.svg`,
     href: '#',
   },
 ];

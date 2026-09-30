@@ -52,4 +52,4 @@ scripts/respaldo-*.json
 # Respaldos con datos de personas: nunca en el repositorio.
 docs/backups/
 # Copia local de lo que se quitó por no usarse: nunca se publica.
-public/documentosNoUsados.zip
+docs/documentosNoUsados.zip

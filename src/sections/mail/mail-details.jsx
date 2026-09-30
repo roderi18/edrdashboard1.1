@@ -166,7 +166,7 @@ export function MailDetails({ mail, renderLabel, error, loading }) {
     return (
       <EmptyContent
         title={error}
-        imgUrl={`${CONFIG.assetsDir}/assets/icons/empty/ic-email-disabled.svg`}
+        imgUrl={`${CONFIG.assetsDir}/plantilla/icons/empty/ic-email-disabled.svg`}
       />
     );
   }

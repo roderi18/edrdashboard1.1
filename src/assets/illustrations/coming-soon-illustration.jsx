@@ -11,7 +11,7 @@ import { BackgroundShape } from './background-shape';
 function ComingSoonIllustration({ hideBackground, sx, ...other }) {
   const renderCharacterImage = () => (
     <image
-      href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-notification.webp`}
+      href={`${CONFIG.assetsDir}/plantilla/illustrations/characters/character-notification.webp`}
       height="280"
       x="290"
       y="40"

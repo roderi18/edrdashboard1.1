@@ -16,17 +16,17 @@ export function navData(t) {
         {
           title: t('app'),
           path: paths.dashboard.permission,
-          icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-invoice.svg`} />,
+          icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-invoice.svg`} />,
         },
         {
           title: t('travel'),
           path: '#disabled',
-          icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-tour.svg`} />,
+          icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-tour.svg`} />,
         },
         {
           title: t('job'),
           path: '#label',
-          icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-job.svg`} />,
+          icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-job.svg`} />,
           info: (
             <Label
               color="info"
@@ -40,18 +40,18 @@ export function navData(t) {
         {
           title: t('blog.title'),
           path: '#caption',
-          icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-blog.svg`} />,
+          icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-blog.svg`} />,
           caption: t('blog.caption'),
         },
         {
           title: t('user'),
           path: 'https://www.google.com/',
-          icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-user.svg`} />,
+          icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-user.svg`} />,
         },
         {
           title: t('invoice'),
           path: paths.dashboard.blank,
-          icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-invoice.svg`} />,
+          icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-invoice.svg`} />,
         },
       ],
     },

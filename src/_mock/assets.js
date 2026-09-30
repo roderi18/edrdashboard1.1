@@ -162,7 +162,7 @@ export const MEMBERS = [
     id: 'member-01',
     firstName: 'Roderi',
     lastName: 'Peña',
-    avatarUrl: '/assets/images/avatars/members/member-01.jpg',
+    avatarUrl: '',
     memberAddress: 'Ciudad Juan Bosch, Sembrador VIII, Edificio 2',
     birthDate: '2000-06-18',
     email: 'roderi.pena@gmail.com',
@@ -185,7 +185,7 @@ export const MEMBERS = [
   {
     id: 'member-02',
     fullName: 'Carloss Alberto Rodríguez',
-    avatarUrl: '/assets/images/avatars/members/member-02.jpg',
+    avatarUrl: '',
     memberAddress: 'Calle Constitución #19, San Cristóbal',
     birthDate: '1998-03-14',
     email: 'carlos.rodriguez02@hotmail.com',
@@ -219,7 +219,7 @@ export const MEMBERS = [
   {
     id: 'member-04',
     fullName: 'Pedro Julio Sepúlveda',
-    avatarUrl: '/assets/images/avatars/members/member-04.jpg',
+    avatarUrl: '',
     memberAddress: 'Av. Isabel Aguiar #145, Santo Domingo Oeste',
     birthDate: '2005-11-19',
     email: 'juan.gomez04@gmail.com',
@@ -235,7 +235,7 @@ export const MEMBERS = [
   {
     id: 'member-05',
     fullName: 'Juan Ramón Corporán',
-    avatarUrl: '/assets/images/avatars/members/member-05.jpg',
+    avatarUrl: '',
     memberAddress: 'Av. Juan Pablo Duarte #56, Santiago',
     birthDate: '1990-01-10',
     email: 'juan.ramon@hotmail.com',
@@ -281,7 +281,7 @@ export const MEMBERS = [
   {
     id: 'member-08',
     fullName: 'Alejandro Terrero',
-    avatarUrl: '/assets/images/avatars/members/member-08.jpg',
+    avatarUrl: '',
     memberAddress: 'Calle Salomé Ureña #29, San Francisco de Macorís',
     birthDate: '1980-04-21',
     email: 'alejandro.terrero08@gmail.com',
@@ -350,7 +350,7 @@ export const MEMBERS = [
     id: 'member-12',
 
     fullName: 'José Antonio Pérez',
-    avatarUrl: '/assets/images/avatars/members/member-12.jpg',
+    avatarUrl: '',
     memberAddress: 'Calle Principal #7, Higüey, La Altagracia',
     birthDate: '2000-05-25',
     email: 'jose.perez01@gmail.com',
@@ -512,7 +512,7 @@ export const REGIONALS = [
   {
     id: 'reg-central',
     name: 'Región Central',
-    avatarUrl: '/assets/images/avatars/regionals/reg-central.jpg',
+    avatarUrl: '',
     email: 'regioncentral01@gmail.com'
   },
   { id: 'reg-norte', name: 'Región Norte', email: 'regionnorte02@gmail.com' },
@@ -527,7 +527,7 @@ export const SECTIONALS = [
   {
     id: 'sec-este-01',
     name: 'Tiburones del Este',
-    avatarUrl: '/assets/images/avatars/sectionals/sec-este-01.jpg',
+    avatarUrl: '',
     regionalId: 'reg-central',
     email: 'tiburones.este@email.com',
   },
@@ -714,7 +714,7 @@ export const DESTS = [
   {
     id: 'dest-018',
     name: 'Destacamento 18',
-    avatarUrl: '/assets/images/avatars/dests/dest-01.jpg',
+    avatarUrl: '',
     churchId: 'iglesia-aposento-alto',
     churchAddress: 'Calle Masonería #86, Santo Domingo Este',
     sectionalId: 'sec-este-01',

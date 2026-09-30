@@ -74,7 +74,7 @@ export function HomeZoneUI({ sx, ...other }) {
       <Box
         component="img"
         alt="Zone landing page"
-        src={`${CONFIG.assetsDir}/assets/images/home/zone-landing.webp`}
+        src={`${CONFIG.assetsDir}/plantilla/images/home/zone-landing.webp`}
         sx={[
           (theme) => ({
             width: 720,

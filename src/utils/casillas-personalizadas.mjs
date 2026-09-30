@@ -152,7 +152,7 @@ const nodoDeCasilla = (casilla, hijos, { nivel }) => {
       id,
       role: '',
       name: casilla.nombre,
-      avatarUrl: '/watermark.webp',
+      avatarUrl: '/marca/watermark.webp',
       isDivision: true,
       personalizada: true,
       // Para que lo que cuelgue de él herede la división (destacamento).

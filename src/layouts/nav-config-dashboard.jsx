@@ -9,7 +9,7 @@ import { CheckoutCartNavInfo } from './components/checkout-cart-nav-info';
 
 // ----------------------------------------------------------------------
 
-const icon = (name) => <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/${name}.svg`} />;
+const icon = (name) => <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/${name}.svg`} />;
 
 const ICONS = {
   job: icon('ic-job'),

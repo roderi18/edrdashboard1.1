@@ -107,7 +107,7 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
 13. **Premios del miembro: una sola tarjeta de insignia.** Toda carpeta de premios
    (la última de su rama, en Sistema de Ascenso y Academia) se pinta en cuadrícula
    por defecto con la tarjeta de `awards-insignia-item.jsx`: insignia por NOMBRE
-   desde `public/sistemaAscenso` (`src/utils/insignias-de-premios.mjs`), check verde
+   desde `public/sistema-ascenso` (`src/utils/insignias-de-premios.mjs`), check verde
    con certificado y amarillo sin él, `x2` de veces ganado, transparencia sin
    completar. En el Sistema de Ascenso, Ctrl + clic (o pulsación larga en el
    móvil) y "Completar"/"Quitar completado" por lotes; quitar sigue pidiendo
@@ -212,16 +212,18 @@ Suite que lo cubre: `npm run test:acceso`.
   (`conCache`/`conInvalidacion` de `src/utils/cache-de-lecturas.mjs`). Datos de
   personas, solo en memoria; cerrar sesión los borra todos.
 - **`public/` es solo lo que sirve la aplicación, y todo en él se descarga desde
-  internet**: `marca/` (logos), `iconos/`, `insignias/` (cintas, medallas, pines),
-  `sistemaAscenso/`, `fonts/` y la plantilla en `assets/`. Los documentos van a
+  internet.** Raíz: solo `favicon.ico`, `sw.js` y `offline.html`. Carpetas:
+  `app/` (iconos de la app instalada y el worker de PDF), `marca/` (logos y
+  divisiones), `iconos/`, `insignias/` (cintas, medallas, pines),
+  `sistema-ascenso/` (insignias de premios por división y `academia-ministerial/`),
+  `fuentes/`, `descargas/` (lo que la app ofrece para bajar) y `plantilla/` (lo
+  de la plantilla Minimal). Nada con espacios ni mayúsculas. Los documentos van a
   `docs/` (`organizacion/`, `tienda/`, `marca/`, `auditorias/`,
-  `reportes-de-avance/`). Lo que no se usaba (originales de la tienda —sus fotos
-  ya están en Storage—, iconos y portadas viejas, propuestas, material en
-  proceso) se quitó y solo queda en `public/documentosNoUsados.zip`, que está en
-  `.gitignore`: los scripts de `scripts/alta-productos/` leen de ahí
-  (`docs/tienda/imagenes/`), así que para volver a usarlos hay que descomprimirlo
-  en `docs/`. Si una ruta de `public/`
-  cambia, su vieja se suma a `src/utils/rutas-antiguas-de-imagenes.mjs`
+  `reportes-de-avance/`). Lo que no se usaba está solo en
+  `docs/documentosNoUsados.zip` (en `.gitignore`: lleva datos de personas); los
+  scripts de `scripts/alta-productos/` leen de `docs/tienda/imagenes/`, así que
+  para volver a usarlos hay que descomprimirlo en `docs/`. Si una ruta de
+  `public/` cambia, su vieja se suma a `src/utils/rutas-antiguas-de-imagenes.mjs`
   (redirección permanente). Test: `tests/admin/organizacion-de-archivos.test.mjs`.
 - Código de servidor probable → `.mjs`, para importarlo desde `node --test`.
 - Tests en español, nombrados por el comportamiento, con encabezado que explica

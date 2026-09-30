@@ -3,7 +3,7 @@ const now = new Date();
 const roderi = {
   name: 'Roderi Pena',
   email: 'rdpr18@gmail.com',
-  avatarUrl: '/assets/images/avatar/avatar-25.webp',
+  avatarUrl: '/plantilla/images/avatar/avatar-25.webp',
 };
 
 export const _mailAccount = roderi;
@@ -11,13 +11,13 @@ export const _mailAccount = roderi;
 const oliver = {
   name: 'Oliver Feliz',
   email: 'oliver.feliz@exploradores.app',
-  avatarUrl: '/assets/images/avatar/avatar-5.webp',
+  avatarUrl: '/plantilla/images/avatar/avatar-5.webp',
 };
 
 const daniela = {
   name: 'Daniela Rosario',
   email: 'daniela.rosario@exploradores.app',
-  avatarUrl: '/assets/images/avatar/avatar-12.webp',
+  avatarUrl: '/plantilla/images/avatar/avatar-12.webp',
 };
 
 export const _mailLabels = [
@@ -151,7 +151,7 @@ export const _mails = [
         name: 'borrador-organizacion-documentos.pdf',
         size: 128000,
         type: 'application/pdf',
-        preview: '/assets/icons/files/ic-pdf.svg',
+        preview: '/plantilla/icons/files/ic-pdf.svg',
       },
     ],
     isUnread: false,
@@ -175,7 +175,7 @@ export const _mails = [
         name: 'plan-actividad-aire-libre.pdf',
         size: 164000,
         type: 'application/pdf',
-        preview: '/assets/icons/files/ic-pdf.svg',
+        preview: '/plantilla/icons/files/ic-pdf.svg',
       },
     ],
     isUnread: false,

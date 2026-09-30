@@ -2075,7 +2075,7 @@ export function ProfilePostItem({
             </MenuItem>
 
             <MenuItem onClick={handleShareToChat}>
-              <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-chat.svg`} />
+              <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-chat.svg`} />
               Compartir en chats
             </MenuItem>
 

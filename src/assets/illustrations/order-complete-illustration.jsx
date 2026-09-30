@@ -11,7 +11,7 @@ import { BackgroundShape } from './background-shape';
 function OrderCompleteIllustration({ hideBackground, sx, ...other }) {
   const renderCharacterImage = () => (
     <image
-      href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-happy-jump.webp`}
+      href={`${CONFIG.assetsDir}/plantilla/illustrations/characters/character-happy-jump.webp`}
       height="280"
       x="270"
       y="40"

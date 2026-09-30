@@ -11,7 +11,7 @@ import { BackgroundShape } from './background-shape';
 function SeoIllustration({ hideBackground, sx, ...other }) {
   const renderCharacterImage = () => (
     <image
-      href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-present.webp`}
+      href={`${CONFIG.assetsDir}/plantilla/illustrations/characters/character-present.webp`}
       height="280"
       x="320"
       y="40"

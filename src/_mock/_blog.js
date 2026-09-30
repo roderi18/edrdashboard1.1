@@ -32,9 +32,9 @@ El documento incluye alternativas como campamento de estudio de la naturaleza, s
 
 ## Documento
 
-[Abrir PDF: 10 Tipos de Campamento](/assets/documents/recursos-lideres/10-tipos-de-campamento.pdf)
+[Abrir PDF: 10 Tipos de Campamento](/descargas/recursos-lideres/10-tipos-de-campamento.pdf)
 `,
-    coverUrl: '/assets/images/mock/cover/cover-6.webp',
+    coverUrl: '/plantilla/images/mock/cover/cover-6.webp',
     publish: 'published',
     tags: ['Exploradores', 'Campamento', 'Recursos para lideres', 'Aire libre'],
     createdAt: '2026-05-24T09:00:00.000Z',
@@ -44,7 +44,7 @@ El documento incluye alternativas como campamento de estudio de la naturaleza, s
     totalFavorites: 0,
     author: {
       name: 'Roderi Pena',
-      avatarUrl: '/assets/images/mock/avatar/avatar-1.webp',
+      avatarUrl: '/plantilla/images/mock/avatar/avatar-1.webp',
     },
     favoritePerson: [],
     comments: [],
@@ -77,7 +77,7 @@ El objetivo principal es que cada explorador pueda participar en una experiencia
 
 Este texto es solo de prueba para validar como se ve el contenido dentro del detalle del post. Luego puede reemplazarse por una publicacion real con imagenes, instrucciones y recursos descargables.
 `,
-    coverUrl: '/assets/images/mock/cover/cover-1.webp',
+    coverUrl: '/plantilla/images/mock/cover/cover-1.webp',
     publish: 'published',
     tags: ['Exploradores', 'Actividades', 'Aire libre'],
     createdAt: '2026-05-08T09:00:00.000Z',
@@ -87,24 +87,24 @@ Este texto es solo de prueba para validar como se ve el contenido dentro del det
     totalFavorites: 24,
     author: {
       name: 'Roderi Pena',
-      avatarUrl: '/assets/images/mock/avatar/avatar-1.webp',
+      avatarUrl: '/plantilla/images/mock/avatar/avatar-1.webp',
     },
     favoritePerson: [
-      { name: 'Oliver Feliz', avatarUrl: '/assets/images/mock/avatar/avatar-2.webp' },
-      { name: 'Usuario Prueba', avatarUrl: '/assets/images/mock/avatar/avatar-3.webp' },
+      { name: 'Oliver Feliz', avatarUrl: '/plantilla/images/mock/avatar/avatar-2.webp' },
+      { name: 'Usuario Prueba', avatarUrl: '/plantilla/images/mock/avatar/avatar-3.webp' },
     ],
     comments: [
       {
         id: 'comment-001',
         name: 'Oliver Feliz',
-        avatarUrl: '/assets/images/mock/avatar/avatar-2.webp',
+        avatarUrl: '/plantilla/images/mock/avatar/avatar-2.webp',
         message: 'Excelente guia para planificar la actividad.',
         postedAt: '2026-05-08T10:00:00.000Z',
         users: [
           {
             id: 'user-001',
             name: 'Roderi Pena',
-            avatarUrl: '/assets/images/mock/avatar/avatar-1.webp',
+            avatarUrl: '/plantilla/images/mock/avatar/avatar-1.webp',
           },
         ],
         replyComment: [

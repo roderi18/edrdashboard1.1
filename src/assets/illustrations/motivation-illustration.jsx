@@ -11,7 +11,7 @@ import { BackgroundShape } from './background-shape';
 function MotivationIllustration({ hideBackground, sx, ...other }) {
   const renderCharacterImage = () => (
     <image
-      href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-fly.webp`}
+      href={`${CONFIG.assetsDir}/plantilla/illustrations/characters/character-fly.webp`}
       height="280"
       x="260"
       y="40"

@@ -76,14 +76,14 @@ test('sin texto no se enseña nada, y la lista tiene tope', () => {
 // Los premios no guardan imagen: `itemsAscenso` solo tiene nombre, grupo,
 // division y ruta. Se les pone el icono que ya usa la pantalla de ascenso.
 test('cada premio sale con el icono de su grupo o el de su división', () => {
-  assert.equal(iconoDePremio({ idGrupo: 'fundamentos' }), '/sistemaAscenso/Academia Ministerial/fundamentos.webp');
-  assert.equal(iconoDePremio({ idDivision: 'pioneros' }), '/sistemaAscenso/Academia Ministerial/pioneros.webp');
+  assert.equal(iconoDePremio({ idGrupo: 'fundamentos' }), '/sistema-ascenso/academia-ministerial/fundamentos.webp');
+  assert.equal(iconoDePremio({ idDivision: 'pioneros' }), '/sistema-ascenso/academia-ministerial/pioneros.webp');
   // Los grupos del sistema de ascenso llevan la division delante.
   assert.equal(
     iconoDePremio({ idGrupo: 'seguidores__premios-biblicos-cafe' }),
-    '/sistemaAscenso/Academia Ministerial/seguidores.webp'
+    '/sistema-ascenso/academia-ministerial/seguidores.webp'
   );
-  assert.equal(iconoDePremio({}), '/sistemaAscenso/Academia Ministerial/exploradores-del-rey.webp');
+  assert.equal(iconoDePremio({}), '/sistema-ascenso/academia-ministerial/exploradores-del-rey.webp');
 });
 
 test('la miniatura viaja dentro del catálogo: la foto de verdad no', () => {

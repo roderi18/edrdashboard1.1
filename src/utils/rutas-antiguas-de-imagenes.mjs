@@ -1,16 +1,30 @@
 // ----------------------------------------------------------------------
 // LAS DIRECCIONES VIEJAS DE LAS IMÁGENES SIGUEN FUNCIONANDO.
 //
-// `public/` se reorganizó (logo → marca, icons → iconos, parches → insignias) y
-// lo que no usa la aplicación salió a `docs/`. Pero una dirección de imagen puede
-// estar guardada fuera del código: el editor del mapa guarda la del emblema del
-// Consejo Nacional, los avatares de los buzones del chat viajan en las
-// conversaciones y hay enlaces ya enviados. Por eso cada ruta vieja que la
+// `public/` se reorganizó dos veces (logo → marca, icons → iconos, parches →
+// insignias; después sistemaAscenso → sistema-ascenso, assets → plantilla,
+// fonts → fuentes y los iconos de la app a app/), y lo que no se usaba salió a
+// `docs/documentosNoUsados.zip`. Pero una dirección de imagen puede estar
+// guardada fuera del código: el editor del mapa guarda la del emblema del
+// Consejo Nacional, las casillas personalizadas llevan `/watermark.webp` como
+// avatar, los buzones del chat viajan en las conversaciones, la app instalada
+// recuerda sus iconos y hay enlaces ya enviados. Por eso cada ruta vieja que la
 // aplicación usaba redirige, para siempre, a la nueva (`next.config.mjs`).
-// No renumerar ni quitar: rompería lo que ya está guardado.
+// No quitar reglas: rompería lo que ya está guardado. Lo concreto va antes que
+// lo general.
 // ----------------------------------------------------------------------
 
 const CINTAS_Y_MEDALLAS = ['/parches/Cintas y medallas', '/parches/Cintas%20y%20medallas'];
+const ACADEMIA = ['/sistemaAscenso/Academia Ministerial', '/sistemaAscenso/Academia%20Ministerial'];
+
+const ARCHIVOS_DE_LA_APP = [
+  'icon-192x192.png',
+  'icon-512x512.png',
+  'maskable-icon-192x192.png',
+  'maskable-icon-512x512.png',
+  'exploradores-del-rey-icono.ico',
+  'pdf.worker.min.mjs',
+];
 
 export const RUTAS_ANTIGUAS_DE_IMAGENES = [
   ...CINTAS_Y_MEDALLAS.flatMap((viejo) => [
@@ -31,4 +45,23 @@ export const RUTAS_ANTIGUAS_DE_IMAGENES = [
   { source: '/logo/:archivo', destination: '/marca/:archivo' },
   { source: '/icons/seguidores.webp', destination: '/iconos/seguidores.webp' },
   { source: '/icons/lider-organizacional.webp', destination: '/iconos/lider-organizacional.webp' },
+
+  // Segunda reorganización.
+  ...ACADEMIA.map((viejo) => ({
+    source: `${viejo}/:archivo`,
+    destination: '/sistema-ascenso/academia-ministerial/:archivo',
+  })),
+  { source: '/sistemaAscenso/:ruta*', destination: '/sistema-ascenso/:ruta*' },
+  {
+    source: '/assets/documents/recursos-lideres/:archivo',
+    destination: '/descargas/recursos-lideres/:archivo',
+  },
+  { source: '/assets/banner1.png', destination: '/marca/banner-acceso.png' },
+  { source: '/assets/:ruta*', destination: '/plantilla/:ruta*' },
+  { source: '/fonts/:archivo', destination: '/fuentes/:archivo' },
+  ...ARCHIVOS_DE_LA_APP.map((archivo) => ({
+    source: `/${archivo}`,
+    destination: `/app/${archivo}`,
+  })),
+  { source: '/watermark.webp', destination: '/marca/watermark.webp' },
 ];

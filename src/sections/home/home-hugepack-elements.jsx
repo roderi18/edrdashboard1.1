@@ -139,9 +139,9 @@ function ScrollableContent() {
             sx={{
               height: { xs: 160, md: 180 },
               width: { xs: '600%', md: '400%' },
-              backgroundImage: `url(${CONFIG.assetsDir}/assets/images/home/bundle-light-1.webp)`,
+              backgroundImage: `url(${CONFIG.assetsDir}/plantilla/images/home/bundle-light-1.webp)`,
               ...theme.applyStyles('dark', {
-                backgroundImage: `url(${CONFIG.assetsDir}/assets/images/home/bundle-dark-1.webp)`,
+                backgroundImage: `url(${CONFIG.assetsDir}/plantilla/images/home/bundle-dark-1.webp)`,
               }),
             }}
           />
@@ -150,9 +150,9 @@ function ScrollableContent() {
             sx={{
               height: { xs: 400, md: 480 },
               width: { xs: '600%', md: '400%' },
-              backgroundImage: `url(${CONFIG.assetsDir}/assets/images/home/bundle-light-2.webp)`,
+              backgroundImage: `url(${CONFIG.assetsDir}/plantilla/images/home/bundle-light-2.webp)`,
               ...theme.applyStyles('dark', {
-                backgroundImage: `url(${CONFIG.assetsDir}/assets/images/home/bundle-dark-2.webp)`,
+                backgroundImage: `url(${CONFIG.assetsDir}/plantilla/images/home/bundle-dark-2.webp)`,
               }),
             }}
           />

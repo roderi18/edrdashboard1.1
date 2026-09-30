@@ -88,7 +88,7 @@ export const NATIONAL_LEADERSHIP_DATA = {
                 ]),
               ]),
               name: 'Consejo Ejecutivo',
-              avatarUrl: '/watermark.webp',
+              avatarUrl: '/marca/watermark.webp',
               isDivision: true,
             },
             createNode('capellan-nacional', 'Capellán Nacional'),
@@ -99,7 +99,7 @@ export const NATIONAL_LEADERSHIP_DATA = {
         name: 'Consejo Nacional',
         // La caja de estructura lleva el sello de la casa (watermark), no la "O"
         // de EXPLORA: es la marca de agua unica de las jerarquias y los niveles.
-        avatarUrl: '/watermark.webp',
+        avatarUrl: '/marca/watermark.webp',
         isDivision: true,
       },
     ]),
@@ -166,7 +166,7 @@ export const REGIONAL_LEADERSHIP_DATA = {
   ]),
   name: 'Consejo Ejecutivo',
   // Mismo sello (watermark) que el organigrama nacional, en vez de la "O".
-  avatarUrl: '/watermark.webp',
+  avatarUrl: '/marca/watermark.webp',
   isDivision: true,
 };
 

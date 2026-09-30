@@ -87,7 +87,7 @@ export function HomeMinimal({ sx, ...other }) {
         <Box
           component="img"
           alt="Home chart"
-          src={`${CONFIG.assetsDir}/assets/images/home/home-chart.webp`}
+          src={`${CONFIG.assetsDir}/plantilla/images/home/home-chart.webp`}
           sx={{ width: 720 }}
         />
       </Box>

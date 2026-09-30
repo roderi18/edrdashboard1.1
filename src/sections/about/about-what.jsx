@@ -39,7 +39,7 @@ export function AboutWhat({ sx, ...other }) {
               <m.div variants={varFade('inUp')}>
                 <Image
                   alt="Our office small"
-                  src={`${CONFIG.assetsDir}/assets/images/about/what-small.webp`}
+                  src={`${CONFIG.assetsDir}/plantilla/images/about/what-small.webp`}
                   ratio="1/1"
                   sx={(theme) => ({
                     borderRadius: 3,
@@ -56,7 +56,7 @@ export function AboutWhat({ sx, ...other }) {
               <m.div variants={varFade('inUp')}>
                 <Image
                   alt="Our office large"
-                  src={`${CONFIG.assetsDir}/assets/images/about/what-large.webp`}
+                  src={`${CONFIG.assetsDir}/plantilla/images/about/what-large.webp`}
                   ratio="3/4"
                   sx={(theme) => ({
                     borderRadius: 3,

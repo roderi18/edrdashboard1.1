@@ -77,7 +77,7 @@ export function AppWidget({ title, total, icon, chart, sx, ...other }) {
         />
 
         <SvgColor
-          src={`${CONFIG.assetsDir}/assets/background/shape-circle-3.svg`}
+          src={`${CONFIG.assetsDir}/plantilla/background/shape-circle-3.svg`}
           sx={{
             width: 200,
             height: 200,

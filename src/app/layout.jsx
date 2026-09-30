@@ -64,11 +64,11 @@ export const metadata = {
   icons: [
     {
       rel: 'icon',
-      url: `${CONFIG.assetsDir}/exploradores-del-rey-icono.ico`,
+      url: `${CONFIG.assetsDir}/app/exploradores-del-rey-icono.ico`,
     },
     {
       rel: 'apple-touch-icon',
-      url: `${CONFIG.assetsDir}/icon-192x192.png`,
+      url: `${CONFIG.assetsDir}/app/icon-192x192.png`,
     },
   ],
   appleWebApp: {

@@ -296,8 +296,8 @@ const PLANS = Array.from({ length: 3 }, (_, index) => ({
     'Commercial applications',
   ],
   icons: [
-    `${CONFIG.assetsDir}/assets/icons/platforms/ic-js.svg`,
-    `${CONFIG.assetsDir}/assets/icons/platforms/ic-ts.svg`,
-    `${CONFIG.assetsDir}/assets/icons/platforms/ic-figma.svg`,
+    `${CONFIG.assetsDir}/plantilla/icons/platforms/ic-js.svg`,
+    `${CONFIG.assetsDir}/plantilla/icons/platforms/ic-ts.svg`,
+    `${CONFIG.assetsDir}/plantilla/icons/platforms/ic-figma.svg`,
   ],
 }));

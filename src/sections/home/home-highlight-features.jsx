@@ -92,25 +92,25 @@ const ITEMS = [
     title: 'Dark mode',
     subtitle: 'A dark theme that feels easier on the eyes.',
     icon: 'solar:cloudy-moon-bold-duotone',
-    imgUrl: [`${CONFIG.assetsDir}/assets/images/home/highlight-darkmode.webp`],
+    imgUrl: [`${CONFIG.assetsDir}/plantilla/images/home/highlight-darkmode.webp`],
   },
   {
     title: 'Color presets',
     subtitle: 'Express your own style with just one click.',
     icon: 'solar:pallete-2-bold-duotone',
     imgUrl: [
-      `${CONFIG.assetsDir}/assets/images/home/highlight-presets-1.webp`,
-      `${CONFIG.assetsDir}/assets/images/home/highlight-presets-2.webp`,
-      `${CONFIG.assetsDir}/assets/images/home/highlight-presets-3.webp`,
-      `${CONFIG.assetsDir}/assets/images/home/highlight-presets-4.webp`,
-      `${CONFIG.assetsDir}/assets/images/home/highlight-presets-5.webp`,
+      `${CONFIG.assetsDir}/plantilla/images/home/highlight-presets-1.webp`,
+      `${CONFIG.assetsDir}/plantilla/images/home/highlight-presets-2.webp`,
+      `${CONFIG.assetsDir}/plantilla/images/home/highlight-presets-3.webp`,
+      `${CONFIG.assetsDir}/plantilla/images/home/highlight-presets-4.webp`,
+      `${CONFIG.assetsDir}/plantilla/images/home/highlight-presets-5.webp`,
     ],
   },
   {
     title: 'Right-to-left',
     subtitle: 'Support languages such as Arabic, Persian, and Hebrew.',
     icon: 'solar:align-right-bold-duotone',
-    imgUrl: [`${CONFIG.assetsDir}/assets/images/home/highlight-rtl.webp`],
+    imgUrl: [`${CONFIG.assetsDir}/plantilla/images/home/highlight-rtl.webp`],
   },
 ];
 

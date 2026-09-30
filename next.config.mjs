@@ -62,7 +62,7 @@ const nextConfig = {
       // de cada pantalla. Un día sin preguntar y, pasado, se muestra la guardada
       // mientras se comprueba por detrás: no llevan huella en el nombre, así que
       // una insignia cambiada tiene que poder verse sin borrar nada a mano.
-      ...['/insignias/:ruta*', '/sistemaAscenso/:ruta*', '/marca/:ruta*', '/iconos/:ruta*'].map(
+      ...['/insignias/:ruta*', '/sistema-ascenso/:ruta*', '/marca/:ruta*', '/iconos/:ruta*'].map(
         (source) => ({
           source,
           headers: [

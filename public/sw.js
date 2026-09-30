@@ -1,4 +1,4 @@
-const VERSION = 'edr-pwa-v7';
+const VERSION = 'edr-pwa-v8';
 
 // EN DESARROLLO NO SE INTERCEPTA NADA. Los bundles de `/_next/static/` se guardan
 // "para siempre" porque en produccion llevan una huella en el nombre; en `next
@@ -12,10 +12,10 @@ const PAGINAS_CACHE = `${VERSION}-paginas`;
 const STATIC_ASSETS = [
   '/',
   '/offline.html',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
-  '/maskable-icon-192x192.png',
-  '/maskable-icon-512x512.png',
+  '/app/icon-192x192.png',
+  '/app/icon-512x512.png',
+  '/app/maskable-icon-192x192.png',
+  '/app/maskable-icon-512x512.png',
   '/marca/logo-single.png',
 ];
 
@@ -24,20 +24,19 @@ const STATIC_PATHS = [
   // cambia de contenido: guardarlos para siempre es seguro. Sin ellos, la
   // pagina abria en blanco sin conexion aunque el HTML si estuviera guardado.
   '/_next/static/',
-  '/assets/',
-  '/fonts/',
+  '/plantilla/',
+  '/fuentes/',
   '/iconos/',
   '/marca/',
-  '/icon-',
-  '/maskable-icon-',
+  '/app/',
 ];
 
 // LAS INSIGNIAS SALEN AL INSTANTE. Cada perfil, premio y organigrama pinta
-// decenas de insignias de `/insignias/` y `/sistemaAscenso/`, y se pedían a la
+// decenas de insignias de `/insignias/` y `/sistema-ascenso/`, y se pedían a la
 // red cada vez. No llevan huella en el nombre —una insignia se puede cambiar
 // dejando el mismo archivo—, así que no van con `cacheFirst` (se quedarían
 // viejas para siempre): se muestra la guardada y se renueva por detrás.
-const IMAGENES_FIJAS = ['/insignias/', '/sistemaAscenso/'];
+const IMAGENES_FIJAS = ['/insignias/', '/sistema-ascenso/'];
 
 // Las pantallas cuyo HTML se guarda para poder RECARGAR sin conexion. Solo el
 // panel: el resto no tiene sentido sin servidor.
@@ -139,8 +138,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || data.message || payload.body || '',
-      icon: data.icon || '/icon-192x192.png',
-      badge: data.badge || '/icon-192x192.png',
+      icon: data.icon || '/app/icon-192x192.png',
+      badge: data.badge || '/app/icon-192x192.png',
       data: {
         url: data.url || data.click_action || payload.fcmOptions?.link || '/dashboard',
       },

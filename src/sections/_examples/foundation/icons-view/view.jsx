@@ -42,7 +42,7 @@ import { ComponentBox, ComponentLayout } from '../../layout';
 
 // ----------------------------------------------------------------------
 
-const ASSETS_DIR = `${CONFIG.assetsDir}/assets/icons`;
+const ASSETS_DIR = `${CONFIG.assetsDir}/plantilla/icons`;
 
 const DEMO_COMPONENTS = [
   {

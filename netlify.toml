@@ -22,7 +22,7 @@
     Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
 
 [[headers]]
-  for = "/sistemaAscenso/*"
+  for = "/sistema-ascenso/*"
   [headers.values]
     Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
 

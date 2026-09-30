@@ -91,7 +91,7 @@ Test: `tests/ascenso/guardado-de-progreso.test.mjs`.
 
 ## Imágenes
 
-Viven en `public/sistemaAscenso/<división>/<carpeta>/`, con el nombre del premio en
+Viven en `public/sistema-ascenso/<división>/<carpeta>/`, con el nombre del premio en
 minúsculas y con guiones (`Ciencias Ambientales` → `ciencias-ambientales.webp`).
 Se buscan por **nombre**, nunca por número de archivo.
 
@@ -99,7 +99,7 @@ Para dar imágenes a otra carpeta, se añade en `CARPETAS_CON_INSIGNIA`:
 
 ```js
 'pioneros__premios-de-destreza-azul': {
-  ruta: '/sistemaAscenso/pioneros/premios-de-destreza-azul',
+  ruta: '/sistema-ascenso/pioneros/premios-de-destreza-azul',
   alias: { 'nombre-en-el-catalogo': 'nombre-del-archivo' }, // los que no coinciden
   sinImagen: ['premio-sin-imagen'],                          // los que no tienen
   archivo: (base) => base,                                   // si el patrón es otro

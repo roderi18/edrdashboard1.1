@@ -9,19 +9,19 @@ export const NAV_BASIC_ITEMS = [
   {
     title: 'Home',
     path: '#',
-    icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-analytics.svg`} />,
+    icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-analytics.svg`} />,
   },
   {
     title: 'Page',
     path: '/components',
     caption: 'The standard Lorem Ipsum passage, used since the 1500s.',
-    icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-banking.svg`} />,
+    icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-banking.svg`} />,
     info: <Label color="info">+2</Label>,
     children: [
       {
         title: 'What is Lorem Ipsum?',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-booking.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-booking.svg`} />,
         info: '+3',
         children: [
           { title: 'Page 1.1', path: '#' },
@@ -31,7 +31,7 @@ export const NAV_BASIC_ITEMS = [
       {
         title: 'Page 2',
         path: '/components/extra',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-chat.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-chat.svg`} />,
         caption: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
         children: [
           { title: 'Page 2.1', path: '#' },
@@ -50,44 +50,44 @@ export const NAV_BASIC_ITEMS = [
       {
         title: 'Page 3',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-lock.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-lock.svg`} />,
       },
     ],
   },
   {
     title: 'Blog',
     path: '#',
-    icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-mail.svg`} />,
+    icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-mail.svg`} />,
     children: [
       {
         title: 'Post 1',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-booking.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-booking.svg`} />,
         caption: 'This is the caption',
         info: '+3',
       },
       {
         title: 'Post 2',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-chat.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-chat.svg`} />,
       },
       {
         title: 'Post 3',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-lock.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-lock.svg`} />,
       },
     ],
   },
   {
     title: 'Contact',
     path: '#',
-    icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-user.svg`} />,
+    icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-user.svg`} />,
     disabled: true,
   },
   {
     title: 'External',
     path: 'https://www.google.com/',
-    icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-tour.svg`} />,
+    icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-tour.svg`} />,
   },
 ];
 
@@ -130,20 +130,20 @@ export const NAV_SECTION_ITEMS = [
       {
         title: 'Landing',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-dashboard.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-dashboard.svg`} />,
         info: <Label color="error">+2 </Label>,
       },
       {
         title: 'Services',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-analytics.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-analytics.svg`} />,
         allowedRoles: ['admin'],
         caption: 'Only admin can see this item.',
       },
       {
         title: 'Blog',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-blog.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-blog.svg`} />,
         info: <Label color="info">+3 </Label>,
         allowedRoles: ['admin', 'manager'],
         caption: 'Only admin / manager can see this item.',
@@ -165,24 +165,24 @@ export const NAV_SECTION_ITEMS = [
       {
         title: 'About',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-user.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-user.svg`} />,
         info: '+4',
       },
       {
         title: 'Contact',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-tour.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-tour.svg`} />,
         disabled: true,
       },
       {
         title: 'Level',
         path: '/components',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-menu-item.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-menu-item.svg`} />,
         children: [
           {
             title: 'Level 2a',
             path: '/components/extra',
-            icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-chat.svg`} />,
+            icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-chat.svg`} />,
             caption: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
             children: [
               { title: 'Level 3a', path: '#' },
@@ -200,19 +200,19 @@ export const NAV_SECTION_ITEMS = [
           {
             title: 'Level 2b',
             path: '#',
-            icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-mail.svg`} />,
+            icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-mail.svg`} />,
           },
           {
             title: 'Level 2c',
             path: '#',
-            icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-calendar.svg`} />,
+            icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-calendar.svg`} />,
           },
         ],
       },
       {
         title: 'More',
         path: '#',
-        icon: <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-blank.svg`} />,
+        icon: <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-blank.svg`} />,
       },
     ],
   },

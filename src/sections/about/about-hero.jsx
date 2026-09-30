@@ -18,8 +18,8 @@ export function AboutHero({ sx, ...other }) {
         (theme) => ({
           ...theme.mixins.bgGradient({
             images: [
-              `url(${CONFIG.assetsDir}/assets/background/overlay.svg)`,
-              `url(${CONFIG.assetsDir}/assets/images/about/hero.webp)`,
+              `url(${CONFIG.assetsDir}/plantilla/background/overlay.svg)`,
+              `url(${CONFIG.assetsDir}/plantilla/images/about/hero.webp)`,
             ],
           }),
           height: { md: 560 },
