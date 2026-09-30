@@ -6,7 +6,9 @@ import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import { regionDe, provinciaEnMapa } from './portada';
 import { MAPA_ALTO, MAPA_ANCHO, PROVINCIAS } from './mapa-provincias';
 
-const ANCHO = 848;
+const ANCHO_BASE = 848;
+const ESCALA_LAMINA = 1.08;
+const ANCHO = Math.round(ANCHO_BASE * ESCALA_LAMINA);
 const PALETA = {
   fondo: '#0c172b',
   tarjeta: '#142844',
@@ -26,7 +28,6 @@ const COLOR_REGION = {
   'Región Norte': PALETA.amarillo,
 };
 const ORDEN = ['Región Central', 'Región Sur', 'Región Este', 'Región Norte'];
-const FILAS_POR_COLUMNA_REGION = 20;
 const MENSAJES_REGIONALES = [
   {
     min: 0,
@@ -153,11 +154,12 @@ function MapaCatalogo({ enviados, y, alto }) {
 function Lamina({ padron, enviados, cuentaConfig, capturaAhora, imagenes, svgRef }) {
   const listas = Object.fromEntries(ORDEN.map((nombre) => [nombre, enviados.filter((d) => d.region === nombre).sort(ordenar)]));
   const totales = Object.fromEntries(ORDEN.map((nombre) => [nombre, padron.filter((d) => d.region === nombre).length]));
-  const maxFilas = Math.max(...ORDEN.map((nombre) => Math.min(FILAS_POR_COLUMNA_REGION, listas[nombre].length || FILAS_POR_COLUMNA_REGION)));
+  const maxFilas = Math.max(...ORDEN.map((nombre) => Math.max(1, Math.ceil(listas[nombre].length / 2))));
   const altoTarjetas = Math.max(460, 74 + maxFilas * 22 + 129 + 38);
   const tarjetasBottom = 876 + altoTarjetas;
   const pieY = tarjetasBottom + 54;
-  const alto = pieY + 54;
+  const altoBase = pieY + 54;
+  const alto = Math.round(altoBase * ESCALA_LAMINA);
   const restantes = cuenta(cuentaConfig?.cierre, cuentaConfig?.ahora, capturaAhora, cuentaConfig?.mostrar);
   const actualizados = enviados.length;
   const pendientes = Math.max(0, padron.length - actualizados);
@@ -172,9 +174,9 @@ function Lamina({ padron, enviados, cuentaConfig, capturaAhora, imagenes, svgRef
         <filter id="map-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" floodColor="#020a17" floodOpacity="0.65" /></filter>
       </defs>
       <rect width={ANCHO} height={alto} fill={PALETA.fondo} />
-      <Rect x={14} y={14} width={820} height={alto - 29} fill="none" stroke="#24466f" rx={12} />
+      <g transform={`scale(${ESCALA_LAMINA})`}>
+      <Rect x={4} y={14} width={840} height={altoBase - 29} fill="none" stroke="#24466f" rx={12} />
 
-      <rect x={102} y={31} width={644} height={117} fill="#102a55" />
       {imagenes.logo && <image x={132} y={54} width={78} height={75} href={imagenes.logo} />}
       <Txt x={230} y={79} size={31} weight={800}>EXPLORADORES DEL REY</Txt>
       <Txt x={230} y={116} size={21} color={PALETA.suave} weight={700} letterSpacing={1}>EVANGELIZAR · EQUIPAR · EMPODERAR</Txt>
@@ -251,15 +253,15 @@ function Lamina({ padron, enviados, cuentaConfig, capturaAhora, imagenes, svgRef
         const x = 418 + i * 54;
         const emblema = imagenes.regiones?.[nombre];
         return <g key={nombre}>
-          <circle cx={x} cy={751} r={13} fill="#17365b" />
+          <circle cx={x} cy={748} r={17} fill="#17365b" />
           {emblema && <>
-            <defs><clipPath id={`recorte-region-${i}`}><circle cx={x} cy={751} r={12} /></clipPath></defs>
-            <image x={x - 12} y={739} width={24} height={24} href={emblema} preserveAspectRatio="xMidYMid slice" clipPath={`url(#recorte-region-${i})`} />
+            <defs><clipPath id={`recorte-region-${i}`}><circle cx={x} cy={748} r={16} /></clipPath></defs>
+            <image x={x - 16} y={732} width={32} height={32} href={emblema} preserveAspectRatio="xMidYMid slice" clipPath={`url(#recorte-region-${i})`} />
           </>}
-          <circle cx={x} cy={751} r={13} fill="none" stroke={COLOR_REGION[nombre]} strokeWidth={2} />
-          {!emblema && <Txt x={x} y={755} size={10} anchor="middle" weight={700}>{nombre.slice(7, 9).toUpperCase()}</Txt>}
-          <Txt x={x} y={773} size={9} anchor="middle" weight={700}>{nombre.replace('Región ', '')}</Txt>
-          <Txt x={x} y={784} size={9} anchor="middle">{listas[nombre].length} dest.</Txt>
+          <circle cx={x} cy={748} r={17} fill="none" stroke={COLOR_REGION[nombre]} strokeWidth={2.5} />
+          {!emblema && <Txt x={x} y={752} size={11} anchor="middle" weight={700}>{nombre.slice(7, 9).toUpperCase()}</Txt>}
+          <Txt x={x} y={776} size={10} anchor="middle" weight={700}>{nombre.replace('Región ', '')}</Txt>
+          <Txt x={x} y={789} size={10} anchor="middle">{listas[nombre].length} dest.</Txt>
         </g>;
       })}
 
@@ -292,10 +294,11 @@ function Lamina({ padron, enviados, cuentaConfig, capturaAhora, imagenes, svgRef
         const lista = listas[nombre];
         const total = totales[nombre];
         const pct = porcentaje(lista.length, total);
-        const columnas = lista.length > FILAS_POR_COLUMNA_REGION
-          ? [lista.slice(0, FILAS_POR_COLUMNA_REGION), lista.slice(FILAS_POR_COLUMNA_REGION)]
-          : [lista];
-        const filasVisibles = Math.min(FILAS_POR_COLUMNA_REGION, lista.length);
+        const filasVisibles = Math.max(1, Math.ceil(lista.length / 2));
+        const columnas = [
+          lista.slice(0, filasVisibles),
+          lista.slice(filasVisibles),
+        ];
         const statusY = Math.max(1069, 926 + filasVisibles * 22 + 14);
         const statusH = 129;
         return <g key={nombre}>
@@ -303,12 +306,11 @@ function Lamina({ padron, enviados, cuentaConfig, capturaAhora, imagenes, svgRef
           <rect x={x} y={876} width={184} height={32} rx={5} fill={color} />
           <Txt x={x + 10} y={896} size={13} weight={700} color={nombre === 'Región Norte' ? '#192c44' : PALETA.blanco}>{nombre.toUpperCase()} ({lista.length})</Txt>
           {lista.length ? columnas.map((columna, columnaIndex) => {
-            const offsetX = columnaIndex * 87;
+            const offsetX = columnaIndex * 94;
             return columna.map((d, j) => {
               const texto = nombreCorto(d);
-              const dosColumnas = columnas.length > 1;
-              const size = dosColumnas ? 8.5 : 11;
-              const lineas = envolverTexto(texto, dosColumnas ? 13 : 22);
+              const size = 9.5;
+              const lineas = envolverTexto(texto, 12);
               return (
                 <g key={d.id || `${nombre}-${columnaIndex}-${j}`}>
                   <path d={`M${x + 10 + offsetX} ${919 + j * 22} l7 4 -7 4 z`} fill={color} />
@@ -348,9 +350,9 @@ function Lamina({ padron, enviados, cuentaConfig, capturaAhora, imagenes, svgRef
         </g>;
       })}
       {/* Pie dentro del marco general, justo debajo de las tarjetas regionales. */}
-      <rect x="14" y={pieY - 26} width="820" height="57" fill="#07111f" />
       <Txt x={424} y={pieY - 6} size={10} color={PALETA.suave} anchor="middle">Estado generado el {fecha} (hora de Santo Domingo)</Txt>
       <Txt x={424} y={pieY + 14} size={10} color={PALETA.suave} anchor="middle">Exploradores del Rey • República Dominicana • Proceso Oficial de Actualización de Destacamentos</Txt>
+      </g>
     </svg>
   );
 }
@@ -477,9 +479,9 @@ export function CatalogoEstado() {
     guardar(formato);
   }, [datos, guardar, imagenes]);
 
-  return <main style={{ minHeight: '100vh', background: '#07111f', color: '#f8faff', padding: '20px 12px 50px', fontFamily: 'Arial, Helvetica, sans-serif' }}>
+  return <main style={{ minHeight: '100vh', background: '#07111f', color: '#f8faff', padding: '20px clamp(28px, 5vw, 72px) 50px', fontFamily: 'Arial, Helvetica, sans-serif' }}>
     <style>{'@keyframes giroDescarga { to { transform: rotate(360deg); } }'}</style>
-    <div style={{ maxWidth: 848, margin: '0 auto 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+    <div style={{ maxWidth: ANCHO, margin: '0 auto 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
       <a href="/" style={{ color: '#c5d4e7', textDecoration: 'none' }}>← Volver al registro</a>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" disabled={ocupado} onClick={() => { setError(''); refrescar().catch((e) => setError(e.message)); }} style={boton('#24466f')}>Actualizar datos</button>
@@ -493,9 +495,9 @@ export function CatalogoEstado() {
         </button>
       </div>
     </div>
-    {error && <p role="alert" style={{ maxWidth: 848, margin: '0 auto 16px', color: '#ff989b' }}>{error}</p>}
+    {error && <p role="alert" style={{ maxWidth: ANCHO, margin: '0 auto 16px', color: '#ff989b' }}>{error}</p>}
     {!datos ? <p style={{ textAlign: 'center' }}>Cargando estado actual…</p> :
-      <div style={{ maxWidth: 848, margin: '0 auto', boxShadow: '0 18px 45px rgba(0,0,0,.38)' }}>
+      <div style={{ maxWidth: ANCHO, margin: '0 auto', boxShadow: '0 18px 45px rgba(0,0,0,.38)' }}>
         <Lamina {...datos} capturaAhora={capturaAhora} imagenes={imagenes} svgRef={svgRef} />
       </div>}
   </main>;
