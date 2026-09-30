@@ -9,7 +9,7 @@ correspondiente, que se muestra en su perfil igual que hoy en el de EDR-10002.
 
 ## Imágenes
 
-`public/parches/Cintas y medallas/cintas-perfil/` — 47 archivos `.webp`.
+`public/insignias/cintas/` — 47 archivos `.webp`.
 El prefijo numérico del nombre **es el orden oficial** (`1-cinta-al-valor.webp` …
 `40-cinta-marron.webp`).
 
@@ -92,7 +92,7 @@ Documento:
 
 ## Veces ganada
 
-- `veces` (1-99; sin el campo cuenta como 1). Con 2 o más se pintan encima, centrados, los dígitos dorados de `public/parches/Cintas y medallas/numeros-cintas` (`digitosDeVeces`).
+- `veces` (1-99; sin el campo cuenta como 1). Con 2 o más se pintan encima, centrados, los dígitos dorados de `public/insignias/numeros-cintas` (`digitosDeVeces`).
 - Es la fuente única para los awards y adiestramientos que cuentan cuántas veces se completaron.
 - El lápiz de prueba tiene `−` / `+` en cada cinta marcada.
 
@@ -120,7 +120,7 @@ Documento:
 Mismo trato que las cintas —perfil, pestaña **Medallas** dentro del mismo diálogo (el lápiz de las cintas) del
 Administrador Global y pestaña **Medallas** en EXPLORA Designer
 (`/dashboard/everest?seccion=medallas`) con orden global arrastrable—, con una
-diferencia: **el catálogo es la carpeta** `public/parches/Cintas y medallas/medallas`.
+diferencia: **el catálogo es la carpeta** `public/insignias/medallas`.
 
 - Cualquier imagen (WebP, PNG, JPG, GIF, AVIF) que se deje ahí aparece en la
   aplicación, sin tocar código. Las subcarpetas (`en proceso`) no cuentan.
@@ -173,7 +173,7 @@ un solo Guardar para las tres) y pestaña **Pines** en EXPLORA Designer
   mucho 3**, cada uno del ancho de una cinta y con el mismo hueco que hay entre
   ellas. El diálogo no deja marcar un cuarto. Sin pines no ocupan sitio; mientras
   cargan se guarda el hueco solo si esa persona tenía pines la última vez.
-- **El catálogo es la carpeta** `public/parches/Cintas y medallas/pines`: cualquier
+- **El catálogo es la carpeta** `public/insignias/pines`: cualquier
   imagen que se deje ahí sale en la aplicación sin tocar código (hoy dos:
   `instructor-juvenil` y `pin-instructor`). Mismas reglas de nombre que las
   medallas: el id es el nombre sin extensión, el número inicial (si lo hay) es el

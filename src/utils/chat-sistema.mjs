@@ -24,7 +24,7 @@ export const CUENTA_SISTEMA = Object.freeze({
   nombre: 'Sistema',
   nombres: 'Sistema',
   apellidos: '',
-  avatarPorDefecto: '/logo/logo-single.png',
+  avatarPorDefecto: '/marca/logo-single.png',
 });
 
 // Donde queda constancia de cada envio: dia, hora, cuantos mensajes, a que

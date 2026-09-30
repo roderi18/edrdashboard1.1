@@ -44,7 +44,7 @@ const ICONOS_DE_FORMA = [
 const CONSEJO_NACIONAL = {
   id: 'consejo-nacional',
   nombre: 'Consejo Nacional',
-  imagen: '/parches/Generales/consejo-nacional-cuadrado.webp',
+  imagen: '/insignias/consejo-nacional.webp',
 };
 
 function useEntidadesOrganizacionales(activo) {

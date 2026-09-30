@@ -99,19 +99,19 @@ export default function RootLayout({ children }) {
       <head>
         <link
           rel="preload"
-          href="/logo/explora-wordmark.webp?v=2"
+          href="/marca/explora-wordmark.webp?v=2"
           as="image"
           type="image/webp"
         />
         <link
           rel="preload"
-          href="/logo/explora-wordmark-light.webp?v=2"
+          href="/marca/explora-wordmark-light.webp?v=2"
           as="image"
           type="image/webp"
         />
         <link
           rel="preload"
-          href="/logo/explora-o-isotipo.webp?v=1"
+          href="/marca/explora-o-isotipo.webp?v=1"
           as="image"
           type="image/webp"
         />

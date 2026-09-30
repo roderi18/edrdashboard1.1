@@ -66,7 +66,7 @@ const almacen = getStorage().bucket();
 // AGOTADOS: cantidad 0 —el carrito se apaga solo— y la cinta con "Agotado", que
 // la tarjeta pinta en gris. Cuando lleguen ejemplares se sube la cantidad y se
 // apaga la cinta desde la ficha del producto.
-const OTROS = path.join(RAIZ, 'public/parches/Otros');
+const OTROS = path.join(RAIZ, 'docs/tienda/imagenes/materiales-y-manuales');
 const manual = (nombre, archivo) => ({
   nombre,
   imagen: path.join(OTROS, archivo),

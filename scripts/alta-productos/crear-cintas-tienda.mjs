@@ -18,7 +18,7 @@ import {
 } from '../../src/utils/producto-codigo.mjs';
 
 const RAIZ = 'C:/Users/rdpr1/OneDrive/Escritorio/next-js';
-const CARPETA = path.join(RAIZ, 'public/parches/Cintas y medallas/cintas-perfil/tienda');
+const CARPETA = path.join(RAIZ, 'docs/tienda/imagenes/cintas/tienda');
 const APLICAR = process.argv.includes('--aplicar');
 const EXISTENCIAS = 10;
 const VALOR = 200;

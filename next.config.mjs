@@ -10,6 +10,8 @@
  * NOTE: Remove all "generateStaticParams()" functions if not using static exports.
  */
 
+import { RUTAS_ANTIGUAS_DE_IMAGENES } from './src/utils/rutas-antiguas-de-imagenes.mjs';
+
 // ----------------------------------------------------------------------
 
 const getFirebaseEnv = (...keys) =>
@@ -30,6 +32,11 @@ const nextConfig = {
   // un 500 seco en `/api/members`, `/api/cargos` y todo `/api/auth/*`, mientras
   // las rutas que no lo importan respondian normal.
   serverExternalPackages: ['firebase-admin'],
+
+  // Las imágenes que cambiaron de carpeta: la ruta vieja lleva a la nueva.
+  async redirects() {
+    return RUTAS_ANTIGUAS_DE_IMAGENES.map((ruta) => ({ ...ruta, permanent: true }));
+  },
 
   async headers() {
     return [

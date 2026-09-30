@@ -44,8 +44,8 @@ export function NavVertical({
             component="img"
             src={
               isNavLight
-                ? '/logo/explora-wordmark.webp?v=2'
-                : '/logo/explora-wordmark-light.webp?v=2'
+                ? '/marca/explora-wordmark.webp?v=2'
+                : '/marca/explora-wordmark-light.webp?v=2'
             }
             alt="EXPLORA"
             width={190}

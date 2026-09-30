@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // CINTAS, MEDALLAS Y PINES AÑADIDOS DESDE EXPLORA DESIGNER.
 //
-// Las de fábrica salen de `public/parches/Cintas y medallas/`: para sumar una
+// Las de fábrica salen de `public/insignias/`: para sumar una
 // había que dejar la imagen en la carpeta y, en las cintas, además tocar código,
 // y en producción nadie puede escribir en esa carpeta. Estas otras las añade el
 // Administrador Global desde el Designer con su imagen, nombre y descripción: la

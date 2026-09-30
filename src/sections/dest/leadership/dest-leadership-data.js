@@ -67,7 +67,7 @@ export const DEST_DIVISION_GROUPS = DIVISIONES.map((division) => ({
   id: `division-${division.id}`,
   name: division.nombre,
   role: division.edades,
-  avatarUrl: `/logo/${division.id}.png`,
+  avatarUrl: `/marca/divisiones/${division.id}.png`,
   isDivision: true,
   children: [
     createNode({

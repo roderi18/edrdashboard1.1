@@ -3,7 +3,7 @@
 //
 // Hermanas de las cintas (`cintas-perfil.mjs`), con una diferencia de fondo: el
 // catálogo NO está escrito en el código. Es la carpeta
-// `public/parches/Cintas y medallas/medallas` tal cual: cualquier imagen que se
+// `public/insignias/medallas` tal cual: cualquier imagen que se
 // deje ahí aparece en la aplicación (en EXPLORA Designer, en el diálogo para
 // asignarlas y en los perfiles). Las subcarpetas ("en proceso") no cuentan.
 //
@@ -15,8 +15,8 @@
 // Sin React ni Firebase, para probarlo con `node --test`.
 // ----------------------------------------------------------------------
 
-export const RUTA_MEDALLAS = '/parches/Cintas%20y%20medallas/medallas';
-export const CARPETA_MEDALLAS = ['public', 'parches', 'Cintas y medallas', 'medallas'];
+export const RUTA_MEDALLAS = '/insignias/medallas';
+export const CARPETA_MEDALLAS = ['public', 'insignias', 'medallas'];
 export const COLECCION_MEDALLAS_MIEMBROS = 'medallas_miembros';
 // Mismo sitio que el orden de las cintas, otro documento: la regla ya existe.
 export const DOCUMENTO_ORDEN_MEDALLAS = 'orden-medallas';

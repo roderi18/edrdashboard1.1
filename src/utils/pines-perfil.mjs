@@ -3,7 +3,7 @@
 //
 // Los terceros de la familia, con las cintas (`cintas-perfil.mjs`) y las
 // medallas (`medallas-perfil.mjs`). Se tratan como las medallas: el catálogo es
-// la carpeta `public/parches/Cintas y medallas/pines` —una imagen nueva ahí sale
+// la carpeta `public/insignias/pines` —una imagen nueva ahí sale
 // en la aplicación sin tocar código— más los que el Administrador Global añade
 // en EXPLORA Designer, y encima manda el orden global que se arrastra allí.
 //
@@ -27,8 +27,8 @@ import {
   esOrdenDeMedallasDeFabrica,
 } from './medallas-perfil.mjs';
 
-export const RUTA_PINES = '/parches/Cintas%20y%20medallas/pines';
-export const CARPETA_PINES = ['public', 'parches', 'Cintas y medallas', 'pines'];
+export const RUTA_PINES = '/insignias/pines';
+export const CARPETA_PINES = ['public', 'insignias', 'pines'];
 export const COLECCION_PINES_MIEMBROS = 'pines_miembros';
 // Junto al orden de cintas y medallas: la regla de `configuracion_cintas` ya lo cubre.
 export const DOCUMENTO_ORDEN_PINES = 'orden-pines';

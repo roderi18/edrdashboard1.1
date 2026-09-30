@@ -58,7 +58,7 @@ const db = getFirestore();
 const almacen = getStorage().bucket();
 
 // --- Lo que se crea ---------------------------------------------------------
-const CARPETA_POSICIONES = path.join(RAIZ, 'public/parches/Posiciones nivel local/mejorada');
+const CARPETA_POSICIONES = path.join(RAIZ, 'docs/tienda/imagenes/parches/posiciones-nivel-local');
 
 /** De `coordinador-asistente-destacamento.webp` a `Coordinador Asistente Destacamento`. */
 const nombreDesdeArchivo = (archivo) => {

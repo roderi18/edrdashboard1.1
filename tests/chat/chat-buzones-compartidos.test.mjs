@@ -364,7 +364,7 @@ test('la foto de un buzon solo admite https o una ruta de la aplicacion', () => 
     avatarDeBuzonValido('https://firebasestorage.googleapis.com/x.webp').startsWith('https'),
     true
   );
-  assert.equal(avatarDeBuzonValido('/logo/logo-single.png'), '/logo/logo-single.png');
+  assert.equal(avatarDeBuzonValido('/marca/logo-single.png'), '/marca/logo-single.png');
   assert.equal(avatarDeBuzonValido('//otro-sitio.test/x.png'), '');
   assert.equal(avatarDeBuzonValido('javascript:alert(1)'), '');
   assert.equal(avatarDeBuzonValido('http://inseguro.test/x.png'), '');

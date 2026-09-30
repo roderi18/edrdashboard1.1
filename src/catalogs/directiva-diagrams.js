@@ -105,7 +105,7 @@ export const NATIONAL_LEADERSHIP_DATA = {
     ]),
   ]),
   name: 'Concilio de las Asambleas de Dios',
-  avatarUrl: '/logo/asambleas-de-dios.png',
+  avatarUrl: '/marca/asambleas-de-dios.png',
   isDivision: true,
 };
 

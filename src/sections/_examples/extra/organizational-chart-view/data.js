@@ -85,7 +85,7 @@ export const LEADER_GROUP_DATA = [
     id: _mock.id(14),
     name: 'Navegantes',
     role: '5 a 7 años',
-    avatarUrl: '/logo/navegantes.png',
+    avatarUrl: '/marca/divisiones/navegantes.png',
     isDivision: true,
     children: [
       createNode(
@@ -115,7 +115,7 @@ export const LEADER_GROUP_DATA = [
     id: _mock.id(15),
     name: 'Pioneros',
     role: '8 a 10 años',
-    avatarUrl: '/logo/pioneros.png',
+    avatarUrl: '/marca/divisiones/pioneros.png',
     isDivision: true,
     children: [
       createNode(
@@ -145,7 +145,7 @@ export const LEADER_GROUP_DATA = [
     id: _mock.id(16),
     name: 'Seguidores',
     role: '11 a 13 años',
-    avatarUrl: '/logo/seguidores.png',
+    avatarUrl: '/marca/divisiones/seguidores.png',
     isDivision: true,
     children: [
       createNode(
@@ -175,7 +175,7 @@ export const LEADER_GROUP_DATA = [
     id: _mock.id(17),
     name: 'Exploradores',
     role: '14 a 17 años',
-    avatarUrl: '/logo/exploradores.png',
+    avatarUrl: '/marca/divisiones/exploradores.png',
     isDivision: true,
     children: [
       createNode(

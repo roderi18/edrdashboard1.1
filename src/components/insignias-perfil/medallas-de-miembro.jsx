@@ -50,7 +50,7 @@ import { useInsigniasPersonalizadas } from './use-insignias-personalizadas';
 // `medallas_miembros/{idMiembros}`, salen en el orden global que se arrastra en
 // EXPLORA Designer y, de momento, solo las pone a mano el Administrador Global
 // con el MISMO lápiz de las cintas, en su pestaña "Medallas".
-// El catálogo es la carpeta `public/parches/Cintas y medallas/medallas`: una
+// El catálogo es la carpeta `public/insignias/medallas`: una
 // imagen nueva ahí aparece aquí sin tocar código (`/api/insignias/medallas`).
 // ----------------------------------------------------------------------
 

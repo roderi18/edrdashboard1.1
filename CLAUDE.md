@@ -67,12 +67,12 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    Designer → Cintas: se guarda en `configuracion_cintas/orden` y manda en todos
    los perfiles y al asignarlas; sin orden guardado, el del archivo.
    **Las medallas, igual, pero el catálogo es la carpeta**
-   `public/parches/Cintas y medallas/medallas`: cualquier imagen que se deje ahí
+   `public/insignias/medallas`: cualquier imagen que se deje ahí
    sale en la aplicación (`/api/insignias/medallas`; en producción, el manifiesto
    que `prebuild` regenera). Las `-small` son su variante pequeña, no otra medalla.
    Se guardan en `medallas_miembros`; su orden, en `configuracion_cintas/orden-medallas`.
    Reglas en `src/utils/medallas-perfil.mjs`.
-   **Los pines, igual que las medallas** (carpeta `public/parches/Cintas y medallas/pines`,
+   **Los pines, igual que las medallas** (carpeta `public/insignias/pines`,
    `/api/insignias/pines`, `pines_miembros`, orden en `configuracion_cintas/orden-pines`),
    pero en el perfil van **encima de las cintas, centrados**, en una fila de como
    mucho 3. Reglas en `src/utils/pines-perfil.mjs`.
@@ -211,6 +211,14 @@ Suite que lo cubre: `npm run test:acceso`.
   nada de `@react-pdf/renderer` arriba en una pantalla) y caché
   (`conCache`/`conInvalidacion` de `src/utils/cache-de-lecturas.mjs`). Datos de
   personas, solo en memoria; cerrar sesión los borra todos.
+- **`public/` es solo lo que sirve la aplicación, y todo en él se descarga desde
+  internet**: `marca/` (logos), `iconos/`, `insignias/` (cintas, medallas, pines),
+  `sistemaAscenso/`, `fonts/` y la plantilla en `assets/`. Documentos, originales
+  de la tienda (sus fotos ya van a Storage), propuestas y material en proceso van
+  a `docs/` (`organizacion/`, `tienda/imagenes/<categoría>/`, `marca/`,
+  `auditorias/`, `en-proceso/`, `sin-clasificar/`). Si una ruta de `public/`
+  cambia, su vieja se suma a `src/utils/rutas-antiguas-de-imagenes.mjs`
+  (redirección permanente). Test: `tests/admin/organizacion-de-archivos.test.mjs`.
 - Código de servidor probable → `.mjs`, para importarlo desde `node --test`.
 - Tests en español, nombrados por el comportamiento, con encabezado que explica
   qué se rompía. Importan el **código real** vía `tests/soporte/resolver-alias-src.mjs`.

@@ -64,7 +64,7 @@ const almacen = getStorage().bucket();
 //
 // Cantidad: 10 de cada uno, la misma del lote anterior de pines. No se pidio una
 // cifra; se corrige desde la ficha si hace falta.
-const CARPETA = path.join(RAIZ, 'public/parches/Articulos de adiestramiento');
+const CARPETA = path.join(RAIZ, 'docs/tienda/imagenes/parches/adiestramiento');
 
 const ARTICULOS = [
   ['Adiestramiento Consejo Destacamento (ACD)', 'acd.webp', 'parches'],

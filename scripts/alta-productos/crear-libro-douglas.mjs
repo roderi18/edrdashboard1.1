@@ -64,7 +64,7 @@ const almacen = getStorage().bucket();
 const TODOS = [
   {
     nombre: 'Libro Convirtiéndose en un Hombre de Dios - Douglas Marsh',
-    imagen: path.join(RAIZ, 'public/parches/Otros/libro-douglas.webp'),
+    imagen: path.join(RAIZ, 'docs/tienda/imagenes/materiales-y-manuales/libro-douglas.webp'),
     categoria: 'materiales-manuales',
     renglon: 'general',
     registrado: 500,

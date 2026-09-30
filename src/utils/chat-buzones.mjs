@@ -39,7 +39,7 @@ export const BUZON_TIENDA = Object.freeze({
   nombre: 'Tienda Virtual',
   nombres: 'Tienda',
   apellidos: 'Virtual',
-  avatarPorDefecto: '/logo/logo-single.png',
+  avatarPorDefecto: '/marca/logo-single.png',
   // Codigos del catalogo de `roles.js`.
   cargos: Object.freeze(['administrador_tienda', 'administrador_global']),
   // Quien contesto de verdad, aparte del mensaje y solo para el servidor.
@@ -58,7 +58,7 @@ export const BUZON_OFICINA_NACIONAL = Object.freeze({
   nombre: 'Oficina Nacional',
   nombres: 'Oficina',
   apellidos: 'Nacional',
-  avatarPorDefecto: '/logo/logo-single.png',
+  avatarPorDefecto: '/marca/logo-single.png',
   // El Administrador Global atiende todos los buzones, igual que en la Tienda.
   cargos: Object.freeze(['oficina_nacional', 'administrador_global']),
   coleccionRespuestas: 'respuestas_oficina',

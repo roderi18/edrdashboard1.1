@@ -13,7 +13,7 @@ import {
 } from '../../src/utils/producto-codigo.mjs';
 
 const RAIZ = 'C:/Users/rdpr1/OneDrive/Escritorio/next-js';
-const CARPETA = path.join(RAIZ, 'public/parches/Cintas y medallas/numerosTela');
+const CARPETA = path.join(RAIZ, 'docs/tienda/imagenes/barras-y-numeros/numeros-tela');
 const APLICAR = process.argv.includes('--aplicar');
 const CATEGORIA = 'barras-numeros';
 const PREFIJO = prefijoDeCategoriaProducto(CATEGORIA, 'Barras y Numeros');

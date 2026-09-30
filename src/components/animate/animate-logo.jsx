@@ -28,7 +28,7 @@ export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
       >
         {logo ?? (
           <LoadingIsotipo
-            src="/logo/explora-o-isotipo.webp?v=1"
+            src="/marca/explora-o-isotipo.webp?v=1"
             alt=""
             aria-hidden="true"
             width={64}

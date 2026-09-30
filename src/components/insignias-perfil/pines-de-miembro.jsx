@@ -40,7 +40,7 @@ import { useInsigniasPersonalizadas } from './use-insignias-personalizadas';
 // solo los pone a mano el Administrador Global con el MISMO lápiz de las cintas,
 // en su pestaña "Pines". En el perfil van ENCIMA de las cintas, en una fila
 // centrada, cada uno del ancho de una cinta.
-// El catálogo es la carpeta `public/parches/Cintas y medallas/pines` más los
+// El catálogo es la carpeta `public/insignias/pines` más los
 // añadidos en el Designer (`/api/insignias/pines`).
 // ----------------------------------------------------------------------
 

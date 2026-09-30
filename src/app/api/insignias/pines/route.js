@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 // ----------------------------------------------------------------------
 // EL CATÁLOGO DE PINES ES LA CARPETA, como el de medallas
-// (`/api/insignias/medallas`): se lee `public/parches/Cintas y medallas/pines`
+// (`/api/insignias/medallas`): se lee `public/insignias/pines`
 // en el momento y, donde no se puede —la función de Netlify no lleva `public/`—,
 // el manifiesto que `prebuild` escribe antes de cada build. Son nombres de
 // imágenes públicas: no hace falta sesión.

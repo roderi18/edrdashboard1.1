@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // CINTAS DEL PERFIL: CATÁLOGO, ORDEN Y FILAS.
 //
-// Cada cinta es un WebP de `public/parches/Cintas y medallas/cintas-perfil` y el
+// Cada cinta es un WebP de `public/insignias/cintas` y el
 // prefijo del archivo ES su orden oficial. Se guarda solo ese prefijo ('3',
 // '12a'): si mañana se renombra el resto del archivo, lo ya asignado no se rompe.
 //
@@ -15,7 +15,7 @@
 
 import { TEXTOS_CINTAS_PERFIL } from './cintas-perfil-textos.mjs';
 
-export const RUTA_CINTAS_PERFIL = '/parches/Cintas%20y%20medallas/cintas-perfil';
+export const RUTA_CINTAS_PERFIL = '/insignias/cintas';
 export const COLECCION_CINTAS_MIEMBROS = 'cintas_miembros';
 // El orden GLOBAL que pone el Administrador Global arrastrando en EXPLORA
 // Designer: `configuracion_cintas/orden` → `{ orden: ['3', '1', …] }`.
@@ -285,7 +285,7 @@ export const disponerCintasEnFilas = (
 // una vez, se le pone encima el número en dorado (`numeros-cintas`). Con 1 no
 // se pone número. Es el mismo dato que usarán los awards y adiestramientos que
 // cuentan cuántas veces se completaron: sale de aquí, no de cada pantalla.
-export const RUTA_NUMEROS_CINTAS = '/parches/Cintas%20y%20medallas/numeros-cintas';
+export const RUTA_NUMEROS_CINTAS = '/insignias/numeros-cintas';
 export const MAXIMO_VECES_CINTA = 99;
 
 export const normalizarVeces = (valor) => {

@@ -19,7 +19,7 @@ const MANIFIESTOS = [
 ];
 
 MANIFIESTOS.forEach(({ carpeta: nombre, destino: archivo }) => {
-  const carpeta = path.join(process.cwd(), 'public', 'parches', 'Cintas y medallas', nombre);
+  const carpeta = path.join(process.cwd(), 'public', 'insignias', nombre);
   const destino = path.join(process.cwd(), 'src', 'utils', archivo);
 
   const archivos = fs.existsSync(carpeta)

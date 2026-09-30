@@ -48,3 +48,6 @@ yarn.lock
 
 # Copias que dejan los scripts de limpieza antes de borrar (datos reales).
 scripts/respaldo-*.json
+
+# Respaldos con datos de personas: nunca en el repositorio.
+docs/backups/

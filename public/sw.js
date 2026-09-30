@@ -1,4 +1,4 @@
-const VERSION = 'edr-pwa-v5';
+const VERSION = 'edr-pwa-v6';
 
 // EN DESARROLLO NO SE INTERCEPTA NADA. Los bundles de `/_next/static/` se guardan
 // "para siempre" porque en produccion llevan una huella en el nombre; en `next
@@ -16,7 +16,7 @@ const STATIC_ASSETS = [
   '/icon-512x512.png',
   '/maskable-icon-192x192.png',
   '/maskable-icon-512x512.png',
-  '/logo/logo-single.png',
+  '/marca/logo-single.png',
 ];
 
 const STATIC_PATHS = [
@@ -26,8 +26,8 @@ const STATIC_PATHS = [
   '/_next/static/',
   '/assets/',
   '/fonts/',
-  '/icons/',
-  '/logo/',
+  '/iconos/',
+  '/marca/',
   '/icon-',
   '/maskable-icon-',
 ];
