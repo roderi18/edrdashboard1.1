@@ -45,7 +45,8 @@ test('public no guarda documentos de oficina ni comprimidos', () => {
   const recorrer = (carpeta) => {
     for (const entrada of fs.readdirSync(carpeta, { withFileTypes: true })) {
       const ruta = path.join(carpeta, entrada.name);
-      if (ruta === descargables) continue;
+      // La copia local de lo quitado: está en `.gitignore` y nunca se publica.
+      if (ruta === descargables || entrada.name === 'documentosNoUsados.zip') continue;
       if (entrada.isDirectory()) recorrer(ruta);
       else if (prohibidas.test(entrada.name)) hallados.push(path.relative(RAIZ, ruta));
     }

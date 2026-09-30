@@ -213,10 +213,14 @@ Suite que lo cubre: `npm run test:acceso`.
   personas, solo en memoria; cerrar sesión los borra todos.
 - **`public/` es solo lo que sirve la aplicación, y todo en él se descarga desde
   internet**: `marca/` (logos), `iconos/`, `insignias/` (cintas, medallas, pines),
-  `sistemaAscenso/`, `fonts/` y la plantilla en `assets/`. Documentos, originales
-  de la tienda (sus fotos ya van a Storage), propuestas y material en proceso van
-  a `docs/` (`organizacion/`, `tienda/imagenes/<categoría>/`, `marca/`,
-  `auditorias/`, `en-proceso/`, `sin-clasificar/`). Si una ruta de `public/`
+  `sistemaAscenso/`, `fonts/` y la plantilla en `assets/`. Los documentos van a
+  `docs/` (`organizacion/`, `tienda/`, `marca/`, `auditorias/`,
+  `reportes-de-avance/`). Lo que no se usaba (originales de la tienda —sus fotos
+  ya están en Storage—, iconos y portadas viejas, propuestas, material en
+  proceso) se quitó y solo queda en `public/documentosNoUsados.zip`, que está en
+  `.gitignore`: los scripts de `scripts/alta-productos/` leen de ahí
+  (`docs/tienda/imagenes/`), así que para volver a usarlos hay que descomprimirlo
+  en `docs/`. Si una ruta de `public/`
   cambia, su vieja se suma a `src/utils/rutas-antiguas-de-imagenes.mjs`
   (redirección permanente). Test: `tests/admin/organizacion-de-archivos.test.mjs`.
 - Código de servidor probable → `.mjs`, para importarlo desde `node --test`.
