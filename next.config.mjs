@@ -57,6 +57,22 @@ const nextConfig = {
           },
         ],
       },
+      // LAS IMÁGENES FIJAS NO SE VUELVEN A PEDIR EN CADA VISITA. Sin esto Netlify
+      // las servía con `max-age=0` y el navegador preguntaba por cada insignia
+      // de cada pantalla. Un día sin preguntar y, pasado, se muestra la guardada
+      // mientras se comprueba por detrás: no llevan huella en el nombre, así que
+      // una insignia cambiada tiene que poder verse sin borrar nada a mano.
+      ...['/insignias/:ruta*', '/sistemaAscenso/:ruta*', '/marca/:ruta*', '/iconos/:ruta*'].map(
+        (source) => ({
+          source,
+          headers: [
+            {
+              key: 'Cache-Control',
+              value: 'public, max-age=86400, stale-while-revalidate=604800',
+            },
+          ],
+        })
+      ),
       {
         source: '/manifest.webmanifest',
         headers: [

@@ -12,3 +12,26 @@
   # `/api/cargos` y `/api/chat`. El `NODE_VERSION` de arriba solo afecta al
   # build, no al runtime de las funciones.
   AWS_LAMBDA_JS_RUNTIME = "nodejs22.x"
+
+# Las imágenes fijas no se vuelven a pedir en cada visita (la misma regla está en
+# `next.config.mjs` para App Hosting). Netlify sirve `public/` desde su CDN sin
+# pasar por Next, así que aquí se repite para que la aplique seguro.
+[[headers]]
+  for = "/insignias/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
+
+[[headers]]
+  for = "/sistemaAscenso/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
+
+[[headers]]
+  for = "/marca/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
+
+[[headers]]
+  for = "/iconos/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"

@@ -1,4 +1,4 @@
-const VERSION = 'edr-pwa-v6';
+const VERSION = 'edr-pwa-v7';
 
 // EN DESARROLLO NO SE INTERCEPTA NADA. Los bundles de `/_next/static/` se guardan
 // "para siempre" porque en produccion llevan una huella en el nombre; en `next
@@ -31,6 +31,13 @@ const STATIC_PATHS = [
   '/icon-',
   '/maskable-icon-',
 ];
+
+// LAS INSIGNIAS SALEN AL INSTANTE. Cada perfil, premio y organigrama pinta
+// decenas de insignias de `/insignias/` y `/sistemaAscenso/`, y se pedían a la
+// red cada vez. No llevan huella en el nombre —una insignia se puede cambiar
+// dejando el mismo archivo—, así que no van con `cacheFirst` (se quedarían
+// viejas para siempre): se muestra la guardada y se renueva por detrás.
+const IMAGENES_FIJAS = ['/insignias/', '/sistemaAscenso/'];
 
 // Las pantallas cuyo HTML se guarda para poder RECARGAR sin conexion. Solo el
 // panel: el resto no tiene sentido sin servidor.
@@ -106,6 +113,11 @@ self.addEventListener('fetch', (event) => {
 
   if (STATIC_PATHS.some((path) => url.pathname.startsWith(path))) {
     event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  if (IMAGENES_FIJAS.some((path) => url.pathname.startsWith(path))) {
+    event.respondWith(guardadaYRenovada(request, event));
   }
 });
 
@@ -232,6 +244,25 @@ async function redPrimeroConMemoria(request) {
 
     throw error;
   }
+}
+
+async function guardadaYRenovada(request, event) {
+  const cache = await caches.open(STATIC_CACHE);
+  const guardada = await cache.match(request);
+  const renovar = fetch(request)
+    .then((response) => {
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => guardada);
+
+  if (guardada) {
+    // Sin esperar a la red; `waitUntil` deja terminar la renovación.
+    event.waitUntil(renovar);
+    return guardada;
+  }
+
+  return renovar;
 }
 
 async function cacheFirst(request) {
