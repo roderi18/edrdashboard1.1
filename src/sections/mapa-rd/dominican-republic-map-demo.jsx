@@ -25,16 +25,16 @@ import geografia from './republica-dominicana.geo.json';
 import { agruparPor } from './destacamentos-del-mapa.mjs';
 import { MAP_WIDTH, MAP_HEIGHT, crearContorno, crearProyeccion } from './geometria-mapa.mjs';
 import {
-  LeyendaDeRegiones,
-  NumerosDeProvincias,
-  useDestacamentosDelMapa,
-} from './destacamentos-en-mapa';
-import {
   MarcoEditable,
   PanelEditorMapa,
   ElementosEditables,
   useComposicionMapa,
 } from './editor-mapa';
+import {
+  LeyendaDeRegiones,
+  NumerosDeProvincias,
+  useDestacamentosDelMapa,
+} from './destacamentos-en-mapa';
 
 const COUNTRY_PATH = crearContorno(geografia.geometry);
 const proyectarNombre = crearProyeccion(geografia.geometry);
@@ -67,7 +67,12 @@ const CONTROL_SX = {
 };
 
 /** `alto`: pantalla entera por defecto; dentro del panel, lo que deja la cabecera. */
-export function DominicanRepublicMapDemo({ alto = '100dvh' } = {}) {
+export function DominicanRepublicMapDemo({
+  alto = '100dvh',
+  datosDestacamentos,
+  provinciaSeleccionada = '',
+  onSeleccionarProvincia,
+} = {}) {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
   const theme = useTheme();
@@ -85,7 +90,12 @@ export function DominicanRepublicMapDemo({ alto = '100dvh' } = {}) {
   const { zoom, x, y } = vista;
   const pantallaCompleta = isFullscreen || pantallaAmpliada;
   // Los destacamentos del padrón: un número por provincia y el total por región.
-  const destacamentos = useDestacamentosDelMapa(NOMBRES_DEL_MAPA);
+  const destacamentosDelHook = useDestacamentosDelMapa(
+    NOMBRES_DEL_MAPA,
+    datosDestacamentos === undefined
+  );
+  const destacamentos =
+    datosDestacamentos === undefined ? destacamentosDelHook : datosDestacamentos;
   const porProvincia = useMemo(() => agruparPor(destacamentos || [], 'provincia'), [destacamentos]);
   const porRegion = useMemo(() => agruparPor(destacamentos || [], 'region'), [destacamentos]);
   // La región señalada en la leyenda se pinta sobre el mapa.
@@ -215,7 +225,11 @@ export function DominicanRepublicMapDemo({ alto = '100dvh' } = {}) {
                         ? theme.palette[provincia.region.color].main
                         : 'none'
                     }
-                    fillOpacity={0.9}
+                    fillOpacity={
+                      provinciaSeleccionada && provinciaSeleccionada !== provincia.nombre
+                        ? 0.55
+                        : 0.9
+                    }
                     stroke={mostrarRegiones ? '#ffffff' : '#a2c9d7'}
                     strokeOpacity={mostrarRegiones ? 0.6 : 0.65}
                     strokeWidth={1}
@@ -225,6 +239,31 @@ export function DominicanRepublicMapDemo({ alto = '100dvh' } = {}) {
                 ))}
               </g>
             )}
+            {onSeleccionarProvincia &&
+              PROVINCE_PATHS.map((provincia) => (
+                <path
+                  key={`seleccionar-${provincia.id}`}
+                  d={provincia.path}
+                  fill="transparent"
+                  stroke={provinciaSeleccionada === provincia.nombre ? '#fff' : 'none'}
+                  strokeWidth={provinciaSeleccionada === provincia.nombre ? 3 : 0}
+                  vectorEffect="non-scaling-stroke"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Ver datos de ${provincia.nombre}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSeleccionarProvincia(provincia.nombre);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSeleccionarProvincia(provincia.nombre);
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+              ))}
             <path
               d={COUNTRY_PATH}
               fill="none"
@@ -310,6 +349,7 @@ export function DominicanRepublicMapDemo({ alto = '100dvh' } = {}) {
                 zoom={zoom}
                 subir={conDivisiones && mostrarNombres ? 22 / Math.sqrt(zoom) : 0}
                 contenedor={contenedor}
+                onSeleccionarProvincia={onSeleccionarProvincia}
               />
             )}
           </g>
@@ -470,9 +510,19 @@ export function DominicanRepublicMapDemo({ alto = '100dvh' } = {}) {
               sx={{ py: 0.5, gap: 0.75, display: 'grid', gridTemplateColumns: '1fr 1fr' }}
             >
               {REGIONES_RD.map((region) => (
-                <Stack key={region.nombre} direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                <Stack
+                  key={region.nombre}
+                  direction="row"
+                  spacing={0.75}
+                  sx={{ alignItems: 'center' }}
+                >
                   <Box
-                    sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: `${region.color}.main` }}
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      bgcolor: `${region.color}.main`,
+                    }}
                   />
                   <Typography variant="caption">{region.nombre.replace('Región ', '')}</Typography>
                 </Stack>

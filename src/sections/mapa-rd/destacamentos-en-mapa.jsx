@@ -30,13 +30,17 @@ const ANCHO_ARO_LOGO = 2;
 const lista = (json) => (Array.isArray(json) ? json : json?.data || json?.Data || []);
 
 /** Lee el padrón y lo deja con provincia y región. `null` mientras carga. */
-export function useDestacamentosDelMapa(provinciasDelMapa) {
+export function useDestacamentosDelMapa(provinciasDelMapa, enabled = true) {
   const [destacamentos, setDestacamentos] = useState(null);
   useEffect(() => {
+    if (!enabled) return undefined;
     let activo = true;
     const leer = (ruta) =>
       fetch(ruta)
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error(`Error ${r.status}`);
+          return r.json();
+        })
         .then(lista)
         .catch(() => []);
     Promise.all(
@@ -56,7 +60,7 @@ export function useDestacamentosDelMapa(provinciasDelMapa) {
     return () => {
       activo = false;
     };
-  }, [provinciasDelMapa]);
+  }, [provinciasDelMapa, enabled]);
   return destacamentos;
 }
 
@@ -120,7 +124,14 @@ export function ListaFlotante({ titulo, destacamentos = [], contenedor, children
 }
 
 /** Un círculo con el número de destacamentos en cada provincia que tiene alguno. */
-export function NumerosDeProvincias({ provincias, porProvincia, zoom, subir = 0, contenedor }) {
+export function NumerosDeProvincias({
+  provincias,
+  porProvincia,
+  zoom,
+  subir = 0,
+  contenedor,
+  onSeleccionarProvincia,
+}) {
   const radio = 12 / Math.sqrt(zoom);
   return (
     <g data-testid="numeros-provincias">
@@ -139,7 +150,11 @@ export function NumerosDeProvincias({ provincias, porProvincia, zoom, subir = 0,
               destacamentos={porProvincia.get(p.nombre)}
               contenedor={contenedor}
             >
-              <Box component="g" sx={{ cursor: 'pointer' }}>
+              <Box
+                component="g"
+                sx={{ cursor: 'pointer' }}
+                onClick={() => onSeleccionarProvincia?.(p.nombre)}
+              >
                 {esDistrito && (
                   <line
                     x1={p.posicion.x}
@@ -260,7 +275,9 @@ export function LeyendaDeRegiones({ porRegion, total, sinProvincia, onSenalar, c
         component="p"
         sx={{ mt: 0.75, textAlign: 'center', opacity: 0.7 }}
       >
-        {total} destacamentos      </Typography>
+        {total} destacamentos · {total - sinProvincia} con provincia en el padrón
+        {sinProvincia ? ` (${sinProvincia} sin ubicación)` : ''}
+      </Typography>
     </Paper>
   );
 }

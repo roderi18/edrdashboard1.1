@@ -154,7 +154,44 @@ export function BuscarPersona({ ruta, etiqueta, textoNuevo = 'No está en la lis
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
           ¿No aparece?
         </Typography>
-        <Button size="small" startIcon={<Iconify icon="solar:user-plus-linear" />} onClick={() => cambiarModo('nuevo')}>
+        <Button
+          size="small"
+          startIcon={<Iconify icon="solar:user-plus-linear" />}
+          onClick={() => cambiarModo('nuevo')}
+          sx={{
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          <Box
+            component="span"
+            aria-hidden
+            sx={{
+              inset: 0,
+              position: 'absolute',
+              overflow: 'hidden',
+              borderRadius: 'inherit',
+              pointerEvents: 'none',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                width: '45%',
+                left: '-60%',
+                background:
+                  'linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent)',
+                animation: 'olaDentroDelBoton 2.4s ease-in-out infinite',
+              },
+              '@keyframes olaDentroDelBoton': {
+                '0%': { left: '-60%' },
+                '60%, 100%': { left: '120%' },
+              },
+              '@media (prefers-reduced-motion: reduce)': {
+                '&::before': { animation: 'none', display: 'none' },
+              },
+            }}
+          />
           {textoNuevo}
         </Button>
       </Stack>

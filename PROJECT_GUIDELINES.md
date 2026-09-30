@@ -1248,3 +1248,11 @@ el código — y corrige el documento._
 - El cambio usa tokens personalizados de Firebase y no modifica la contraseña, el rol ni los permisos del miembro.
 - La barra amarilla debe permanecer visible durante la prueba y ofrecer **Volver a mi cuenta**. La identidad original se conserva únicamente en una cookie firmada y `HttpOnly`.
 - Esta capacidad está disponible en producción. La API debe comprobar siempre el correo firmado por Firebase Auth y el registro activo de Administrador Global; ocultar el botón en el cliente no sustituye esa comprobación.
+
+# Datos demográficos
+
+- `/dashboard/level/datos-demograficos` usa el mismo GeoJSON, colores provinciales, emblemas regionales y controles del mapa de `src/sections/mapa-rd`.
+- Las cifras se calculan con los catálogos de destacamentos, iglesias, secciones y regiones, y con los miembros que devuelve `/api/members/` para la sesión actual. No se guardan cifras de la maqueta como datos reales.
+- Región corresponde a la cadena organizacional destacamento → iglesia → sección → región; provincia se obtiene de la dirección del destacamento o iglesia. Las categorías se derivan de edad vigente y, cuando falta nacimiento, de la división registrada. “Provisional” se excluye.
+- El selector de período afecta únicamente a la serie de altas mensuales porque el padrón no ofrece fotografías históricas de membresía. Los indicadores restantes describen el padrón actual. Si una fuente falla, se muestra el error en vez de cifras parciales.
+- Las reglas de cálculo están en `estadisticas-demograficas.mjs`; los filtros, tarjetas y gráficos son componentes separados. Pruebas: `tests/mapa-rd/estadisticas-demograficas.test.mjs`.

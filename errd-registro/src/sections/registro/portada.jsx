@@ -922,10 +922,11 @@ export function Portada({ destacamentos, secciones = [], padron = [] }) {
             sx={{
               position: "relative",
               display: { xs: "none", md: "block" },
-              // Un poco más grande que antes (620).
-              maxWidth: 660,
-              justifySelf: "end",
+              // Más presencia vertical sin cambiar el lenguaje visual del mapa.
+              maxWidth: 730,
+              justifySelf: "center",
               width: 1,
+              pl: { md: 3, lg: 4 },
               // Con la lista fuera (pantallas anchas), el bloque se corre un poco a
               // la izquierda para que la lista no quede pegada al borde. Correrlo
               // todo lo que mide la lista pisaba el título.
