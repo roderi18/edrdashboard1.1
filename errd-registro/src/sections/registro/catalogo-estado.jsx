@@ -26,6 +26,49 @@ const COLOR_REGION = {
   'Región Norte': PALETA.amarillo,
 };
 const ORDEN = ['Región Central', 'Región Sur', 'Región Este', 'Región Norte'];
+const FILAS_POR_COLUMNA_REGION = 20;
+const MENSAJES_REGIONALES = [
+  {
+    min: 0,
+    max: 9,
+    textos: [
+      ['Inicio bajo. Conviene', 'convocar a los líderes', 'y completar lo urgente.'],
+      ['La región necesita', 'activarse. Prioricen los', 'destacamentos sin envío.'],
+      ['Aún hay mucho por', 'levantar. Un contacto', 'directo inicia el avance.'],
+      ['Es momento de empujar', 'el arranque y definir', 'los primeros registros.'],
+    ],
+  },
+  {
+    min: 10,
+    max: 24,
+    textos: [
+      ['La región ya comenzó.', 'Prioricen contactar a', 'los que faltan por enviar.'],
+      ['Hay movimiento en la zona.', 'Un seguimiento directo', 'puede duplicar el avance.'],
+      ['Buen arranque inicial.', 'Falta activar a los', 'destacamentos pendientes.'],
+      ['El avance toma forma.', 'Mantengan el ritmo y', 'cierren registros cercanos.'],
+    ],
+  },
+  {
+    min: 25,
+    max: 49,
+    textos: [
+      ['La región avanza firme.', 'Enfoquen esfuerzos en', 'los pendientes clave.'],
+      ['Buen progreso regional.', 'Revisen la lista y asignen', 'responsables por zona.'],
+      ['Ya hay base completada.', 'Ahora toca acelerar', 'el tramo medio.'],
+      ['El avance es visible.', 'Un empuje coordinado', 'puede acercarlos a la mitad.'],
+    ],
+  },
+  {
+    min: 50,
+    max: 100,
+    textos: [
+      ['La región marca avance', 'fuerte. Mantengan el', 'seguimiento hasta cerrar.'],
+      ['Excelente progreso.', 'Ahora enfoquen energía', 'en los últimos pendientes.'],
+      ['La meta está más cerca.', 'Cuiden que ningún', 'destacamento quede atrás.'],
+      ['Gran respuesta regional.', 'Sostengan el ritmo hasta', 'completar el registro.'],
+    ],
+  },
+];
 
 function Rect({ x, y, width, height, fill = PALETA.tarjeta, stroke = PALETA.linea, rx = 8, ...rest }) {
   return <rect x={x} y={y} width={width} height={height} rx={rx} fill={fill} stroke={stroke} {...rest} />;
@@ -42,6 +85,35 @@ function Lineas({ x, y, lineas, size = 12, salto = 17, color = PALETA.blanco, we
 const porcentaje = (n, total) => total ? Math.round(n / total * 100) : 0;
 const nombreCorto = (d) => d.numero ? `Dest. ${d.numero}` : d.nombre || 'Sin número';
 const ordenar = (a, b) => (Number(a.numero) || 999999) - (Number(b.numero) || 999999) || nombreCorto(a).localeCompare(nombreCorto(b), 'es');
+
+function envolverTexto(texto, maxCaracteres, maxLineas = 2) {
+  const palabras = String(texto).split(/\s+/).filter(Boolean);
+  const lineas = [];
+
+  for (const palabra of palabras) {
+    const actual = lineas[lineas.length - 1] || '';
+    const siguiente = actual ? `${actual} ${palabra}` : palabra;
+
+    if (!actual) {
+      lineas.push(palabra);
+    } else if (siguiente.length <= maxCaracteres) {
+      lineas[lineas.length - 1] = siguiente;
+    } else if (lineas.length < maxLineas) {
+      lineas.push(palabra);
+    } else {
+      lineas[lineas.length - 1] = `${actual} ${palabra}`;
+    }
+  }
+
+  return lineas.slice(0, maxLineas);
+}
+
+function mensajeRegional(pct, indiceRegion) {
+  const rango = MENSAJES_REGIONALES.find(({ min, max }) => pct >= min && pct <= max);
+  const textos = rango?.textos || MENSAJES_REGIONALES[0].textos;
+
+  return textos[indiceRegion % textos.length];
+}
 
 function cuenta(cierre, servidorAhora, capturaAhora, mostrar) {
   if (!mostrar || !cierre || !servidorAhora) return null;
@@ -81,10 +153,11 @@ function MapaCatalogo({ enviados, y, alto }) {
 function Lamina({ padron, enviados, cuentaConfig, capturaAhora, imagenes, svgRef }) {
   const listas = Object.fromEntries(ORDEN.map((nombre) => [nombre, enviados.filter((d) => d.region === nombre).sort(ordenar)]));
   const totales = Object.fromEntries(ORDEN.map((nombre) => [nombre, padron.filter((d) => d.region === nombre).length]));
-  const maxFilas = Math.max(...ORDEN.map((nombre) => listas[nombre].length));
-  const altoTarjetas = Math.max(460, 74 + maxFilas * 22 + 30);
-  const alto = Math.max(1600, 876 + altoTarjetas + 262);
-  const pieY = alto - 31;
+  const maxFilas = Math.max(...ORDEN.map((nombre) => Math.min(FILAS_POR_COLUMNA_REGION, listas[nombre].length || FILAS_POR_COLUMNA_REGION)));
+  const altoTarjetas = Math.max(460, 74 + maxFilas * 22 + 129 + 38);
+  const tarjetasBottom = 876 + altoTarjetas;
+  const pieY = tarjetasBottom + 54;
+  const alto = pieY + 54;
   const restantes = cuenta(cuentaConfig?.cierre, cuentaConfig?.ahora, capturaAhora, cuentaConfig?.mostrar);
   const actualizados = enviados.length;
   const pendientes = Math.max(0, padron.length - actualizados);
@@ -218,39 +291,64 @@ function Lamina({ padron, enviados, cuentaConfig, capturaAhora, imagenes, svgRef
         const color = COLOR_REGION[nombre];
         const lista = listas[nombre];
         const total = totales[nombre];
-        const statusY = Math.max(1069, 926 + lista.length * 22 + 14);
+        const pct = porcentaje(lista.length, total);
+        const columnas = lista.length > FILAS_POR_COLUMNA_REGION
+          ? [lista.slice(0, FILAS_POR_COLUMNA_REGION), lista.slice(FILAS_POR_COLUMNA_REGION)]
+          : [lista];
+        const filasVisibles = Math.min(FILAS_POR_COLUMNA_REGION, lista.length);
+        const statusY = Math.max(1069, 926 + filasVisibles * 22 + 14);
         const statusH = 129;
         return <g key={nombre}>
           <Rect x={x} y={876} width={184} height={altoTarjetas} fill="#10223c" stroke={color} rx={7} />
           <rect x={x} y={876} width={184} height={32} rx={5} fill={color} />
           <Txt x={x + 10} y={896} size={13} weight={700} color={nombre === 'Región Norte' ? '#192c44' : PALETA.blanco}>{nombre.toUpperCase()} ({lista.length})</Txt>
-          {lista.length ? lista.map((d, j) => (
-            <g key={d.id || `${nombre}-${j}`}>
-              <path d={`M${x + 10} ${919 + j * 22} l7 4 -7 4 z`} fill={color} />
-              <Txt x={x + 20} y={924 + j * 22} size={nombreCorto(d).length > 19 ? 9 : 11} weight={600}>{nombreCorto(d)}</Txt>
-            </g>
-          )) : <>
+          {lista.length ? columnas.map((columna, columnaIndex) => {
+            const offsetX = columnaIndex * 87;
+            return columna.map((d, j) => {
+              const texto = nombreCorto(d);
+              const dosColumnas = columnas.length > 1;
+              const size = dosColumnas ? 8.5 : 11;
+              const lineas = envolverTexto(texto, dosColumnas ? 13 : 22);
+              return (
+                <g key={d.id || `${nombre}-${columnaIndex}-${j}`}>
+                  <path d={`M${x + 10 + offsetX} ${919 + j * 22} l7 4 -7 4 z`} fill={color} />
+                  <Txt
+                    x={x + 20 + offsetX}
+                    y={924 + j * 22}
+                    size={size}
+                    weight={600}
+                  >
+                    {lineas.map((linea, lineaIndex) => (
+                      <tspan key={linea} x={x + 20 + offsetX} dy={lineaIndex ? size + 1 : 0}>
+                        {linea}
+                      </tspan>
+                    ))}
+                  </Txt>
+                </g>
+              );
+            });
+          }) : <>
             <Rect x={x + 9} y={919} width={166} height={122} fill="#252323" stroke={color} rx={5} />
             <Txt x={x + 16} y={940} size={13} weight={700} color={color}>PENDIENTE REGISTRO</Txt>
             <Txt x={x + 16} y={961} size={11}>0 de {total} registrados</Txt>
             <Lineas x={x + 16} y={980} lineas={['¡Atención líderes de esta', 'región! Aún no hay', 'destacamentos registrados', 'en esta zona.']} size={10} salto={12} />
           </>}
-          {lista.length > 0 && lista.length <= 10 ? <>
+          {lista.length > 0 ? <>
             <Rect x={x + 9} y={statusY} width={166} height={statusH} fill="#172c40" stroke={color} rx={5} />
             <Txt x={x + 16} y={statusY + 20} size={13} weight={700} color={color}>ESTATUS REGIONAL</Txt>
             <Txt x={x + 16} y={statusY + 41} size={11} weight={700}>{lista.length} de {total} registrados</Txt>
-            <Txt x={x + 16} y={statusY + 59} size={11}>{porcentaje(lista.length, total)}% de avance en la zona.</Txt>
-            <Lineas x={x + 16} y={statusY + 81} lineas={['¡Invitamos a los líderes', 'a completar el censo', 'oficial!']} size={10} salto={12} />
+            <Txt x={x + 16} y={statusY + 59} size={11}>{pct}% de avance en la zona.</Txt>
+            <Lineas x={x + 16} y={statusY + 81} lineas={mensajeRegional(pct, i)} size={10} salto={12} />
           </> : !lista.length ? <>
             <Rect x={x + 9} y={1055} width={166} height={142} fill="#19355b" stroke={color} rx={5} />
             <Txt x={x + 16} y={1076} size={13} weight={700} color={color}>¡SÉ EL PRIMERO!</Txt>
             <Lineas x={x + 16} y={1097} lineas={['¡Haz que tu destacamento', 'brille en el mapa!', '', 'Ingresa al formulario', 'y completa los datos hoy.']} size={10} salto={13} />
           </> : null}
-          <Txt x={x + 10} y={876 + altoTarjetas - 17} size={10}>Meta: {lista.length} / {total} ({porcentaje(lista.length, total)}%)</Txt>
+          <Txt x={x + 10} y={876 + altoTarjetas - 17} size={10}>Meta: {lista.length} / {total} ({pct}%)</Txt>
         </g>;
       })}
-      {/* Las dos líneas del pie en la misma franja: la de la fecha quedaba fuera, encima. */}
-      <rect x="0" y={pieY - 26} width={ANCHO} height="57" fill="#07111f" />
+      {/* Pie dentro del marco general, justo debajo de las tarjetas regionales. */}
+      <rect x="14" y={pieY - 26} width="820" height="57" fill="#07111f" />
       <Txt x={424} y={pieY - 6} size={10} color={PALETA.suave} anchor="middle">Estado generado el {fecha} (hora de Santo Domingo)</Txt>
       <Txt x={424} y={pieY + 14} size={10} color={PALETA.suave} anchor="middle">Exploradores del Rey • República Dominicana • Proceso Oficial de Actualización de Destacamentos</Txt>
     </svg>
