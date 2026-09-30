@@ -341,9 +341,11 @@ export async function guardarEnvio({ envio, logo, fotoMiembro, ip, rafaga = fals
 
 // ---------------------------------------------------------------- mapa de la portada
 
-// Un destacamento cuenta UNA vez aunque envíe varias veces. Los del padrón se
-// reconocen por su id; los nuevos (sin id) por sección + nombre, sin tildes ni
-// mayúsculas, para que "Los Pinos" y "los pinos" no sumen dos.
+// Un destacamento cuenta UNA vez aunque envíe varias veces. Si tiene número,
+// manda el número: no debe aparecer dos veces en el estado aunque haya quedado
+// ligado a ids distintos. Sin número, los del padrón se reconocen por su id; los
+// nuevos por sección + nombre, sin tildes ni mayúsculas, para que "Los Pinos" y
+// "los pinos" no sumen dos.
 const sinTildes = (v) =>
   String(v ?? "")
     .normalize("NFD")
@@ -353,7 +355,9 @@ const sinTildes = (v) =>
     .toLowerCase();
 
 export const claveDeDestacamento = (e) =>
-  e.destacamento?.id
+  sinTildes(e.datos?.numero || e.destacamento?.numero || e.numeroDestacamento)
+    ? `numero:${sinTildes(e.datos?.numero || e.destacamento?.numero || e.numeroDestacamento)}`
+    : e.destacamento?.id
     ? `id:${e.destacamento.id}`
     : `nuevo:${e.seccion?.id ?? ""}:${sinTildes(e.destacamento?.nombre ?? e.nombreDestacamento)}`;
 
