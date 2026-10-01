@@ -12,6 +12,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { vaComoPush } from 'src/utils/avisos-solo-campana.mjs';
 import { ROLES_CONSEJO_EJECUTIVO } from 'src/utils/org-level-access';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 import { ESTATUS_MIEMBRO, opcionEstatusMiembro } from 'src/utils/estatus-miembro.mjs';
@@ -743,7 +744,10 @@ export async function crearNotificacionUsuario({
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('notificaciones:actualizar'));
-    enviarPushDeAvisoCreado(notificacionConfigurada.id);
+    // Los de inventario solo van a la campana (ver `avisos-solo-campana.mjs`).
+    if (vaComoPush(notificacionConfigurada.tipoNotificacion)) {
+      enviarPushDeAvisoCreado(notificacionConfigurada.id);
+    }
   }
 
   return notificacionConfigurada;
@@ -911,7 +915,10 @@ export async function crearNotificacionAdmin({
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('notificaciones:actualizar'));
-    enviarPushDeAvisoCreado(notificacionConfigurada.id);
+    // Los de inventario solo van a la campana (ver `avisos-solo-campana.mjs`).
+    if (vaComoPush(notificacionConfigurada.tipoNotificacion)) {
+      enviarPushDeAvisoCreado(notificacionConfigurada.id);
+    }
   }
 
   return notificacionConfigurada;

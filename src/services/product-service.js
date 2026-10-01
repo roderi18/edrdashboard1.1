@@ -10,6 +10,7 @@ import {
 
 import { COLECCIONES_COMERCIO } from 'src/utils/firestore-commerce';
 import { miniaturaDesdeArchivo } from 'src/utils/miniatura-buscador';
+import { cruceDeExistencias } from 'src/utils/avisos-solo-campana.mjs';
 import { uploadOptimizedImages } from 'src/utils/firebase-image-storage';
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import {
@@ -393,15 +394,22 @@ const guardarProductoFirestoreDirecto = async (data, { publish = true, user = {}
   const disponibles = Number(savedProduct?.available ?? productDoc?.disponibles ?? 0);
   const previousAvailable = Number(previousProduct?.available ?? previousProduct?.disponibles ?? 0);
 
-  if (previous.exists() && previousAvailable <= 0 && disponibles > 0) {
+  // Solo al CRUZAR el umbral: antes cada guardado de un producto con 10 o menos
+  // repetía "sin stock" / "stock bajo" aunque nadie hubiera tocado las existencias.
+  const cruce = cruceDeExistencias({
+    antes: previous.exists() ? previousAvailable : null,
+    despues: disponibles,
+  });
+
+  if (cruce === 'producto_disponible_nuevamente') {
     crearNotificacionProductoDisponibleNuevamente({ producto: savedProduct, usuario: user }).catch((error) => {
       console.error('[product service] no se pudo notificar producto disponible nuevamente', error);
     });
-  } else if (disponibles <= 0) {
+  } else if (cruce === 'producto_sin_stock') {
     crearNotificacionProductoSinStock({ producto: savedProduct, usuario: user }).catch((error) => {
       console.error('[product service] no se pudo notificar producto sin stock', error);
     });
-  } else if (disponibles <= 10) {
+  } else if (cruce === 'producto_stock_bajo') {
     crearNotificacionProductoStockBajo({ producto: savedProduct, usuario: user }).catch((error) => {
       console.error('[product service] no se pudo notificar stock bajo', error);
     });

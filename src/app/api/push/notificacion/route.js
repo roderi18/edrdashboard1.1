@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { vaComoPush } from 'src/utils/avisos-solo-campana.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
 import { identificarConSesionRest } from 'src/server/sesion-rest.mjs';
@@ -30,6 +31,11 @@ export async function POST(request) {
   if (!snapshot.exists) return errorJson('No se encontró la notificación.', 404);
 
   const notificacion = snapshot.data() || {};
+  // Los avisos de inventario no salen como push aunque alguien lo pida: solo
+  // campana (ver `avisos-solo-campana.mjs`).
+  if (!vaComoPush(notificacion.tipoNotificacion)) {
+    return Response.json({ enviado: false, soloCampana: true });
+  }
   const idsDestinatarios = Array.isArray(notificacion.idsDestinatarios)
     ? notificacion.idsDestinatarios.map(String)
     : [];
