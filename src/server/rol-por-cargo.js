@@ -4,6 +4,7 @@ import { listaDeRolesQueEjerce } from 'src/utils/lista-roles-que-ejerce.mjs';
 import { conCargosPermanentes, COLECCION_PERMANENTES } from 'src/utils/directiva-cuatrienios.mjs';
 
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
+import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 
 import { ROLES } from 'src/auth/permissions/roles';
 import { deriveUserClaims } from 'src/auth/permissions/user-claims';
@@ -101,18 +102,18 @@ export const escribirAccesoPorCargo = async ({ db, auth, uid, idMiembros, acceso
   // Los claims viajan en el token y los leen las reglas de Firestore; sin
   // refrescarlos, el servidor seguiria viendo el rol anterior hasta el proximo
   // inicio de sesion.
-  await auth
-    .setCustomUserClaims(
-      String(uid),
-      deriveUserClaims({
-        rolId: acceso.rolId,
-        alcance: acceso.alcance,
-        idMiembros: String(idMiembros),
-      })
-    )
-    .catch((error) => {
-      console.warn('[rol-por-cargo] no se pudieron actualizar los claims', error);
-    });
+  // Sin borrar `debeCambiarClave`: ver `claims-con-marca-de-clave.js`.
+  await fijarClaimsConservandoClave(
+    auth,
+    String(uid),
+    deriveUserClaims({
+      rolId: acceso.rolId,
+      alcance: acceso.alcance,
+      idMiembros: String(idMiembros),
+    })
+  ).catch((error) => {
+    console.warn('[rol-por-cargo] no se pudieron actualizar los claims', error);
+  });
 };
 
 /**

@@ -1711,9 +1711,18 @@ export const getOwnRegionIdsForUser = (
  * por alto que sea su nivel, trabaja con la gente de SU destacamento: lo demas
  * se consulta por otras pantallas.
  */
+// La Oficina Nacional es un rol a mano: cuenta aunque no sea el principal ni el
+// que manda en el modulo. Preguntar solo por el principal dejaba a quien la
+// ejercia ademas de coordinar su destacamento con "Este destacamento no es el
+// tuyo" en las fichas ajenas.
+const ejerceOficinaNacional = (user = {}) =>
+  isOficinaNacional(user) ||
+  codigosCrudosDeSusCargos(user).includes(ROLES.OFICINA_NACIONAL) ||
+  (Array.isArray(user?.rolesQueEjerce) && user.rolesQueEjerce.includes(ROLES.OFICINA_NACIONAL));
+
 export const puedeVerMiembrosDeTodaLaOrganizacion = (user = {}) =>
   isAdminGlobal(user) ||
-  isOficinaNacional(user) ||
+  ejerceOficinaNacional(user) ||
   // El Administrador de Gestion de Tienda despacha pedidos de todo el pais: la
   // lista de miembros no se le acota a un destacamento. VER, nada mas: su ficha
   // sigue enmascarada (salvo telefono y direccion) y en solo lectura.
@@ -1849,6 +1858,12 @@ export const filterSectionalsByMemberScope = (
   // tener un alcance regional heredado de su perfil de miembro; ese alcance no
   // debe reducir la lista organizacional completa.
   if (isAdminGlobal(user)) {
+    return sectionals;
+  }
+
+  // La Oficina Nacional ve todas las secciones del pais, por cualquiera de sus
+  // cargos (aunque ademas coordine un destacamento).
+  if (ejerceOficinaNacional(user)) {
     return sectionals;
   }
 

@@ -145,8 +145,14 @@ export function FirebasePrimerAccesoView() {
     };
   }, [loading, authenticated]);
 
-  /** Lo que dice el token; y si aun no se sabe, lo que diga el perfil. */
-  const debeCambiarla = marcaDelToken ?? user?.debeCambiarClave === true;
+  // Basta con que la marca este en UNO de los dos. Antes mandaba el token, y
+  // cuando algo le quitaba la marca (la sincronizacion del cargo la borraba) se
+  // pasaba al panel sin elegir contraseña aunque el perfil siguiera pidiendola.
+  // Las dos las retira a la vez `/api/auth/clave-miembro` al guardarla.
+  const debeCambiarla =
+    marcaDelToken === null && !user
+      ? null
+      : marcaDelToken === true || user?.debeCambiarClave === true;
 
   // Esta pantalla no cuelga de AuthGuard, asi que se vigila sola. Sin sesion no
   // hay nada que cambiar —se va al inicio de sesion— y quien ya eligio su clave

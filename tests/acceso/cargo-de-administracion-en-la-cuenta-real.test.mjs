@@ -111,7 +111,8 @@ test('la ruta escribe en cada cuenta, conserva sus cargos y emite los claims de 
     )
   );
   assert.ok(ruta.includes('cuentas.uids.map(async (uid) =>'));
-  assert.ok(ruta.includes('await auth.setCustomUserClaims(uid, suyos);'));
+  // Los claims se emiten por la pieza que conserva `debeCambiarClave`.
+  assert.ok(ruta.includes('await fijarClaimsConservandoClave(auth, uid, suyos);'));
   // Una cuenta de miembro sigue siendo de miembro.
   assert.ok(ruta.includes("const esCuentaDeMiembro = normalizar(actual.rol) === 'miembro';"));
 });

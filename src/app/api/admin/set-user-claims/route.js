@@ -1,3 +1,4 @@
+import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
@@ -113,7 +114,8 @@ export async function POST(req) {
     alcance: asignacion.alcance,
     idMiembros: asignacion.idMiembros ?? asignacion.memberId,
   });
-  await auth.setCustomUserClaims(authUid, claims);
+  // Sin borrar `debeCambiarClave`: ver `claims-con-marca-de-clave.js`.
+  await fijarClaimsConservandoClave(auth, authUid, claims);
 
   return Response.json({ ok: true, uid: authUid, claims });
 }

@@ -91,7 +91,19 @@ export async function POST(req) {
     // Un rol puesto a mano manda sobre cualquier cargo: se conserva, pero sus
     // cargos se escriben igual (antes la cuenta se omitia entera y se quedaba
     // sin permisos ni alcance de su casilla).
-    const rolFijo = ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolActual) ? rolActual : '';
+    let rolFijo = ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolActual) ? rolActual : '';
+
+    // El rol a mano puede vivir solo en el perfil por numero de miembro (se dio
+    // antes de que existiera la cuenta). Sin mirarlo, el documento por uid
+    // —recorrido despues o antes, segun toque— pisaba la Oficina Nacional con el
+    // cargo de su casilla. Ver `/api/auth/sincronizar-rol`.
+    if (!rolFijo && documento.id !== idMiembros) {
+      const rolDelNumero = normalizarRol(
+        cuentas.docs.find((otro) => otro.id === idMiembros)?.data()?.rolId
+      );
+
+      if (ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolDelNumero)) rolFijo = rolDelNumero;
+    }
 
     const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros), { rolFijo });
 

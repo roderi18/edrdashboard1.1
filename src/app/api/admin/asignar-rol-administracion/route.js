@@ -1,6 +1,7 @@
 import { listaDeRolesQueEjerce } from 'src/utils/lista-roles-que-ejerce.mjs';
 
 import { resolverCuentasDelObjetivo } from 'src/server/cuenta-del-objetivo.mjs';
+import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
 import { ROLES } from 'src/auth/permissions/roles';
@@ -266,7 +267,8 @@ export async function POST(req) {
           idMiembros: actual.idMiembros ?? actual.memberId ?? cuentas.idMiembros,
         });
 
-        await auth.setCustomUserClaims(uid, suyos);
+        // Sin borrar `debeCambiarClave`: ver `claims-con-marca-de-clave.js`.
+        await fijarClaimsConservandoClave(auth, uid, suyos);
         claims = claims ?? suyos;
       } catch (error) {
         console.warn('[asignar-rol-administracion] no se pudieron emitir los claims', error);

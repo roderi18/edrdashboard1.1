@@ -600,7 +600,19 @@ export function AuthProvider({ children }) {
             publicar(armarSesion(null));
 
             // Y por detras, sin que nadie espere.
-            window.setTimeout(() => sincronizarRolPorCargo(accessToken).catch(() => {}), 1800);
+            // Al terminar, se relee el perfil: la sincronizacion puede cambiar el rol
+            // (p. ej. rescatar una Oficina Nacional dada antes de tener cuenta) y,
+            // sin releerlo, la sesion seguia con el de antes hasta recargar.
+            window.setTimeout(
+              () =>
+                sincronizarRolPorCargo(accessToken)
+                  .then(() => loadAuthorizationAccess(authUser, memberAccess?.profile, memberAccess))
+                  .then((acceso) => {
+                    if (acceso?.rolId || acceso?.alcance) publicar(armarSesion(acceso));
+                  })
+                  .catch(() => {}),
+              1800
+            );
 
             window.setTimeout(() => {
               loadAuthorizationAccess(authUser, memberAccess?.profile, memberAccess)

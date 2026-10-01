@@ -137,12 +137,29 @@ export async function POST(req) {
   // salia de aqui sin escribir NADA, y entonces sus cargos —los permisos y el
   // alcance de su casilla en el destacamento— nunca llegaban al documento que
   // miran las reglas. Ahora se escribe igual, con su rol intacto.
-  const rolFijo = ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolActual) ? rolActual : '';
+  let rolFijo = ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolActual) ? rolActual : '';
 
   const idMiembros = await resolverIdMiembros(db, caller);
 
   if (!idMiembros) {
     return Response.json({ ok: true, omitido: 'sin id de miembro', rolId: rolActual });
+  }
+
+  // EL ROL A MANO PUEDE ESTAR EN EL PERFIL POR NUMERO DE MIEMBRO. Si se le dio
+  // (p. ej. Oficina Nacional) cuando aun no tenia cuenta, solo existia
+  // `usuarios_roles/<idMiembros>`; al crearse la cuenta, el documento por uid
+  // nacio sin el y esta sincronizacion lo dejaba en su cargo de casilla
+  // (EDR-10049 entraba como Coordinador y no como Oficina Nacional). Se rescata
+  // de ahi y pasa a mandar, como cualquier rol a mano.
+  if (!rolFijo && String(idMiembros) !== String(caller.uid)) {
+    const porNumero = await db
+      .collection(COLECCION_USUARIOS_ROLES)
+      .doc(String(idMiembros))
+      .get()
+      .catch(() => null);
+    const rolDelNumero = normalizarRol(porNumero?.data()?.rolId);
+
+    if (ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolDelNumero)) rolFijo = rolDelNumero;
   }
 
   const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros), { rolFijo });

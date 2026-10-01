@@ -118,7 +118,7 @@ test('el recuento se hace por rolId y descontando al propio afectado', () => {
 test('el cambio se escribe antes de emitir los claims, y un claim fallido no lo tumba', () => {
   const ruta = leer(RUTA);
   const posicionEscritura = ruta.indexOf('.set(datos, { merge: true })');
-  const posicionClaims = ruta.indexOf('setCustomUserClaims');
+  const posicionClaims = ruta.indexOf('await fijarClaimsConservandoClave(');
 
   assert.ok(posicionEscritura > 0, 'la ruta escribe el documento');
   assert.ok(
