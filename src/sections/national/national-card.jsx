@@ -1,3 +1,5 @@
+import { tituloCorto } from 'src/utils/titulos-oficiales-nacionales.mjs';
+
 import { CompactEntityCard } from 'src/sections/common/compact-entity-card';
 
 // ----------------------------------------------------------------------
@@ -39,8 +41,9 @@ export function NationalCard({ national, canManage = true, sx, ...other }) {
   const nationalName = getNationalName(national);
   const nationalHref = getNationalHref(national);
   const structureHref = getStructureHref(national);
+  // Un Oficial con título largo se pinta en su forma corta (`tituloCorto`).
   const positionLabel =
-    national?.nationalXMemberPositionTitulo ||
+    tituloCorto(national?.nationalXMemberPositionTitulo) ||
     national?.nationalXMemberPositionLabel ||
     national?.nationalXMemberPosition ||
     'Desconocido';
@@ -58,6 +61,17 @@ export function NationalCard({ national, canManage = true, sx, ...other }) {
     { text: national?.nationalXMemberPositionPeriodo || '', icon: 'solar:calendar-date-bold' },
     { text: organizationalLevel },
     { text: structure, href: structureHref },
+    // El Oficial Especial que tiene además este cargo, en la misma tarjeta.
+    ...(Array.isArray(national?.adicionales) ? national.adicionales : []).flatMap((extra) => [
+      {
+        text:
+          tituloCorto(extra.nationalXMemberPositionTitulo) ||
+          extra.nationalXMemberPositionLabel ||
+          '',
+        href: extra.nationalXMemberPositionHref || '',
+      },
+      { text: extra.nationalOrganizationalLevel || '' },
+    ]),
   ].filter((line) => {
     const key = String(line.text || '')
       .trim()

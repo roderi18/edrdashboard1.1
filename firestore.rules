@@ -496,7 +496,9 @@ service cloud.firestore {
         'estadoManual',
         'estadoManualActualizadoEn',
         'actualizadoEn',
-        'sesiones'
+        'sesiones',
+        // Los buzones compartidos que atiende quien escribe su presencia.
+        'atiende'
       ]);
     }
 
@@ -506,7 +508,9 @@ service cloud.firestore {
         && (!('estadoManual' in request.resource.data)
           || request.resource.data.estadoManual == null
           || request.resource.data.estadoManual in ['always', 'busy'])
-        && (!('sesiones' in request.resource.data) || request.resource.data.sesiones is map);
+        && (!('sesiones' in request.resource.data) || request.resource.data.sesiones is map)
+        && (!('atiende' in request.resource.data)
+          || (request.resource.data.atiende is list && request.resource.data.atiende.size() <= 5));
     }
 
     function presenciaPropiaValida() {
@@ -971,9 +975,13 @@ service cloud.firestore {
     // Quien administra la tienda. Es un rol propio, no un permiso suelto: el
     // padron y el dinero de la tienda son cosas distintas y por eso ni el
     // Administrador Global gestiona productos.
+    // Por cualquiera de sus roles (`rolesQueEjerce`): una persona puede tener
+    // varios de administracion y el de Tienda no ser el principal (la Oficina
+    // Nacional manda por rango).
     function esAdministradorDeTienda() {
       return rolDelToken() == 'administrador_tienda'
-        || rolDelDocumento() == 'administrador_tienda';
+        || rolDelDocumento() == 'administrador_tienda'
+        || ejerceRol('administrador_tienda');
     }
 
     function esOficinaNacional() {

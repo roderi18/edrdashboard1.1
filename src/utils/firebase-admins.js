@@ -14,6 +14,7 @@ import {
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 import { notificarCargoDeAdministracion } from 'src/utils/notificar-cargo-administracion';
 import { ROLES_DE_ADMINISTRACION, esPerfilDeAdministracion } from 'src/utils/admin-role-label';
+import { sinRolDeAdministracion, rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 
 import { AUTH, FIRESTORE } from 'src/lib/firebase';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
@@ -389,6 +390,9 @@ export const asignarAdministradorDesdeMiembro = async (
     // cargo con mas poder de la plataforma se daba con un "si" en un dialogo de
     // confirmacion. El valor por defecto se mantiene por los llamadores antiguos.
     rolId: rolDeAdministracion,
+    // SE SUMA a los que ya tiene: antes reemplazaba, y dar la Tienda a la
+    // Oficina Nacional le quitaba la Oficina.
+    accion: 'agregar',
     usuario,
   });
 
@@ -462,6 +466,9 @@ const asignarCargoDeAdministracion = async ({
   nombre = '',
   rolId,
   usuario = {},
+  // 'agregar' suma el rol a los que ya tiene; 'quitar' quita solo ese
+  // (`roles-de-administracion.mjs`). Vacio: reemplazar, como antes.
+  accion = '',
 } = {}) => {
   if (!uidUsuario) {
     throw new Error('No se pudo identificar al usuario para cambiarle el cargo.');
@@ -476,7 +483,7 @@ const asignarCargoDeAdministracion = async ({
   const res = await fetch('/api/admin/asignar-rol-administracion/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ uidUsuario, correo, nombre, rolId, alcance: {} }),
+    body: JSON.stringify({ uidUsuario, correo, nombre, rolId, accion, alcance: {} }),
   });
 
   const data = await res.json().catch(() => ({}));
@@ -491,14 +498,37 @@ const asignarCargoDeAdministracion = async ({
     uidUsuario,
     nombre,
     rolId,
-    rolNombre: data?.asignacion?.rolNombre || '',
+    // El del rol que se da o se quita (el principal puede ser otro).
+    rolNombre: '',
     actor: usuario,
+    accion,
   });
 
   return data;
 };
 
-export const quitarAdministradorAMiembro = async (member, { usuario = {} } = {}) => {
+// Con `rolId`, quita SOLO ese rol de administracion; si le quedan otros, sigue
+// siendo administrador y no se toca nada mas. Sin `rolId`, se los quita todos.
+export const quitarAdministradorAMiembro = async (member, { usuario = {}, rolId = '' } = {}) => {
+  const quedan = rolId ? sinRolDeAdministracion(rolesDeAdministracionDe(member), rolId) : [];
+
+  if (rolId && quedan.length) {
+    const perfil = await getMemberRoleProfile(member);
+    const idDelMiembro = member?.idMiembros || member?.memberId || member?.id;
+    const codigo = member?.memberCode || member?.codigoMiembro || member?.codigoUsuario || '';
+
+    await asignarCargoDeAdministracion({
+      uidUsuario: String(perfil?.ref?.id || perfil?.data?.uid || member?.uid || idDelMiembro || codigo),
+      correo: member?.email || member?.correo || '',
+      nombre: member?.name || member?.displayName || codigo,
+      rolId,
+      accion: 'quitar',
+      usuario,
+    });
+
+    return { rolesAdministracion: quedan };
+  }
+
   const memberId = member?.idMiembros || member?.memberId || member?.id;
   const codigoMiembro = member?.memberCode || member?.codigoMiembro || member?.codigoUsuario || '';
   const adminDocId =

@@ -9,14 +9,13 @@ import { isAdminGlobal } from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
-
 import { useAuthContext } from 'src/auth/hooks';
 
 import { ProfileHome } from '../../user/profile-home';
 import { HAY_DATOS_DE_EJEMPLO } from '../datos-de-ejemplo';
+import { PrincipalBienvenida } from '../principal-bienvenida';
 import { useContenidoDePortada } from '../use-contenido-de-portada';
 import { useAnaliticasDePortada } from '../use-analiticas-de-portada';
-import { PrincipalBienvenida } from '../principal-bienvenida';
 import { alcanceDeLaSesion, identidadDeLaSesion } from '../identidad-de-la-sesion';
 import {
   PrincipalHistorias,
@@ -104,6 +103,9 @@ export function PrincipalHomeView() {
                     actividad={portada['proxima-actividad'].contenido}
                     diseno={portada['proxima-actividad'].diseno}
                     puedeEditar={esAdministradorGlobal}
+                    // "Inscribirme" ofrece los combos de la tienda (solo aquí, no en
+                    // la vista previa del Designer).
+                    conInscripcion
                   />
                 </Grid>
 

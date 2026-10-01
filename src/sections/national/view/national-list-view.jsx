@@ -25,6 +25,7 @@ import { claveNodo } from 'src/utils/leadership-assignments';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { tituloDe } from 'src/utils/titulos-oficiales-nacionales.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { unirOficialesConSuCargo } from 'src/utils/consejo-nacional-filas.mjs';
 import { ordenarDirectivaParaExportar } from 'src/utils/directiva-exportacion.mjs';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
 import {
@@ -1092,8 +1093,16 @@ export function NationalListView() {
       filters: currentFilters,
     });
 
-    return filtered;
+    // Una persona, una fila: el Oficial Especial que además tiene cargo de
+    // región o sección va DENTRO de esa fila (ver `consejo-nacional-filas.mjs`).
+    return unirOficialesConSuCargo(filtered, tableData);
   }, [tableData, esMemoria, table.order, table.orderBy, table.hasUserSorted, currentFilters]);
+
+  // El contador de "Todos" cuenta personas en su fila, como se ven.
+  const totalDeFilas = useMemo(
+    () => unirOficialesConSuCargo(tableData, tableData).length,
+    [tableData]
+  );
 
   // EXPORTAR E IMPRIMIR: la directiva que se ve (con sus filtros), ordenada para
   // leerla en papel: Consejo Ejecutivo y después cada región con sus secciones
@@ -1123,6 +1132,10 @@ export function NationalListView() {
             [
               row.nationalXMemberPositionTitulo || row.nationalXMemberPositionLabel,
               row.nationalXMemberPositionPeriodo,
+              // El Oficial Especial que va en la misma fila.
+              ...(row.adicionales ?? []).map(
+                (extra) => extra.nationalXMemberPositionTitulo || extra.nationalXMemberPositionLabel
+              ),
             ]
               .filter(Boolean)
               .join(' · ')
@@ -1395,7 +1408,7 @@ export function NationalListView() {
                 value="lista"
                 label="Todos"
                 iconPosition="end"
-                icon={<Label variant="filled">{tableData.length}</Label>}
+                icon={<Label variant="filled">{totalDeFilas}</Label>}
               />
               {/* Tanto la directiva de hoy como la de un cuatrienio guardado: la
                   memoria se pinta de solo lectura con sus ocupantes de entonces. */}

@@ -69,6 +69,11 @@ import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../cor
 
 // La lista de chats y los contactos, precargados en segundo plano (ver el archivo).
 const PrecargaDelChat = dynamic(() => import('src/sections/chat/precarga-del-chat'), { ssr: false });
+// El latido de presencia, en cualquier pantalla del panel (ver el archivo).
+const PresenciaEnLaAplicacion = dynamic(
+  () => import('src/sections/chat/presencia-en-la-aplicacion'),
+  { ssr: false }
+);
 import {
   navDataDesarrollo,
   conEverestDesigner,
@@ -711,6 +716,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       {children}
 
       {chatSummaryEnabled && !isChatRoute && <PrecargaDelChat idMiembros={chatMemberId} />}
+      {chatSummaryEnabled && <PresenciaEnLaAplicacion idMiembros={chatMemberId} />}
     </MainSection>
   );
 

@@ -1,11 +1,17 @@
 import { listaDeRolesQueEjerce } from 'src/utils/lista-roles-que-ejerce.mjs';
+import {
+  conRolDeAdministracion,
+  sinRolDeAdministracion,
+  rolesDeAdministracionDe,
+  rolPrincipalDeAdministracion,
+} from 'src/utils/roles-de-administracion.mjs';
 
 import { resolverCuentasDelObjetivo } from 'src/server/cuenta-del-objetivo.mjs';
 import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
-import { ROLES } from 'src/auth/permissions/roles';
 import { deriveUserClaims } from 'src/auth/permissions/user-claims';
+import { ROLES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 
 export const runtime = 'nodejs';
 
@@ -141,6 +147,10 @@ export async function POST(req) {
     alcance = {},
     restricciones = {},
     cargos = null,
+    // 'agregar' suma el rol a los que ya tiene; 'quitar' quita SOLO ese. Sin
+    // accion, el comportamiento de antes (reemplazar; `usuario_comun` = quitar
+    // todos), para los llamadores antiguos.
+    accion = '',
   } = cuerpo || {};
 
   if (!uidUsuario) return jsonError('Se requiere uidUsuario del objetivo.', 400);
@@ -181,13 +191,39 @@ export async function POST(req) {
     await Promise.all(documentos.map(async (id) => [id, await leerAsignacion(db, id)]))
   );
 
+  // VARIOS ROLES DE ADMINISTRACION (`roles-de-administracion.mjs`). Los que ya
+  // tiene, sumando todos sus documentos, y como quedan tras el cambio. Antes el
+  // nuevo REEMPLAZABA al anterior: dar Tienda a la Oficina Nacional le quitaba
+  // la Oficina.
+  const rolesPrevios = [...asignaciones.values()].reduce(
+    (lista, asignacion) => [...lista, ...rolesDeAdministracionDe(asignacion ?? {})],
+    []
+  );
+  const accionNormalizada = normalizar(accion);
+
+  if (['agregar', 'quitar'].includes(accionNormalizada) && cargoNuevo === ROLES.USUARIO_COMUN) {
+    return jsonError('Elige qué rol de administración se añade o se quita.', 422);
+  }
+
+  const rolesNuevos =
+    accionNormalizada === 'agregar'
+      ? conRolDeAdministracion(rolesPrevios, cargoNuevo)
+      : accionNormalizada === 'quitar'
+        ? sinRolDeAdministracion(rolesPrevios, cargoNuevo)
+        : cargoNuevo === ROLES.USUARIO_COMUN
+          ? []
+          : [cargoNuevo];
+  const principalDeAdministracion = rolPrincipalDeAdministracion(rolesNuevos);
+
   // 5) Que no se quede en cero. Se mira en todos sus documentos: basta con que
   //    uno la tenga como Administradora Global.
   const eraAdministradorGlobal = [...asignaciones.values()].some(
-    (asignacion) => normalizar(asignacion?.rolId) === ROLES.ADMINISTRADOR_GLOBAL
+    (asignacion) =>
+      normalizar(asignacion?.rolId) === ROLES.ADMINISTRADOR_GLOBAL ||
+      rolesDeAdministracionDe(asignacion ?? {}).includes(ROLES.ADMINISTRADOR_GLOBAL)
   );
 
-  if (eraAdministradorGlobal && cargoNuevo !== ROLES.ADMINISTRADOR_GLOBAL) {
+  if (eraAdministradorGlobal && !rolesNuevos.includes(ROLES.ADMINISTRADOR_GLOBAL)) {
     const quedan = await otrosAdministradoresGlobales(db, documentos);
 
     if (quedan === 0) {
@@ -210,10 +246,12 @@ export async function POST(req) {
       // QUITAR el cargo de administracion no deja a nadie en Usuario Comun si
       // ocupa casillas de la directiva: vuelve a mandar su primer cargo, igual que
       // hara la sincronizacion en su proximo acceso.
+      // Manda el rol de administracion de mas rango; sin ninguno, su primer
+      // cargo de la directiva, y si tampoco, Usuario Comun.
       const rolQueQueda =
-        cargoNuevo === ROLES.USUARIO_COMUN && susCargos.length
-          ? normalizar(susCargos[0]?.rol ?? susCargos[0]?.rolId) || cargoNuevo
-          : cargoNuevo;
+        principalDeAdministracion ||
+        normalizar(susCargos[0]?.rol ?? susCargos[0]?.rolId) ||
+        ROLES.USUARIO_COMUN;
       const esCuentaDeMiembro = normalizar(actual.rol) === 'miembro';
       const datos = {
         uidUsuario: cuentas.uids[0] || String(uidUsuario),
@@ -222,14 +260,20 @@ export async function POST(req) {
         ...(cuentas.idMiembros && !actual.idMiembros && { idMiembros: cuentas.idMiembros }),
         ...(cuentas.codigoMiembro && !actual.codigoMiembro && { codigoMiembro: cuentas.codigoMiembro }),
         rolId: rolQueQueda,
-        rolNombre,
+        rolNombre: ROLES_POR_CODIGO[rolQueQueda]?.nombre || rolNombre,
+        // Todos sus roles de administracion, no solo el principal.
+        rolesAdministracion: rolesNuevos,
         alcance,
         restricciones,
         ...(Array.isArray(cargos) ? { cargos } : {}),
         // La lista plana que leen las reglas —el cargo de administracion mas los
         // que ya tuviera, en cualquier posicion—: sin ella, en Firestore solo
         // contaba el principal. Ver `lista-roles-que-ejerce.mjs`.
-        rolesQueEjerce: listaDeRolesQueEjerce({ rolId: rolQueQueda, cargos: susCargos }),
+        rolesQueEjerce: listaDeRolesQueEjerce({
+          rolId: rolQueQueda,
+          cargos: susCargos,
+          rolesAdministracion: rolesNuevos,
+        }),
         activo: true,
         // El campo heredado se alinea con el cargo: varias pantallas y las propias
         // reglas caen a `rol` cuando no hay claim, y dejarlo desalineado hacia que

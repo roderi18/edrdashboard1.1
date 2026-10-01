@@ -9,7 +9,9 @@ import Divider from '@mui/material/Divider';
 
 import { paths } from 'src/routes/paths';
 
+import { isAdminGlobal } from 'src/utils/org-level-access';
 import { isMemberSessionUser } from 'src/utils/member-access';
+import { puedeGestionarEstaOrden } from 'src/utils/compra-propia.mjs';
 
 import { ORDER_STATUS_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -39,7 +41,12 @@ export function OrderDetailsView({ order, orderId }) {
   const { user } = useAuthContext();
   const [resolvedOrder, setResolvedOrder] = useState(order);
   const [status, setStatus] = useState(order?.status);
-  const canManageStatus = !isMemberSessionUser(user);
+  // Nadie gestiona su propia compra (salvo el Administrador Global): con varios
+  // roles, quien compra puede ser tambien administrador de la tienda.
+  const esSuPropiaCompra = !puedeGestionarEstaOrden(resolvedOrder, user, {
+    esAdministradorGlobal: isAdminGlobal(user),
+  });
+  const canManageStatus = !isMemberSessionUser(user) && !esSuPropiaCompra;
   const showAttachments =
     (resolvedOrder?.items || []).some(
       (item) =>

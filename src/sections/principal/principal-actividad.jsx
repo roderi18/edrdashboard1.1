@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
@@ -48,7 +50,19 @@ import {
 // organizacion entera, que es lo que se quiere.
 const ID_DE_LA_TARJETA = 'proxima-actividad';
 
-export function PrincipalProximaActividad({ actividad: recibida, diseno, puedeEditar = false }) {
+// Los combos (y la tienda) solo se cargan al pulsar "Inscribirme".
+const InscripcionActividadDialog = dynamic(
+  () => import('./inscripcion-actividad-dialog').then((m) => m.InscripcionActividadDialog),
+  { ssr: false }
+);
+
+export function PrincipalProximaActividad({
+  actividad: recibida,
+  diseno,
+  puedeEditar = false,
+  conInscripcion = false,
+}) {
+  const [inscribiendo, setInscribiendo] = useState(false);
   const tonos = useTonosDeMarca();
   const { ORO, AZUL } = tonos;
   // Con un fondo elegido en el Designer, el velo de la foto toma ese color.
@@ -245,8 +259,14 @@ export function PrincipalProximaActividad({ actividad: recibida, diseno, puedeEd
 
           {seMuestra(diseno, 'mostrarBoton') && (
             <Button
-              component={RouterLink}
-              href={actividad.boton?.destino ?? paths.dashboard.calendar}
+              // Con inscripción, el botón abre los combos del campamento (y si la
+              // tienda no tiene combos para esta actividad, lleva a su enlace).
+              {...(conInscripcion
+                ? { onClick: () => setInscribiendo(true) }
+                : {
+                    component: RouterLink,
+                    href: actividad.boton?.destino ?? paths.dashboard.calendar,
+                  })}
               size="small"
               variant="contained"
               endIcon={<Iconify icon="solar:double-alt-arrow-right-bold-duotone" />}
@@ -261,6 +281,15 @@ export function PrincipalProximaActividad({ actividad: recibida, diseno, puedeEd
             </Button>
           )}
         </Stack>
+      )}
+
+      {conInscripcion && inscribiendo && (
+        <InscripcionActividadDialog
+          abierto={inscribiendo}
+          onCerrar={() => setInscribiendo(false)}
+          actividad={actividad}
+          destinoSinCombos={actividad.boton?.destino ?? paths.dashboard.calendar}
+        />
       )}
     </Card>
   );

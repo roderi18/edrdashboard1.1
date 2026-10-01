@@ -1,3 +1,5 @@
+import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
+
 import { ROLES_QUE_NO_SALEN_DE_UNA_CASILLA } from 'src/catalogs/directiva-roles';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 import {
@@ -162,7 +164,25 @@ export async function POST(req) {
     if (ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolDelNumero)) rolFijo = rolDelNumero;
   }
 
-  const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros), { rolFijo });
+  // Todos sus roles de administracion, de sus dos documentos (por uid y por
+  // numero de miembro): sin esto solo sobrevivia uno.
+  const porNumeroDeMiembro =
+    String(idMiembros) !== String(caller.uid)
+      ? await db
+          .collection(COLECCION_USUARIOS_ROLES)
+          .doc(String(idMiembros))
+          .get()
+          .catch(() => null)
+      : null;
+  const rolesAdministracion = [
+    ...rolesDeAdministracionDe(actual.exists ? actual.data() : {}),
+    ...rolesDeAdministracionDe(porNumeroDeMiembro?.data?.() ?? {}),
+  ];
+
+  const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros), {
+    rolFijo,
+    rolesAdministracion,
+  });
   await escribirAccesoPorCargo({ db, auth, uid: caller.uid, idMiembros, acceso });
 
   return Response.json({ ok: true, rolId: acceso.rolId, cargos: acceso.cargos.length });

@@ -8,8 +8,10 @@ import {
   collection,
 } from 'firebase/firestore';
 
+import { isAdminGlobal } from 'src/utils/org-level-access';
 import { ESTADO_SOLICITADA } from 'src/utils/solicitud-producto.mjs';
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+import { MENSAJE_COMPRA_PROPIA, puedeGestionarEstaOrden } from 'src/utils/compra-propia.mjs';
 import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 import { ID_TIENDA_VIRTUAL, idConversacionConTienda } from 'src/utils/chat-tienda-virtual.mjs';
 import {
@@ -386,6 +388,12 @@ const cambiarEstadoOrdenFirestoreDirecto = async ({ orderId, nextStatus, user })
   if (!snapshot.exists()) return null;
 
   const currentData = snapshot.data();
+
+  // Nadie gestiona su propia compra (salvo el Administrador Global).
+  if (!puedeGestionarEstaOrden(currentData, user, { esAdministradorGlobal: isAdminGlobal(user) })) {
+    throw new Error(MENSAJE_COMPRA_PROPIA);
+  }
+
   const currentStatus = currentData?.estado || 'pendiente';
   const nextStatusEs = mapearEstadoOrdenUiAFirestore(nextStatus);
   const isCancelling = currentStatus !== 'cancelada' && nextStatusEs === 'cancelada';
@@ -488,6 +496,12 @@ const evaluarOrdenRestringidaFirestoreDirecto = async ({
   if (!snapshot.exists()) return null;
 
   const currentData = snapshot.data();
+
+  // Nadie aprueba ni rechaza su propia compra (salvo el Administrador Global).
+  if (!puedeGestionarEstaOrden(currentData, user, { esAdministradorGlobal: isAdminGlobal(user) })) {
+    throw new Error(MENSAJE_COMPRA_PROPIA);
+  }
+
   const estadoEvaluacion =
     accion === 'aceptar' ? 'aprobada' : accion === 'rechazar' ? 'rechazada' : 'en_evaluacion';
   const timelineItem = {

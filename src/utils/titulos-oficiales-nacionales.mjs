@@ -31,6 +31,22 @@ export const TITULOS_OFICIALES_DE_FABRICA = Object.freeze([
 
 const LARGO_MAXIMO = 120;
 
+// LA FORMA CORTA, solo para pintarlo en la lista y las tarjetas del Consejo
+// Nacional: el nombre completo no cabía en la columna. El título guardado, el
+// catálogo, la ficha y el buscador siguen con el completo.
+const TITULOS_CORTOS = Object.freeze({
+  'Encargado Senda adiestramiento Lideres Organizacionales (ALO)': 'Encargado Senda ALO',
+});
+
+export const tituloCorto = (titulo) => {
+  const limpio = String(titulo ?? '').replace(/\s+/g, ' ').trim();
+  const corto = Object.entries(TITULOS_CORTOS).find(
+    ([completo]) => claveDeTitulo(completo) === claveDeTitulo(limpio)
+  )?.[1];
+
+  return corto || limpio;
+};
+
 // "protocolo " y "Protocolo" son el mismo título: sin esto se colaba un duplicado
 // escrito con otra mayúscula o con un espacio de más.
 export const claveDeTitulo = (titulo) =>

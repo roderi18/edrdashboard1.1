@@ -1,3 +1,5 @@
+import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
+
 import { ROLES_QUE_NO_SALEN_DE_UNA_CASILLA } from 'src/catalogs/directiva-roles';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 import {
@@ -105,7 +107,16 @@ export async function POST(req) {
       if (ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolDelNumero)) rolFijo = rolDelNumero;
     }
 
-    const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros), { rolFijo });
+    // Todos sus roles de administracion, de este documento y del de su numero.
+    const rolesAdministracion = [
+      ...rolesDeAdministracionDe(datos),
+      ...rolesDeAdministracionDe(cuentas.docs.find((otro) => otro.id === idMiembros)?.data() ?? {}),
+    ];
+
+    const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros), {
+      rolFijo,
+      rolesAdministracion,
+    });
 
     resultado.detalle.push({
       nombre: datos.nombre ?? idMiembros,

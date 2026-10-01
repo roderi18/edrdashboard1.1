@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   chunkPresenceIds,
   derivePresenceSnapshot,
+  derivePresenciaDeBuzon,
   isFreshPresenceSession,
   normalizeManualPresence,
 } from '../../src/sections/chat/utils/presence-state.mjs';
@@ -14,7 +15,10 @@ const STALE_AFTER_MS = 45_000;
 test('agrupa presencia en listeners de hasta treinta miembros', () => {
   const chunks = chunkPresenceIds(Array.from({ length: 65 }, (_, index) => String(index + 1)));
 
-  assert.deepEqual(chunks.map((chunk) => chunk.length), [30, 30, 5]);
+  assert.deepEqual(
+    chunks.map((chunk) => chunk.length),
+    [30, 30, 5]
+  );
 });
 
 test('una sesión visible mantiene al miembro en línea aunque otra esté oculta', () => {
@@ -49,7 +53,9 @@ test('al quitar ocupado vuelve a en línea y no al estado ausente legado', () =>
   assert.equal(presence.status, 'online');
 });
 
-test('el miembro queda ausente cuando todas sus sesiones están ocultas', () => {
+// Antes, con todas las pestañas ocultas pasaba a "Ausente" (gris). Se pidió
+// que mientras esté conectado a la aplicación se vea en verde.
+test('el miembro sigue en línea aunque todas sus sesiones estén ocultas', () => {
   const presence = derivePresenceSnapshot({
     presence: {
       sesiones: {
@@ -61,7 +67,7 @@ test('el miembro queda ausente cuando todas sus sesiones están ocultas', () => 
     staleAfterMs: STALE_AFTER_MS,
   });
 
-  assert.equal(presence.status, 'always');
+  assert.equal(presence.status, 'online');
 });
 
 test('ocupado y ausente manual prevalecen mientras exista una sesión activa', () => {
@@ -93,11 +99,7 @@ test('una sesión vencida no puede sobrescribir una sesión visible vigente', ()
 
   assert.equal(presence.status, 'online');
   assert.equal(
-    isFreshPresenceSession(
-      { visible: false, actualizadoEn: NOW - 60_000 },
-      NOW,
-      STALE_AFTER_MS
-    ),
+    isFreshPresenceSession({ visible: false, actualizadoEn: NOW - 60_000 }, NOW, STALE_AFTER_MS),
     false
   );
 });
@@ -113,4 +115,29 @@ test('sin sesiones activas el estado termina desconectado', () => {
   });
 
   assert.equal(presence.status, 'offline');
+});
+
+// El buzón de Oficina Nacional se veía gris aunque quien lo atiende estuviera
+// conectado: nadie escribe la presencia del buzón. Se deduce de quienes lo
+// atienden.
+test('el buzón está en línea si alguno de quienes lo atienden lo está', () => {
+  const conectado = { sesiones: { a: { visible: false, actualizadoEn: NOW - 1_000 } } };
+  const caido = { sesiones: { a: { visible: true, actualizadoEn: NOW - 60_000 } } };
+
+  assert.equal(
+    derivePresenciaDeBuzon({
+      presencias: [caido, conectado],
+      now: NOW,
+      staleAfterMs: STALE_AFTER_MS,
+    }).status,
+    'online'
+  );
+  assert.equal(
+    derivePresenciaDeBuzon({ presencias: [caido], now: NOW, staleAfterMs: STALE_AFTER_MS }).status,
+    'offline'
+  );
+  assert.equal(
+    derivePresenciaDeBuzon({ presencias: [], now: NOW, staleAfterMs: STALE_AFTER_MS }).status,
+    'offline'
+  );
 });

@@ -1,4 +1,5 @@
 import { alcanceQueMandaAhora } from 'src/utils/modulo-activo';
+import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 import { ejerceAdministradorGlobal } from 'src/utils/administrador-global-reina.mjs';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
@@ -96,7 +97,10 @@ export const rolesQueEjerce = (user = {}) => {
       .toLowerCase()
   );
 
-  return [...new Set([getOrgRoleId(user), ...deSusCargos].filter(Boolean))];
+  // Y todos sus roles de administracion, no solo el principal.
+  return [
+    ...new Set([getOrgRoleId(user), ...deSusCargos, ...rolesDeAdministracionDe(user)].filter(Boolean)),
+  ];
 };
 
 // Un miembro sin cargo es un Usuario Comun: su sesion guarda `rol: 'miembro'`,

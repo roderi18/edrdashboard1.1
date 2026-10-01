@@ -2,8 +2,10 @@ import { useRef, useEffect, useCallback } from 'react';
 
 import {
   setPresenceSession,
+  setBuzonesQueAtiende,
   removePresenceSession,
   HEARTBEAT_INTERVAL_MS,
+  podarSesionesCaducadas,
   setManualPresenceOverride,
 } from 'src/lib/chat-presence';
 
@@ -34,9 +36,10 @@ const clearLegacyPresenceState = (idMiembros) => {
  * Cada pestaña/dispositivo mantiene su propia sesión en Firestore. Los lectores
  * agregan todas las sesiones: basta una visible para que el miembro esté online.
  */
-export function usePresenceHeartbeat(idMiembros) {
+export function usePresenceHeartbeat(idMiembros, { atiende } = {}) {
   const sessionIdRef = useRef(null);
   const publishPresenceRef = useRef(() => {});
+  const atiendeKey = Array.isArray(atiende) ? [...atiende].sort().join(',') : '';
 
   if (!sessionIdRef.current && typeof crypto !== 'undefined') {
     sessionIdRef.current = crypto.randomUUID();
@@ -60,6 +63,7 @@ export function usePresenceHeartbeat(idMiembros) {
     if (!idMiembros || !sessionIdRef.current || typeof window === 'undefined') return undefined;
 
     const sessionId = sessionIdRef.current;
+    const atiendeLista = atiendeKey ? atiendeKey.split(',') : atiende ? [] : undefined;
     clearLegacyPresenceState(idMiembros);
 
     const publishPresence = () =>
@@ -76,6 +80,16 @@ export function usePresenceHeartbeat(idMiembros) {
     publishPresenceRef.current = publishPresence;
     publishPresence();
 
+    podarSesionesCaducadas(idMiembros).catch(() => {
+      // Limpiar es una comodidad: si falla, la presencia sigue igual.
+    });
+
+    if (atiendeLista) {
+      setBuzonesQueAtiende(idMiembros, atiendeLista).catch(() => {
+        // Sin las reglas publicadas se rechaza; la presencia propia no depende de esto.
+      });
+    }
+
     const intervalId = window.setInterval(publishPresence, HEARTBEAT_INTERVAL_MS);
     document.addEventListener('visibilitychange', publishPresence);
     window.addEventListener('pagehide', removeSession);
@@ -87,7 +101,8 @@ export function usePresenceHeartbeat(idMiembros) {
       removeSession();
       publishPresenceRef.current = () => {};
     };
-  }, [idMiembros]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idMiembros, atiendeKey]);
 
   return { setManualOverride };
 }

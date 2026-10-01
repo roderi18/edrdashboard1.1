@@ -3,6 +3,7 @@ import { doc, limit, query, where, getDoc, setDoc, getDocs, collection } from 'f
 import { paths } from 'src/routes/paths';
 
 import { alcanceQueMandaAhora } from 'src/utils/modulo-activo';
+import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 import { ejerceAdministradorGlobal } from 'src/utils/administrador-global-reina.mjs';
 import { buildDefaultMemberPermissions } from 'src/utils/member-default-permissions';
 import {
@@ -278,7 +279,8 @@ const codigosCrudosDeSusCargos = (user = {}) => {
     )
     .filter(Boolean);
 
-  return [...new Set([principal, ...deCargos].filter(Boolean))];
+  // Todos sus roles de administracion (`roles-de-administracion.mjs`).
+  return [...new Set([principal, ...deCargos, ...rolesDeAdministracionDe(user)].filter(Boolean))];
 };
 
 /**
@@ -364,8 +366,19 @@ const codigosDeSusCargos = (user = {}) =>
 
 /** El rol principal mas todos sus cargos, sin repetidos. */
 const rolesQueEjerce = (user = {}) => [
-  ...new Set([getScopeUserRoleId(user), ...codigosDeSusCargos(user)].filter(Boolean)),
+  ...new Set(
+    [getScopeUserRoleId(user), ...codigosDeSusCargos(user), ...rolesDeAdministracionDe(user)].filter(
+      Boolean
+    )
+  ),
 ];
+
+// EL ADMINISTRADOR DE GESTION DE TIENDA, POR CUALQUIERA DE SUS ROLES. Se
+// preguntaba por el principal, y quien lo tenia junto a la Oficina Nacional (que
+// manda por rango) se quedaba sin la tienda.
+const ejerceAdministracionDeTienda = (user = {}) =>
+  getUserRoleId(user) === ROLES.ADMINISTRADOR_TIENDA ||
+  rolesDeAdministracionDe(user).includes(ROLES.ADMINISTRADOR_TIENDA);
 
 // Ven la lista de destacamentos de TODA su seccion, no solo el suyo. Hoy quien
 // llega aqui es el Usuario Comun —es lo que su propia ficha de rol viene
@@ -1604,8 +1617,7 @@ export const canViewAdultMemberContactData = (user = {}) =>
 // con dos excepciones: el telefono —que ya se muestra a todo el que abre la
 // ficha— y la direccion completa, que es a donde va el pedido. Sin ella habria
 // que pedirsela al destacamento envio por envio.
-export const canViewMemberAddressWhenMasked = (user = {}) =>
-  getUserRoleId(user) === ROLES.ADMINISTRADOR_TIENDA;
+export const canViewMemberAddressWhenMasked = (user = {}) => ejerceAdministracionDeTienda(user);
 
 // ¿Al usuario se le deben mostrar en texto plano la fecha de nacimiento, el
 // telefono y el correo de ESTE miembro por ser mayor de edad?
@@ -1726,7 +1738,7 @@ export const puedeVerMiembrosDeTodaLaOrganizacion = (user = {}) =>
   // El Administrador de Gestion de Tienda despacha pedidos de todo el pais: la
   // lista de miembros no se le acota a un destacamento. VER, nada mas: su ficha
   // sigue enmascarada (salvo telefono y direccion) y en solo lectura.
-  getUserRoleId(user) === ROLES.ADMINISTRADOR_TIENDA ||
+  ejerceAdministracionDeTienda(user) ||
   ['admin', 'administrador_global'].includes(
     String(user?.role ?? user?.rol ?? '')
       .trim()

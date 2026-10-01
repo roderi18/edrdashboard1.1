@@ -122,6 +122,13 @@ service firebase.storage {
             && 'rolId' in documentoUsuario('usuarios_roles').data
             && documentoUsuario('usuarios_roles').data.rolId == 'administrador_tienda'
           )
+          // Por cualquiera de sus roles: el de Tienda puede no ser el principal.
+          || (
+            tieneDocumento('usuarios_roles')
+            && 'rolesQueEjerce' in documentoUsuario('usuarios_roles').data
+            && documentoUsuario('usuarios_roles').data.rolesQueEjerce is list
+            && documentoUsuario('usuarios_roles').data.rolesQueEjerce.hasAny(['administrador_tienda'])
+          )
         );
     }
 

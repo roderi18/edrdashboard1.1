@@ -6,6 +6,7 @@ import TableCell from '@mui/material/TableCell';
 
 import { RouterLink } from 'src/routes/components';
 
+import { tituloCorto } from 'src/utils/titulos-oficiales-nacionales.mjs';
 import { getPhoneHref, formatPhoneNumber } from 'src/utils/format-phone-number';
 
 import { CompactEntityTableCell } from 'src/sections/common/compact-entity-table-cell';
@@ -51,10 +52,13 @@ export function NationalTableRow({
   // Lo mismo para quien salió de un cargo en ese cuatrienio (`esApunteHistorico`).
   const esMemoriaDeCuatrienio = Boolean(row.integrante) || Boolean(row.esApunteHistorico);
   // Un Oficial de la Nacional con título se nombra por su título.
-  const positionLabel = row.nationalXMemberPositionTitulo || row.nationalXMemberPositionLabel || '-';
+  // Un Oficial con título largo se pinta en su forma corta (`tituloCorto`).
+  const positionLabel =
+    tituloCorto(row.nationalXMemberPositionTitulo) || row.nationalXMemberPositionLabel || '-';
   const positionHref = row.nationalXMemberPositionHref || '';
   const organizationalLevel = row.nationalOrganizationalLevel || '-';
   const structureLabel = row.nationalEstructureLabel || '-';
+  const adicionales = Array.isArray(row.adicionales) ? row.adicionales : [];
 
   return (
     <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
@@ -123,12 +127,43 @@ export function NationalTableRow({
             {row.nationalXMemberPositionPeriodo}
           </Box>
         )}
+
+        {/* El Oficial Especial que tiene además este cargo: debajo, no en otra
+            fila (una persona, una fila). */}
+        {adicionales.map((extra) => (
+          <Box key={extra.id} sx={{ display: 'block', mt: 0.75 }}>
+            {extra.nationalXMemberPositionHref ? (
+              <Link
+                component={RouterLink}
+                href={extra.nationalXMemberPositionHref}
+                underline="always"
+                color="inherit"
+              >
+                {tituloCorto(extra.nationalXMemberPositionTitulo) || extra.nationalXMemberPositionLabel}
+              </Link>
+            ) : (
+              tituloCorto(extra.nationalXMemberPositionTitulo) || extra.nationalXMemberPositionLabel
+            )}
+          </Box>
+        ))}
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{organizationalLevel}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {organizationalLevel}
+        {adicionales.map((extra) => (
+          <Box key={extra.id} sx={{ display: 'block', mt: 0.75 }}>
+            {extra.nationalOrganizationalLevel || '-'}
+          </Box>
+        ))}
+      </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
         {structureLabel}
+        {adicionales.map((extra) => (
+          <Box key={extra.id} sx={{ display: 'block', mt: 0.75 }}>
+            {extra.nationalEstructureLabel || '-'}
+          </Box>
+        ))}
       </TableCell>
 
       <CompactEntityRowActions

@@ -35,6 +35,8 @@ export const notificarCargoDeAdministracion = async ({
   rolId,
   rolNombre = '',
   actor = {},
+  // 'quitar': se le retiro SOLO ese rol y conserva otros.
+  accion = '',
 } = {}) => {
   const destinatario = String(uidUsuario ?? '').trim();
 
@@ -42,11 +44,14 @@ export const notificarCargoDeAdministracion = async ({
 
   try {
     const esQuitar = String(rolId).trim() === 'usuario_comun';
+    const quitaUno = accion === 'quitar';
     const cargo = nombreDelCargo(rolId, rolNombre);
     const ahora = new Date().toISOString();
     const mensaje = esQuitar
       ? 'Ya no tienes un cargo de administración: tu cuenta vuelve a ser de usuario común.'
-      : `Ahora eres ${cargo}. Al volver a entrar verás lo que ese cargo te permite.`;
+      : quitaUno
+        ? `Ya no eres ${cargo}. Conservas tus otros cargos.`
+        : `Ahora eres ${cargo}. Al volver a entrar verás lo que ese cargo te permite.`;
 
     const notificacion = await resolverNotificacionConConfiguracion({
       // El identificador lleva el destinatario y la hora: dos cambios seguidos
@@ -54,7 +59,8 @@ export const notificarCargoDeAdministracion = async ({
       id: `cargo_administracion_${destinatario}_${Date.now()}`,
       tipoNotificacion: 'permisos_cambiados',
       modulo: 'administradores',
-      titulo: esQuitar ? 'Se retiró tu cargo de administración' : 'Tienes un cargo nuevo',
+      titulo:
+        esQuitar || quitaUno ? 'Se retiró tu cargo de administración' : 'Tienes un cargo nuevo',
       tituloHtml: `<p>${mensaje}</p>`,
       mensaje,
       mensajeVisual: mensaje,

@@ -54,7 +54,11 @@ test('la franja y la lista cambian "Oficial de la Nacional" por el título', () 
     grupo,
     /tituloDePersona\(persona\) \|\| persona\.cargo \|\| 'Oficial de la Nacional'/
   );
-  assert.match(fila, /row\.nationalXMemberPositionTitulo \|\| row\.nationalXMemberPositionLabel/);
+  // El título manda sobre el cargo (en su forma corta, `tituloCorto`).
+  assert.match(
+    fila,
+    /tituloCorto\(row\.nationalXMemberPositionTitulo\) \|\| row\.nationalXMemberPositionLabel/
+  );
   assert.match(lista, /nationalXMemberPositionTitulo:/);
 });
 
