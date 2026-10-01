@@ -231,11 +231,11 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
             }}
           >
             <Stack spacing={1.25}>
-              <Typography variant="subtitle2">Que puedes hacer desde aqui</Typography>
+              <Typography variant="subtitle2">Qué puedes hacer desde aquí</Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Puedes pedir el enlace de recuperacion por correo o, si eres miembro, solicitar
-                ayuda a tu coordinador cuando no tengas acceso al email registrado. El te dara un
-                codigo que se escribe en el campo de contraseña del inicio de sesion.
+                Puedes pedir el enlace de recuperación por correo o, si eres miembro, solicitar
+                ayuda a tu coordinador cuando no tengas acceso al email registrado. Él te dará un
+                código que se escribe en el campo de contraseña del inicio de sesión.
               </Typography>
             </Stack>
           </Box>
@@ -301,7 +301,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
           )}
 
           <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-            Si envias el enlace por correo, revisa tambien spam y promociones antes de intentar de
+            Si envías el enlace por correo, revisa también spam y promociones antes de intentar de
             nuevo.
           </Typography>
         </Box>
