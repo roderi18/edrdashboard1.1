@@ -363,6 +363,7 @@ export function MemberCreateEditForm({
   destIdInicial = '',
 }) {
   const { user } = useAuthContext();
+  const [correoVinculado, setCorreoVinculado] = useState('');
   // Cargos del destacamento que no son coordinadores (líder de grupo/asistente,
   // pastor, consejo, capellán): no pueden editar destacamento, posición en el
   // destacamento, sexo ni Instructor CI (se muestran deshabilitados) y sus cambios
@@ -806,7 +807,7 @@ export function MemberCreateEditForm({
   const idFicha = String(currentMember?.id ?? currentMember?.idMiembros ?? '');
   const idUsuario = String(user?.idMiembros ?? user?.id ?? '');
   const correoDeCuentaParaFicha =
-    idFicha && idFicha === idUsuario ? String(user?.email ?? '').trim() : '';
+    correoVinculado || (idFicha && idFicha === idUsuario ? String(user?.email ?? '').trim() : '');
 
   const defaultValues = {
     status: 'active',
@@ -853,6 +854,41 @@ export function MemberCreateEditForm({
     // de descarga) para los usuarios en solo lectura / con datos enmascarados.
     disabled: readOnlyEffective,
   });
+
+  // La ficha puede venir sin correo aunque la cuenta de Firebase ya tenga uno.
+  // Se resuelve por el número del miembro para que también funcione cuando un
+  // Administrador Global edita la ficha de otra persona.
+  useEffect(() => {
+    let cancelado = false;
+
+    setCorreoVinculado('');
+
+    const correoEnFicha = String(currentMember?.email || currentMember?.correo || '').trim();
+    const codigo = getCodigoMiembro(currentMember);
+    const numero = String(codigo).replace(/\D/g, '');
+
+    if (!currentMember || correoEnFicha || !numero) return undefined;
+
+    fetch('/api/auth/correo-acceso/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numeroUsuario: numero }),
+    })
+      .then((respuesta) => respuesta.json())
+      .then((datos) => {
+        const correo = String(datos?.correo || '').trim().toLowerCase();
+
+        if (!cancelado && correo) {
+          setCorreoVinculado(correo);
+          methods.setValue('email', correo, { shouldDirty: false });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelado = true;
+    };
+  }, [currentMember?.id, currentMember?.idMiembros, currentMember?.email, currentMember?.correo]);
 
   // LO QUE DICE LA DIRECTIVA SOBREVIVE A LOS RESETS DE LA FICHA.
   //
