@@ -37,3 +37,15 @@ test('la interfaz conserva una salida visible hacia la cuenta original', async (
   assert.match(dialogo, /baseURL: window\.location\.origin/);
   assert.match(layout, /SesionComoUsuarioBanner/);
 });
+
+// Las dos cuentas autorizadas fallaban: `admins` de rdpr18 estaba vacío y el de
+// rodery123456 decía 'administrador' (se exigía 'admin'). Ahora manda el cargo
+// de `usuarios_roles`, y el espejo de `admins` queda de respaldo.
+test('el Administrador Global se reconoce por usuarios_roles, no solo por admins', async () => {
+  const ruta = await leer('src/app/api/admin/probar-como-usuario/route.js');
+
+  assert.match(ruta, /db\.collection\('usuarios_roles'\)\.doc\(uid\)\.get\(\)/);
+  assert.match(ruta, /\['administrador_global', 'admin', 'administrador'\]/);
+  // Sigue haciendo falta estar en la lista de correos autorizados.
+  assert.match(ruta, /puedeUsarSelectorDeRol\(cuenta\.email\)/);
+});

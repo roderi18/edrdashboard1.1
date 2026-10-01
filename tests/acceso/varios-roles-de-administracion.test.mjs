@@ -153,3 +153,15 @@ test('las reglas reconocen la Tienda aunque no sea el rol principal', () => {
   assert.match(leer('firestore.rules'), /\|\| ejerceRol\('administrador_tienda'\)/);
   assert.match(leer('storage.rules'), /rolesQueEjerce\.hasAny\(\['administrador_tienda'\]\)/);
 });
+
+// Los datos estaban bien en Firestore, pero la sesión copia del perfil solo una
+// lista fija de campos y `rolesAdministracion` no estaba: Eliezer veía solo la
+// Oficina Nacional y la tienda no aparecía.
+test('la sesión conserva todos sus roles de administración', () => {
+  const proveedor = leer('src/auth/components/context/firebase/auth-provider.jsx');
+  const elegir = proveedor.slice(proveedor.indexOf('const pickAuthorizationProfile'));
+
+  assert.match(elegir, /rolesAdministracion: \[/);
+  assert.match(elegir, /rolesQueEjerce: \[/);
+  assert.match(proveedor, /rolesAdministracion: memberAccess\?\.profile\?\.rolesAdministracion,/);
+});

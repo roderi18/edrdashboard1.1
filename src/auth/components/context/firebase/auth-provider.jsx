@@ -273,6 +273,22 @@ const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
     permisosExcluidos: access.permisosExcluidos || [],
     permisosMetadata: access.permisosMetadata || {},
     permisosAutorizacion: Array.isArray(access.permisos) ? access.permisos : [],
+    // TODOS SUS ROLES DE ADMINISTRACION y la lista plana que leen los guardas.
+    // Esta funcion copia solo los campos de esta lista, y estos dos no estaban:
+    // con Oficina Nacional y Tienda a la vez, la sesion solo veia el principal
+    // (Oficina Nacional) y la tienda no aparecia (Eliezer Garcia).
+    rolesAdministracion: [
+      ...new Set([
+        ...(Array.isArray(access.rolesAdministracion) ? access.rolesAdministracion : []),
+        ...(Array.isArray(memberProfile.rolesAdministracion) ? memberProfile.rolesAdministracion : []),
+      ]),
+    ],
+    rolesQueEjerce: [
+      ...new Set([
+        ...(Array.isArray(access.rolesQueEjerce) ? access.rolesQueEjerce : []),
+        ...(Array.isArray(memberProfile.rolesQueEjerce) ? memberProfile.rolesQueEjerce : []),
+      ]),
+    ],
   };
 };
 
@@ -501,6 +517,9 @@ export function AuthProvider({ children }) {
             // El documento de administrador sigue mandando; esto solo rellena lo
             // que le falte, con lo que ya se leyo del padron.
             const identidadDeMiembro = {
+              // Sus roles de administracion (el documento de `admins` no los lleva).
+              rolesAdministracion: memberAccess?.profile?.rolesAdministracion,
+              rolesQueEjerce: memberAccess?.profile?.rolesQueEjerce,
               // Pase de un solo uso: el documento de administrador no lo lleva, y
               // sin el la sesion de Oficina Nacional entraba al panel sin elegir
               // contraseña. Lo dice el perfil de miembro.

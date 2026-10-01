@@ -21,16 +21,38 @@ const bearer = (req) => {
 
 const normalizar = (value) => String(value ?? '').trim().toLowerCase();
 
-const perfilGlobalActivo = (perfil = {}) =>
-  normalizar(perfil.rol ?? perfil.role) === 'admin' &&
-  normalizar(perfil.estatus ?? perfil.estado ?? 'activo') === 'activo';
+// ¿ES HOY ADMINISTRADOR GLOBAL? Lo decide `usuarios_roles/<uid>` —el cargo de
+// verdad, que solo escribe el servidor—, y como respaldo el espejo heredado de
+// `admins`. Antes solo miraba `admins` y exigia exactamente `rol: 'admin'`: el
+// documento de rdpr18 estaba vacio y el de rodery123456 decia 'administrador',
+// asi que ninguna de las dos cuentas autorizadas podia usar "Probar como usuario".
+const perfilGlobalActivo = (perfil = {}) => {
+  const activo = !['inactivo', 'suspendido', 'baja'].includes(
+    normalizar(perfil.estatus ?? perfil.estado ?? 'activo')
+  );
+  const roles = [
+    perfil.rolId,
+    perfil.rol,
+    perfil.role,
+    ...(Array.isArray(perfil.rolesAdministracion) ? perfil.rolesAdministracion : []),
+  ].map(normalizar);
+
+  return (
+    activo &&
+    perfil.activo !== false &&
+    roles.some((rol) => ['administrador_global', 'admin', 'administrador'].includes(rol))
+  );
+};
 
 const perfilAdmin = async (uid) => {
   const db = getAdminDb();
-  const [porUid, porCampo] = await Promise.all([
+  const [rol, porUid, porCampo] = await Promise.all([
+    db.collection('usuarios_roles').doc(uid).get(),
     db.collection('admins').doc(uid).get(),
     db.collection('admins').where('uid', '==', uid).limit(1).get(),
   ]);
+
+  if (rol.exists && perfilGlobalActivo(rol.data())) return rol.data();
 
   return porUid.exists ? porUid.data() : porCampo.docs[0]?.data();
 };
