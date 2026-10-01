@@ -95,3 +95,43 @@ test('texto de la placa: dos líneas, color hex y letra conocida', () => {
   assert.equal(capa.tamanoTexto, 48);
   assert.equal(capa.fuenteTexto, 'serif');
 });
+
+// La barra dorada se pidió DEBAJO de la foto, centrada donde van los textos, y
+// poder ocultar el título y el subtítulo (repetían nombre y año).
+test('cada imagen va sobre la foto o debajo, y los textos se pueden ocultar', () => {
+  const t = sanearTarjeta({
+    mostrarTextos: false,
+    capas: [
+      { id: 'a', url: 'https://x/a.webp', zona: 'textos' },
+      { id: 'b', url: 'https://x/b.webp', zona: 'cualquiera' },
+      { id: 'c', url: 'https://x/c.webp' },
+    ],
+  });
+  assert.deepEqual(
+    t.capas.map((c) => c.zona),
+    ['textos', 'foto', 'foto']
+  );
+  assert.equal(t.mostrarTextos, false);
+  assert.equal(sanearTarjeta({}).mostrarTextos, true);
+});
+
+// Con la barra debajo de la foto, el título y el subtítulo repetían nombre y
+// año: se ocultan solos, y la barra va pegada a la foto (poco margen).
+test('con una imagen debajo de la foto, solo se pinta la barra', async () => {
+  const { readFileSync } = await import('node:fs');
+  const tarjeta = readFileSync(
+    new URL('../../src/components/tarjeta-editable/tarjeta-editable.jsx', import.meta.url),
+    'utf8'
+  );
+  assert.match(tarjeta, /!capasDebajo\.length && tarjeta\.mostrarTextos !== false/);
+  assert.match(tarjeta, /tarjeta\.margenBarraArriba/);
+});
+
+// El margen de la barra lo pone el Administrador Global en el Designer, y puede
+// ser negativo para comerse el borde transparente de la imagen.
+test('margen de la barra: dentro de sus límites, negativos incluidos', () => {
+  const t = sanearTarjeta({ margenBarraArriba: -20, margenBarraAbajo: 999 });
+  assert.equal(t.margenBarraArriba, -20);
+  assert.equal(t.margenBarraAbajo, LIMITES_TARJETA.margenBarra.max);
+  assert.equal(sanearTarjeta({}).margenBarraArriba, TARJETA_DE_FABRICA.margenBarraArriba);
+});

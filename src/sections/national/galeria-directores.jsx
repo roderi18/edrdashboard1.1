@@ -14,8 +14,8 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
-import { validarDirectorNuevo } from 'src/utils/galeria-directores.mjs';
 import { ID_TARJETA_DEMO, TARJETA_DE_FABRICA } from 'src/utils/tarjeta-editable.mjs';
+import { textoDePlaca, validarDirectorNuevo } from 'src/utils/galeria-directores.mjs';
 
 import { leerTarjetaEditable } from 'src/services/tarjeta-editable-service';
 import {
@@ -148,7 +148,11 @@ export function GaleriaDirectores() {
             <TarjetaEditable
               key={director.id}
               tarjeta={{ ...diseno, imagenUrl: director.fotoUrl, imagenLocal: '' }}
-              textos={{ nombre: director.nombre, anio: director.anio }}
+              textos={{
+                nombre: director.nombre,
+                anio: director.anio,
+                placa: textoDePlaca(director),
+              }}
               {...(esAdmin && {
                 onClick: () =>
                   setSeleccionado((actual) => (actual === director.id ? null : director.id)),
@@ -306,6 +310,25 @@ function DialogoDirector({ abierto, director, diseno, usuario, onCerrar, onGuard
             placeholder="2008-2010"
             value={anio}
             onChange={(event) => setAnio(event.target.value)}
+            // Quien dirigió dos veces lleva los dos periodos, como en su placa.
+            helperText="Si dirigió más de una vez, sepáralos con / (2010-2014 / 2018-2022)."
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <Button
+                    size="small"
+                    color="inherit"
+                    sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                    startIcon={<Iconify icon="mingcute:add-line" />}
+                    onClick={() =>
+                      setAnio((actual) => (actual.trim() ? `${actual.trim()} / ` : ''))
+                    }
+                  >
+                    Otro periodo
+                  </Button>
+                ),
+              },
+            }}
           />
 
           <Button
@@ -332,7 +355,11 @@ function DialogoDirector({ abierto, director, diseno, usuario, onCerrar, onGuard
           <TarjetaEditable
             sx={{ mx: 'auto' }}
             tarjeta={{ ...diseno, imagenUrl: director?.fotoUrl || '', imagenLocal: fotoLocal }}
-            textos={{ nombre: nombre || 'Nombre', anio: anio || 'Año' }}
+            textos={{
+              nombre: nombre || 'Nombre',
+              anio: anio || 'Año',
+              placa: textoDePlaca({ nombre: nombre || 'Nombre', anio: anio || 'Año' }),
+            }}
           />
         </Stack>
       </DialogContent>

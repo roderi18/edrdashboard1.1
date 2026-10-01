@@ -8,16 +8,19 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Slider from '@mui/material/Slider';
+import Switch from '@mui/material/Switch';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
+import { recortarBordesTransparentes } from 'src/utils/recortar-bordes-transparentes';
 import {
   MAX_CAPAS,
   LIMITES_CAPA,
@@ -207,8 +210,11 @@ export function EverestTarjeta() {
     setSubiendoCapa(true);
 
     try {
+      // Sin los bordes transparentes de la imagen: si no, debajo de la foto
+      // dejaban un hueco que ningún margen quitaba.
+      const sinBordes = await recortarBordesTransparentes(archivo);
       const subida = await uploadOptimizedImage({
-        file: archivo,
+        file: sinBordes,
         preset: 'general',
         storagePath: `everest/tarjeta-desarrollo/${ID_TARJETA_DEMO}-${id}-capa.webp`,
       });
@@ -349,6 +355,19 @@ export function EverestTarjeta() {
                 sx={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0 }}
               />
               <Box sx={{ flexGrow: 1 }}>
+                {/* Sobre la foto se arrastra; debajo va centrada con los textos. */}
+                <TextField
+                  select
+                  size="small"
+                  fullWidth
+                  label="Dónde va"
+                  value={capa.zona || 'foto'}
+                  onChange={(event) => cambiarCapa(capa.id, { zona: event.target.value })}
+                  sx={{ mb: 1 }}
+                >
+                  <MenuItem value="foto">Sobre la foto</MenuItem>
+                  <MenuItem value="textos">Debajo, con los textos</MenuItem>
+                </TextField>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   Tamaño: {capa.ancho}%
                 </Typography>
@@ -377,6 +396,46 @@ export function EverestTarjeta() {
           <Typography variant="subtitle1">Textos</Typography>
           <TextField label="Título" value={tarjeta.titulo} onChange={cambiar('titulo')} />
           <TextField label="Subtítulo" value={tarjeta.subtitulo} onChange={cambiar('subtitulo')} />
+          {/* Con la barra dorada debajo diciendo nombre y año, el título y el
+              subtítulo repetían lo mismo. */}
+          <FormControlLabel
+            control={
+              <Switch
+                // Con una imagen debajo de la foto, los textos se ocultan solos.
+                disabled={tarjeta.capas.some((capa) => capa.zona === 'textos')}
+                checked={
+                  tarjeta.mostrarTextos !== false &&
+                  !tarjeta.capas.some((capa) => capa.zona === 'textos')
+                }
+                onChange={(event) =>
+                  setTarjeta((actual) => ({ ...actual, mostrarTextos: event.target.checked }))
+                }
+              />
+            }
+            label="Mostrar título y subtítulo"
+          />
+          {tarjeta.capas.some((capa) => capa.zona === 'textos') && (
+            <>
+              <Typography variant="caption" sx={{ color: 'text.secondary', mt: -1.5 }}>
+                Con una imagen debajo de la foto (la barra), solo se ve la barra.
+              </Typography>
+              {/* El hueco de la barra con la foto y con el borde de la tarjeta.
+                  En negativo la acerca aunque la imagen traiga borde
+                  transparente. */}
+              <ControlDeTamano
+                etiqueta="Margen de la barra · arriba"
+                valor={tarjeta.margenBarraArriba}
+                limites={LIMITES_TARJETA.margenBarra}
+                onChange={cambiarTamano('margenBarraArriba')}
+              />
+              <ControlDeTamano
+                etiqueta="Margen de la barra · abajo"
+                valor={tarjeta.margenBarraAbajo}
+                limites={LIMITES_TARJETA.margenBarra}
+                onChange={cambiarTamano('margenBarraAbajo')}
+              />
+            </>
+          )}
 
           <Typography variant="subtitle1">Letra</Typography>
           <TextField

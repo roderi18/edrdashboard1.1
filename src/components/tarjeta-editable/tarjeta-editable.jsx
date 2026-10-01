@@ -33,6 +33,9 @@ export function TarjetaEditable({
   ...other
 }) {
   const imagen = tarjeta.imagenLocal || tarjeta.imagenUrl;
+  // Las imágenes que van DEBAJO de la foto, centradas y a su tamaño (% del ancho
+  // de esa zona): la barra dorada con el nombre y el año.
+  const capasDebajo = tarjeta.capas.filter((capa) => capa.zona === 'textos');
   const marco = useRef(null);
 
   // Arrastrar una capa: su centro sigue al puntero, en % del marco de la foto.
@@ -97,87 +100,139 @@ export function TarjetaEditable({
           ) : (
             <Iconify width={48} icon="solar:gallery-add-bold" />
           )}
-          {tarjeta.capas.map((capa) => (
-            <Box
-              key={capa.id}
-              onPointerDown={empezarArrastre(capa)}
-              sx={{
-                position: 'absolute',
-                left: `${capa.x}%`,
-                top: `${capa.y}%`,
-                width: `${capa.ancho}%`,
-                transform: 'translate(-50%, -50%)',
-                userSelect: 'none',
-                ...(onMoverCapa && {
-                  cursor: 'grab',
-                  touchAction: 'none',
-                  '&:active': { cursor: 'grabbing' },
-                }),
-              }}
-            >
+          {tarjeta.capas
+            .filter((capa) => capa.zona !== 'textos')
+            .map((capa) => (
               <Box
-                component="img"
-                alt=""
-                draggable={false}
-                src={capa.urlLocal || capa.url}
-                sx={{ width: 1, display: 'block' }}
-              />
-              {/* El texto va centrado sobre la imagen: nombre arriba, años abajo,
-                  como en las placas de los comandantes. */}
-              {!!(capa.textoArriba || capa.textoAbajo) && (
-                <Box
-                  sx={{
-                    inset: 0,
-                    px: '6%',
-                    display: 'flex',
-                    position: 'absolute',
-                    textAlign: 'center',
-                    alignItems: 'center',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    pointerEvents: 'none',
-                    color: capa.colorTexto,
-                    fontSize: capa.tamanoTexto,
-                    fontFamily: cssDeFuente(capa.fuenteTexto),
-                    fontWeight: 700,
-                    lineHeight: 1.15,
-                  }}
-                >
-                  {!!capa.textoArriba && <span>{conTextos(capa.textoArriba, textos)}</span>}
-                  {!!capa.textoAbajo && <span>{conTextos(capa.textoAbajo, textos)}</span>}
-                </Box>
-              )}
-            </Box>
-          ))}
+                key={capa.id}
+                onPointerDown={empezarArrastre(capa)}
+                sx={{
+                  position: 'absolute',
+                  left: `${capa.x}%`,
+                  top: `${capa.y}%`,
+                  width: `${capa.ancho}%`,
+                  transform: 'translate(-50%, -50%)',
+                  userSelect: 'none',
+                  ...(onMoverCapa && {
+                    cursor: 'grab',
+                    touchAction: 'none',
+                    '&:active': { cursor: 'grabbing' },
+                  }),
+                }}
+              >
+                <CapaFlotante capa={capa} textos={textos} />
+              </Box>
+            ))}
         </Box>
       </Box>
 
-      <Box sx={{ px: 2, py: 2.5, fontFamily: cssDeFuente(tarjeta.fuente) }}>
-        <Typography
-          variant="subtitle2"
-          sx={(theme) => ({
-            ...theme.mixins.maxLine({ line: 2 }),
-            fontFamily: 'inherit',
-            fontSize: tarjeta.tamanoTitulo,
-          })}
-        >
-          {textos ? textos.nombre : tarjeta.titulo}
-        </Typography>
-
-        {!!(textos ? textos.anio : tarjeta.subtitulo) && (
-          <Typography
-            variant="body2"
+      {/* CON LA BARRA DEBAJO, SOLO LA BARRA. Ya dice nombre y año: el título y
+          el subtítulo repetían lo mismo, así que se ocultan solos. Y va pegada
+          a la foto: poco margen arriba y abajo (antes heredaba el de los
+          textos, 20 px a cada lado). */}
+      <Box
+        sx={{
+          px: 2,
+          // El hueco lo decide el Designer (Margen de la barra, arriba y abajo).
+          ...(capasDebajo.length
+            ? { pt: 0, pb: `${Math.max(0, tarjeta.margenBarraAbajo ?? 4)}px` }
+            : { py: 2.5 }),
+          fontFamily: cssDeFuente(tarjeta.fuente),
+        }}
+      >
+        {capasDebajo.map((capa, indice) => (
+          <Box
+            key={capa.id}
             sx={{
-              mt: 0.5,
-              color: 'text.secondary',
-              fontFamily: 'inherit',
-              fontSize: tarjeta.tamanoSubtitulo,
+              width: `${capa.ancho}%`,
+              mx: 'auto',
+              position: 'relative',
+              // Negativo, sube sobre el hueco: compensa el borde transparente.
+              mt: indice ? 0.5 : `${tarjeta.margenBarraArriba ?? 2}px`,
+              ...(indice === capasDebajo.length - 1 &&
+                (tarjeta.margenBarraAbajo ?? 4) < 0 && { mb: `${tarjeta.margenBarraAbajo}px` }),
             }}
           >
-            {textos ? textos.anio : tarjeta.subtitulo}
-          </Typography>
+            <CapaFlotante capa={capa} textos={textos} />
+          </Box>
+        ))}
+
+        {!capasDebajo.length && tarjeta.mostrarTextos !== false && (
+          <>
+            <Typography
+              variant="subtitle2"
+              sx={(theme) => ({
+                ...theme.mixins.maxLine({ line: 2 }),
+                fontFamily: 'inherit',
+                fontSize: tarjeta.tamanoTitulo,
+              })}
+            >
+              {textos ? textos.nombre : tarjeta.titulo}
+            </Typography>
+
+            {!!(textos ? textos.anio : tarjeta.subtitulo) && (
+              <Typography
+                variant="body2"
+                sx={{
+                  mt: 0.5,
+                  color: 'text.secondary',
+                  fontFamily: 'inherit',
+                  fontSize: tarjeta.tamanoSubtitulo,
+                }}
+              >
+                {textos ? textos.anio : tarjeta.subtitulo}
+              </Typography>
+            )}
+          </>
         )}
       </Box>
     </Card>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+// Una imagen flotante con su texto encima (nombre arriba, años abajo, como en
+// las placas). La misma sobre la foto y debajo de ella.
+function CapaFlotante({ capa, textos }) {
+  return (
+    <Box sx={{ position: 'relative' }}>
+      <Box
+        component="img"
+        alt=""
+        draggable={false}
+        src={capa.urlLocal || capa.url}
+        sx={{ width: 1, display: 'block' }}
+      />
+      {!!(capa.textoArriba || capa.textoAbajo) && (
+        <Box
+          sx={{
+            inset: 0,
+            px: '6%',
+            display: 'flex',
+            position: 'absolute',
+            textAlign: 'center',
+            alignItems: 'center',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            color: capa.colorTexto,
+            fontSize: capa.tamanoTexto,
+            fontFamily: cssDeFuente(capa.fuenteTexto),
+            fontWeight: 700,
+            lineHeight: 1.15,
+          }}
+        >
+          {/* En la galería manda la placa de cada director (`textos.placa`); en el
+              Designer, el texto de muestra. Solo las líneas que el diseño tiene. */}
+          {!!capa.textoArriba && (
+            <span>{textos?.placa ? textos.placa.arriba : conTextos(capa.textoArriba, textos)}</span>
+          )}
+          {!!capa.textoAbajo && (
+            <span>{textos?.placa ? textos.placa.abajo : conTextos(capa.textoAbajo, textos)}</span>
+          )}
+        </Box>
+      )}
+    </Box>
   );
 }

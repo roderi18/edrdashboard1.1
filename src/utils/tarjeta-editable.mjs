@@ -19,6 +19,9 @@ export const LIMITES_TARJETA = Object.freeze({
   radio: { min: 0, max: 32 },
   tamanoTitulo: { min: 12, max: 40 },
   tamanoSubtitulo: { min: 10, max: 32 },
+  // El hueco encima y debajo de la barra (imágenes debajo de la foto). Admite
+  // negativos: una imagen con borde transparente se acerca igual a la foto.
+  margenBarra: { min: -60, max: 40 },
 });
 
 // Los tipos de letra que la aplicación ya carga (`src/global.css`): uno que no
@@ -39,6 +42,7 @@ export const FUENTES_TARJETA = Object.freeze([
 // ocupa (% del ancho de la foto). En % para que siga en su sitio al cambiar el
 // tamaño del contenedor.
 export const MAX_CAPAS = 10;
+export const ZONAS_CAPA = Object.freeze(['foto', 'textos']);
 export const LIMITES_CAPA = Object.freeze({
   ancho: { min: 5, max: 100 },
   tamanoTexto: { min: 6, max: 48 },
@@ -91,6 +95,9 @@ export function sanearCapas(capas) {
       fuenteTexto: FUENTES_TARJETA.some((f) => f.id === capa.fuenteTexto)
         ? capa.fuenteTexto
         : TEXTO_DE_CAPA.fuenteTexto,
+      // Dónde va: sobre la foto (se arrastra) o debajo, en la zona de los textos,
+      // centrada (la barra dorada de la galería). Sin dato, sobre la foto.
+      zona: ZONAS_CAPA.includes(capa.zona) ? capa.zona : 'foto',
     }));
 }
 
@@ -106,6 +113,11 @@ export const TARJETA_DE_FABRICA = Object.freeze({
   tamanoTitulo: 14,
   tamanoSubtitulo: 13,
   fuente: 'tema',
+  // Con la barra dorada debajo ya diciendo nombre y año, el título y el
+  // subtítulo sobran: se pueden ocultar.
+  mostrarTextos: true,
+  margenBarraArriba: 2,
+  margenBarraAbajo: 4,
   // Imágenes flotantes encima de la foto (un sello, un logo, una insignia).
   capas: [],
   ancho: 340,
@@ -155,6 +167,17 @@ export function sanearTarjeta(datos) {
     TARJETA_DE_FABRICA.tamanoSubtitulo
   );
   tarjeta.capas = sanearCapas(fuente.capas);
+  tarjeta.mostrarTextos = fuente.mostrarTextos !== false;
+  tarjeta.margenBarraArriba = limitar(
+    fuente.margenBarraArriba,
+    LIMITES_TARJETA.margenBarra,
+    TARJETA_DE_FABRICA.margenBarraArriba
+  );
+  tarjeta.margenBarraAbajo = limitar(
+    fuente.margenBarraAbajo,
+    LIMITES_TARJETA.margenBarra,
+    TARJETA_DE_FABRICA.margenBarraAbajo
+  );
   if (FUENTES_TARJETA.some((f) => f.id === fuente.fuente)) tarjeta.fuente = fuente.fuente;
 
   return tarjeta;

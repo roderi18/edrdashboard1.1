@@ -31,7 +31,14 @@ export async function leerGaleriaDeDirectores() {
   );
 }
 
-export async function agregarDirectorALaGaleria({ nombre, anio, foto, usuario }) {
+export async function agregarDirectorALaGaleria({
+  nombre,
+  anio,
+  foto,
+  usuario,
+  placaArriba = '',
+  placaAbajo = '',
+}) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
   if (!isAdminGlobal(usuario)) {
     throw new Error('Solo el Administrador Global añade directores a la galería.');
@@ -51,6 +58,8 @@ export async function agregarDirectorALaGaleria({ nombre, anio, foto, usuario })
     anio: String(anio).trim(),
     fotoUrl: subida.downloadUrl,
     rutaStorage: subida.storagePath,
+    placaArriba: String(placaArriba).trim(),
+    placaAbajo: String(placaAbajo).trim(),
   };
 
   await proponerCambio({
@@ -81,7 +90,15 @@ export async function agregarDirectorALaGaleria({ nombre, anio, foto, usuario })
 
 // EDITAR UN DIRECTOR. Nombre y año siempre; la foto solo si se eligió otra (ya
 // recortada), que va a una ruta nueva para no pisar la que guarda Historial.
-export async function editarDirectorDeLaGaleria({ director, nombre, anio, foto, usuario }) {
+export async function editarDirectorDeLaGaleria({
+  director,
+  nombre,
+  anio,
+  foto,
+  usuario,
+  placaArriba = '',
+  placaAbajo = '',
+}) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
   if (!isAdminGlobal(usuario)) {
     throw new Error('Solo el Administrador Global edita la galería.');
@@ -95,7 +112,12 @@ export async function editarDirectorDeLaGaleria({ director, nombre, anio, foto, 
   if (error) throw new Error(error);
 
   const id = director.id;
-  const cambios = { nombre: String(nombre).trim(), anio: String(anio).trim() };
+  const cambios = {
+    nombre: String(nombre).trim(),
+    anio: String(anio).trim(),
+    placaArriba: String(placaArriba).trim(),
+    placaAbajo: String(placaAbajo).trim(),
+  };
 
   if (foto) {
     const subida = await uploadOptimizedImage({
@@ -118,6 +140,18 @@ export async function editarDirectorDeLaGaleria({ director, nombre, anio, foto, 
     cambios: [
       { campo: 'nombre', etiqueta: 'Nombre', antes: director.nombre, despues: cambios.nombre },
       { campo: 'anio', etiqueta: 'Año', antes: director.anio, despues: cambios.anio },
+      {
+        campo: 'placaArriba',
+        etiqueta: 'Placa (arriba)',
+        antes: director.placaArriba || null,
+        despues: cambios.placaArriba || null,
+      },
+      {
+        campo: 'placaAbajo',
+        etiqueta: 'Placa (abajo)',
+        antes: director.placaAbajo || null,
+        despues: cambios.placaAbajo || null,
+      },
       ...(cambios.fotoUrl
         ? [
             {
