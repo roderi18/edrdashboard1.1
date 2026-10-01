@@ -31,7 +31,7 @@ import { Iconify } from 'src/components/iconify';
 const LADO = 900;
 
 /** La porcion elegida, dibujada a tamaño util y en WebP. */
-const recortar = async (origen, area) => {
+const recortar = async (origen, area, aspecto = 1) => {
   const imagen = await new Promise((resolve, reject) => {
     const elemento = new Image();
     elemento.addEventListener('load', () => resolve(elemento));
@@ -40,15 +40,27 @@ const recortar = async (origen, area) => {
   });
 
   const lienzo = document.createElement('canvas');
-  lienzo.width = LADO;
-  lienzo.height = LADO;
+  // Un recorte apaisado (la foto de una tarjeta) se sube con su proporcion;
+  // el cuadrado de siempre sigue siendo LADO x LADO.
+  lienzo.width = aspecto >= 1 ? Math.round(LADO * aspecto) : LADO;
+  lienzo.height = aspecto >= 1 ? LADO : Math.round(LADO / aspecto);
 
   const contexto = lienzo.getContext('2d');
   if (!contexto) throw new Error('No se pudo preparar el recorte.');
 
   contexto.imageSmoothingEnabled = true;
   contexto.imageSmoothingQuality = 'high';
-  contexto.drawImage(imagen, area.x, area.y, area.width, area.height, 0, 0, LADO, LADO);
+  contexto.drawImage(
+    imagen,
+    area.x,
+    area.y,
+    area.width,
+    area.height,
+    0,
+    0,
+    lienzo.width,
+    lienzo.height
+  );
 
   const blob = await new Promise((resolve) => lienzo.toBlob(resolve, 'image/webp', 0.9));
 
@@ -57,7 +69,16 @@ const recortar = async (origen, area) => {
   return blob;
 };
 
-export function RecorteDeFoto({ abierto, archivo, onCancelar, onListo }) {
+// `aspecto` y `forma` son opcionales: sin ellos, el circulo de la foto de
+// perfil de siempre.
+export function RecorteDeFoto({
+  abierto,
+  archivo,
+  onCancelar,
+  onListo,
+  aspecto = 1,
+  forma = 'round',
+}) {
   const [origen, setOrigen] = useState(null);
   const [posicion, setPosicion] = useState({ x: 0, y: 0 });
   const [acercamiento, setAcercamiento] = useState(1);
@@ -93,7 +114,7 @@ export function RecorteDeFoto({ abierto, archivo, onCancelar, onListo }) {
     setError(null);
 
     try {
-      const blob = await recortar(origen, area);
+      const blob = await recortar(origen, area, aspecto);
       const nombre = String(archivo?.name || 'foto').replace(/\.[^.]+$/, '');
       const recortada = new File([blob], `${nombre}.webp`, {
         type: 'image/webp',
@@ -129,8 +150,8 @@ export function RecorteDeFoto({ abierto, archivo, onCancelar, onListo }) {
               image={origen}
               crop={posicion}
               zoom={acercamiento}
-              aspect={1}
-              cropShape="round"
+              aspect={aspecto}
+              cropShape={forma}
               showGrid={false}
               onCropChange={setPosicion}
               onZoomChange={setAcercamiento}

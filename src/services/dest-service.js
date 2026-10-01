@@ -13,6 +13,7 @@ import {
 import {
     isFullOrgManager,
     canCreateDestInSection,
+    puedeCambiarFotoDeEntidad,
     soloSugiereAltasDeDestacamento,
     puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
@@ -616,7 +617,8 @@ export const proponerFotoDestacamento = async ({
             },
         ],
         usuario,
-        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        // La Oficina Nacional por cualquiera de sus cargos la aplica al momento.
+        aplicarDirecto: puedeCambiarFotoDeEntidad(usuario),
         payload,
         aplicar: () => aplicarFotoDestacamento(payload),
     });

@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
@@ -103,6 +104,11 @@ import { NationalTableToolbar } from '../national-table-toolbar';
 import { NationalJerarquiaToolbar } from '../national-jerarquia-toolbar';
 import { NationalTableFiltersResult } from '../national-table-filters-result';
 
+// La galería (fotos y el recorte) solo se baja al abrir su pestaña.
+const GaleriaDirectores = dynamic(
+  () => import('../galeria-directores').then((m) => m.GaleriaDirectores),
+  { ssr: false }
+);
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
@@ -545,7 +551,11 @@ export function NationalListView() {
     nationalEstructure: [],
   });
   // Que se pinta en la tarjeta: la lista de personas o el organigrama.
-  const [vista, setVista] = useState('lista');
+  // `?vista=galeria` abre la Galería de Directores Nacionales (el enlace de
+  // Historial y el de EXPLORA Designer llevan ahí).
+  const [vista, setVista] = useState(() =>
+    searchParams?.get('vista') === 'galeria' ? 'galeria' : 'lista'
+  );
 
   // El título de un Oficial de la Nacional (Protocolo, Diseño y artes…) sale en
   // la columna Posición en lugar de "Oficial Especial", igual que en la Jerarquía
@@ -988,18 +998,26 @@ export function NationalListView() {
   // Cada opción buscaba su fila recorriendo la tabla DENTRO del orden (al
   // cuadrado); ahora la primera fila de cada posición se guarda en un Map.
   const distinctPositions = useMemo(() => {
+    // Una opción por NOMBRE de cargo, no por casilla: en una directiva pasada el
+    // mismo cargo llega con claves distintas (la casilla de hoy o, si se guardó
+    // sin ella, `nivel:grupo:cargo`), y el filtro enseñaba "Director Regional"
+    // dos veces.
     const primeraFila = new Map();
+    const filasPorClave = tableData.map((row) => ({
+      ...row,
+      clavePosicion: claveDePosicion(row),
+    }));
 
-    tableData.forEach((row) => {
-      if (!primeraFila.has(row.nationalXMemberPosition)) {
-        primeraFila.set(row.nationalXMemberPosition, row);
+    filasPorClave.forEach((row) => {
+      if (!primeraFila.has(row.clavePosicion)) {
+        primeraFila.set(row.clavePosicion, row);
       }
     });
 
     return getAvailableOptionsFromData({
-      inputData: tableData,
-      property: 'nationalXMemberPosition',
-      labelResolver: (value) => primeraFila.get(value)?.nationalXMemberPositionLabel,
+      inputData: filasPorClave,
+      property: 'clavePosicion',
+      labelResolver: (value) => value,
     }).sort((a, b) => {
       const rowA = primeraFila.get(a.value);
       const rowB = primeraFila.get(b.value);
@@ -1386,6 +1404,7 @@ export function NationalListView() {
                   el cuatrienio vigente. Solo en la directiva actual y solo para
                   Consejo Ejecutivo, Administrador Global y Oficina Nacional; en
                   una pasada, esas salidas van dentro de "Todos". */}
+              <Tab value="galeria" label="Galería de Directores Nacionales" />
               {puedeVerHistoria && (
                 <Tab
                   value="historia"
@@ -1501,6 +1520,8 @@ export function NationalListView() {
                 </Box>
               </>
             )}
+
+            {vistaActual === 'galeria' && <GaleriaDirectores />}
 
             {vistaActual === 'historia' && (
               <LeadershipHistoryList
@@ -1619,6 +1640,13 @@ export function NationalListView() {
 
 // ----------------------------------------------------------------------
 
+// Lo que agrupa el filtro "Posición": el nombre del cargo (o la casilla si no
+// lo trae), para que dos claves del mismo cargo sean una sola opción.
+function claveDePosicion(row) {
+  const nombre = row.nationalXMemberPositionLabel;
+  return nombre && nombre !== '-' ? nombre : row.nationalXMemberPosition;
+}
+
 function applyFilter({ inputData, comparator, filters }) {
   const { name, nationalXMemberPosition, nationalOrganizationalLevel, nationalEstructure } = filters;
 
@@ -1664,7 +1692,7 @@ function applyFilter({ inputData, comparator, filters }) {
 
   if (nationalXMemberPosition.length) {
     inputData = inputData.filter((national) =>
-      nationalXMemberPosition.includes(national.nationalXMemberPosition)
+      nationalXMemberPosition.includes(claveDePosicion(national))
     );
   }
 

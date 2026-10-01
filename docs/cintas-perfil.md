@@ -47,7 +47,7 @@ Algoritmo: ordenar por número; `resto = n % 3`; si `resto > 0`, la primera fila
 
 ### Orden global (EXPLORA Designer)
 
-El número del archivo es el orden **de fábrica**. En `/dashboard/everest?seccion=cintas`
+El número del archivo es el orden **de fábrica**. En `/dashboard/explora-designer?seccion=cintas`
 el Administrador Global arrastra las cintas (o usa las flechas, en el teléfono) y pulsa
 "Guardar orden". Ese orden se guarda en `configuracion_cintas/orden` (`{ orden: [ids] }`,
 pasa por `proponerCambio` y queda en Historial) y **manda en todas partes**: en los
@@ -119,7 +119,7 @@ Documento:
 
 Mismo trato que las cintas —perfil, pestaña **Medallas** dentro del mismo diálogo (el lápiz de las cintas) del
 Administrador Global y pestaña **Medallas** en EXPLORA Designer
-(`/dashboard/everest?seccion=medallas`) con orden global arrastrable—, con una
+(`/dashboard/explora-designer?seccion=medallas`) con orden global arrastrable—, con una
 diferencia: **el catálogo es la carpeta** `public/insignias/medallas`.
 
 - Cualquier imagen (WebP, PNG, JPG, GIF, AVIF) que se deje ahí aparece en la
@@ -166,7 +166,7 @@ diferencia: **el catálogo es la carpeta** `public/insignias/medallas`.
 El tercer apartado del perfil, con el mismo trato que las medallas: **perfil**,
 pestaña **Pines** del mismo diálogo del lápiz de las cintas (Administrador Global,
 un solo Guardar para las tres) y pestaña **Pines** en EXPLORA Designer
-(`/dashboard/everest?seccion=pines`) con orden global arrastrable y
+(`/dashboard/explora-designer?seccion=pines`) con orden global arrastrable y
 "Agregar pin".
 
 - **En el perfil van ENCIMA de las cintas, centrados**: una sola fila, **como

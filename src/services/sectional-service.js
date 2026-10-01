@@ -1,8 +1,8 @@
 import { doc, getDoc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore';
 
 import { getOwnRegionIdsForUser } from 'src/utils/member-access';
-import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
     registrarFotoEntidadSubida,
     obtenerFotosPrincipalesPorEntidad,
@@ -10,6 +10,7 @@ import {
 import {
     canEditSectional,
     canDeleteOrgLevel,
+    puedeCambiarFotoDeEntidad,
     canAssignSectionalToRegion,
     canCreateSectionalInRegion,
     soloSugiereCambiosDeSeccion,
@@ -547,7 +548,8 @@ export const proponerFotoSeccion = async ({ seccion = {}, foto = {}, urlAntes = 
             },
         ],
         usuario,
-        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        // La Oficina Nacional por cualquiera de sus cargos la aplica al momento.
+        aplicarDirecto: puedeCambiarFotoDeEntidad(usuario),
         payload,
         aplicar: () => aplicarFotoSeccion(payload),
     });

@@ -113,3 +113,16 @@ permiten escritura, aplicar el mismo `soloLectura`/alcance ahí.
 - Orden sugerido de activación: (1) backfill de claims, (2) desplegar el .NET con
   validación **en modo log** (no bloquea, solo registra qué filtraría), (3) activar
   el bloqueo real tras confirmar que el filtrado es correcto por rol.
+
+## Quitar el número de un destacamento
+
+`POST /api/Destacamentos/UpdateDestacamento` **no borra `numero`**: si llega `""` o
+`null`, responde `success: true` pero conserva el que había. Probado el 30/09/2026
+con Wolf Squard (id 393), numerado "0" por error: se envió su registro completo con
+`numero: null` y siguió en "0".
+
+Cambio necesario: que `numero` vacío o `null` **se guarde vacío** (hoy el mapeo
+probablemente hace `if (!string.IsNullOrEmpty(dto.numero)) entidad.Numero = dto.numero;`).
+Si se quiere conservar "no tocar si no viene", distinguir *ausente* de *vacío*.
+Mientras tanto la ficha avisa de que el número no se pudo quitar
+(`dest-create-edit-form.jsx`). Pendiente: Wolf Squard (393) sigue con "0".

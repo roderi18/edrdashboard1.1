@@ -1,18 +1,9 @@
 import 'server-only';
 
-import { randomBytes } from 'crypto';
-
-import { buildDefaultMemberPermissions } from 'src/utils/member-default-permissions';
-
 import { limiteSuperado } from 'src/server/limite-intentos';
-import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
-import {
-  correoInternoDe,
-  normalizarCodigo,
-  numeroDeCodigoMiembro,
-  CAMPO_BUSQUEDA_NUMERO,
-  identificarSolicitante,
-} from 'src/server/claves-miembro';
+import { isAdminConfigured } from 'src/server/firebase-admin';
+import { CuentaYaExiste, crearCuentaDeMiembro } from 'src/server/cuenta-de-miembro';
+import { normalizarCodigo, identificarSolicitante } from 'src/server/claves-miembro';
 
 export const runtime = 'nodejs';
 
@@ -31,11 +22,6 @@ export const runtime = 'nodejs';
 // codigo de un solo uso desde su ficha, igual que para cualquier recuperacion.
 // ----------------------------------------------------------------------
 
-const COLECCION = 'usuarios_roles';
-
-// Larga y aleatoria porque nadie la va a teclear: solo tiene que ser imposible
-// de adivinar mientras el miembro no elija la suya.
-const claveAleatoria = () => randomBytes(32).toString('base64url');
 
 export async function POST(req) {
   try {
@@ -74,22 +60,13 @@ export async function POST(req) {
       );
     }
 
-    const auth = getAdminAuth();
-    const db = getAdminDb();
-    const correo = correoInternoDe(username);
-    const displayName = `${firstName || ''} ${lastName || ''}`.trim() || codigoMiembro;
-
-    let cuenta;
+    let creada;
 
     try {
-      cuenta = await auth.createUser({
-        email: correo,
-        emailVerified: false,
-        password: claveAleatoria(),
-        displayName,
-      });
+      // La crea la pieza compartida con "Restablecer contraseña" (ver el archivo).
+      creada = await crearCuentaDeMiembro({ codigoMiembro, firstName, lastName, destId, memberId });
     } catch (error) {
-      if (error?.code === 'auth/email-already-exists') {
+      if (error instanceof CuentaYaExiste) {
         return Response.json(
           { error: 'Ese miembro ya tiene cuenta de acceso.', yaExistia: true },
           { status: 409 }
@@ -99,70 +76,12 @@ export async function POST(req) {
       throw error;
     }
 
-    // La marca viaja en el token, no solo en Firestore: asi el SERVIDOR puede
-    // negarle todo lo que no sea elegir su contraseña. Cuando la elige,
-    // `/api/auth/clave-miembro` la retira.
-    await auth.setCustomUserClaims(cuenta.uid, { debeCambiarClave: true });
-
-    const creadoEn = new Date().toISOString();
-    const perfil = {
-      idMiembros: memberId ? Number(memberId) : null,
-      codigoMiembro,
-      uid: cuenta.uid,
-      correo,
-      nombre: displayName,
-      rol: 'miembro',
-      estado: 'activo',
-      debeCambiarClave: true,
-      // Por donde se le encuentra cuando escribe solo su numero para entrar.
-      [CAMPO_BUSQUEDA_NUMERO]: numeroDeCodigoMiembro(codigoMiembro),
-      alcance: {
-        modo: 'destacamento',
-        destacamentos: destId ? [Number(destId)] : [],
-        regiones: [],
-        secciones: [],
-      },
-      permisos: buildDefaultMemberPermissions(),
-      creadoEn,
-      actualizadoEn: creadoEn,
-    };
-
-    try {
-      await Promise.all([
-        db.collection('users').doc(cuenta.uid).set(
-          {
-            uid: cuenta.uid,
-            email: correo,
-            username,
-            codigoMiembro,
-            displayName,
-            firstName: firstName || '',
-            lastName: lastName || '',
-            idMiembros: memberId ? Number(memberId) : null,
-            idDestacamento: destId ? Number(destId) : null,
-            authMode: 'member-code',
-            createdAt: creadoEn,
-          },
-          { merge: true }
-        ),
-        db.collection(COLECCION).doc(String(memberId || username)).set(perfil, { merge: true }),
-        // Tambien bajo el uid: es lo que las reglas miran para saber que esta
-        // dado de alta (`esUsuarioDelSistema`). Sin este documento, la cuenta
-        // nace sin poder leer nada.
-        db.collection(COLECCION).doc(cuenta.uid).set(perfil, { merge: true }),
-      ]);
-    } catch (error) {
-      // Una cuenta sin perfil no puede entrar a ningun sitio y ademas bloquea el
-      // correo interno para siempre: mejor deshacerla.
-      await auth.deleteUser(cuenta.uid).catch((fallo) => {
-        console.warn('[crear-cuenta-miembro] no se pudo deshacer la cuenta a medias', fallo);
-      });
-
-      throw error;
-    }
-
     // La contraseña NO sale de aqui, a proposito.
-    return Response.json({ uid: cuenta.uid, emailFake: correo, username });
+    return Response.json({
+      uid: creada.cuenta.uid,
+      emailFake: creada.correo,
+      username: creada.username,
+    });
   } catch (error) {
     console.error('[crear-cuenta-miembro] no se pudo crear', error);
 

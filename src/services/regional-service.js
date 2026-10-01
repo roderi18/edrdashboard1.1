@@ -1,5 +1,5 @@
-import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
   registrarFotoEntidadSubida,
   obtenerFotosPrincipalesPorEntidad,
@@ -7,7 +7,8 @@ import {
 import {
   canEditRegional,
   canDeleteOrgLevel,
-  puedeAprobarCambiosDeOrganizacion,
+  puedeCambiarFotoDeEntidad,
+    puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
 import { authHeaders } from './member-service';
@@ -293,7 +294,8 @@ export const proponerFotoRegion = async ({ region = {}, foto = {}, urlAntes = ''
             },
         ],
         usuario,
-        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        // La Oficina Nacional por cualquiera de sus cargos la aplica al momento.
+        aplicarDirecto: puedeCambiarFotoDeEntidad(usuario),
         payload,
         aplicar: () => aplicarFotoRegion(payload),
     });

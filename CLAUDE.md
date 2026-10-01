@@ -253,9 +253,9 @@ Designer.**
   guarda la misma forma que hoy recibe su componente.
 - **Solo publica el Administrador Global**, por `proponerCambio` (ámbito
   `everest_designer`): se aplica al momento y queda en Historial.
-- **Pestañas:** Portada, Cintas, Medallas, Pines y Paleta (`?seccion=`). La Paleta vivía
+- **Pestañas:** Portada, Cintas, Medallas, Pines, Paleta y Tarjeta (`?seccion=`). La Paleta vivía
   en Administración; `/dashboard/admin/paleta` solo redirige aquí.
-- **Pantalla:** `/dashboard/everest`, entrada del menú lateral debajo de
+- **Pantalla:** `/dashboard/explora-designer` (la vieja `/dashboard/everest` redirige), entrada del menú lateral debajo de
   "Administradores" (no es una pestaña de Administración), solo para el
   Administrador Global. La vista previa es un iframe a `/vista-previa/everest` porque los
   estilos dependen del ancho de la ventana; pinta con los componentes reales de

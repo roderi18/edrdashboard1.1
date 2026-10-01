@@ -53,3 +53,6 @@ scripts/respaldo-*.json
 docs/backups/
 # Copia local de lo que se quitó por no usarse: nunca se publica.
 docs/documentosNoUsados.zip
+
+# La copia descomprimida de documentosNoUsados.zip: lleva datos de personas.
+docs/documentosNoUsados/

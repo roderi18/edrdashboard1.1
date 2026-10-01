@@ -11,6 +11,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { conNoLeidoMarcado } from 'src/utils/chat-no-leido.mjs';
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 import { contactoSistema, esCuentaSistema } from 'src/utils/chat-sistema.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
@@ -1883,6 +1884,7 @@ async function updateConversationAction({
   const permissionByAction = {
     typing: CHAT_PERMISSIONS.SEND,
     'toggle-mute': CHAT_PERMISSIONS.VIEW,
+    'mark-unread': CHAT_PERMISSIONS.VIEW,
     'mark-delivered': CHAT_PERMISSIONS.VIEW,
     clear: CHAT_PERMISSIONS.CLEAR,
     'clear-global': CHAT_PERMISSIONS.CLEAR,
@@ -1969,6 +1971,25 @@ async function updateConversationAction({
       viewerId,
       chatStore
     );
+  }
+
+  // Marca personal: solo el contador de quien lo pide. Se devuelve `null` como
+  // en `typing`: el cliente ya lo pintó y la escucha en vivo trae el resto.
+  if (action === 'mark-unread') {
+    if (!viewerId) {
+      throw new Error('No se pudo identificar el miembro para marcar el chat como no leído.');
+    }
+
+    const noLeidosPorIdMiembros = conNoLeidoMarcado(
+      existingConversation.noLeidosPorIdMiembros,
+      viewerId
+    );
+
+    if (noLeidosPorIdMiembros) {
+      await chatStore.setDocument(conversationPath, { noLeidosPorIdMiembros }, { merge: true });
+    }
+
+    return null;
   }
 
   if (action === 'mark-delivered') {
@@ -2622,6 +2643,7 @@ export async function PATCH(req) {
 
     const conversationActions = [
       'toggle-mute',
+      'mark-unread',
       'mark-delivered',
       'report',
       'clear',

@@ -209,9 +209,9 @@ test('va en el menu lateral, justo debajo de Administradores, y fuera de /dashbo
 
   const paths = leer('src/routes/paths.js');
 
-  assert.match(paths, /everest: `\$\{ROOTS\.DASHBOARD\}\/everest`,/);
+  assert.match(paths, /everest: `\$\{ROOTS\.DASHBOARD\}\/explora-designer`,/);
   assert.doesNotMatch(paths, /\/admin\/everest/);
-  assert.ok(fs.existsSync(path.join(process.cwd(), 'src/app/dashboard/everest/page.jsx')));
+  assert.ok(fs.existsSync(path.join(process.cwd(), 'src/app/dashboard/explora-designer/page.jsx')));
   assert.ok(!fs.existsSync(path.join(process.cwd(), 'src/app/dashboard/admin/everest')));
 
   // Y las pestañas de Administracion quedan como estaban.

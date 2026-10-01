@@ -27,6 +27,7 @@ import { EverestPines } from '../everest-pines';
 import { EDITORES_DE_BLOQUE } from '../editores';
 import { EverestCintas } from '../everest-cintas';
 import { EverestPaleta } from '../everest-paleta';
+import { EverestTarjeta } from '../everest-tarjeta';
 import { EverestMedallas } from '../everest-medallas';
 import { EverestVistaPrevia } from '../everest-vista-previa';
 import { EditorDeDiseno } from '../editores/editor-de-diseno';
@@ -51,8 +52,9 @@ import { EverestVersionesDelBloque } from '../everest-versiones-del-bloque';
 // ES UNA PANTALLA PROPIA DEL MENU, debajo de "Administradores", y no una pestaña
 // de Administracion: por eso lleva su propio encabezado y su propio marco.
 //
-// CINCO ESPACIOS: "Portada" (los bloques de /principal), "Cintas", "Medallas" y "Pines" (los
-// catalogos de insignias del perfil) y "Paleta" (los colores de la aplicacion). El espacio va
+// SEIS ESPACIOS: "Portada" (los bloques de /principal), "Cintas", "Medallas" y "Pines" (los
+// catalogos de insignias del perfil), "Paleta" (los colores de la aplicacion) y "Tarjeta"
+// (la tarjeta editable: foto con recorte, textos, letra y tamaño). El espacio va
 // en la direccion (`?seccion=cintas`) para que se pueda enlazar y para que los lapices de la
 // portada sigan cayendo en Portada.
 //
@@ -66,6 +68,7 @@ const SECCIONES = Object.freeze({
   medallas: 'medallas',
   pines: 'pines',
   paleta: 'paleta',
+  tarjeta: 'tarjeta',
 });
 
 const ENCABEZADO = (
@@ -87,6 +90,7 @@ export function EverestDesignerView() {
     SECCIONES.medallas,
     SECCIONES.pines,
     SECCIONES.paleta,
+    SECCIONES.tarjeta,
   ].includes(searchParams.get('seccion'))
     ? searchParams.get('seccion')
     : SECCIONES.portada;
@@ -156,12 +160,14 @@ export function EverestDesignerView() {
         <Tab value={SECCIONES.medallas} label="Medallas" />
         <Tab value={SECCIONES.pines} label="Pines" />
         <Tab value={SECCIONES.paleta} label="Paleta" />
+        <Tab value={SECCIONES.tarjeta} label="Tarjeta" />
       </Tabs>
 
       {seccion === SECCIONES.cintas && <EverestCintas />}
       {seccion === SECCIONES.medallas && <EverestMedallas />}
       {seccion === SECCIONES.pines && <EverestPines />}
       {seccion === SECCIONES.paleta && <EverestPaleta />}
+      {seccion === SECCIONES.tarjeta && <EverestTarjeta />}
       {seccion === SECCIONES.portada && (
         <Stack spacing={3}>
           <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap" useFlexGap>

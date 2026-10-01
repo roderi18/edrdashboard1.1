@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { crearCuentaSiFalta } from 'src/server/cuenta-de-miembro';
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
 import { puedeGestionarAMiembro } from 'src/server/alcance-gestion-miembros';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
@@ -51,13 +52,22 @@ export async function POST(req) {
     // Quien pide y de quien es la cuenta, a la vez: no se necesitan entre si y
     // en serie era el doble de espera. No se escribe nada hasta comprobar el
     // permiso, unas lineas mas abajo.
-    const [solicitante, { cuenta, perfil }] = await Promise.all([
+    const [solicitante, encontrado] = await Promise.all([
       identificarSolicitante(req),
       buscarAccesoMiembro({ idMiembros, codigoMiembro }),
     ]);
 
     if (!solicitante) {
       return Response.json({ error: 'Vuelve a entrar e inténtalo de nuevo.' }, { status: 401 });
+    }
+
+    let { cuenta, perfil } = encontrado;
+
+    // TODO MIEMBRO TIENE CUENTA: si este llegó al padrón sin ella, se le crea
+    // ahora, con sus datos del padrón y solo si quien pide puede gestionarlo.
+    if (!cuenta) {
+      ({ cuenta, perfil } =
+        (await crearCuentaSiFalta({ solicitante, idMiembros, codigoMiembro })) ?? {});
     }
 
     if (!cuenta) {

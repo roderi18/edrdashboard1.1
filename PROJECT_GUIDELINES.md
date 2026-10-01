@@ -539,7 +539,7 @@ componente.
 - `PrincipalLema` recibe el lema por props: el salto de línea del título es un
   `\n` que se pinta como el `<br />` de antes.
 
-**La pantalla (fase 3):** `/dashboard/everest`, **entrada propia del menú
+**La pantalla (fase 3):** `/dashboard/explora-designer` (la vieja `/dashboard/everest` redirige), **entrada propia del menú
 lateral**, en el grupo Administración, justo debajo de "Administradores". Nació
 como pestaña de Administración y se sacó a petición: colgando de
 `/dashboard/admin` heredaba sus pestañas y su encabezado, y allí entran también la
@@ -619,7 +619,7 @@ pintando igual—:
   código sigue siendo "Volver al original".
 - **Historial con antes y después, campo a campo** (`diferenciasDelBloque`): solo
   los campos que cambiaron, resumidos en texto corto. Un bloque que es una lista se
-  compara entero ("3 elementos: …"). La ruta de la entidad es `/dashboard/everest`.
+  compara entero ("3 elementos: …"). La ruta de la entidad es `/dashboard/explora-designer` (la vieja `/dashboard/everest` redirige).
 - Lo publicado **antes** de la fase 5 no tiene versión: la primera aparece en la
   siguiente publicación de ese bloque.
 - Lógica pura en `src/utils/everest/versiones.mjs`; test

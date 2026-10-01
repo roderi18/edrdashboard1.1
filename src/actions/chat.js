@@ -865,6 +865,25 @@ export async function toggleMuteConversation(conversationId, idMiembros) {
   }
 }
 
+// MARCAR COMO NO LEÍDO: el punto y el contador salen en el mismo clic; si el
+// servidor falla, se vuelve a pedir la lista y queda como estaba.
+export async function markConversationUnread(conversationId, idMiembros) {
+  await mutateConversation({
+    conversationId,
+    updater: (conversation) => ({
+      ...conversation,
+      unreadCount: Math.max(Number(conversation.unreadCount) || 0, 1),
+    }),
+  });
+
+  try {
+    await axios.patch(CHAT_ENDPOINT, { action: 'mark-unread', conversationId, idMiembros });
+  } finally {
+    mutate((key) => isConversationsKey(key));
+    mutate((key) => isChatUnreadSummaryKey(key));
+  }
+}
+
 export async function reportConversation(conversationId, idMiembros, comment) {
   return mutateConversationAction({
     conversationId,

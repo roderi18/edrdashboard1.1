@@ -173,7 +173,9 @@ export const updateChurchApi = async (data) => {
             id: data?.id || data?.churchId,
             name: data?.churchName,
             pastor: data?.pastor,
-            address: payload.direccion,
+            // La guardada, si quien llama no toco la direccion (ver el formulario
+            // del destacamento): reconstruirla perdia el sector fuera de catalogo.
+            address: data?.direccionGuardada ?? payload.direccion,
             // Correo y telefono los pone quien llama a partir del registro de la
             // iglesia. No se toman del formulario del destacamento: alli esos dos
             // campos son del destacamento, y enviarlos pisaba los de la iglesia.

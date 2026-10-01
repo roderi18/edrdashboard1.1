@@ -88,6 +88,17 @@ service cloud.firestore {
         );
     }
 
+    // La foto de perfil de un destacamento, una sección o una región la cambia
+    // también la Oficina Nacional, por cualquiera de sus cargos (es un rol a
+    // mano). Solo la de perfil y solo de esas tres: la de un miembro no.
+    function esFotoDeEntidadDeOficinaNacional(idFoto, datos) {
+      return ejerceRol('oficina_nacional')
+        && datos.tipoEntidad in ['destacamento', 'seccion', 'region']
+        && datos.tipoFoto == 'perfil'
+        && datos.idEntidad is string
+        && idFoto == datos.tipoEntidad + '_' + datos.idEntidad + '_perfil';
+    }
+
     function esFotoPerfilPropia(idFoto, datos) {
       return datos.tipoEntidad == 'miembro'
         && datos.tipoFoto == 'perfil'
@@ -1215,7 +1226,8 @@ service cloud.firestore {
     match /fotos/{idFoto} {
       allow read: if esUsuarioDelSistema();
       allow create, update: if esAdministradorGlobal()
-        || esFotoPerfilPropia(idFoto, request.resource.data);
+        || esFotoPerfilPropia(idFoto, request.resource.data)
+        || esFotoDeEntidadDeOficinaNacional(idFoto, request.resource.data);
       allow delete: if esAdministradorGlobal();
     }
 
@@ -1427,6 +1439,22 @@ service cloud.firestore {
     // descripción). Salen en todos los perfiles, así que las lee cualquiera con
     // cuenta; las añade solo el Administrador Global, como todo el Designer.
     match /insignias_personalizadas/{idInsignia} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
+    // La Galería de Directores Nacionales (pestaña de Consejo Nacional): la ve
+    // cualquiera con cuenta; añade solo el Administrador Global.
+    match /galeria_directores_nacionales/{idDirector} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
+    // La tarjeta editable (EXPLORA Designer → Tarjeta). Es el diseño con que se
+    // pinta la Galería de Directores Nacionales, así que la lee cualquiera con
+    // cuenta; la cambia solo el Administrador Global (sin excluirla del
+    // comodín, cualquiera podría).
+    match /tarjetas_desarrollo/{idTarjeta} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();
     }
@@ -1808,6 +1836,8 @@ service cloud.firestore {
         && coleccion != 'cintas_miembros'
         && coleccion != 'configuracion_cintas'
         && coleccion != 'insignias_personalizadas'
+        && coleccion != 'tarjetas_desarrollo'
+        && coleccion != 'galeria_directores_nacionales'
         && coleccion != 'directiva_cuatrienios_integrantes'
         && coleccion != 'directiva_nacional_permanentes'
         && coleccion != 'titulos_oficiales_nacionales'

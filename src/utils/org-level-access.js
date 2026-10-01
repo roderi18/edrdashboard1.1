@@ -1029,6 +1029,13 @@ export const ejerceConsejoEjecutivo = (user = {}) =>
 export const puedeVerHistoriaNacional = (user = {}) =>
   puedeEditarDirectivaHistorica(user) || ejerceConsejoEjecutivo(user);
 
+// LA FOTO DE UN DESTACAMENTO, SECCIÓN O REGIÓN la cambian solo el Administrador
+// Global y la Oficina Nacional (por cualquiera de sus cargos: la Oficina es un
+// rol a mano). Antes la sugerían los coordinadores de cada nivel; ahora a ellos
+// ni se les enseña el botón, y lo que cambia uno se lo avisa al otro.
+export const puedeCambiarFotoDeEntidad = (user = {}) =>
+  ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
+
 export const puedeAplicarDirectamenteCambioDeOrganizacion = (user = {}, ambito = '') =>
   puedeAprobarCambiosDeOrganizacion(user) && !requiereRevisionDeAdministradorGlobal(user, ambito);
 

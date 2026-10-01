@@ -317,7 +317,9 @@ export async function notificarFotoEntidadPropuesta({
 } = {}) {
   const destinatarios = await obtenerDestinatarios({
     soloAdministradorGlobal: pendiente && requiereAdministradorGlobal,
-    excluirIds: pendiente ? [usuario?.uid || usuario?.id] : [],
+    // Quien la cambió no se avisa a sí mismo: el Administrador Global y la
+    // Oficina Nacional se enteran el uno de lo que hace el otro.
+    excluirIds: [usuario?.uid || usuario?.id],
   });
 
   if (!destinatarios.length) {

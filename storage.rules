@@ -296,6 +296,7 @@ service firebase.storage {
     // vigila una prueba (`chat-storage-regression`).
     function puedeResolverPropuestaDeFoto() {
       return esAdministradorGlobal()
+        || esOficinaNacional()
         || (tieneRolId() && rolDeUsuario() == 'oficina_nacional');
     }
 
@@ -306,6 +307,9 @@ service firebase.storage {
     // Administrador Global la aprueben.
     function puedeSugerirFoto() {
       return esAdministradorGlobal()
+        // La Oficina Nacional aunque no sea su cargo principal: sube aqui la
+        // foto que aplica al momento.
+        || esOficinaNacional()
         || (
           tieneRolId()
           && rolDeUsuario() in [

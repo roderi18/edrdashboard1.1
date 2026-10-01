@@ -22,7 +22,10 @@ import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { construirResumenMiembro } from 'src/utils/leadership-assignments';
 import { etiquetaEstadoDestacamento } from 'src/utils/estado-destacamento.mjs';
-import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
+import {
+  subirFotoEntidadPropuesta,
+  obtenerFotosPrincipalesPorEntidad,
+} from 'src/utils/firebase-photos';
 import {
   tieneNumeroDeDestacamento,
   registradoEnOficinaNacional,
@@ -33,18 +36,13 @@ import {
   isCoordinadorDestacamentoRole,
 } from 'src/utils/member-access';
 import {
-  subirFotoEntidad,
-  subirFotoEntidadPropuesta,
-  obtenerFotosPrincipalesPorEntidad,
-} from 'src/utils/firebase-photos';
-import {
   isAdminGlobal,
   isFullOrgManager,
   getSectionScopeIds,
   isRegionScopedCreator,
-  isRegionScopedManager,
   canCreateDestInSection,
   isSectionScopedManager,
+  puedeCambiarFotoDeEntidad,
   soloSugiereAltasDeDestacamento,
   puedeAsignarNumeroDeDestacamento,
   puedeCambiarEstadoDeDestacamento,
@@ -100,7 +98,16 @@ const POSICION_COORDINADOR_DEST = DIRECTIVA_POSITIONS.find(
 // y deshacerlo tampoco dispara una escritura. La direccion se compara ya armada,
 // que es como viaja al backend (provincia, municipio, sector y calle van juntas
 // en un solo texto).
-const hayCambiosDeIglesia = (datosIglesia, iglesiaActual) => {
+// LA DIRECCION SE COMPARA CONTRA LA DEL FORMULARIO AL ABRIRLO, no contra la
+// guardada. La guardada se parte en provincia/municipio/sector/calle y se vuelve
+// a montar con los catalogos; un sector que no esta en `barrios.json` ("Villa de
+// San Luis") se perdia al montarla, la direccion "cambiaba" sin que nadie la
+// tocara, se llamaba a UpdateIglesia y el guardado acababa en "no se pudo
+// actualizar la informacion de la iglesia".
+const direccionSinTocar = (datos, inicial) =>
+  buildChurchPayload(datos).direccion === buildChurchPayload(inicial || {}).direccion;
+
+const hayCambiosDeIglesia = (datosIglesia, iglesiaActual, inicial) => {
   // Sin registro previo no hay con que comparar: se intenta la actualizacion.
   if (!iglesiaActual) return true;
 
@@ -109,7 +116,7 @@ const hayCambiosDeIglesia = (datosIglesia, iglesiaActual) => {
   return (
     payload.nombre !== (iglesiaActual.name ?? '') ||
     payload.pastor !== (iglesiaActual.pastor ?? '') ||
-    payload.direccion !== (iglesiaActual.address ?? '') ||
+    !direccionSinTocar(datosIglesia, inicial) ||
     String(payload.idSeccion) !== String(iglesiaActual.idSeccion ?? '')
   );
 };
@@ -121,10 +128,11 @@ import {
 } from 'src/services/estado-destacamentos-service';
 
 import { toast } from 'src/components/snackbar';
+import { Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
-import { Form, Field } from 'src/components/hook-form';
 import StatusLabel from 'src/components/common/status-label';
 import { ContextInfo } from 'src/components/info/context-info';
+import { FotoDeMiembro } from 'src/components/upload/foto-de-miembro';
 import DashedAccordion from 'src/components/expandable/DashedAccordion';
 import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import ChurchDestSection from 'src/components/form/dest-form/ChurchDestSection';
@@ -503,21 +511,7 @@ export function DestCreateEditForm({ currentDest }) {
   // su Asistente la SUGIEREN. Los dos usan el mismo control —dejarlo en gris no
   // decia que se puede proponer una— y lo que cambia es a donde va: aplicada o a
   // la bandeja de la Oficina Nacional.
-  const canUploadDestPhoto = isCreateView
-    ? !isDestacamentoAdmin &&
-      (isLegacyAdmin ||
-        canCreateDestInSection(user) ||
-        canCreateDestByRole ||
-        (puedeModificar(user, PERMISOS.DESTACAMENTOS_SUBIR_FOTO) &&
-          (estaDentroDelAlcance(user, currentDestResource) ||
-            canGestionarDestPorAlcance(user, currentDestResource))))
-    : isAdminGlobal(user) ||
-      canEditCoordinatorFields ||
-      // La foto tambien la sugieren los cargos de seccion y region: son quienes
-      // acompañan al destacamento y muchas veces tienen la imagen antes que el.
-      isSectionScopedManager(user) ||
-      isRegionScopedManager(user) ||
-      isRegionScopedCreator(user);
+  const canUploadDestPhoto = !isCreateView && puedeCambiarFotoDeEntidad(user);
   // Sus cambios no se aplican: van a la bandeja de la Oficina Nacional. Vale
   // para la foto y para los campos que si puede tocar.
   const soloSugiereCambios = !isCreateView && !isAdminGlobal(user) && canEditCoordinatorFields;
@@ -526,7 +520,6 @@ export function DestCreateEditForm({ currentDest }) {
   // mismas palabras que en secciones y regiones.
   const soloSugiereElAlta = isCreateView && soloSugiereAltasDeDestacamento(user);
   // La foto la sugiere TODO el que no puede aplicarla, no solo el destacamento.
-  const soloSugiereFoto = !isCreateView && !isAdminGlobal(user) && canUploadDestPhoto;
   const canSaveDest = canEditDest || canEditCoordinatorFields;
   // Hay quien entra al formulario solo por el Pastor —los cargos de seccion—: el
   // boton de guardar tiene que estar vivo para ellos aunque no lleven ningun
@@ -692,10 +685,9 @@ export function DestCreateEditForm({ currentDest }) {
     try {
       setUploadingPhoto(true);
 
-      // Sugerencia: la imagen se sube a una carpeta aparte y la foto oficial se
-      // queda como esta. Devolver la url nueva pintaria en pantalla un cambio
-      // que todavia no existe, asi que se conserva la de antes.
-      if (soloSugiereFoto) {
+      // La foto la cambian el Administrador Global y la Oficina Nacional. Va por
+      // `propon…`: queda en Historial y se avisa al otro. Si la cuenta de Oficina
+      // tambien es del destacamento, se escala al Administrador Global.
         const propuesta = await subirFotoEntidadPropuesta({
           file,
           tipoEntidad: 'destacamento',
@@ -703,29 +695,21 @@ export function DestCreateEditForm({ currentDest }) {
           subidoPor: AUTH.currentUser?.uid || '',
         });
 
-        await proponerFotoDestacamento({
+        const resultado = await proponerFotoDestacamento({
           destacamento: { id: destId, nombre: currentDest?.name || currentDest?.nombre || '' },
           foto: propuesta,
           urlAntes: values.avatarUrl || currentDest?.avatarUrl || '',
           usuario: user,
         });
 
+        if (!resultado?.pendienteDeAprobacion) {
+          toast.success('Foto actualizada. Se avisó a la Oficina Nacional y al Administrador Global.');
+          return propuesta.urlFoto;
+        }
+
         toast.info('Foto enviada a la Oficina Nacional. Se aplicará cuando la aprueben.');
 
         return values.avatarUrl || currentDest?.avatarUrl || null;
-      }
-
-      const photo = await subirFotoEntidad({
-        file,
-        tipoEntidad: 'destacamento',
-        idEntidad: destId,
-        tipoFoto: 'perfil',
-        subidoPor: AUTH.currentUser?.uid || '',
-      });
-
-      toast.success(getImageOptimizationMessage(file.__optimizationInfo));
-
-      return photo.urlFoto;
     } catch (error) {
       console.error('[dest form] photo upload failed', error);
       toast.error(error.message || 'No se pudo subir la foto.');
@@ -789,6 +773,11 @@ export function DestCreateEditForm({ currentDest }) {
             sectionId: data.sectionId,
             correo: iglesiaActual?.correo ?? '',
             telefono: iglesiaActual?.telefono ?? '',
+            // Sin tocar la direccion, se reenvia la guardada tal cual: montarla de
+            // nuevo perdia el sector que no esta en el catalogo.
+            ...(iglesiaActual && direccionSinTocar(data, methods.formState.defaultValues)
+              ? { direccionGuardada: iglesiaActual.address ?? '' }
+              : {}),
           }
         : null;
       const cambioElPastor =
@@ -841,7 +830,12 @@ export function DestCreateEditForm({ currentDest }) {
           const resultadoPastor = await enviarPastorAAprobacion();
 
           pastorPendiente = resultadoPastor.pendienteDeAprobacion;
-        } else if (canEditDest && hayCambiosDeIglesia(datosIglesia, iglesiaActual)) {
+        } else if (canEditDest && hayCambiosDeIglesia(
+            datosIglesia,
+            iglesiaActual,
+            methods.formState.defaultValues
+          )
+        ) {
           try {
             await updateChurchApi(datosIglesia);
           } catch (churchUpdateError) {
@@ -1002,6 +996,19 @@ export function DestCreateEditForm({ currentDest }) {
         // No se guardo nada todavia: el cambio espera a la Oficina Nacional.
         // Decirlo tal cual, porque un "Actualizacion exitosa" aqui seria mentira.
         toast.info('Cambios enviados a la Oficina Nacional. Se aplicarán cuando los apruebe.');
+      } else if (
+        currentDest &&
+        canAssignDestNumber &&
+        tieneNumeroDeDestacamento(currentDest.destNumber) &&
+        !tieneNumeroDeDestacamento(data.destNumber)
+      ) {
+        // QUITAR EL NUMERO NO LLEGA AL PADRON. `UpdateDestacamento` de la API .NET
+        // responde OK pero conserva el numero si le llega vacio o null (probado con
+        // Wolf Squard, 393). Hasta que el backend lo acepte, no se dice "exitosa":
+        // el numero volveria a salir al recargar. Ver `docs/backend-dotnet-checklist.md`.
+        toast.warning(
+          'Los demás cambios se guardaron. El número no se pudo quitar: la base de datos del padrón no lo permite todavía. Ya se pidió el arreglo al administrador de la base de datos.'
+        );
       } else {
         toast.success(
           currentDest ? 'Actualización exitosa!' : 'Destacamento creado'
@@ -1044,43 +1051,15 @@ export function DestCreateEditForm({ currentDest }) {
             )} */}
 
             <Box sx={{ mb: 5 }}>
-              <Field.UploadAvatar
-                name="avatarUrl"
-                loading={uploadingPhoto}
-                // `readOnly` y no `disabled`: quien no puede cambiarla la ve
-                // IGUAL que quien si —el escudo de un destacamento no es un dato
-                // reservado—. `disabled` la atenuaba al 48%, y un Usuario Comun
-                // veia el escudo de su propio destacamento medio borrado, como si
-                // la pagina estuviera rota. Lo unico que cambia es que no se
-                // ofrece "Subir foto" y no se acepta el archivo.
-                disabled={uploadingPhoto}
-                readOnly={!canUploadDestPhoto}
-                onDrop={handleUploadDestPhoto}
-                optimizationToast={false}
-                helperText={
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      mt: 3,
-                      mx: 'auto',
-                      display: 'block',
-                      textAlign: 'center',
-                      color: 'text.disabled',
-                    }}
-                  >
-                    {/* A quien solo puede sugerirla, decirle los formatos no le
-                        aclara lo que de verdad necesita saber: que la foto no
-                        cambia hasta que la aprueben. */}
-                    {soloSugiereFoto ? (
-                      'La foto que subas se enviará a la Oficina Nacional para su aprobación. La actual se mantiene hasta que la aprueben.'
-                    ) : (
-                      <>
-                        Permitido *.jpeg, *.jpg, *.png, *.gif
-                        <br /> la imagen se optimiza al cargar.
-                      </>
-                    )}
-                  </Typography>
-                }
+              <FotoDeMiembro
+                url={methods.watch('avatarUrl')?.preview || methods.watch('avatarUrl') || ''}
+                nombre={currentDest?.name || currentDest?.nombre || ''}
+                cargando={uploadingPhoto}
+                puedeEditar={canUploadDestPhoto}
+                onFoto={async (archivo) => {
+                  const url = await handleUploadDestPhoto([archivo]);
+                  if (url) methods.setValue('avatarUrl', url);
+                }}
               />
 
               {/* BADGE REGISTRADO en oficina*/}
@@ -1116,16 +1095,24 @@ export function DestCreateEditForm({ currentDest }) {
                 labelPlacement="start"
                 control={
                   <Switch
-                    // Con número, encendido y fijo: el número ya es el registro.
+                    // Con número va encendido: el número ya es el registro. Quien
+                    // asigna números (registro nacional) puede apagarlo, y apagarlo
+                    // QUITA el número: había destacamentos numerados por error y no
+                    // había forma de deshacerlo.
                     checked={conNumeroDeDestacamento || (watch('registradoOfnc') ?? true)}
-                    disabled={!canEditDest || conNumeroDeDestacamento}
-                    onChange={(event) =>
-                      canEditDest &&
+                    disabled={
+                      !canEditDest || (conNumeroDeDestacamento && !canAssignDestNumber)
+                    }
+                    onChange={(event) => {
+                      if (!canEditDest) return;
+                      if (!event.target.checked && conNumeroDeDestacamento) {
+                        methods.setValue('destNumber', '', { shouldDirty: true });
+                      }
                       methods.setValue('registradoOfnc', event.target.checked, {
                         shouldValidate: true,
                         shouldDirty: true,
-                      })
-                    }
+                      });
+                    }}
                   />
                 }
                 label={

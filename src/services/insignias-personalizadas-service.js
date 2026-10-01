@@ -76,7 +76,7 @@ async function crearInsigniaPersonalizadaDirecto({ tipo, archivo, nombre, descri
       tipo: `insignia_${tipo}`,
       id,
       nombre: documento.nombre,
-      ruta: `/dashboard/everest?seccion=${SECCION[tipo]}`,
+      ruta: `/dashboard/explora-designer?seccion=${SECCION[tipo]}`,
     },
     cambios: [
       { campo: 'nombre', etiqueta: 'Nombre', antes: null, despues: documento.nombre },
