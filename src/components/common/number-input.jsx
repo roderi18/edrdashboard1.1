@@ -28,6 +28,17 @@ export default function NumberInput({
                 inputMode: 'numeric',
                 pattern: '[0-9]*',
             }}
+            slotProps={{
+                htmlInput: {
+                    maxLength,
+                    inputMode: 'numeric',
+                    pattern: '[0-9]*',
+                    onInput: (event) => {
+                        const limpio = event.currentTarget.value.replace(/\D/g, '').slice(0, maxLength);
+                        if (event.currentTarget.value !== limpio) event.currentTarget.value = limpio;
+                    },
+                },
+            }}
             onChange={(e) => {
                 if (disabled) return;
 

@@ -828,7 +828,7 @@ function PasoGeneral() {
           name="datos.numero"
           label="Número del destacamento"
           placeholder="Ej: 123"
-          slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 6 } }}
+          slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 3 } }}
         />
         <Field.Text
           name="datos.iglesia"
