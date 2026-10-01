@@ -93,7 +93,7 @@ de 17 s** porque su plan gratuito serializa la concurrencia. Por eso:
 
 - Caché en memoria por proceso, TTL 60 s, con _stale_ servible hasta 10 min.
 - Deduplicación de peticiones en vuelo y refresco en segundo plano.
-- Timeout: **9 s en producción** (las funciones de Netlify se cortan a los 10) y
+- Timeout: **9 s en producción** (se puso por el corte de 10 s de Netlify; en App Hosting no existe, pero se mantiene para no dejar colgada la pantalla) y
   **25 s en desarrollo**.
 - `Promise.allSettled` donde una petición secundaria no debe tumbar la principal
   (ver `src/app/api/sectional/route.js`).
@@ -1018,12 +1018,12 @@ NEXT_PUBLIC_FIREBASE_APP_ID
 
 **Servidor** ❓: `firebase-admin` necesita credenciales de cuenta de servicio
 (`src/server/firebase-admin.js`). Confirmar los nombres exactos con quien
-administra Netlify.
+administra App Hosting (Secret Manager).
 
 ⛔ Las de AWS Amplify, Auth0 y Supabase están en `.env.example` por la plantilla.
 No se usan.
 
-⚠️ **`NEXT_PUBLIC_*` se incrusta en el build.** Cambiarlas en Netlify no basta:
+⚠️ **`NEXT_PUBLIC_*` se incrusta en el build.** Cambiarlas en `apphosting.yaml` no basta:
 hay que volver a desplegar.
 
 ---
@@ -1040,13 +1040,19 @@ Variables públicas en el yaml; `FIREBASE_SERVICE_ACCOUNT` y
 node_modules is invalid") y con webpack el build tardaba ~12 min y agotaba la
 memoria. No vuelvas a subir un `yarn.lock`.
 
-**Netlify** ✅ (`netlify.toml`): build `yarn build`, publish `.next`,
-`NODE_VERSION=22.13.0`, `AWS_LAMBDA_JS_RUNTIME=nodejs22.x`.
+**Netlify** ⛔ se dejó: App Hosting es el único hosting. `netlify.toml` y
+`netlify/functions/` ya no existen.
 
-⚠️ **No bajes el runtime de las funciones.** `firebase-admin@14` exige Node ≥ 22;
-con una versión anterior, toda ruta que lo importe revienta al **cargar el
-módulo** —500 seco, antes del handler— y se caen `/api/auth/*`, `/api/cargos` y
-`/api/chat`.
+**Tareas diarias** ✅: eran funciones programadas de Netlify; ahora son rutas
+`/api/tareas/cumpleanos-diarios` (07:00) y `/api/tareas/resumen-actualizaciones-diario`
+(09:00, hora de Santo Domingo) que lanza **Cloud Scheduler**. Solo responden con
+la cabecera `x-tarea-secreto` igual al secreto `TAREAS_PROGRAMADAS_SECRETO`.
+Horario en `src/utils/tareas-programadas.mjs`; los comandos `gcloud` para
+crearlas salen de `node scripts/crear-tareas-programadas.mjs`.
+
+⚠️ **Node ≥ 22.** `firebase-admin@14` lo exige; con una versión anterior, toda
+ruta que lo importe revienta al **cargar el módulo** y se caen `/api/auth/*`,
+`/api/cargos` y `/api/chat`.
 
 ⚠️ **`serverExternalPackages: ['firebase-admin']`** en `next.config.mjs`: el Admin
 SDK usa `require` dinámicos que no sobreviven al empaquetado. No lo quites.

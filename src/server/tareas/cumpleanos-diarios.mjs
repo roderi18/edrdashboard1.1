@@ -1,27 +1,27 @@
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import webpush from 'web-push';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
-import {
-  DIAS_DE_AVISO,
-  idDelMiembro,
-  aceptaElAviso,
-  cumpleanosDelDia,
-  COLECCION_PREFERENCIAS,
-  COLECCION_NOTIFICACIONES,
-  destacamentoDelMiembro,
-  construirAvisoDeCumpleanos,
-  destinatariosDelDestacamento,
-} from '../../src/server/cumpleanos-core.mjs';
-import { enviarCumpleanosPorChatDeSistema } from '../../src/server/chat-sistema-envio.mjs';
-import { WEB_PUSH_VAPID_PUBLIC_KEY } from '../../src/utils/web-push-key.js';
-import { OPCIONES_ENVIO_PUSH } from '../../src/utils/web-push-opciones.mjs';
+import { WEB_PUSH_VAPID_PUBLIC_KEY } from '../../utils/web-push-key.js';
+import { OPCIONES_ENVIO_PUSH } from '../../utils/web-push-opciones.mjs';
+import { enviarCumpleanosPorChatDeSistema } from '../chat-sistema-envio.mjs';
 import {
   leerMiembros,
   leerFotosDeMiembros,
   leerCuentasPorMiembro,
   leerNombresDeDestacamentos,
-} from '../../src/server/cumpleanos-lecturas.mjs';
+} from '../cumpleanos-lecturas.mjs';
+import {
+  idDelMiembro,
+  DIAS_DE_AVISO,
+  aceptaElAviso,
+  cumpleanosDelDia,
+  COLECCION_PREFERENCIAS,
+  destacamentoDelMiembro,
+  COLECCION_NOTIFICACIONES,
+  construirAvisoDeCumpleanos,
+  destinatariosDelDestacamento,
+} from '../cumpleanos-core.mjs';
 
 // ----------------------------------------------------------------------
 // EL BARRIDO DIARIO DE CUMPLEAÑOS.
@@ -37,12 +37,11 @@ import {
 // crear notificaciones a nombre del sistema.
 //
 // La hora: 11:00 UTC son las 07:00 en Republica Dominicana (UTC-4). Se avisa a
-// primera hora, que es cuando sirve.
+// primera hora, que es cuando sirve. La lanza Cloud Scheduler contra
+// `/api/tareas/cumpleanos-diarios` (horario en `src/utils/tareas-programadas.mjs`);
+// antes era una funcion programada de Netlify.
 // ----------------------------------------------------------------------
 
-export const config = {
-  schedule: '0 11 * * *',
-};
 
 const COLECCION_SUSCRIPCIONES_PUSH = 'web_push_subscriptions';
 const TAMANO_GRUPO_PUSH = 30;
@@ -133,8 +132,8 @@ const enviarPushDeCumpleanos = async (db, aviso, idsDestinatarios) => {
 
 // El Admin SDK se inicializa AQUI y no se reutiliza `src/server/firebase-admin`:
 // ese modulo empieza con `import 'server-only'`, que existe para reventar si
-// alguien lo carga fuera de un componente de servidor de Next —y una funcion de
-// Netlify lo esta—.
+// alguien lo carga fuera de un componente de servidor de Next —y la prueba a
+// mano de `scripts/` lo esta—.
 // La clave del service account suele viajar con los saltos de linea
 // escapados (\n literal). Firebase la necesita con saltos de verdad.
 const clavePrivada = (cuenta = {}) =>
@@ -180,7 +179,7 @@ const quitarALosQueNoQuieren = async (db, idsDestinatarios, tipoNotificacion) =>
     .map(({ idUsuario }) => idUsuario);
 };
 
-export default async function handler() {
+export async function ejecutarCumpleanosDiarios() {
   const db = conexion();
 
   if (!db) {
@@ -271,8 +270,8 @@ export default async function handler() {
 
     return new Response(resumen, { status: 200 });
   } catch (error) {
-    // Un fallo se registra y se devuelve: Netlify marca la ejecucion como
-    // fallida y queda en su historial, que es donde se mira.
+    // Un fallo se registra y se devuelve: Cloud Scheduler marca la ejecucion
+    // como fallida y queda en su historial, que es donde se mira.
     console.error('[cumpleanos] no se pudo completar el barrido', error);
 
     return new Response(`No se pudo completar el barrido: ${error?.message}`, { status: 500 });

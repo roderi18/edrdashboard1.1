@@ -2,7 +2,7 @@
 // LOS MANIFIESTOS DE MEDALLAS Y PINES, PARA PRODUCCIÓN.
 //
 // En desarrollo, `/api/insignias/medallas` y `/api/insignias/pines` leen su
-// carpeta en el momento: una imagen nueva aparece al recargar. En Netlify la
+// carpeta en el momento: una imagen nueva aparece al recargar. En producción la
 // función no lleva `public/` consigo, así que leen estos manifiestos, que se
 // generan solos antes de cada build (`prebuild` en package.json) con las
 // carpetas tal como están al desplegar.

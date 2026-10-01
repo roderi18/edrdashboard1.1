@@ -129,7 +129,7 @@ diferencia: **el catálogo es la carpeta** `public/insignias/medallas`.
   ve sale del archivo (`national-leadership-award` → "National leadership award").
 - `<nombre>-small.webp` es la variante reducida de `<nombre>` (ver
   `DIRECTRICES-MEDALLAS.md`): no es otra medalla, es la que se pinta en el perfil.
-- En desarrollo, `/api/insignias/medallas` lee la carpeta al momento. En Netlify la
+- En desarrollo, `/api/insignias/medallas` lee la carpeta al momento. En producción la
   función no lleva `public/`, así que lee `src/utils/medallas-manifiesto.json`, que
   `scripts/generar-manifiesto-medallas.mjs` regenera antes de cada build (`prebuild`).
 - En el perfil van justo debajo de las cintas: **como mucho 3**, en una fila, cada una del ancho de una cinta y con el mismo hueco que hay entre las cintas. El diálogo no deja marcar una cuarta.
@@ -179,7 +179,7 @@ un solo Guardar para las tres) y pestaña **Pines** en EXPLORA Designer
   medallas: el id es el nombre sin extensión, el número inicial (si lo hay) es el
   orden de fábrica, el nombre visible sale del archivo y `-small` es la variante
   reducida. Renombrar un archivo cambia su id: quien lo tenía deja de verlo.
-- En desarrollo `/api/insignias/pines` lee la carpeta al momento; en Netlify lee
+- En desarrollo `/api/insignias/pines` lee la carpeta al momento; en producción lee
   `src/utils/pines-manifiesto.json`, que `scripts/generar-manifiesto-medallas.mjs`
   regenera en `prebuild` junto al de medallas.
 - Los añadidos desde el Designer son insignias personalizadas de tipo `pin`

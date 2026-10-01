@@ -311,8 +311,13 @@ Regla nueva de negocio → test nuevo. Cambio que contradiga
 - No construir sobre los ~20 módulos de plantilla sin conectar (`/dashboard/{app,
 ecommerce, analytics, banking, booking, file, course, job, tour, user, post,
 mail, kanban}`, `src/_mock/`, `src/sections/_examples/`, `src/sections/prinicipal/`).
-- No quitar `serverExternalPackages: ['firebase-admin']` ni bajar
-  `AWS_LAMBDA_JS_RUNTIME` de `nodejs22.x`: revienta `/api/auth/*` en Netlify.
+- No quitar `serverExternalPackages: ['firebase-admin']`: el Admin SDK no
+  sobrevive al empaquetado y revienta `/api/auth/*`.
+- **El hosting es solo Firebase App Hosting** (`apphosting.yaml`); Netlify se
+  dejó. Las tareas diarias (cumpleaños 07:00, resumen 09:00) son rutas
+  `/api/tareas/*` que llama Cloud Scheduler con el secreto
+  `TAREAS_PROGRAMADAS_SECRETO`; horario en `src/utils/tareas-programadas.mjs` y
+  comandos en `scripts/crear-tareas-programadas.mjs`.
 - Colección nueva en Firestore → **añádela explícitamente a `firestore.rules`**.
   El comodín del final la haría escribible por cualquier sesión válida.
 

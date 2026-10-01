@@ -55,7 +55,7 @@ const getEmailVerificationSettings = (destino = DESTINO_TRAS_VERIFICAR) => ({
 const ensureFirebaseAuth = () => {
   if (!isFirebaseConfigured || !AUTH) {
     throw new Error(
-      'Firebase no está configurado en este entorno. Verifica las variables públicas de Firebase en Netlify.'
+      'Firebase no está configurado en este entorno. Verifica las variables públicas de Firebase del despliegue.'
     );
   }
 

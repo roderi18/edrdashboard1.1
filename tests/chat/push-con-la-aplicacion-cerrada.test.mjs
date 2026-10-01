@@ -20,8 +20,8 @@ test('los push salen con urgencia alta y un día de vida', () => {
 test('todo envío push usa esas opciones, nunca unas propias', () => {
   for (const ruta of [
     'src/server/web-push.js',
-    'netlify/functions/cumpleanos-diarios.mjs',
-    'netlify/functions/resumen-actualizaciones-diario.mjs',
+    'src/server/tareas/cumpleanos-diarios.mjs',
+    'src/server/tareas/resumen-actualizaciones-diario.mjs',
   ]) {
     const codigo = leer(ruta);
     assert.match(codigo, /sendNotification\([^)]*OPCIONES_ENVIO_PUSH\)/, ruta);

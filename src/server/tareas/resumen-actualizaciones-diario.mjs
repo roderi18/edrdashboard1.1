@@ -1,16 +1,16 @@
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import webpush from 'web-push';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
-import { WEB_PUSH_VAPID_PUBLIC_KEY } from '../../src/utils/web-push-key.js';
-import { OPCIONES_ENVIO_PUSH } from '../../src/utils/web-push-opciones.mjs';
-import { COLECCION_NOTIFICACIONES } from '../../src/server/cumpleanos-core.mjs';
+import { COLECCION_NOTIFICACIONES } from '../cumpleanos-core.mjs';
+import { WEB_PUSH_VAPID_PUBLIC_KEY } from '../../utils/web-push-key.js';
+import { OPCIONES_ENVIO_PUSH } from '../../utils/web-push-opciones.mjs';
 import {
-  COLECCION_ACTUALIZACIONES,
   construirAvisoDeResumen,
+  COLECCION_ACTUALIZACIONES,
   leerDestinatariosDelResumen,
   contarDestacamentosActualizados,
-} from '../../src/utils/resumen-actualizaciones-destacamentos.mjs';
+} from '../../utils/resumen-actualizaciones-destacamentos.mjs';
 
 // ----------------------------------------------------------------------
 // CADA DÍA A LAS 9:00 (Santo Domingo): cuántos destacamentos van actualizados.
@@ -20,18 +20,17 @@ import {
 // el texto están en `resumen-actualizaciones-destacamentos.mjs`.
 //
 // 13:00 UTC son las 9:00 en República Dominicana (UTC-4, sin horario de verano).
-// Netlify solo ejecuta funciones programadas en el despliegue publicado.
+// La lanza Cloud Scheduler contra `/api/tareas/resumen-actualizaciones-diario`
+// (horario en `src/utils/tareas-programadas.mjs`); antes era una funcion
+// programada de Netlify.
 // ----------------------------------------------------------------------
 
-export const config = {
-  schedule: '0 13 * * *',
-};
 
 const COLECCION_SUSCRIPCIONES_PUSH = 'web_push_subscriptions';
 const TAMANO_GRUPO_PUSH = 30;
 
-// Mismo arranque que `cumpleanos-diarios.mjs`: aquí no se puede cargar
-// `src/server/firebase-admin`, que empieza con `import 'server-only'`.
+// Mismo arranque que `cumpleanos-diarios.mjs`: así se puede probar fuera de
+// Next, donde `src/server/firebase-admin` (con `import 'server-only'`) revienta.
 const conexion = () => {
   const credencial = process.env.FIREBASE_SERVICE_ACCOUNT;
 
@@ -122,7 +121,7 @@ const enviarPush = async (db, aviso) => {
   }
 };
 
-export default async function handler() {
+export async function ejecutarResumenActualizacionesDiario() {
   const db = conexion();
 
   if (!db) {

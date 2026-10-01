@@ -324,7 +324,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
       {!isAuthReady && (
         <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
           El inicio de sesión de Firebase no está disponible en este entorno. Revisa las variables
-          publicas de Firebase en Netlify
+          públicas de Firebase del despliegue
           {missingFirebaseConfigKeys.length ? `: ${missingFirebaseConfigKeys.join(', ')}.` : '.'}
         </Alert>
       )}
