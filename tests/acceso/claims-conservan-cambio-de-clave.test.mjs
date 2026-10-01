@@ -46,3 +46,16 @@ test('la pantalla de primer acceso atiende a la marca del token O del perfil', (
   const vista = leer('src/auth/view/firebase/firebase-primer-acceso-view.jsx');
   assert.match(vista, /marcaDelToken === true \|\| user\?\.debeCambiarClave === true/);
 });
+
+// La sesión de Oficina Nacional se arma por la rama de administrador, cuyo
+// documento no trae `debeCambiarClave`: EDR-10049 seguía entrando al panel. El
+// guarda mira también el token (y cada token nuevo, para no quedarse en bucle
+// tras guardar la contraseña), y la rama de administrador lleva la marca.
+test('el guarda manda a crear la contraseña si la marca está en el token', () => {
+  const guarda = leer('src/auth/guard/auth-guard.jsx');
+  assert.match(guarda, /user\?\.debeCambiarClave \|\| marcaDelToken/);
+  assert.match(guarda, /onIdTokenChanged\(AUTH/);
+
+  const proveedor = leer('src/auth/components/context/firebase/auth-provider.jsx');
+  assert.match(proveedor, /memberAccess\?\.profile\?\.debeCambiarClave === true/);
+});

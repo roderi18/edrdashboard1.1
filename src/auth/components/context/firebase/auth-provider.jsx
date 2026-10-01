@@ -501,6 +501,12 @@ export function AuthProvider({ children }) {
             // El documento de administrador sigue mandando; esto solo rellena lo
             // que le falte, con lo que ya se leyo del padron.
             const identidadDeMiembro = {
+              // Pase de un solo uso: el documento de administrador no lo lleva, y
+              // sin el la sesion de Oficina Nacional entraba al panel sin elegir
+              // contraseña. Lo dice el perfil de miembro.
+              debeCambiarClave:
+                adminProfileData.debeCambiarClave === true ||
+                memberAccess?.profile?.debeCambiarClave === true,
               idMiembros:
                 adminProfileData.idMiembros ??
                 memberAccess?.profile?.idMiembros ??
