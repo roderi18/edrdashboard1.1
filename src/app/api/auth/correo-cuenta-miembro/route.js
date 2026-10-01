@@ -1,6 +1,9 @@
 import 'server-only';
 
+import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
+
 import { crearCuentaSiFalta } from 'src/server/cuenta-de-miembro';
+import { buscarMiembroPorId } from 'src/server/miembros-directorio';
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
 import { puedeGestionarAMiembro } from 'src/server/alcance-gestion-miembros';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
@@ -28,6 +31,57 @@ const normalizarCorreo = (correo) =>
   String(correo ?? '')
     .trim()
     .toLowerCase();
+
+const MIEMBROS_UPDATE_ENDPOINT =
+  'https://systexploradores.somee.com/api/Miembros/UpdateMiembros';
+
+// El correo de primer acceso debe quedar unido a la cuenta y a la ficha visible.
+// Se reenvía el resto de la ficha tal como está para no borrar campos al actualizar
+// únicamente el correo en el API externo.
+const sincronizarCorreoEnFicha = async ({ idMiembros, correo, authorization }) => {
+  const miembro = await buscarMiembroPorId(idMiembros);
+
+  if (!miembro) {
+    throw new Error('No encontramos la ficha del miembro para guardar el correo.');
+  }
+
+  const payload = {
+    idMiembros: Number(miembro.idMiembros ?? miembro.id),
+    codigoMiembro: miembro.codigoMiembro ?? miembro.memberId ?? null,
+    nombres: miembro.nombres ?? miembro.firstName ?? null,
+    apellidos: miembro.apellidos ?? miembro.lastName ?? null,
+    genero: miembro.genero ?? miembro.gender ?? null,
+    fechaNacimiento: miembro.fechaNacimiento ?? miembro.birthDate ?? null,
+    sizeCamisas: miembro.sizeCamisas ?? null,
+    ocupacion: miembro.ocupacion ?? null,
+    fechaCreacion: miembro.fechaCreacion ?? null,
+    idDestacamento: miembro.idDestacamento ?? miembro.destId ?? null,
+    telefono: miembro.telefono ?? miembro.phoneNumber ?? null,
+    direccion: miembro.direccion ?? miembro.memberAddress ?? null,
+    correo,
+    idDivision: miembro.idDivision ?? null,
+    instructorCertificadoCi: miembro.instructorCertificadoCi ?? null,
+    estatusVigenciaCi: miembro.estatusVigenciaCi ?? null,
+    fechaInicioCertificado: miembro.fechaInicioCertificado ?? null,
+    fechaFinCertificado: miembro.fechaFinCertificado ?? null,
+  };
+
+  const respuesta = await fetch(MIEMBROS_UPDATE_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...(authorization ? { Authorization: authorization } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!respuesta.ok) {
+    throw new Error(`No se pudo actualizar el correo en la ficha (${respuesta.status}).`);
+  }
+
+  invalidateUpstream(UPSTREAM_KEYS.miembros);
+};
 
 export async function POST(req) {
   try {
@@ -104,6 +158,11 @@ export async function POST(req) {
     }
 
     if (normalizarCorreo(cuenta.email) === correoNuevo) {
+      await sincronizarCorreoEnFicha({
+        idMiembros: idMiembros ?? perfil?.data()?.idMiembros,
+        correo: correoNuevo,
+        authorization: req.headers.get('authorization') || '',
+      });
       return Response.json({ ok: true, sinCambios: true });
     }
 
@@ -154,6 +213,12 @@ export async function POST(req) {
           { merge: true }
         ),
     ]);
+
+    await sincronizarCorreoEnFicha({
+      idMiembros: idMiembros ?? perfil?.data()?.idMiembros,
+      correo: correoNuevo,
+      authorization: req.headers.get('authorization') || '',
+    });
 
     return Response.json({
       ok: true,

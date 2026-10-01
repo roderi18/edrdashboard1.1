@@ -19,6 +19,7 @@ export const _account = [
     label: 'Mi perfil',
     href: paths.dashboard.user.root,
     icon: <Iconify icon="solar:user-id-bold" />,
+    disabled: true,
   },
   {
     label: 'Proyectos',

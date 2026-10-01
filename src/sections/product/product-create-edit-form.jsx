@@ -22,8 +22,6 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fPercent } from 'src/utils/format-number';
-import { isAdminGlobal } from 'src/utils/org-level-access';
-import { canManageStoreProducts } from 'src/utils/member-access';
 import { generarSiguienteCodigoProducto } from 'src/utils/producto-codigo.mjs';
 
 import { PRODUCT_SIZE_OPTIONS, PRODUCT_COLOR_NAME_OPTIONS } from 'src/_mock';
@@ -404,6 +402,8 @@ export function ProductCreateEditForm({ currentProduct }) {
         ...data,
         id: currentProduct?.id || data.id,
         variantes: currentProduct?.variantes || [],
+        // El formulario no edita el combo: se conserva el que ya tenía.
+        combo: currentProduct?.combo ?? null,
         price: data.price || data.precioRegistrado || data.precioNoRegistrado || 0,
         sizes: data.category === 'uniformes' ? data.sizes : [],
         colors: data.category === 'accesorios' ? data.colors : [],

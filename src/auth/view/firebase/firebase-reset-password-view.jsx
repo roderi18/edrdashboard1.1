@@ -14,7 +14,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
-import { findAdminProfileByLoginValue } from 'src/utils/admin-profile';
+import { resolveAdminSignInEmail } from 'src/utils/admin-profile';
 
 import { PasswordIcon } from 'src/assets/icons';
 
@@ -105,20 +105,17 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
       const loginValue = getLoginValue(data);
 
       if (isAdminMode) {
-        const admin = await findAdminProfileByLoginValue(loginValue);
+        // La pantalla aún no tiene sesión: `admins` no admite lecturas directas.
+        // La misma ruta pública del acceso resuelve los nombres de usuario.
+        const correo = await resolveAdminSignInEmail(loginValue);
 
-        if (!admin) {
+        if (!correo) {
           setErrorMessage('No encontramos un administrador con ese usuario o correo.');
           return;
         }
 
-        if (!admin.data?.correo) {
-          setErrorMessage('No existe ningun correo asignado para este administrador.');
-          return;
-        }
-
-        await sendPasswordResetEmail({ email: admin.data.correo });
-        setCorreoEnviado(admin.data.correo);
+        await sendPasswordResetEmail({ email: correo });
+        setCorreoEnviado(correo);
         return;
       }
 
@@ -245,7 +242,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
               autoFocus
               name="loginValue"
               label="Usuario o correo electronico"
-              placeholder="admin001 o correo@correo.com"
+              placeholder="admin001, EDR-10000 o correo@correo.com"
               slotProps={{ inputLabel: { shrink: true } }}
             />
           ) : (

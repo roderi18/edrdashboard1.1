@@ -175,15 +175,6 @@ export const resolveAdminSignInEmail = async (loginValue) => {
   // consultar desde una pantalla que todavía no ha iniciado sesión.
   if (value.includes('@')) return value;
 
-  const cacheKey = `firebase-admin-email:${value}`;
-
-  try {
-    const cachedEmail = window.localStorage.getItem(cacheKey);
-    if (cachedEmail) return cachedEmail;
-  } catch {
-    // El almacenamiento puede estar bloqueado en modo privado.
-  }
-
   const response = await fetch('/api/auth/correo-acceso-administrador', {
     // Es una consulta previa al acceso, no modifica ninguna ficha. Va por POST
     // para que el usuario administrativo no quede escrito en la URL ni en sus
@@ -201,14 +192,6 @@ export const resolveAdminSignInEmail = async (loginValue) => {
   }
 
   const email = String(payload?.correo ?? '').trim().toLowerCase();
-
-  if (email) {
-    try {
-      window.localStorage.setItem(cacheKey, email);
-    } catch {
-      // El almacenamiento puede estar bloqueado en modo privado.
-    }
-  }
 
   return email;
 };

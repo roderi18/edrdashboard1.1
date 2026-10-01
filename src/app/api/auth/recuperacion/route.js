@@ -4,9 +4,9 @@ import { correoDelEnlace, SIN_CORREO_PROPIO } from 'src/utils/enlace-de-recupera
 
 import { limiteSuperado } from 'src/server/limite-intentos';
 import { isAdminConfigured } from 'src/server/firebase-admin';
-import { buscarCuentaMiembro } from 'src/server/claves-miembro';
 import { pedirAyudaAlCoordinador } from 'src/server/coordinadores-recuperacion';
 import { datosMinimosDeMiembro, buscarMiembroPorNumero } from 'src/server/miembros-directorio';
+import { buscarCuentaMiembro, buscarPerfilesPorNumeroMiembro } from 'src/server/claves-miembro';
 
 export const runtime = 'nodejs';
 
@@ -27,6 +27,21 @@ export const runtime = 'nodejs';
 // de la ficha: la regla y lo que se rompia, en `enlace-de-recuperacion.mjs`.
 // ----------------------------------------------------------------------
 const resolverEnlace = async (numeroUsuario) => {
+  // La cuenta y su correo ya están indexados en Firestore. El padrón externo
+  // puede estar temporalmente indisponible o no traer el correo del miembro.
+  const perfiles = await buscarPerfilesPorNumeroMiembro(numeroUsuario);
+  const perfil = perfiles[0]?.data?.();
+
+  if (perfil) {
+    const cuenta = await buscarCuentaMiembro({
+      idMiembros: perfil.idMiembros ?? perfiles[0].id,
+      codigoMiembro: perfil.codigoMiembro,
+      correo: perfil.correo,
+    });
+
+    if (cuenta) return correoDelEnlace(cuenta.email);
+  }
+
   const ficha = await buscarMiembroPorNumero(numeroUsuario);
 
   if (!ficha) return { puedeEnviar: false, error: SIN_CORREO_PROPIO };

@@ -255,7 +255,7 @@ const getDirectivaDivisionByMemberDivisionId = (idDivision) => {
   return '';
 };
 
-const mapMemberToForm = (member) => {
+const mapMemberToForm = (member, correoDeCuenta = '') => {
   // Los cargos NO salen de aqui: los rellena el efecto que lee las asignaciones
   // de directiva en Firestore. Antes se buscaban en "leadershipAssignments"
   // (datos de ejemplo, con ids como 'member-01'), que ademas de no acertar nunca
@@ -292,7 +292,10 @@ const mapMemberToForm = (member) => {
         : member.dateOfBirth
           ? dayjs(member.dateOfBirth)
           : null,
-    email: member.email ?? '',
+    // El padrón usa `correo`, mientras que algunos documentos de sesión usan
+    // `email`. Si la ficha está vacía, el formulario de la propia persona puede
+    // mostrar el correo que ya está atado a su cuenta de acceso.
+    email: member.email || member.correo || correoDeCuenta || '',
     phoneNumber: member.phoneNumber ?? '',
     // country: member.country ?? '',
     provinceId: province?.id ? String(province.id) : '',
@@ -800,6 +803,11 @@ export function MemberCreateEditForm({
   const nextStep = () => setStep(2);
   const prevStep = () => setStep(1);
 
+  const idFicha = String(currentMember?.id ?? currentMember?.idMiembros ?? '');
+  const idUsuario = String(user?.idMiembros ?? user?.id ?? '');
+  const correoDeCuentaParaFicha =
+    idFicha && idFicha === idUsuario ? String(user?.email ?? '').trim() : '';
+
   const defaultValues = {
     status: 'active',
     avatarUrl: null,
@@ -838,7 +846,9 @@ export function MemberCreateEditForm({
   const methods = useForm({
     resolver: zodResolver(MemberValidationSchema),
     mode: 'onSubmit',
-    defaultValues: currentMember ? mapMemberToForm(currentMember) : defaultValues,
+    defaultValues: currentMember
+      ? mapMemberToForm(currentMember, correoDeCuentaParaFicha)
+      : defaultValues,
     // Deshabilita SOLO los campos del formulario (no los desplegables ni el botón
     // de descarga) para los usuarios en solo lectura / con datos enmascarados.
     disabled: readOnlyEffective,
@@ -866,10 +876,10 @@ export function MemberCreateEditForm({
 
   useEffect(() => {
     if (currentMember) {
-      methods.reset(mapMemberToForm(currentMember));
+      methods.reset(mapMemberToForm(currentMember, correoDeCuentaParaFicha));
       reaplicarCargosDeDirectiva();
     }
-  }, [currentMember]);
+  }, [currentMember, correoDeCuentaParaFicha]);
 
   // Al crear, la pantalla empieza SIEMPRE por el paso 1.
   //

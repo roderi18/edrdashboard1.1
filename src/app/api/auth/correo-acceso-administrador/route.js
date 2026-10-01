@@ -96,12 +96,14 @@ export async function POST(req) {
 
     const { usuario } = await req.json();
     const usuarioNormalizado = normalizar(usuario);
+    const esCodigoAdministrativo = usuarioNormalizado.startsWith('admin');
+    const esCodigoDeMiembro = /^edr-\d+$/.test(usuarioNormalizado);
 
     if (
       !usuarioNormalizado ||
       usuarioNormalizado.length > 120 ||
       usuarioNormalizado.includes('@') ||
-      !usuarioNormalizado.startsWith('admin')
+      (!esCodigoAdministrativo && !esCodigoDeMiembro)
     ) {
       return Response.json({ correo: '' });
     }

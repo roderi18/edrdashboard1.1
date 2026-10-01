@@ -36,11 +36,20 @@ const productos = [
   { id: 'x', name: 'Gorra', category: 'accesorios', price: 500 },
 ];
 
-test('los combos son los productos publicados con la categoría de la actividad', () => {
+test('los combos son los productos publicados con la categoría de la actividad, el más caro primero', () => {
+  // El combo principal es el "1": antes salía el último, del más barato al más caro.
   const combos = combosDeActividad(productos, 'Campamento Regional 2026');
   assert.deepEqual(
     combos.map((c) => c.id),
-    ['a', 'b', 'c']
+    ['c', 'b', 'a']
+  );
+});
+
+test('con número de combo manda el número', () => {
+  const conNumero = productos.map((p) => (p.id === 'a' ? { ...p, combo: { numero: 1 } } : p));
+  assert.deepEqual(
+    combosDeActividad(conNumero, 'Campamento Regional 2026').map((c) => c.id),
+    ['a', 'c', 'b']
   );
 });
 

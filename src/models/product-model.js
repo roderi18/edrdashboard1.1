@@ -1,3 +1,4 @@
+import { sanearCombo } from 'src/utils/combos-de-actividad.mjs';
 import {
   ahoraTimestamp,
   timestampToIsoString,
@@ -115,6 +116,10 @@ export const crearDocumentoProducto = ({
     totalCalificaciones: Number(data?.totalRatings ?? data?.totalCalificaciones ?? 0),
     totalResenas: Number(data?.totalReviews ?? data?.totalResenas ?? 0),
     totalVendidos: Number(data?.totalSold ?? data?.totalVendidos ?? 0),
+    // Lo propio de un combo de actividad (etiqueta, cierre, incluye, extras).
+    // Se guarda con `setDoc` sin `merge`: si no viajara aquí, editar el producto
+    // en la tienda lo borraba. Ver `src/utils/combos-de-actividad.mjs`.
+    combo: sanearCombo(data?.combo),
     fechaCreacion: fechaCreacion || ahoraTimestamp(),
     fechaActualizacion: ahoraTimestamp(),
   });
@@ -166,6 +171,7 @@ export const mapearProductoFirestoreAUi = (doc) => ({
   totalRatings: Number(doc?.totalCalificaciones ?? 0),
   totalReviews: Number(doc?.totalResenas ?? 0),
   totalSold: Number(doc?.totalVendidos ?? 0),
+  combo: sanearCombo(doc?.combo),
   createdAt: timestampToIsoString(doc?.fechaCreacion) || doc?.createdAt || null,
   reviews: [],
   ratings: [],
