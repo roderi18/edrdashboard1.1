@@ -25,12 +25,7 @@ export default function NumberInput({
             label={label}
             value={value}
             disabled={disabled}
-            helperText={
-                helperText ||
-                (minValue != null && maxValue != null
-                    ? `Permitido: ${minValue}–${maxValue}`
-                    : helperText)
-            }
+            helperText={helperText}
             inputProps={{
                 inputMode: 'numeric',
                 pattern: '[0-9]*',
