@@ -6,6 +6,8 @@ export default function NumberInput({
     name = 'number',
     label = 'Número',
     maxLength = 3,
+    minValue = null,
+    maxValue = null,
     disabled = false,
     helperText = '',
 }) {
@@ -23,7 +25,12 @@ export default function NumberInput({
             label={label}
             value={value}
             disabled={disabled}
-            helperText={helperText}
+            helperText={
+                helperText ||
+                (minValue != null && maxValue != null
+                    ? `Permitido: ${minValue}–${maxValue}`
+                    : helperText)
+            }
             inputProps={{
                 inputMode: 'numeric',
                 pattern: '[0-9]*',
@@ -34,7 +41,10 @@ export default function NumberInput({
                     inputMode: 'numeric',
                     pattern: '[0-9]*',
                     onInput: (event) => {
-                        const limpio = event.currentTarget.value.replace(/\D/g, '').slice(0, maxLength);
+                        const limpio = event.currentTarget.value
+                            .replace(/\D/g, '')
+                            .replace(/^0+(?=\d)/, '')
+                            .slice(0, maxLength);
                         if (event.currentTarget.value !== limpio) event.currentTarget.value = limpio;
                     },
                 },
@@ -42,7 +52,10 @@ export default function NumberInput({
             onChange={(e) => {
                 if (disabled) return;
 
-                const val = e.target.value.replace(/\D/g, '').slice(0, maxLength);
+                const val = e.target.value
+                    .replace(/\D/g, '')
+                    .replace(/^0+(?=\d)/, '')
+                    .slice(0, maxLength);
 
                 setValue(name, val, {
                     shouldValidate: true,

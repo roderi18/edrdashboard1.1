@@ -291,7 +291,7 @@ export function FormularioRegistro({
                 cargando={cargando}
               />
             )}
-            {PASOS[paso].id === "general" && <PasoGeneral />}
+            {PASOS[paso].id === "general" && <PasoGeneral padron={destacamentos} />}
             {PASOS[paso].id === "ubicacion" && <PasoUbicacion />}
             {PASOS[paso].id === "lideres" && <PasoLideres />}
             {PASOS[paso].id === "reuniones" && <PasoReuniones />}
@@ -812,10 +812,16 @@ function SelectoresRegionSeccion({ secciones, region, seccion, alCambiarRegion, 
 
 // ---------------------------------------------------------------- paso 3
 
-function PasoGeneral() {
+function PasoGeneral({ padron = [] }) {
   const { control } = useFormContext();
   const elegido = useWatch({ control, name: "destacamento.elegido" });
   const esMovil = useMediaQuery((t) => t.breakpoints.down("md"));
+  const maximoDestacamento = Math.max(
+    11,
+    ...(Array.isArray(padron) ? padron : [])
+      .map((d) => Number.parseInt(String(d?.numero ?? ""), 10))
+      .filter((n) => Number.isInteger(n) && n >= 11),
+  );
   return (
     <Stack spacing={3}>
       <Rejilla>
@@ -828,7 +834,20 @@ function PasoGeneral() {
           name="datos.numero"
           label="Número del destacamento"
           placeholder="Ej: 123"
-          slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 3 } }}
+          helperText={`Permitido: 11–${maximoDestacamento}`}
+          slotProps={{
+            htmlInput: {
+              inputMode: "numeric",
+              maxLength: 3,
+              onInput: (event) => {
+                const limpio = event.currentTarget.value
+                  .replace(/\D/g, "")
+                  .replace(/^0+(?=\d)/, "")
+                  .slice(0, 3);
+                if (event.currentTarget.value !== limpio) event.currentTarget.value = limpio;
+              },
+            },
+          }}
         />
         <Field.Text
           name="datos.iglesia"

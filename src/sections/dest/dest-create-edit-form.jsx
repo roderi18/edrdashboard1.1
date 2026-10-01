@@ -241,6 +241,7 @@ export function DestCreateEditForm({ currentDest }) {
   // formulario: cada `reset` lo habria vaciado, y se guarda al elegirlo.
   const [destStatus, setDestStatus] = useState('activo');
   const membersCount = countMembersByDestId(allMembers, currentDest?.id);
+  const limitesNumeros = limitesNumerosDestacamentos(dests);
   const isDestacamentoAdmin = isDestacamentoAdminRole(user);
   // Administrador "pleno" (global/funcional/legado) sin restriccion de alcance.
   // Los admin de seccion/region NO entran aqui: editan solo dentro de su alcance.
@@ -1348,6 +1349,8 @@ export function DestCreateEditForm({ currentDest }) {
                       scheduleDisabled={!canSaveDest}
                       coordinatorDisabled={!canSaveDest}
                       numberDisabled={!canAssignDestNumber}
+                      numberMin={limitesNumeros.minimo}
+                      numberMax={limitesNumeros.maximo}
                     />
                   )}
                 </>
@@ -1362,6 +1365,8 @@ export function DestCreateEditForm({ currentDest }) {
                     scheduleDisabled={!canSaveDest}
                     coordinatorDisabled={!canSaveDest}
                     numberDisabled={!canAssignDestNumber}
+                    numberMin={limitesNumeros.minimo}
+                    numberMax={limitesNumeros.maximo}
                     estado={destStatus}
                     onEstadoChange={handleDestStatusChange}
                     estadoDisabled={!canChangeDestStatus}

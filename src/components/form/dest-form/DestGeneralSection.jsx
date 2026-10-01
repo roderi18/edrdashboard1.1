@@ -33,6 +33,8 @@ export default function DestGeneralSection({
     coordinatorDisabled = disabled,
     // El numero es de la Oficina Nacional, hasta al crear el destacamento.
     numberDisabled = disabled,
+    numberMin = 11,
+    numberMax = null,
     // El estado (Activo / Inactivo) no va en el formulario: vive en Firestore y
     // se guarda al elegirlo. Lo mueven solo el Administrador Global y la Oficina
     // Nacional (`puedeCambiarEstadoDeDestacamento`).
@@ -99,6 +101,8 @@ export default function DestGeneralSection({
                 name="destNumber"
                 label="Número de Destacamento"
                 maxLength={3}
+                minValue={numberMin}
+                maxValue={numberMax}
                 disabled={numberDisabled}
                 helperText={
                     numberDisabled ? 'Lo asigna la Oficina Nacional.' : ''
