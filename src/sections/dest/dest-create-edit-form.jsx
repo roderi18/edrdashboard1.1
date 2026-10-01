@@ -114,6 +114,14 @@ const hayCambiosDeIglesia = (datosIglesia, iglesiaActual) => {
   );
 };
 
+const limitesNumerosDestacamentos = (destacamentos) => {
+  const numeros = (Array.isArray(destacamentos) ? destacamentos : [])
+    .map((dest) => Number.parseInt(String(dest?.destNumber ?? dest?.numero ?? ''), 10))
+    .filter((numero) => Number.isInteger(numero) && numero >= 11);
+
+  return { minimo: 11, maximo: numeros.length ? Math.max(...numeros) : 11 };
+};
+
 import { crearNotificacionNumeroDestacamento } from 'src/services/notification-service';
 import {
   leerEstadoDeDestacamento,
@@ -740,6 +748,16 @@ export function DestCreateEditForm({ currentDest }) {
       if (currentDest && !canSubmitDest) {
         toast.error('No tienes permiso para editar este destacamento.');
         return;
+      }
+
+      const numero = String(data.destNumber ?? '').trim();
+      if (numero) {
+        const limites = limitesNumerosDestacamentos(dests);
+        const numeroEntero = Number.parseInt(numero, 10);
+        if (!/^\d+$/.test(numero) || numeroEntero < limites.minimo || numeroEntero > limites.maximo) {
+          toast.error(`El número del destacamento debe estar entre ${limites.minimo} y ${limites.maximo}.`);
+          return;
+        }
       }
 
       // Espera de cortesia, en paralelo con el guardado. Arranca DESPUES de las
