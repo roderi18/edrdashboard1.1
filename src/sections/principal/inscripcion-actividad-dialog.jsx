@@ -27,6 +27,7 @@ import { useGetProducts } from 'src/actions/product';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { NumberInput } from 'src/components/number-input';
 
 import { useCheckoutContext } from 'src/sections/checkout/context';
@@ -42,6 +43,14 @@ import { useCheckoutContext } from 'src/sections/checkout/context';
 // Sin combos, el botón de la tarjeta lleva a su enlace de siempre: este diálogo
 // solo se abre cuando la tienda ya tiene la categoría de la actividad.
 // ----------------------------------------------------------------------
+
+const CUADRO_FOTO = {
+  width: 88,
+  height: 88,
+  flexShrink: 0,
+  borderRadius: 1.5,
+  bgcolor: 'background.neutral',
+};
 
 export function InscripcionActividadDialog({ abierto, onCerrar, actividad, destinoSinCombos }) {
   const router = useRouter();
@@ -87,7 +96,14 @@ export function InscripcionActividadDialog({ abierto, onCerrar, actividad, desti
       open={abierto && (productsLoading || combos.length > 0)}
       onClose={onCerrar}
       fullWidth
-      maxWidth="sm"
+      maxWidth="md"
+      PaperProps={{
+        sx: {
+          width: 'calc(100% - 32px)',
+          maxWidth: 760,
+          borderRadius: 2.5,
+        },
+      }}
     >
       <DialogTitle>
         Inscribirme · {actividad?.titulo}
@@ -96,7 +112,7 @@ export function InscripcionActividadDialog({ abierto, onCerrar, actividad, desti
         </Typography>
       </DialogTitle>
 
-      <DialogContent dividers>
+      <DialogContent dividers sx={{ px: { xs: 2, sm: 3 }, py: 2.5 }}>
         {productsLoading && (
           <Stack spacing={2}>
             {[0, 1, 2].map((i) => (
@@ -106,32 +122,47 @@ export function InscripcionActividadDialog({ abierto, onCerrar, actividad, desti
         )}
 
         {!productsLoading && (
-          <Stack divider={<Divider flexItem />} spacing={2}>
+          <Stack divider={<Divider flexItem />} spacing={2.5}>
             {combos.map((combo) => {
               const maximo = maximoDeCombo(combo);
               const cantidad = cantidades[combo.id] ?? 0;
+              // La foto es la del producto en la tienda: cambiarla allí la cambia
+              // aquí. Fijarla en el código por el título de la actividad dejaba
+              // otra copia que nadie actualizaba.
+              const imagen = combo.coverUrl;
 
               return (
                 <Stack key={combo.id} direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-                  <Box
-                    component="img"
-                    alt={combo.name}
-                    src={combo.coverUrl}
-                    sx={{
-                      width: 72,
-                      height: 72,
-                      flexShrink: 0,
-                      borderRadius: 1.5,
-                      objectFit: 'cover',
-                      bgcolor: 'background.neutral',
-                    }}
-                  />
+                  {/* Un combo sin foto pintaba la imagen rota con el nombre encima,
+                      desbordando el cuadro (y `src=""` vuelve a pedir la página). */}
+                  {imagen ? (
+                    <Box
+                      component="img"
+                      alt={combo.name}
+                      src={imagen}
+                      sx={{ ...CUADRO_FOTO, objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        ...CUADRO_FOTO,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'text.disabled',
+                      }}
+                    >
+                      <Iconify icon="solar:gallery-wide-bold" width={28} />
+                    </Box>
+                  )}
 
                   <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                    <Typography variant="subtitle2">{combo.name}</Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      {combo.name}
+                    </Typography>
                     {!!combo.subDescription && (
                       <Typography
-                        variant="caption"
+                        variant="body2"
                         sx={(theme) => ({
                           color: 'text.secondary',
                           ...theme.mixins.maxLine({ line: 2 }),
@@ -140,13 +171,13 @@ export function InscripcionActividadDialog({ abierto, onCerrar, actividad, desti
                         {combo.subDescription}
                       </Typography>
                     )}
-                    <Typography variant="subtitle1" sx={{ mt: 0.5 }}>
+                    <Typography variant="h6" sx={{ mt: 0.75 }}>
                       {fDopCurrency(combo.price)}
                     </Typography>
                   </Box>
 
                   {maximo > 0 ? (
-                    <Box sx={{ width: 110, flexShrink: 0, textAlign: 'right' }}>
+                    <Box sx={{ width: 120, flexShrink: 0, textAlign: 'right' }}>
                       <NumberInput
                         hideDivider
                         min={0}
