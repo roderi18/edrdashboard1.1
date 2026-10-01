@@ -57,7 +57,10 @@ export function ChatMessageList({
     return String(firstMessage.id ?? '').localeCompare(String(secondMessage.id ?? ''));
   });
 
-  const { messagesScrollRef } = useMessagesScroll(sortedMessages);
+  // Un mensaje propio baja siempre la lista (ver `use-messages-scroll.js`).
+  const { messagesScrollRef } = useMessagesScroll(sortedMessages, {
+    idPropio: currentContact?.idMiembros ?? currentContact?.id ?? '',
+  });
 
   const slides = sortedMessages.flatMap((message) => {
     if (message.contentType !== 'image') return [];
