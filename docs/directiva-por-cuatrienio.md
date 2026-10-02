@@ -47,7 +47,7 @@ El 22/08/2026 termina uno y empieza el otro el mismo día: esa fecha ya es
    siguiente inicio de sesión o con "Sincronizar roles".
 4. **Ex comandante nacional es para siempre.** Los del grupo "Ex comandantes" y
    quien fue Director Nacional en un cuatrienio **cerrado** salen siempre en la
-   lista de Directiva actual como **Ex Comandante Nacional** (Consejo Ejecutivo),
+   lista de Directiva actual como **Ex Director Nacional** (nivel Consejo Nacional),
    con su filtro de posición, tengan o no cargo hoy. No se pueden dar de baja
    desde esa lista: es historia, no una asignación.
 5. **Una persona, un cargo por cuatrienio.** Si un nombre se repite, vale **la

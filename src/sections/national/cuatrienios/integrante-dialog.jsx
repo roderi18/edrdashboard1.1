@@ -437,8 +437,8 @@ export function IntegranteDialog({
 
           {grupo === GRUPOS_CUATRIENIO.exComandantes && (
             <Alert severity="info">
-              Un ex comandante nacional sigue siempre en el Consejo Ejecutivo y conserva los
-              permisos de Director Nacional.
+              Un ex director nacional (antes "comandante") sigue siempre en el Consejo Nacional
+              y conserva los permisos de Director Nacional.
             </Alert>
           )}
         </Stack>

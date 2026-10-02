@@ -25,6 +25,7 @@ import { claveNodo } from 'src/utils/leadership-assignments';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { tituloDe } from 'src/utils/titulos-oficiales-nacionales.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { periodoDeDirectorPorNombre } from 'src/utils/galeria-directores.mjs';
 import { unirOficialesConSuCargo } from 'src/utils/consejo-nacional-filas.mjs';
 import { ordenarDirectivaParaExportar } from 'src/utils/directiva-exportacion.mjs';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
@@ -54,6 +55,7 @@ import { getSectionals } from 'src/services/sectional-service';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import { useTitulosOficiales } from 'src/services/titulos-oficiales-service';
 import { ID_CUATRIENIO_LISTADO } from 'src/catalogs/directiva-2022-2026.mjs';
+import { leerGaleriaDeDirectores } from 'src/services/galeria-directores-service';
 import { quitarIntegrante, obtenerPermanentes } from 'src/services/directiva-cuatrienios-service';
 import { obtenerTelefonosDirectivaActual } from 'src/services/national-directiva-contactos-service';
 import {
@@ -216,6 +218,7 @@ const ordenNivelOrganizacional = (value) => {
   const normalizado = normalizeText(value);
 
   if (normalizado === normalizeText('Consejo Ejecutivo')) return 0;
+  if (normalizado === normalizeText(NIVEL_CONSEJO_NACIONAL)) return 0.5;
   if (normalizado.startsWith(normalizeText('Región'))) return 1;
   if (normalizado.startsWith(normalizeText('Sección'))) return 2;
 
@@ -280,10 +283,13 @@ const construirAmbito = ({ nivel, idEntidad, seccionesPorId, regionesPorId }) =>
 };
 
 // El ex comandante nacional no ocupa ninguna casilla de hoy, pero sigue siendo
-// del Consejo Ejecutivo para siempre ("Comandante Nacional" es el nombre antiguo
-// de Director Nacional). Sale en esta lista y en su filtro de posicion aunque no
+// del Consejo Nacional para siempre. Se llama "Ex Director Nacional": "Comandante
+// Nacional" es el nombre antiguo de Director Nacional, y la lista decía el viejo.
+// Antes salía en el Consejo Ejecutivo, donde solo están los cargos de hoy. Sale en esta lista y en su filtro de posicion aunque no
 // tenga cargo, sin poder darse de baja desde aqui: es historia, no asignacion.
 const POSICION_EX_COMANDANTE = 'ex-comandante-nacional';
+const ETIQUETA_EX_DIRECTOR = 'Ex Director Nacional';
+const NIVEL_CONSEJO_NACIONAL = 'Consejo Nacional';
 
 // En la memoria de un cuatrienio, lo que no ocupa casilla del organigrama va
 // detras de los cargos: los provisionales, los oficiales y los ex comandantes.
@@ -565,6 +571,31 @@ export function NationalListView() {
   // un cuatrienio pasado conserva su "Oficial de la Nacional" de entonces.
   const { asignaciones: titulosOficiales } = useTitulosOficiales();
 
+  // LOS AÑOS DE CADA EX DIRECTOR, de la Galería de Directores Nacionales (se
+  // casan por nombre: `periodoDeDirectorPorNombre`). Sin galería, o sin la
+  // persona en ella, la posición sale sin año, como antes.
+  const [galeriaDirectores, setGaleriaDirectores] = useState([]);
+
+  useEffect(() => {
+    let activo = true;
+
+    leerGaleriaDeDirectores()
+      .then((directores) => activo && setGaleriaDirectores(directores))
+      .catch(() => {});
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const periodoDeExDirector = useCallback(
+    (nombres) =>
+      nombres
+        .map((nombre) => periodoDeDirectorPorNombre(galeriaDirectores, nombre))
+        .find(Boolean) || '',
+    [galeriaDirectores]
+  );
+
   const filasDeHoy = useMemo(() => {
     const filas = nationalAssignments.map((assignment) => {
       const member = miembrosPorId.get(String(assignment.idMiembro));
@@ -667,16 +698,22 @@ export function NationalListView() {
           member?.avatarUrl ||
           '',
         nationalXMemberPosition: POSICION_EX_COMANDANTE,
-        nationalXMemberPositionLabel: 'Ex Comandante Nacional',
-        nationalXMemberPositionScope: 'Consejo Ejecutivo',
+        nationalXMemberPositionLabel: ETIQUETA_EX_DIRECTOR,
+        // Sus años van DEBAJO de "Ex Director Nacional" (la misma línea que el
+        // "desde – hasta" de una directiva pasada), no pegados al cargo.
+        nationalXMemberPositionPeriodo: periodoDeExDirector([
+          `${member?.firstName ?? ''} ${member?.lastName ?? ''}`,
+          `${permanente.nombres ?? ''} ${permanente.apellidos ?? ''}`,
+        ]),
+        nationalXMemberPositionScope: NIVEL_CONSEJO_NACIONAL,
         nationalXMemberPositionHref: rutaDelCuatrienio(ultimoCerrado, vigente),
         nationalEstructure: 'consejo_ejecutivo',
         nationalEstructureLabel: NATIONAL_STRUCTURES.consejo_ejecutivo,
-        nationalOrganizationalLevel: 'Consejo Ejecutivo',
+        nationalOrganizationalLevel: NIVEL_CONSEJO_NACIONAL,
         hierarchyStructureOrder: ORDEN_ESTRUCTURA.consejo_ejecutivo,
         // Siempre al final de la lista de la directiva actual.
         hierarchyRoleOrder: 900,
-        nationalXAssignedRegional: 'Consejo Ejecutivo',
+        nationalXAssignedRegional: NIVEL_CONSEJO_NACIONAL,
       });
     });
 
@@ -691,6 +728,7 @@ export function NationalListView() {
     telefonosDirectiva,
     fotosPorMiembro,
     titulosOficiales,
+    periodoDeExDirector,
     ultimoCerrado,
     vigente,
   ]);
@@ -713,8 +751,12 @@ export function NationalListView() {
           : {};
     // Por NOMBRE y no por id: una seccion del listado puede no existir aun en el
     // padron, y aun asi tiene que salir con su nombre.
-    const ambito =
-      nivel === 'nacional'
+    // Un ex director (grupo de ex comandantes) va en el Consejo Nacional también
+    // en la memoria de un cuatrienio, con su nombre de hoy.
+    const esExDirector = integrante.grupo === 'ex_comandantes';
+    const ambito = esExDirector
+      ? NIVEL_CONSEJO_NACIONAL
+      : nivel === 'nacional'
         ? 'Consejo Ejecutivo'
         : nivel === 'regional'
           ? conPrefijo('Región', entidad.nombre) || 'Región sin asignar'
@@ -738,7 +780,15 @@ export function NationalListView() {
       avatarUrl: integrante.fotoUrl || '',
       nationalXMemberPosition:
         integrante.idPosicionDirectiva || `${nivel}:${integrante.grupo}:${integrante.cargo}`,
-      nationalXMemberPositionLabel: integrante.cargoNombre || '-',
+      nationalXMemberPositionLabel: esExDirector
+        ? ETIQUETA_EX_DIRECTOR
+        : integrante.cargoNombre || '-',
+      ...(esExDirector && {
+        nationalXMemberPositionPeriodo: periodoDeExDirector([
+          nombreCompleto(integrante),
+          `${member?.firstName ?? ''} ${member?.lastName ?? ''}`,
+        ]),
+      }),
       nationalXMemberPositionScope: ambito,
       // El cargo abre el organigrama de su entidad en ese cuatrienio.
       onAbrirPosicion: () => abrirOrganigramaRef.current(nivel, entidad),
@@ -817,9 +867,9 @@ export function NationalListView() {
             ...(apunte.tipo === 'salida'
               ? filaDeSalida(apunte.fila)
               : filaDeIntegrante(apunte.fila)),
-            nationalXMemberPositionPeriodo: apunte.periodo
-              ? `${fDate(apunte.periodo.desde)} – ${fDate(apunte.periodo.hasta)}`
-              : '',
+            ...(apunte.periodo && {
+              nationalXMemberPositionPeriodo: `${fDate(apunte.periodo.desde)} – ${fDate(apunte.periodo.hasta)}`,
+            }),
             ordenPeriodo: apunte.ordenPeriodo,
           }))
         : [],
@@ -834,6 +884,7 @@ export function NationalListView() {
       seccionesPorId,
       regionesPorId,
       puedeEditarMemoria,
+      periodoDeExDirector,
     ]
   );
 

@@ -34,7 +34,7 @@ const valorDeDestacamento = (integrante, perfil) => {
 const valorDeCargo = (integrante, perfil) => {
   if (perfil?.cargoNacional) return perfil.cargoNacional;
   if (perfil?.cargoExcluido || integrante?.grupo === 'ex_comandantes') {
-    return 'Sin asignación (Ex Comandante Nacional)';
+    return 'Sin asignación (Ex Director Nacional)';
   }
 
   return integrante?.cargoNombre || 'Sin cargo registrado';

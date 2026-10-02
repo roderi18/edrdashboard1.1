@@ -110,3 +110,91 @@ export function conTextos(texto, textos) {
     .replace(/\{nombre\}/gi, textos.nombre ?? '')
     .replace(/\{a(?:ñ|n)o\}/gi, textos.anio ?? '');
 }
+
+// ----------------------------------------------------------------------
+// EL PERIODO DE UN EX DIRECTOR, PARA LA LISTA DE LA DIRECTIVA.
+//
+// En la columna Posición, "Ex Director Nacional" lleva sus años, sacados de la
+// galería. La galería y el padrón no escriben el nombre igual ("Rev. Dany
+// Trinidad Feliz" / "Dany Trinidad", "William" / "Wilian", "Domingo A. Amancio"
+// / "Domingo Amancio"), así que se casan por palabras: sin acentos, sin títulos
+// ni iniciales, y cada palabra del padrón tiene que estar en la galería (igual o
+// casi: ver `mismaPalabra`). Si dos fichas de la galería encajan igual de
+// bien, no se pone ninguna: mejor sin año que con el de otro.
+// ----------------------------------------------------------------------
+
+const TITULOS = new Set(['rev', 'pastor', 'pas', 'dr', 'lic', 'ing', 'sr', 'sra', 'hno', 'prof']);
+const UNIONES = new Set(['de', 'del', 'la', 'las', 'los', 'y']);
+
+const palabrasDelNombre = (nombre) =>
+  String(nombre ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .split(/[^a-zñ]+/)
+    .filter((palabra) => palabra.length > 1 && !TITULOS.has(palabra) && !UNIONES.has(palabra));
+
+/** Cuántas letras hay que cambiar, poner o quitar para pasar de una palabra a otra. */
+const distancia = (a, b) => {
+  let anterior = Array.from({ length: b.length + 1 }, (_, j) => j);
+
+  for (let i = 1; i <= a.length; i += 1) {
+    const actual = [i];
+
+    for (let j = 1; j <= b.length; j += 1) {
+      actual[j] = Math.min(
+        anterior[j] + 1,
+        actual[j - 1] + 1,
+        anterior[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+    anterior = actual;
+  }
+
+  return anterior[b.length];
+};
+
+/**
+ * ¿Es la misma palabra mal escrita? Una letra de diferencia en las cortas, dos en
+ * las de seis o más ("Wilian" / "William"). Las de menos de cuatro, exactas.
+ */
+const mismaPalabra = (a, b) => {
+  if (a === b) return true;
+
+  const corta = Math.min(a.length, b.length);
+
+  if (corta < 4) return false;
+
+  return distancia(a, b) <= (corta >= 6 ? 2 : 1);
+};
+
+/** Solo los años del texto de la galería ("Ex Director Nacional 2008-2010" → "2008-2010"). */
+export const periodoSinCargo = (anio) =>
+  String(anio ?? '')
+    .replace(/^[^\d]*/, '')
+    .trim();
+
+/** El periodo en la galería de la persona con ese nombre, o '' si no se encuentra (o hay duda). */
+export function periodoDeDirectorPorNombre(galeria = [], nombre = '') {
+  const buscadas = palabrasDelNombre(nombre);
+
+  if (buscadas.length < 2) return '';
+
+  const candidatos = galeria
+    .map((director) => {
+      const suyas = palabrasDelNombre(director?.nombre);
+      const encajan = buscadas.every((palabra) =>
+        suyas.some((suya) => mismaPalabra(palabra, suya))
+      );
+
+      return encajan ? { director, sobrantes: suyas.length - buscadas.length } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.sobrantes - b.sobrantes);
+
+  if (!candidatos.length) return '';
+  if (candidatos[1] && candidatos[1].sobrantes === candidatos[0].sobrantes) return '';
+
+  return periodoSinCargo(candidatos[0].director.anio);
+}

@@ -190,7 +190,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
   {
     id: 'ex_comandante',
     orden: 30,
-    nombres: { nacional: 'Ex Comandante Nacional' },
+    nombres: { nacional: 'Ex Director Nacional' },
     nodos: {},
   },
   {
