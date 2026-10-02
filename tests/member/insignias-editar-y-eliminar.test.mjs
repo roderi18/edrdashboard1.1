@@ -121,3 +121,49 @@ test('crear, editar y eliminar insignias siguen a "Accesos"; ordenar, solo el Ad
   );
   assert.match(acciones, /\{puedeEliminar && \(/);
 });
+
+// ----------------------------------------------------------------------
+// EL NÚMERO DORADO DE "VECES GANADA": cada cinta y medalla dice si lo lleva
+// (`llevaNumero`, en su ficha del Designer). Por defecto las cintas sí y las
+// medallas no; las medallas que lo llevan guardan sus veces al asignarlas.
+// ----------------------------------------------------------------------
+
+const { llevaNumeroDorado } = await import('../../src/utils/insignias-personalizadas.mjs');
+const { construirMedallasAsignadas, configuracionDeMedallas } =
+  await import('../../src/utils/medallas-perfil.mjs');
+
+test('por defecto las cintas llevan número y las medallas no; la ficha manda', () => {
+  assert.equal(llevaNumeroDorado({}, 'cinta'), true);
+  assert.equal(llevaNumeroDorado({}, 'medalla'), false);
+  assert.equal(llevaNumeroDorado({ llevaNumero: false }, 'cinta'), false);
+  assert.equal(llevaNumeroDorado({ llevaNumero: true }, 'medalla'), true);
+});
+
+test('el ajuste de una de fábrica lleva si tiene número', () => {
+  const [cinta] = aplicarAjustes([{ id: '3' }], { 3: { llevaNumero: false } });
+
+  assert.equal(cinta.llevaNumero, false);
+});
+
+test('las medallas guardan y leen cuántas veces se ganaron', () => {
+  const [medalla] = construirMedallasAsignadas([], [{ id: 'm1', veces: 3 }], 'hoy');
+
+  assert.equal(medalla.veces, 3);
+  assert.equal(configuracionDeMedallas([medalla]).get('m1').veces, 3);
+  assert.equal(configuracionDeMedallas([{ id: 'm2' }]).get('m2').veces, 1);
+});
+
+test('la cinta y la medalla pintan el número solo si lo llevan', () => {
+  assert.match(
+    leer('src/components/insignias-perfil/cintas-de-miembro.jsx'),
+    /llevaNumeroDorado\(cinta, 'cinta'\) \? digitosDeVeces\(veces\) : \[\]/
+  );
+  assert.match(
+    leer('src/components/insignias-perfil/medallas-de-miembro.jsx'),
+    /llevaNumeroDorado\(medalla, 'medalla'\) \? digitosDeVeces\(veces\) : \[\]/
+  );
+  assert.match(
+    leer('src/sections/everest/agregar-insignia-dialog.jsx'),
+    /Lleva número \(veces ganada\)/
+  );
+});

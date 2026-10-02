@@ -6,14 +6,17 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import {
   TIPOS_INSIGNIA,
+  llevaNumeroDorado,
   validarInsigniaNueva,
   validarInsigniaEditada,
   MAXIMO_NOMBRE_INSIGNIA,
@@ -76,6 +79,9 @@ export function AgregarInsigniaDialog({ tipo, open, onClose, insignia: editando 
   const [archivo, setArchivo] = useState(null);
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  // El número dorado de "veces ganada" (cintas y medallas; los pines no lo tienen).
+  const conNumero = tipo === TIPOS_INSIGNIA.CINTA || tipo === TIPOS_INSIGNIA.MEDALLA;
+  const [llevaNumero, setLlevaNumero] = useState(tipo === TIPOS_INSIGNIA.CINTA);
   const [guardando, setGuardando] = useState(false);
   const [intentado, setIntentado] = useState(false);
 
@@ -93,6 +99,7 @@ export function AgregarInsigniaDialog({ tipo, open, onClose, insignia: editando 
     if (open) {
       setNombre(editando?.nombre ?? '');
       setDescripcion(editando?.descripcion ?? '');
+      setLlevaNumero(llevaNumeroDorado(editando || {}, tipo));
       return;
     }
 
@@ -100,7 +107,7 @@ export function AgregarInsigniaDialog({ tipo, open, onClose, insignia: editando 
     setNombre('');
     setDescripcion('');
     setIntentado(false);
-  }, [open, editando]);
+  }, [open, editando, tipo]);
 
   const error = editando
     ? validarInsigniaEditada({ nombre, descripcion })
@@ -124,11 +131,19 @@ export function AgregarInsigniaDialog({ tipo, open, onClose, insignia: editando 
           archivo,
           nombre,
           descripcion,
+          ...(conNumero ? { llevaNumero } : {}),
           usuario: user,
         });
         toast.success(TEXTOS[tipo].editada);
       } else {
-        await crearInsigniaPersonalizada({ tipo, archivo, nombre, descripcion, usuario: user });
+        await crearInsigniaPersonalizada({
+          tipo,
+          archivo,
+          nombre,
+          descripcion,
+          ...(conNumero ? { llevaNumero } : {}),
+          usuario: user,
+        });
         toast.success(TEXTOS[tipo].guardada);
       }
       onClose();
@@ -214,10 +229,24 @@ export function AgregarInsigniaDialog({ tipo, open, onClose, insignia: editando 
             value={descripcion}
             disabled={guardando}
             onChange={(evento) => setDescripcion(evento.target.value)}
-            error={intentado && !descripcion.trim()}
+            error={intentado && !editando && !descripcion.trim()}
             helperText="Sale al pasar el ratón por encima, en el perfil y al asignarla."
             slotProps={{ htmlInput: { maxLength: MAXIMO_DESCRIPCION_INSIGNIA } }}
           />
+
+          {conNumero && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={llevaNumero}
+                  disabled={guardando}
+                  onChange={(evento) => setLlevaNumero(evento.target.checked)}
+                />
+              }
+              label="Lleva número (veces ganada)"
+              slotProps={{ typography: { variant: 'body2' } }}
+            />
+          )}
 
           {intentado && error && (
             <Typography variant="caption" sx={{ color: 'error.main' }}>

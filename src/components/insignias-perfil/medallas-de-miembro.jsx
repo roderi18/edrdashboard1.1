@@ -5,15 +5,18 @@ import { onSnapshot } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
 import Slider from '@mui/material/Slider';
 import Tooltip from '@mui/material/Tooltip';
 import Skeleton from '@mui/material/Skeleton';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { keyframes } from '@mui/material/styles';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
-import { aplicarAjustes } from 'src/utils/insignias-personalizadas.mjs';
+import { aplicarAjustes, llevaNumeroDorado } from 'src/utils/insignias-personalizadas.mjs';
+import { digitosDeVeces, normalizarVeces, MAXIMO_VECES_CINTA } from 'src/utils/cintas-perfil.mjs';
 import {
   recordarImagenDelPerfil,
   imagenDelPerfilYaResuelta,
@@ -322,9 +325,13 @@ export function ImagenDeMedalla({
   amplitudMovimiento = 1,
   velocidadBrillo = 1,
   intensidadBrillo = 1,
+  // Cuántas veces se ganó: con más de una, el número dorado sobre la cinta de
+  // la medalla, si su ficha del Designer dice que lo lleva.
+  veces = 1,
   sx,
 }) {
   const src = pequena ? medalla.srcPequena || medalla.src : medalla.src;
+  const digitos = llevaNumeroDorado(medalla, 'medalla') ? digitosDeVeces(veces) : [];
   const [cargada, setCargada] = useState(() => imagenDelPerfilYaResuelta(src));
   const marcarCargada = () => {
     recordarImagenDelPerfil(src);
@@ -387,6 +394,40 @@ export function ImagenDeMedalla({
           variant="rounded"
           sx={{ position: 'absolute', inset: 0, height: 1, width: 1, borderRadius: 1 }}
         />
+      )}
+
+      {/* El número dorado, centrado sobre la cinta (la parte de arriba del corte),
+          como en las cintas del perfil. */}
+      {cargada && !!digitos.length && (
+        <Box
+          aria-label={`Ganada ${normalizarVeces(veces)} veces`}
+          sx={{
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 2,
+            display: 'flex',
+            position: 'absolute',
+            height: `${CORTE}%`,
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          {digitos.map((digito, indice) => (
+            <Box
+              key={`${digito}-${indice}`}
+              component="img"
+              src={digito}
+              alt=""
+              sx={{
+                height: '34%',
+                width: 'auto',
+                filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45))',
+              }}
+            />
+          ))}
+        </Box>
       )}
 
       {/* La cinta (y la que da el tamaño a todo). */}
@@ -641,6 +682,9 @@ export function SelectorDeMedallas({
   onCambiar,
   efectos = {},
   onCambiarEfectos,
+  // id → veces ganada (solo cuenta en las medallas que llevan número).
+  veces = new Map(),
+  onCambiarVeces,
 }) {
   const { efectoMovimiento, efectoBrillo } = efectos;
 
@@ -776,13 +820,60 @@ export function SelectorDeMedallas({
                 }),
               })}
             >
-              <ImagenDeMedalla medalla={medalla} pequena {...efectos} />
+              <ImagenDeMedalla
+                medalla={medalla}
+                pequena
+                {...efectos}
+                veces={activa ? (veces.get(medalla.id) ?? 1) : 1}
+              />
               <Typography
                 variant="caption"
                 sx={{ mt: 0.5, display: 'block', lineHeight: 1.25, overflowWrap: 'anywhere' }}
               >
                 {medalla.nombre}
               </Typography>
+              {/* Cuántas veces se ganó, en las que llevan número. No propaga el
+                  clic: cambiar el número no desmarca la medalla. */}
+              {activa && llevaNumeroDorado(medalla, 'medalla') && onCambiarVeces && (
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="center"
+                  spacing={0.25}
+                  sx={{ mt: 0.5 }}
+                  onClick={(evento) => evento.stopPropagation()}
+                  onKeyDown={(evento) => evento.stopPropagation()}
+                >
+                  <IconButton
+                    size="small"
+                    aria-label={`Una vez menos ${medalla.nombre}`}
+                    disabled={(veces.get(medalla.id) ?? 1) <= 1}
+                    onClick={() =>
+                      onCambiarVeces(medalla.id, normalizarVeces((veces.get(medalla.id) ?? 1) - 1))
+                    }
+                    sx={{ p: 0.25 }}
+                  >
+                    <Iconify icon="eva:minus-fill" width={14} />
+                  </IconButton>
+                  <Typography
+                    variant="caption"
+                    sx={{ fontWeight: 700, minWidth: 24, textAlign: 'center' }}
+                  >
+                    ×{veces.get(medalla.id) ?? 1}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    aria-label={`Una vez más ${medalla.nombre}`}
+                    disabled={(veces.get(medalla.id) ?? 1) >= MAXIMO_VECES_CINTA}
+                    onClick={() =>
+                      onCambiarVeces(medalla.id, normalizarVeces((veces.get(medalla.id) ?? 1) + 1))
+                    }
+                    sx={{ p: 0.25 }}
+                  >
+                    <Iconify icon="mingcute:add-line" width={14} />
+                  </IconButton>
+                </Stack>
+              )}
             </Box>
           );
         })}

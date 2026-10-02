@@ -18,8 +18,19 @@
 // Agregan y editan el Administrador Global y la Oficina Nacional; elimina solo
 // el Administrador Global.
 //
+// EL NÚMERO DORADO DE "VECES GANADA" (`llevaNumero`). Cada cinta y cada medalla
+// dice si lo lleva: por defecto las cintas sí y las medallas no
+// (`llevaNumeroDorado`). Se elige en su ficha del Designer.
+//
 // Sin React ni Firebase para poder probarlo con `node --test`.
 // ----------------------------------------------------------------------
+
+/** ¿Pinta el número dorado? Si su ficha no lo dice: las cintas sí, las medallas no. */
+export const llevaNumeroDorado = (insignia = {}, tipo = 'cinta') =>
+  typeof insignia?.llevaNumero === 'boolean' ? insignia.llevaNumero : tipo === 'cinta';
+
+const conLlevaNumero = (documento) =>
+  typeof documento?.llevaNumero === 'boolean' ? { llevaNumero: documento.llevaNumero } : {};
 
 export const COLECCION_INSIGNIAS_PERSONALIZADAS = 'insignias_personalizadas';
 
@@ -84,6 +95,7 @@ export const insigniaDesdeDocumento = (documento = {}) => {
     descripcion: limpiar(documento?.descripcion, MAXIMO_DESCRIPCION_INSIGNIA),
     src,
     personalizada: true,
+    ...conLlevaNumero(documento),
   };
 
   // La medalla y el pin llevan además su variante pequeña (la del perfil) y un
@@ -124,6 +136,7 @@ export const ajusteDesdeDocumento = (documento = {}) => {
     ...(descripcion ? { descripcion } : {}),
     // Solo una imagen de nuestro Storage reemplaza a la de la carpeta.
     ...(ES_URL_DE_STORAGE.test(src) ? { src } : {}),
+    ...conLlevaNumero(documento),
     oculta: documento?.oculta === true,
   };
 };
@@ -150,6 +163,7 @@ export const aplicarAjustes = (catalogo = [], ajustes = {}) => {
         ...(ajuste.src
           ? { src: ajuste.src, ...('srcPequena' in insignia ? { srcPequena: ajuste.src } : {}) }
           : {}),
+        ...conLlevaNumero(ajuste),
         ajustada: true,
       },
     ];
@@ -179,10 +193,13 @@ export const separarInsignias = (documentos = []) => {
   };
 };
 
-/** Lo que se pide al editar: nombre y descripción (la imagen es opcional, se queda la que tiene). */
-export const validarInsigniaEditada = ({ nombre, descripcion }) => {
+/**
+ * Lo que se pide al editar: el nombre. La imagen es opcional (se queda la que
+ * tiene) y la descripción también: muchas cintas de fábrica no traen y, si se
+ * exigía, no se podía cambiar nada de ellas (ni si llevan número).
+ */
+export const validarInsigniaEditada = ({ nombre }) => {
   if (!limpiar(nombre, MAXIMO_NOMBRE_INSIGNIA)) return 'Escribe el nombre.';
-  if (!limpiar(descripcion, MAXIMO_DESCRIPCION_INSIGNIA)) return 'Escribe la descripción.';
 
   return '';
 };

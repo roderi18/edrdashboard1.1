@@ -36,7 +36,7 @@ async function guardarMedallasDeMiembroDirecto({
     [...configuracionDeMedallas(lista)]
       .map(
         ([id, efectos]) =>
-          `${id} [movimiento: ${efectos.efectoMovimiento} ${efectos.velocidadMovimiento}x/${efectos.amplitudMovimiento}x; brillo: ${efectos.efectoBrillo} ${efectos.velocidadBrillo}x/${efectos.intensidadBrillo}x]`
+          `${id}${efectos.veces > 1 ? ` ×${efectos.veces}` : ''} [movimiento: ${efectos.efectoMovimiento} ${efectos.velocidadMovimiento}x/${efectos.amplitudMovimiento}x; brillo: ${efectos.efectoBrillo} ${efectos.velocidadBrillo}x/${efectos.intensidadBrillo}x]`
       )
       .join(', ') || 'Ninguna';
   const antes = describir(anteriores);

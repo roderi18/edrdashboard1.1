@@ -52,7 +52,14 @@ const SECCION = {
   [TIPOS_INSIGNIA.PIN]: 'pines',
 };
 
-async function crearInsigniaPersonalizadaDirecto({ tipo, archivo, nombre, descripcion, usuario }) {
+async function crearInsigniaPersonalizadaDirecto({
+  tipo,
+  archivo,
+  nombre,
+  descripcion,
+  llevaNumero,
+  usuario,
+}) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
   if (!puedeCrearInsignia(usuario, tipo)) {
@@ -82,6 +89,8 @@ async function crearInsigniaPersonalizadaDirecto({ tipo, archivo, nombre, descri
     src: subida.downloadUrl,
     rutaStorage: subida.storagePath,
   });
+
+  if (typeof llevaNumero === 'boolean') documento.llevaNumero = llevaNumero;
 
   // Lo que no pasaría el saneado al leerla no se guarda: saldría como un hueco.
   if (!insigniaDesdeDocumento(documento)) {
@@ -135,7 +144,15 @@ const destinoDe = (tipo, insignia) => {
   return { idDoc, campos: { id: idDoc, fabrica: true, tipo, idFabrica: String(insignia?.id) } };
 };
 
-async function editarInsigniaDirecto({ tipo, insignia, archivo, nombre, descripcion, usuario }) {
+async function editarInsigniaDirecto({
+  tipo,
+  insignia,
+  archivo,
+  nombre,
+  descripcion,
+  llevaNumero,
+  usuario,
+}) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
   if (!puedeEditarInsignia(usuario, tipo)) {
@@ -151,6 +168,8 @@ async function editarInsigniaDirecto({ tipo, insignia, archivo, nombre, descripc
     ...campos,
     nombre: limpiarNombreInsignia(nombre),
     descripcion: limpiarDescripcionInsignia(descripcion),
+    // El número dorado de "veces ganada" (cintas y medallas).
+    ...(typeof llevaNumero === 'boolean' ? { llevaNumero } : {}),
   };
 
   if (archivo) {
@@ -189,6 +208,16 @@ async function editarInsigniaDirecto({ tipo, insignia, archivo, nombre, descripc
       },
       ...(cambios.src
         ? [{ campo: 'src', etiqueta: 'Imagen', antes: insignia?.src ?? null, despues: cambios.src }]
+        : []),
+      ...(typeof cambios.llevaNumero === 'boolean'
+        ? [
+            {
+              campo: 'llevaNumero',
+              etiqueta: 'Lleva número',
+              antes: insignia?.llevaNumero ?? null,
+              despues: cambios.llevaNumero,
+            },
+          ]
         : []),
     ],
     usuario,
