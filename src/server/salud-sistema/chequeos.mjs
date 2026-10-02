@@ -291,6 +291,31 @@ const chequeoRespaldo = (db, ahora) =>
 
     const dias = Math.floor((ahora.getTime() - new Date(respaldo.fecha).getTime()) / 86_400_000);
 
+    // El respaldo diario de la nube corre cada noche: con dos días sin él, o si
+    // salió incompleto, algo pasa y no hay que esperar a la semana.
+    if (
+      respaldo.origen === 'respaldo_diario_nube' &&
+      dias < UMBRALES_SALUD.respaldoAdvertenciaDias
+    ) {
+      const problema =
+        dias >= 2
+          ? `no corre desde hace ${dias} días`
+          : respaldo.completo === false
+            ? 'el de anoche salió incompleto'
+            : '';
+
+      return {
+        status: problema ? ESTADOS_SALUD.advertencia : ESTADOS_SALUD.correcto,
+        value: `${dias} días`,
+        detail: problema
+          ? `Respaldo diario: ${problema} (${respaldo.archivo || 'sin nombre'}).`
+          : `Respaldo diario en la nube de hace ${dias} ${dias === 1 ? 'día' : 'días'}: ${respaldo.totalRegistros || 0} documentos.`,
+        resumen:
+          problema ||
+          `respaldo diario en la nube, ${dias === 0 ? 'de hoy' : dias === 1 ? 'de anoche' : `de hace ${dias} días`}`,
+      };
+    }
+
     return {
       status: estadoPorUmbral(
         dias,

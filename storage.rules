@@ -795,15 +795,26 @@ service firebase.storage {
       allow delete: if false;
     }
 
+    // EL RESPALDO DIARIO (`src/utils/respaldo-diario.mjs`): la base de datos, el
+    // padrón y las cuentas de toda la organización, y el espejo de los archivos.
+    // Solo lo escribe y lo lee el servidor (Admin SDK, que no pasa por aquí).
+    // Las reglas son aditivas: el comodín de imágenes de abajo excluye esta carpeta.
+    match /respaldos/{allPaths=**} {
+      allow read, write: if false;
+    }
+
     // Superposicion deliberada: las reglas de Storage son aditivas. Este bloque
     // permite al Administrador Global agregar o reemplazar cualquier imagen,
     // incluidas las fotos de secciones y regiones que no tienen un match propio.
     // No concede borrado ni permite subir archivos que no sean imagenes.
     match /{rutaImagen=**} {
+      // Nunca dentro del respaldo: nadie lo toca desde el navegador.
       allow read: if esAdministradorGlobal()
-        && resource.contentType.matches('image/.*');
+        && resource.contentType.matches('image/.*')
+        && !rutaImagen.matches('respaldos/.*');
       allow create, update: if esAdministradorGlobal()
-        && esImagenPermitida();
+        && esImagenPermitida()
+        && !rutaImagen.matches('respaldos/.*');
     }
   }
 }

@@ -49,6 +49,14 @@ export const TAREAS_PROGRAMADAS = [
     zonaHoraria: 'America/Santo_Domingo',
     descripcion: 'Salud del sistema: revisión silenciosa; solo avisa si algo falla.',
   },
+  {
+    id: 'respaldo-diario',
+    ruta: '/api/tareas/respaldo-diario',
+    // 03:00 UTC = 23:00 (11:00 p. m.) en Santo Domingo, cuando nadie usa la app.
+    horario: '0 23 * * *',
+    zonaHoraria: 'America/Santo_Domingo',
+    descripcion: 'Respaldo diario: Firestore, padrón de la API .NET, cuentas y archivos a Storage.',
+  },
 ];
 
 export const CABECERA_SECRETO_TAREAS = 'x-tarea-secreto';
