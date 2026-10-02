@@ -89,6 +89,8 @@ const renderTwoLineHeader = (firstLine, secondLine) => (
 const TODOS_LOS_PRODUCTOS = -1;
 // Cuántas tarjetas se pintan de una vez (ver `tarjetasPintadas`).
 const TANDA_DE_TARJETAS = 24;
+// Las fotos de la primera pantalla (dos filas de cuatro) se piden antes que el resto.
+const FOTOS_PRIORITARIAS = 8;
 
 export function ProductListView() {
   const confirmDialog = useBoolean();
@@ -654,10 +656,11 @@ export function ProductListView() {
                         },
                       }}
                     >
-                      {gridData.slice(0, tarjetasPintadas).map((product) => (
+                      {gridData.slice(0, tarjetasPintadas).map((product, indice) => (
                         <ProductGridCard
                           key={product.id}
                           product={product}
+                          prioritaria={indice < FOTOS_PRIORITARIAS}
                           isMemberUser={isMemberUser}
                           canManageStore={canManageStore}
                           detailsHref={paths.dashboard.product.details(product.id)}
