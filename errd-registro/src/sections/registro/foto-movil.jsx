@@ -24,7 +24,8 @@ export function FotoMovil({ name, texto = 'Seleccionar foto' }) {
   const entrada = useRef(null);
 
   const vista = useMemo(
-    () => (valor instanceof File ? URL.createObjectURL(valor) : typeof valor === 'string' ? valor : ''),
+    () =>
+      valor instanceof File ? URL.createObjectURL(valor) : typeof valor === 'string' ? valor : '',
     [valor]
   );
   useEffect(() => () => vista.startsWith('blob:') && URL.revokeObjectURL(vista), [vista]);
@@ -39,7 +40,13 @@ export function FotoMovil({ name, texto = 'Seleccionar foto' }) {
 
   return (
     <Stack spacing={1.5}>
-      <input ref={entrada} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={elegir} />
+      <input
+        ref={entrada}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+        onChange={elegir}
+      />
       <Button
         fullWidth
         variant="outlined"
@@ -60,8 +67,14 @@ export function FotoMovil({ name, texto = 'Seleccionar foto' }) {
           <IconButton
             size="small"
             aria-label="Quitar foto"
-            onClick={() => setValue(name, null, { shouldValidate: true })}
-            sx={{ top: 6, right: 6, position: 'absolute', color: 'common.white', bgcolor: 'rgba(0,0,0,.55)' }}
+            onClick={() => setValue(name, null, { shouldValidate: true, shouldDirty: true })}
+            sx={{
+              top: 6,
+              right: 6,
+              position: 'absolute',
+              color: 'common.white',
+              bgcolor: 'rgba(0,0,0,.55)',
+            }}
           >
             <Iconify icon="mingcute:close-line" width={16} />
           </IconButton>

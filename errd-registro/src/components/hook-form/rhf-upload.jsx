@@ -80,7 +80,11 @@ export function RHFUploadAvatar({
 
           setValue(name, value, { shouldValidate: true });
 
-          const nextValue = await onDropProp?.([value], { field, setValue, optimizationInfo: info });
+          const nextValue = await onDropProp?.([value], {
+            field,
+            setValue,
+            optimizationInfo: info,
+          });
 
           if (nextValue) {
             setValue(name, nextValue, { shouldValidate: true });
@@ -123,6 +127,7 @@ export function RHFUpload({
   maxSize,
   optimizationToast = true,
   optimizationPreset = 'general',
+  onDelete,
   ...other
 }) {
   void maxSize;
@@ -155,7 +160,21 @@ export function RHFUpload({
           setValue(name, value, { shouldValidate: true });
         };
 
-        return <Upload {...uploadProps} value={field.value} onDrop={onDrop} {...other} />;
+        const removeFile =
+          onDelete ||
+          (() => {
+            setValue(name, multiple ? [] : null, { shouldValidate: true, shouldDirty: true });
+          });
+
+        return (
+          <Upload
+            {...uploadProps}
+            value={field.value}
+            onDrop={onDrop}
+            onDelete={removeFile}
+            {...other}
+          />
+        );
       }}
     />
   );
