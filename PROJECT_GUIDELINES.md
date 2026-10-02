@@ -558,7 +558,9 @@ lo vuelve a comprobar por si alguien escribe la dirección a mano.
   escritorio. El Designer le manda el contenido por `postMessage` en cuanto cambia;
   los dos lados comprueban el `origin` y quién manda el mensaje
   (`mensajes-vista-previa.mjs`). Pinta con **los mismos componentes** de
-  `/principal` y con su ancho de columna real (`bloque-de-la-portada.jsx`).
+  `/principal` y con su ancho de columna real (`bloque-de-la-portada.jsx`). La
+  próxima actividad ocupa toda la columna principal y muestra sus combos reales
+  de la tienda en la franja inferior, igual que en la portada.
 - **Derecha:** el bloque abierto: qué hay en vivo (y quién lo publicó), el
   borrador, el hueco del editor (fase 4) y las acciones. **Publicar** solo con un
   borrador válido; al publicar, el borrador se tira. **Descartar borrador** no

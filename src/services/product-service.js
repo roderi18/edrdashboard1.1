@@ -13,6 +13,7 @@ import { miniaturaDesdeArchivo } from 'src/utils/miniatura-buscador';
 import { cruceDeExistencias } from 'src/utils/avisos-solo-campana.mjs';
 import { uploadOptimizedImages } from 'src/utils/firebase-image-storage';
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+import { precioValido, camposDelNuevoPrecio } from 'src/utils/precio-de-producto.mjs';
 import {
   aplicarResumenResenas,
   agruparResumenPorProducto,
@@ -336,6 +337,8 @@ const guardarProductoFirestoreDirecto = async (data, { publish = true, user = {}
   }
 
   const savedProduct = mapearProductoFirestoreAUi({ id: productId, ...productDoc });
+  // La portada abierta en otra pestaña (el banner de combos) se pone al día.
+  avisarCambioDeProductosEnEsteNavegador();
 
   // EL BUSCADOR DE LA CABECERA, AL DIA.
   //
@@ -499,6 +502,90 @@ const actualizarPublicacionProductoFirestoreDirecto = async (productId, publish,
   return updatedProduct;
 };
 
+// EL PRECIO, SOLO EL PRECIO. Lo usa el Designer al editar el precio de un combo
+// en el banner: cambia el producto (lo que se cobra), no un texto pintado encima.
+// Las demás pestañas y la vista previa se releen por el aviso de la caché.
+const actualizarPrecioProductoFirestoreDirecto = async (productId, precio, user = {}) => {
+  if (!isFirebaseConfigured || !FIRESTORE || !productId) return null;
+
+  const nuevo = precioValido(precio);
+
+  if (nuevo === null) throw new Error('Precio no válido.');
+
+  const productRef = doc(FIRESTORE, COLECCIONES_COMERCIO.productos, String(productId));
+  const snapshot = await getDoc(productRef);
+
+  if (!snapshot.exists()) throw new Error('El producto ya no existe en la tienda.');
+
+  const actual = snapshot.data();
+  const cambios = camposDelNuevoPrecio(actual, nuevo);
+
+  // Por la misma puerta que la ficha del producto: queda en Historial.
+  await proponerCambio({
+    ambito: AMBITOS_CAMBIO.tienda,
+    entidad: {
+      tipo: 'producto',
+      id: productId,
+      nombre: actual?.nombre || productId,
+      ruta: `/dashboard/product/${productId}`,
+    },
+    cambios: [
+      {
+        campo: 'precio',
+        etiqueta: 'Precio',
+        antes: actual?.precio ?? null,
+        despues: nuevo,
+      },
+    ],
+    usuario: user,
+    descripcion: `Precio de ${actual?.nombre || productId} cambiado desde EXPLORA Designer.`,
+    aplicar: () => setDoc(productRef, cambios, { merge: true }),
+  });
+
+  avisarCambioDeProductosEnEsteNavegador();
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'productos',
+    accion: 'producto_precio_actualizado',
+    descripcion: `Precio del producto ${actual?.nombre || productId} cambiado a RD$${nuevo}.`,
+    severidad: 'importante',
+    entidad: {
+      tipo: 'producto',
+      id: productId,
+      nombre: actual?.nombre || productId,
+      ruta: `/dashboard/product/${productId}`,
+    },
+    antes: {
+      precio: actual?.precio ?? null,
+      precioRegistrado: actual?.precioRegistrado ?? null,
+      precioNoRegistrado: actual?.precioNoRegistrado ?? null,
+    },
+    despues: cambios,
+    realizadoPor: user,
+  });
+
+  return mapearProductoFirestoreAUi({ id: productId, ...actual, ...cambios });
+};
+
+// Las otras pestañas y los iframes (la vista previa del Designer) de ESTE
+// navegador se releen al momento; las de otros equipos, por el aviso de la caché
+// (`src/lib/avisos-de-lecturas.js`). La vista previa no tiene ese aviso: no va
+// dentro del panel.
+export const CANAL_DE_PRODUCTOS = 'edr-tienda-productos';
+
+const avisarCambioDeProductosEnEsteNavegador = () => {
+  try {
+    if (typeof BroadcastChannel === 'undefined') return;
+
+    const canal = new BroadcastChannel(CANAL_DE_PRODUCTOS);
+
+    canal.postMessage({ tipo: 'cambiados' });
+    canal.close();
+  } catch {
+    // Sin canal, cada pantalla se pone al día en su próxima visita.
+  }
+};
+
 const eliminarProductoFirestoreDirecto = async (productId, user = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !productId) return;
 
@@ -535,4 +622,5 @@ export const obtenerProductoFirestorePorId = conCache('tienda-productos:obtenerP
 export const guardarProductoFirestore = conInvalidacion(guardarProductoFirestoreDirecto, [], ['tienda-productos:']);
 export const guardarSnapshotProductoFirestore = conInvalidacion(guardarSnapshotProductoFirestoreDirecto, [], ['tienda-productos:']);
 export const actualizarPublicacionProductoFirestore = conInvalidacion(actualizarPublicacionProductoFirestoreDirecto, [], ['tienda-productos:']);
+export const actualizarPrecioProductoFirestore = conInvalidacion(actualizarPrecioProductoFirestoreDirecto, ['tienda-productos:'], ['tienda-productos:']);
 export const eliminarProductoFirestore = conInvalidacion(eliminarProductoFirestoreDirecto, [], ['tienda-productos:']);

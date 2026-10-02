@@ -21,6 +21,7 @@
 // `#rrggbbaa`: aceptar cualquier cadena seria aceptar `url(...)` en el CSS.
 // ----------------------------------------------------------------------
 
+import { sanearCapasVisuales, sanearElementosVisuales } from './lienzo.mjs';
 import { texto, icono, unoDe, numero, destino, esObjeto } from './saneado.mjs';
 
 export const TIPOS_DE_AJUSTE = Object.freeze({
@@ -315,7 +316,18 @@ export function sanearDiseno(idBloque, valor) {
     .filter((ajuste) => valor[ajuste.campo] !== undefined)
     .map((ajuste) => [ajuste.campo, sanearAjuste(ajuste, valor[ajuste.campo])]);
 
-  return presentes.some(([, limpio]) => limpio === null) ? null : Object.fromEntries(presentes);
+  const elementos = sanearElementosVisuales(valor.elementosVisuales);
+  const capas = sanearCapasVisuales(valor.capasVisuales);
+
+  if (presentes.some(([, limpio]) => limpio === null) || elementos === null || capas === null) {
+    return null;
+  }
+
+  return {
+    ...Object.fromEntries(presentes),
+    ...(elementos === undefined ? {} : { elementosVisuales: elementos }),
+    ...(capas === undefined ? {} : { capasVisuales: capas }),
+  };
 }
 
 export const disenoVacio = (diseno) => !esObjeto(diseno) || Object.keys(diseno).length === 0;

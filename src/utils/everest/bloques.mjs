@@ -126,6 +126,9 @@ const sanearProximaActividad = (contenido) => {
     fechaFin: fechaISO,
     fondo: (valor) => medio(valor),
     boton,
+    // La categoría de la tienda que reúne sus combos ("Inscribirme"). Sin ella
+    // se buscan por el título, y cambiar el título rompía el enlace.
+    categoriaCombos: clave,
   });
 
   // Una actividad que termina antes de empezar es un error al elegir las fechas.
@@ -202,12 +205,18 @@ const sanearProximosEventos = (contenido) =>
 
 const sanearDestacamentoDestacado = (contenido) =>
   esObjeto(contenido)
-    ? siTodoVale({
-        nombre: texto(contenido.nombre, { max: 120, obligatorio: true }),
-        region: texto(contenido.region, { max: 80 }),
-        miembros: numero(contenido.miembros, { min: 0, max: 10_000, entero: true }),
-        valoracion: numero(contenido.valoracion, { min: 0, max: 5 }),
-      })
+    ? // La foto del destacamento es opcional y solo imagen: sin ella, la tarjeta
+      // se pinta como siempre.
+      conOpcionales(
+        siTodoVale({
+          nombre: texto(contenido.nombre, { max: 120, obligatorio: true }),
+          region: texto(contenido.region, { max: 80 }),
+          miembros: numero(contenido.miembros, { min: 0, max: 10_000, entero: true }),
+          valoracion: numero(contenido.valoracion, { min: 0, max: 5 }),
+        }),
+        contenido,
+        { foto: (valor) => medio(valor, { tipos: ['imagen'] }) }
+      )
     : null;
 
 const sanearComunicados = (contenido) =>
@@ -283,6 +292,10 @@ export const BLOQUES_EXPLORA = Object.freeze([
     nombre: 'Mi progreso',
     grupo: GRUPOS_DE_BLOQUES.inicio,
     sanear: sanearMiProgreso,
+    // RETIRADO, como los accesos rápidos: la portada ya no pinta "Mi progreso"
+    // (la Próxima actividad ocupa su sitio, en 16:9). Se queda la definición y
+    // su saneado para no romper lo ya publicado; no sale en el Designer.
+    retirado: true,
   }),
   bloque({
     id: 'historias',

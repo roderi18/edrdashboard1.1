@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
@@ -6,6 +7,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Rating from '@mui/material/Rating';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
 import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
@@ -17,6 +19,34 @@ import { Image } from 'src/components/image';
 import { Iconify } from 'src/components/iconify';
 
 import { etiquetaDeCategoria } from './product-table-row';
+
+// ----------------------------------------------------------------------
+
+// LA FOTO CON ESQUELETO MIENTRAS CARGA. Al pasar a 48 o a "Todos" salían de
+// golpe decenas de tarjetas y cada foto pendiente enseñaba el dibujo de relleno
+// de la plantilla; ahora el mismo esqueleto que la rejilla, hasta que llega.
+function FotoDelProducto({ alt, src }) {
+  const [cargada, setCargada] = useState(false);
+
+  return (
+    <Box sx={{ position: 'relative' }}>
+      <Image
+        alt={alt}
+        src={src}
+        ratio="1/1"
+        disablePlaceholder
+        onLoad={() => setCargada(true)}
+        sx={{ borderRadius: 0 }}
+      />
+      {!cargada && (
+        <Skeleton
+          variant="rectangular"
+          sx={{ position: 'absolute', inset: 0, width: 1, height: 1, borderRadius: 0 }}
+        />
+      )}
+    </Box>
+  );
+}
 
 // ----------------------------------------------------------------------
 // LA TARJETA DE LA TIENDA.
@@ -307,7 +337,7 @@ export function ProductGridCard({
                 En su lugar va un marcador del mismo cuadrado, para que la rejilla
                 no se descuadre cuando a un producto le falta la imagen. */}
           {foto ? (
-            <Image alt={product.name} src={foto} ratio="1/1" sx={{ borderRadius: 0 }} />
+            <FotoDelProducto alt={product.name} src={foto} />
           ) : (
             <Box
               sx={{

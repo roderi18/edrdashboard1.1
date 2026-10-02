@@ -22,6 +22,7 @@ import { CapaDeEsqueleto, useFondoCargado } from 'src/components/esqueleto-de-me
 import { MarcaDeEjemplo } from './marca-de-ejemplo';
 import { useTonosDeMarca } from './use-tonos-de-marca';
 import { LapizDelDesigner } from './lapiz-del-designer';
+import { CombosDelBanner, useCombosDelBanner } from './combos-del-banner';
 import { FondoEnVideo, fondoDeTarjeta, useImagenDeTarjeta } from './imagen-de-tarjeta';
 import {
   seMuestra,
@@ -56,12 +57,30 @@ const InscripcionActividadDialog = dynamic(
   { ssr: false }
 );
 
-export function PrincipalProximaActividad({
+// El banner lee los combos de la tienda tanto en /principal como en la vista
+// previa del Designer, para que ambos enseñen la misma composición.
+export function PrincipalProximaActividad(props) {
+  return props.conInscripcion ? (
+    <ActividadConCombos {...props} />
+  ) : (
+    <TarjetaDeActividad {...props} />
+  );
+}
+
+function ActividadConCombos(props) {
+  const combos = useCombosDelBanner(actividadParaPintar(props.actividad));
+
+  return <TarjetaDeActividad {...props} combos={combos} />;
+}
+
+function TarjetaDeActividad({
   actividad: recibida,
   diseno,
   puedeEditar = false,
   conInscripcion = false,
+  combos = [],
 }) {
+  const conCombos = combos.length > 0;
   const [inscribiendo, setInscribiendo] = useState(false);
   const tonos = useTonosDeMarca();
   const { ORO, AZUL } = tonos;
@@ -86,31 +105,54 @@ export function PrincipalProximaActividad({
   const colorTexto = diseno?.colorTexto ?? 'rgba(255,255,255,.88)';
   const letraDelTexto = letraDelDiseno(diseno, { tamano: 'tamanoTexto' });
 
+  if (conCombos) {
+    return (
+      <BannerDeActividadConCombos
+        actividad={actividad}
+        diseno={diseno}
+        puedeEditar={puedeEditar}
+        conInscripcion={conInscripcion}
+        combos={combos}
+        foto={foto}
+        esVideo={esVideo}
+        cargandoFondo={cargandoFondo}
+        tonos={tonos}
+        navy={NAVY}
+        colorTexto={colorTexto}
+        letraDelTexto={letraDelTexto}
+        inscribiendo={inscribiendo}
+        setInscribiendo={setInscribiendo}
+      />
+    );
+  }
+
   return (
     <Card
       data-everest-bloque="proxima-actividad"
       sx={{
-        p: 2,
-        // LA ALTURA DE LA VECINA, OTRA VEZ, Y SIN 16:9. Se habia fijado en 16:9
-        // porque "Mi progreso" tenia cuatro areas y al estirarse le dejaba 150
-        // pixeles de vacio. Con tres areas las dos piden casi lo mismo, y el 16:9
-        // solo servia para que no terminaran a la misma altura. Ahora manda la
-        // fila: las dos tarjetas miden lo mismo a cualquier ancho.
-        height: 1,
+        px: { xs: 2, sm: 2.5, md: 4, lg: 2, xl: 4 },
+        py: { xs: 2, sm: 2.5, md: 5, lg: 2, xl: 5 },
+        // El banner conserva su 21:9 en escritorio. En tableta, las dos
+        // columnas se apilan y necesitan su altura natural cuando hay combos.
+        aspectRatio: { sm: conCombos ? 'auto' : '16 / 9', md: '21 / 9' },
+        '@media (min-width: 900px) and (max-width: 959.95px)': {
+          px: 3,
+          py: 2.5,
+        },
         color: '#FFFFFF',
-        display: 'flex',
+        display: 'grid',
         position: 'relative',
-        flexDirection: 'column',
-        // EL AIRE SE REPARTE, NO SE ESCRIBE. Con un margen fijo debajo de cada
-        // cosa la tarjeta se desbordaba: a 392px de ancho el 16:9 deja 220px de
-        // alto y el contenido ya los ocupaba enteros, asi que los margenes nuevos
-        // se comian el relleno de abajo y el pie tocaba el borde.
-        //
-        // `space-between` reparte lo que sobre —en una tarjeta ancha sobra
-        // bastante— y `rowGap` es el minimo que se respeta cuando no sobra nada.
-        // El contenedor no cambia: misma proporcion y mismo relleno.
-        rowGap: 0.5,
-        justifyContent: 'space-between',
+        // Con combos, dos columnas: la actividad a la izquierda y sus combos a
+        // la derecha (en el teléfono, uno debajo del otro).
+        gap: { xs: 2, md: 3, lg: 2, xl: 3 },
+        gridTemplateColumns: {
+          xs: '1fr',
+          md: conCombos ? 'minmax(0, 1.5fr) minmax(0, 1fr)' : '1fr',
+          lg: conCombos ? 'minmax(0, 1.15fr) minmax(0, 1fr)' : '1fr',
+          xl: conCombos ? 'minmax(0, 1.5fr) minmax(0, 1fr)' : '1fr',
+        },
+        // El espacio sobrante de la columna izquierda se reparte entre sus
+        // bloques; rowGap asegura una separación mínima al estrecharse.
         ...fondoDeTarjeta({ foto, esVideo, navy: NAVY, varAlpha }),
         // Sin foto, el fondo elegido en el Designer (con dos tonos, degradado).
         ...(!foto && fondoDelDiseno(diseno, { angulo: 160 })),
@@ -123,165 +165,532 @@ export function PrincipalProximaActividad({
       {foto && esVideo && <FondoEnVideo src={foto} navy={NAVY} varAlpha={varAlpha} />}
       {!(foto && esVideo) && <CapaDeEsqueleto visible={cargandoFondo} sx={{ zIndex: -1 }} />}
 
-      {/* AIRE ENTRE LAS CUATRO COSAS QUE HAY QUE LEER. Iban pegadas —medio paso
+      {/* LA COLUMNA DE LA ACTIVIDAD. El reparto del aire sigue siendo el mismo
+          (`space-between` + `rowGap`), ahora dentro de su columna. */}
+      <Box
+        sx={{
+          rowGap: { xs: 1.5, md: 1 },
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}
+      >
+        {/* AIRE ENTRE LAS CUATRO COSAS QUE HAY QUE LEER. Iban pegadas —medio paso
           entre una y otra— y la tarjeta se leia como un bloque de texto. Los
           margenes crecen aqui dentro y el contenedor no se mueve: la proporcion
           16:9 y el relleno son los mismos; el reparto lo hace el `space-between`
           del contenedor. */}
-      <Stack direction="row" alignItems="center" spacing={0.75}>
-        <Iconify
-          icon={valorDelDiseno(diseno, 'iconoEtiqueta', 'custom:calendar-agenda-outline')}
-          width={17}
-          sx={{ color: diseno?.colorAcento ?? ORO.claro }}
-        />
-        <Typography variant="overline" sx={{ color: diseno?.colorTexto ?? NAVY.texto }}>
-          {textoDelDiseno(diseno, 'etiqueta', 'Próxima actividad')}
-        </Typography>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Iconify
+            icon={valorDelDiseno(diseno, 'iconoEtiqueta', 'custom:calendar-agenda-outline')}
+            width={20}
+            sx={{ color: diseno?.colorAcento ?? ORO.claro, width: { lg: 16, xl: 20 } }}
+          />
+          <Typography
+            variant="overline"
+            sx={{
+              color: diseno?.colorTexto ?? NAVY.texto,
+              fontSize: { md: 14, lg: 11, xl: 14 },
+              letterSpacing: 0.7,
+            }}
+          >
+            {textoDelDiseno(diseno, 'etiqueta', 'Próxima actividad')}
+          </Typography>
 
-        {puedeEditar && (
-          <Box sx={{ ml: 'auto', display: 'flex' }}>
-            <LapizDelDesigner idBloque={ID_DE_LA_TARJETA} sobreOscuro />
-          </Box>
-        )}
-      </Stack>
-
-      {/* En `h6` y no en `h5`: a 392 pixeles de ancho el titulo se parte en dos
-          lineas, y con el cuerpo mas grande esas dos lineas no cabian en la
-          proporcion 16:9. */}
-      <Typography
-        variant="h6"
-        sx={{
-          color: diseno?.colorTitulo ?? '#FFFFFF',
-          lineHeight: 1.25,
-          ...letraDelDiseno(diseno, { tamano: 'tamanoTitulo', peso: 'pesoTitulo' }),
-        }}
-      >
-        {actividad.titulo}
-      </Typography>
-
-      {(seMuestra(diseno, 'mostrarLugar') || seMuestra(diseno, 'mostrarFechas')) && (
-        <Stack spacing={0.25}>
-          {seMuestra(diseno, 'mostrarLugar') && (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Iconify
-                icon="solar:flag-bold"
-                width={16}
-                sx={{ color: diseno?.colorAcento ?? NAVY.texto, flex: 'none' }}
-              />
-              <Typography
-                variant="body2"
-                sx={{ color: colorTexto, lineHeight: 1.35, ...letraDelTexto }}
-              >
-                {actividad.lugar}
-              </Typography>
-            </Stack>
-          )}
-
-          {seMuestra(diseno, 'mostrarFechas') && (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Iconify
-                icon="solar:calendar-date-bold"
-                width={16}
-                sx={{ color: diseno?.colorAcento ?? NAVY.texto, flex: 'none' }}
-              />
-              <Typography
-                variant="body2"
-                sx={{ color: colorTexto, lineHeight: 1.35, ...letraDelTexto }}
-              >
-                {actividad.fechas}
-              </Typography>
-            </Stack>
+          {puedeEditar && (
+            <Box sx={{ ml: 'auto', display: 'flex' }}>
+              <LapizDelDesigner idBloque={ID_DE_LA_TARJETA} sobreOscuro />
+            </Box>
           )}
         </Stack>
-      )}
 
-      {/* LA CUENTA ATRAS, EL "FALTAN" ENCIMA Y EL NUMERO DEBAJO. Es el unico dato
-          de la tarjeta que cambia solo y el que decide si hay que hacer algo hoy;
-          apilado se lee como una cifra y no como una frase. Apretado de relleno
-          para que las dos alturas quepan en la proporcion 16:9. */}
-      {seMuestra(diseno, 'mostrarCuenta') && (
-        <Box
+        <Typography
+          variant="h6"
           sx={{
-            px: 1.25,
-            py: 0.25,
-            borderRadius: 1.25,
-            alignSelf: 'flex-start',
-            bgcolor: NAVY.abierto,
-            border: `solid 1px ${NAVY.linea}`,
+            color: diseno?.colorTitulo ?? '#FFFFFF',
+            fontSize: { xs: 22, sm: 25, md: 30, lg: 20, xl: 30 },
+            lineHeight: 1.13,
+            ...letraDelDiseno(diseno, { tamano: 'tamanoTitulo', peso: 'pesoTitulo' }),
           }}
         >
-          <Typography
-            variant="caption"
-            sx={{ color: diseno?.colorTexto ?? NAVY.texto, display: 'block', lineHeight: 1.2 }}
-          >
-            {textoDelDiseno(diseno, 'textoFaltan', 'Faltan')}
-          </Typography>
-          <Typography
-            variant="h5"
-            sx={{ color: diseno?.colorTitulo ?? '#FFFFFF', lineHeight: 1.2 }}
-          >
-            {actividad.diasQueFaltan} {textoDelDiseno(diseno, 'textoDias', 'días')}
-          </Typography>
-        </Box>
-      )}
+          {actividad.titulo}
+        </Typography>
 
-      {/* EL ESTADO, ABAJO A LA IZQUIERDA, EN LA MISMA VERTICAL QUE TODO LO DEMAS.
+        {(seMuestra(diseno, 'mostrarLugar') || seMuestra(diseno, 'mostrarFechas')) && (
+          <Stack spacing={0.5}>
+            {seMuestra(diseno, 'mostrarLugar') && (
+              <Stack direction="row" spacing={1.25} alignItems="center">
+                <Iconify
+                  icon="solar:flag-bold"
+                  width={20}
+                  sx={{
+                    color: diseno?.colorAcento ?? NAVY.texto,
+                    flex: 'none',
+                    width: { lg: 16, xl: 20 },
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: colorTexto,
+                    fontSize: { md: 16, lg: 12, xl: 16 },
+                    lineHeight: 1.35,
+                    ...letraDelTexto,
+                  }}
+                >
+                  {actividad.lugar}
+                </Typography>
+              </Stack>
+            )}
+
+            {seMuestra(diseno, 'mostrarFechas') && (
+              <Stack direction="row" spacing={1.25} alignItems="center">
+                <Iconify
+                  icon="solar:calendar-date-bold"
+                  width={20}
+                  sx={{
+                    color: diseno?.colorAcento ?? NAVY.texto,
+                    flex: 'none',
+                    width: { lg: 16, xl: 20 },
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: colorTexto,
+                    fontSize: { md: 16, lg: 12, xl: 16 },
+                    lineHeight: 1.35,
+                    ...letraDelTexto,
+                  }}
+                >
+                  {actividad.fechas}
+                </Typography>
+              </Stack>
+            )}
+          </Stack>
+        )}
+
+        {/* La cuenta atrás se lee como una cifra, con la etiqueta encima. */}
+        {seMuestra(diseno, 'mostrarCuenta') && (
+          <Box
+            sx={{
+              px: { xs: 1.25, md: 1.75, lg: 1.25, xl: 1.75 },
+              py: { xs: 0.5, md: 1, lg: 0.5, xl: 1 },
+              borderRadius: 1.5,
+              alignSelf: 'flex-start',
+              bgcolor: NAVY.abierto,
+              border: `solid 1px ${NAVY.linea}`,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: diseno?.colorTexto ?? NAVY.texto,
+                display: 'block',
+                fontSize: { md: 14, lg: 11, xl: 14 },
+                lineHeight: 1.2,
+              }}
+            >
+              {textoDelDiseno(diseno, 'textoFaltan', conCombos ? 'Evento en' : 'Faltan')}
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                color: diseno?.colorTitulo ?? '#FFFFFF',
+                fontSize: { md: 25, lg: 18, xl: 25 },
+                lineHeight: 1.2,
+                fontWeight: 700,
+              }}
+            >
+              {actividad.diasQueFaltan} {textoDelDiseno(diseno, 'textoDias', 'días')}
+            </Typography>
+          </Box>
+        )}
+
+        {/* EL ESTADO, ABAJO A LA IZQUIERDA, EN LA MISMA VERTICAL QUE TODO LO DEMAS.
           Estaba arriba a la derecha, en la unica esquina que no comparte linea
           con nada: el ojo tenia que salirse de la columna de la izquierda —donde
           estan el titulo, el lugar, la fecha y la cuenta atras— para leerlo y
           volver. Abajo cierra esa misma columna, y de paso empareja con el boton
           en la fila del pie, que antes iba solo. */}
-      {(seMuestra(diseno, 'mostrarEstado') || seMuestra(diseno, 'mostrarBoton')) && (
-        <Stack direction="row" alignItems="center" spacing={1}>
-          {/* RELLENO, NO TRANSLUCIDO. En `soft` el verde va con transparencia y
+        {(seMuestra(diseno, 'mostrarEstado') || seMuestra(diseno, 'mostrarBoton')) && (
+          <Stack direction="row" alignItems="center" spacing={1}>
+            {/* RELLENO, NO TRANSLUCIDO. En `soft` el verde va con transparencia y
               debajo hay una fotografia: el color se mezclaba con lo que cayera
               detras y el sello salia apagado, y distinto en cada imagen. Relleno es
               el mismo verde siempre, se ponga la foto que se ponga. */}
-          {seMuestra(diseno, 'mostrarEstado') && (
-            <Label
-              variant="filled"
-              color="success"
-              startIcon={<Iconify icon="solar:check-circle-bold" />}
-              // LA MISMA ALTURA QUE EL BOTON DE AL LADO. La etiqueta trae 24px fijos y
-              // el boton pequeño 30: juntos en la fila del pie, el sello se veia un
-              // escalon mas bajo. Se estira a la altura de la fila en vez de escribir
-              // un numero que habria que cambiar si el boton cambia de tamaño.
-              sx={{
-                height: 'auto',
-                alignSelf: 'stretch',
-                px: 1.25,
-                ...colorDelDiseno(diseno, 'colorEstado', 'bgcolor'),
-              }}
-            >
-              {actividad.estado}
-            </Label>
-          )}
+            {seMuestra(diseno, 'mostrarEstado') && (
+              <Label
+                variant="filled"
+                color="success"
+                startIcon={<Iconify icon="solar:check-circle-bold" width={20} />}
+                // LA MISMA ALTURA QUE EL BOTON DE AL LADO. La etiqueta trae 24px fijos y
+                // el boton pequeño 30: juntos en la fila del pie, el sello se veia un
+                // escalon mas bajo. Se estira a la altura de la fila en vez de escribir
+                // un numero que habria que cambiar si el boton cambia de tamaño.
+                sx={{
+                  height: 'auto',
+                  alignSelf: 'stretch',
+                  px: { xs: 1.25, md: 1.75, lg: 1.25, xl: 1.75 },
+                  py: { md: 1, lg: 0.5, xl: 1 },
+                  fontSize: { md: 16, lg: 12, xl: 16 },
+                  borderRadius: 1.5,
+                  ...colorDelDiseno(diseno, 'colorEstado', 'bgcolor'),
+                }}
+              >
+                {actividad.estado}
+              </Label>
+            )}
 
-          {seMuestra(diseno, 'mostrarBoton') && (
-            <Button
-              // Con inscripción, el botón abre los combos del campamento (y si la
-              // tienda no tiene combos para esta actividad, lleva a su enlace).
-              {...(conInscripcion
-                ? { onClick: () => setInscribiendo(true) }
-                : {
+            {seMuestra(diseno, 'mostrarBoton') && !conCombos && (
+              <Button
+                // Con inscripción, el botón abre los combos del campamento (y si la
+                // tienda no tiene combos para esta actividad, lleva a su enlace).
+                {...(conInscripcion
+                  ? { onClick: () => setInscribiendo(true) }
+                  : {
                     component: RouterLink,
                     href: actividad.boton?.destino ?? paths.dashboard.calendar,
                   })}
-              size="small"
+                size="small"
+                variant="contained"
+                endIcon={<Iconify icon="solar:double-alt-arrow-right-bold-duotone" />}
+                sx={{
+                  ml: 'auto',
+                  bgcolor: diseno?.colorBoton ?? AZUL.principal,
+                  '&:hover': { bgcolor: diseno?.colorBoton ?? AZUL.encima },
+                  ...colorDelDiseno(diseno, 'colorTextoBoton'),
+                }}
+              >
+                {actividad.boton?.texto ?? '¡Inscrbirme ahora!'}
+              </Button>
+            )}
+          </Stack>
+        )}
+      </Box>
+
+      {/* LOS COMBOS, A LA DERECHA. Cada fila y "Ver combos" abren "Inscribirme". */}
+      {conCombos && (
+        <Stack spacing={{ xs: 2, lg: 1, xl: 2 }} sx={{ minWidth: 0, justifyContent: 'center' }}>
+          <CombosDelBanner
+            combos={combos}
+            acento={diseno?.colorAcento ?? ORO.claro}
+            onAbrir={() => setInscribiendo(true)}
+          />
+
+          {seMuestra(diseno, 'mostrarBoton') && (
+            <Button
+              onClick={() => setInscribiendo(true)}
+              size="medium"
               variant="contained"
-              endIcon={<Iconify icon="solar:double-alt-arrow-right-bold-duotone" />}
+              color="primary"
+              endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
               sx={{
-                ml: 'auto',
-                bgcolor: diseno?.colorBoton ?? AZUL.principal,
-                '&:hover': { bgcolor: diseno?.colorBoton ?? AZUL.encima },
-                ...colorDelDiseno(diseno, 'colorTextoBoton'),
+                alignSelf: 'flex-end',
+                px: { md: 2.5, lg: 1.5, xl: 2.5 },
+                py: { md: 1, lg: 0.5, xl: 1 },
+                borderRadius: 1.5,
+                fontSize: { md: 15, lg: 12, xl: 15 },
+                color: '#FFFFFF',
+                bgcolor: AZUL.principal,
+                '&:hover': { bgcolor: AZUL.encima },
               }}
             >
-              {actividad.boton?.texto ?? '¡Inscrbirme ahora!'}
+              Ver combos
             </Button>
           )}
         </Stack>
       )}
+
+      {conInscripcion && inscribiendo && (
+        <InscripcionActividadDialog
+          abierto={inscribiendo}
+          onCerrar={() => setInscribiendo(false)}
+          actividad={actividad}
+          destinoSinCombos={actividad.boton?.destino ?? paths.dashboard.calendar}
+        />
+      )}
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function BannerDeActividadConCombos({
+  actividad,
+  diseno,
+  puedeEditar,
+  conInscripcion,
+  combos,
+  foto,
+  esVideo,
+  cargandoFondo,
+  tonos,
+  navy,
+  colorTexto,
+  letraDelTexto,
+  inscribiendo,
+  setInscribiendo,
+}) {
+  const { ORO, AZUL } = tonos;
+  const abrirCombos = () => setInscribiendo(true);
+  const mostrarLugar = seMuestra(diseno, 'mostrarLugar');
+  const mostrarFechas = seMuestra(diseno, 'mostrarFechas');
+
+  return (
+    <Card
+      data-everest-bloque="proxima-actividad"
+      sx={{
+        p: 0,
+        aspectRatio: { md: '19 / 9' },
+        color: '#FFFFFF',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        overflow: 'hidden',
+        isolation: 'isolate',
+        ...fondoDeTarjeta({ foto, esVideo, navy, varAlpha, veloLigero: true }),
+        ...(!foto && fondoDelDiseno(diseno, { angulo: 160 })),
+        ...radioDelDiseno(diseno),
+      }}
+    >
+      {foto && esVideo && <FondoEnVideo src={foto} navy={navy} varAlpha={varAlpha} veloLigero />}
+      {!(foto && esVideo) && <CapaDeEsqueleto visible={cargandoFondo} sx={{ zIndex: -1 }} />}
+
+      <Box
+        sx={{
+          px: { xs: 2, sm: 3, md: 4, lg: 3, xl: 4 },
+          pt: { xs: 3, md: 6, lg: 3, xl: 6 },
+          pb: { xs: 3, md: 2.5, lg: 1.5, xl: 2.5 },
+          flex: '1 1 auto',
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+          gap: { xs: 2, md: 1.5, lg: 1, xl: 1.5 },
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ width: 1 }}>
+          <Iconify
+            icon={valorDelDiseno(diseno, 'iconoEtiqueta', 'custom:calendar-agenda-outline')}
+            width={20}
+            sx={{ color: diseno?.colorAcento ?? ORO.claro }}
+          />
+          <Typography
+            variant="overline"
+            sx={{
+              color: diseno?.colorTexto ?? navy.texto,
+              fontSize: { md: 12, lg: 10, xl: 12 },
+              letterSpacing: 0.7,
+            }}
+          >
+            {textoDelDiseno(diseno, 'etiqueta', 'Próxima actividad')}
+          </Typography>
+          {puedeEditar && (
+            <Box sx={{ ml: 'auto', display: 'flex' }}>
+              <LapizDelDesigner idBloque={ID_DE_LA_TARJETA} sobreOscuro />
+            </Box>
+          )}
+        </Stack>
+
+        <Typography
+          variant="h6"
+          sx={{
+            maxWidth: { xs: 1, md: 540, lg: 440, xl: 620 },
+            color: diseno?.colorTitulo ?? '#FFFFFF',
+            fontSize: { xs: 24, sm: 28, md: 32, lg: 23, xl: 36 },
+            lineHeight: 1.12,
+            ...letraDelDiseno(diseno, { tamano: 'tamanoTitulo', peso: 'pesoTitulo' }),
+          }}
+        >
+          {actividad.titulo}
+        </Typography>
+
+        {(mostrarLugar || mostrarFechas) && (
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ sm: 'center' }}
+            spacing={{ xs: 0.5, sm: 1.5 }}
+            sx={{ color: colorTexto }}
+          >
+            {mostrarLugar && (
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                <Iconify
+                  icon="solar:map-point-linear"
+                  width={21}
+                  sx={{ color: diseno?.colorAcento ?? navy.texto }}
+                />
+                <Typography
+                  variant="body2"
+                  sx={{ fontSize: { md: 14, lg: 11, xl: 15 }, ...letraDelTexto }}
+                >
+                  {actividad.lugar}
+                </Typography>
+              </Stack>
+            )}
+            {mostrarLugar && mostrarFechas && (
+              <Box
+                sx={{
+                  width: 4,
+                  height: 4,
+                  borderRadius: '50%',
+                  bgcolor: 'currentColor',
+                  display: { xs: 'none', sm: 'block' },
+                }}
+              />
+            )}
+            {mostrarFechas && (
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                <Iconify
+                  icon="solar:calendar-date-bold"
+                  width={21}
+                  sx={{ color: diseno?.colorAcento ?? navy.texto }}
+                />
+                <Typography
+                  variant="body2"
+                  sx={{ fontSize: { md: 14, lg: 11, xl: 15 }, ...letraDelTexto }}
+                >
+                  {actividad.fechas}
+                </Typography>
+              </Stack>
+            )}
+          </Stack>
+        )}
+
+        {(seMuestra(diseno, 'mostrarCuenta') || seMuestra(diseno, 'mostrarEstado')) && (
+          <Stack
+            direction="row"
+            alignItems="center"
+            useFlexGap
+            flexWrap="wrap"
+            gap={{ xs: 1, md: 1.5 }}
+          >
+            {seMuestra(diseno, 'mostrarCuenta') && (
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{
+                  px: { xs: 1.25, md: 1.5 },
+                  py: { xs: 0.75, md: 1 },
+                  borderRadius: 2,
+                  bgcolor: navy.abierto,
+                  border: `solid 1px ${navy.linea}`,
+                }}
+              >
+                <Iconify icon="solar:calendar-date-bold" width={22} sx={{ color: navy.texto }} />
+                <Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: 'block',
+                      color: colorTexto,
+                      fontSize: { md: 11, lg: 10, xl: 11 },
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {textoDelDiseno(diseno, 'textoFaltan', 'Evento en')}
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      color: diseno?.colorTitulo ?? '#FFFFFF',
+                      fontSize: { md: 20, lg: 16, xl: 20 },
+                      lineHeight: 1.2,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {actividad.diasQueFaltan} {textoDelDiseno(diseno, 'textoDias', 'días')}
+                  </Typography>
+                </Box>
+              </Stack>
+            )}
+            {seMuestra(diseno, 'mostrarEstado') && (
+              <Label
+                variant="filled"
+                color="success"
+                startIcon={<Iconify icon="solar:check-circle-bold" width={20} />}
+                sx={{
+                  height: { xs: 36, md: 38, lg: 32, xl: 38 },
+                  px: { xs: 1.5, md: 2, lg: 1.5, xl: 2 },
+                  borderRadius: 99,
+                  fontSize: { md: 14, lg: 11, xl: 14 },
+                  ...colorDelDiseno(diseno, 'colorEstado', 'bgcolor'),
+                }}
+              >
+                {actividad.estado}
+              </Label>
+            )}
+          </Stack>
+        )}
+      </Box>
+
+      <Box
+        sx={{
+          flex: { md: '0 0 18%' },
+          px: { xs: 2, sm: 3, md: 3, lg: 2, xl: 3 },
+          py: { xs: 1.25, md: 0.75, lg: 0.5, xl: 0.75 },
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(3, minmax(0, 1fr))',
+            md: `minmax(0, 1.1fr) repeat(${combos.length}, minmax(0, 1fr)) auto`,
+          },
+          alignItems: 'center',
+          rowGap: { xs: 1, sm: 1.5, md: 0 },
+          backgroundImage: `linear-gradient(180deg, ${varAlpha(navy.canal, 0.30)}, ${varAlpha(navy.canal, 0.46)})`,
+          borderTop: `1px solid ${varAlpha('255 255 255', 0.18)}`,
+          backdropFilter: 'blur(6px)',
+        }}
+      >
+        <Box
+          sx={{
+            gridColumn: { sm: '1 / -1', md: 'auto' },
+            pl: { md: 1.5 },
+            borderLeft: { md: `3px solid ${AZUL.principal}` },
+          }}
+        >
+          <Typography
+            sx={{
+              color: navy.texto,
+              fontSize: { xs: 16, md: 17, lg: 14, xl: 18 },
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Elige tu combo
+          </Typography>
+        </Box>
+        <CombosDelBanner
+          combos={combos}
+          acento={diseno?.colorAcento ?? ORO.claro}
+          onAbrir={abrirCombos}
+        />
+        {seMuestra(diseno, 'mostrarBoton') && (
+          <Button
+            onClick={abrirCombos}
+            variant="contained"
+            color="primary"
+            endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
+            sx={{
+              gridColumn: { xs: '1 / -1', md: 'auto' },
+              justifySelf: { xs: 'stretch', sm: 'end' },
+              ml: { md: 2 },
+              px: { md: 2.5, lg: 1.5, xl: 2.5 },
+              py: { md: 1, lg: 0.75, xl: 1 },
+              borderRadius: 99,
+              whiteSpace: 'nowrap',
+              fontSize: { md: 12, lg: 11, xl: 13 },
+              bgcolor: AZUL.principal,
+              '&:hover': { bgcolor: AZUL.encima },
+            }}
+          >
+            Ver combos
+          </Button>
+        )}
+      </Box>
 
       {conInscripcion && inscribiendo && (
         <InscripcionActividadDialog

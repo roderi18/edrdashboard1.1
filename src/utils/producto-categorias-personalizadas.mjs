@@ -100,3 +100,23 @@ export const registrarCategoriasProductoPersonalizadas = (categorias = []) => {
 
 export const etiquetaDeCategoriaProductoPersonalizada = (valor) =>
   etiquetasPersonalizadas.get(String(valor ?? '').trim()) ?? null;
+
+// ----------------------------------------------------------------------
+// LAS DE CAMPAMENTO SE RENOMBRAN Y SE BORRAN desde el propio desplegable.
+//
+// Cada campamento tiene su categoría (la de sus combos de "Inscribirme") y su
+// nombre cambia de un año a otro ("Campamento Regional 2026" → "2027"). Solo
+// las personalizadas cuyo nombre empieza por "Campamento": las de fábrica y las
+// demás siguen fijas. Renombrar cambia el NOMBRE, nunca el id: los productos y
+// la actividad del Designer apuntan al id y siguen enlazados.
+// ----------------------------------------------------------------------
+
+export const esCategoriaDeCampamento = (categoria) =>
+  Boolean(categoria?.personalizada) &&
+  /^campamento(?![a-z0-9])/.test(
+    String(categoria?.label ?? '')
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '')
+      .trim()
+      .toLowerCase()
+  );

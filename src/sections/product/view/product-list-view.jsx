@@ -1,7 +1,7 @@
 'use client';
 
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useTransition } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -87,6 +87,8 @@ const renderTwoLineHeader = (firstLine, secondLine) => (
 // reconoce para no partir en paginas: con el pone "1–83 de 83" y apaga las
 // flechas por si sola.
 const TODOS_LOS_PRODUCTOS = -1;
+// Cuántas tarjetas se pintan de una vez (ver `tarjetasPintadas`).
+const TANDA_DE_TARJETAS = 24;
 
 export function ProductListView() {
   const confirmDialog = useBoolean();
@@ -195,6 +197,41 @@ export function ProductListView() {
     gridPage * gridRowsPerPage,
     gridPage * gridRowsPerPage + gridRowsPerPage
   );
+
+  // CAMBIAR DE PÁGINA O DE CANTIDAD ES INSTANTÁNEO. "Todos" pintaba ~140
+  // tarjetas dentro del mismo clic y el menú se quedaba abierto segundos hasta
+  // que terminaba. Ahora salen las primeras de inmediato y el resto se añade por
+  // tandas, sin bloquear; lo que aún falta se ve como esqueleto al final.
+  //
+  // La cuenta vuelve a la primera tanda EN EL MISMO PINTADO en que cambia la
+  // página (no en un efecto después): si no, ese primer pintado usaba la cifra
+  // anterior —hasta todas— y el clic volvía a ser lento.
+  const firmaDeLaRejilla = `${gridPage}|${gridRowsPerPage}|${mobileSearch}|${gridData.length}`;
+  const [tanda, setTanda] = useState({ firma: firmaDeLaRejilla, cuantas: TANDA_DE_TARJETAS });
+  const [, iniciarTanda] = useTransition();
+
+  if (tanda.firma !== firmaDeLaRejilla) {
+    setTanda({ firma: firmaDeLaRejilla, cuantas: TANDA_DE_TARJETAS });
+  }
+
+  const tarjetasPintadas =
+    tanda.firma === firmaDeLaRejilla ? tanda.cuantas : TANDA_DE_TARJETAS;
+
+  useEffect(() => {
+    if (tarjetasPintadas >= gridData.length) return undefined;
+
+    const siguiente = setTimeout(
+      () =>
+        iniciarTanda(() =>
+          setTanda((actual) => ({ ...actual, cuantas: actual.cuantas + TANDA_DE_TARJETAS }))
+        ),
+      0
+    );
+
+    return () => clearTimeout(siguiente);
+  }, [tarjetasPintadas, gridData.length]);
+
+  const tarjetasPorPintar = gridData.length - Math.min(tarjetasPintadas, gridData.length);
 
   const handleDeleteRow = useCallback(
     async (id) => {
@@ -617,7 +654,7 @@ export function ProductListView() {
                         },
                       }}
                     >
-                      {gridData.map((product) => (
+                      {gridData.slice(0, tarjetasPintadas).map((product) => (
                         <ProductGridCard
                           key={product.id}
                           product={product}
@@ -627,6 +664,9 @@ export function ProductListView() {
                           onAddToCart={handleAddProductToCart}
                         />
                       ))}
+                      {tarjetasPorPintar > 0 && (
+                        <ProductItemSkeleton itemCount={Math.min(tarjetasPorPintar, 8)} />
+                      )}
                     </Box>
 
                     <TablePaginationCustom

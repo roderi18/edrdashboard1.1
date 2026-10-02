@@ -363,7 +363,17 @@ function BibliotecaDeMedios({ abierta, aceptaVideo, onCerrar, onElegir }) {
  * El fondo propio de una tarjeta. Subir no publica: deja la direccion en el
  * borrador. "Quitar" vuelve al fondo de siempre.
  */
-export function CampoMedio({ idBloque, valor, onCambiar, aceptaVideo = false }) {
+export function CampoMedio({
+  idBloque,
+  valor,
+  onCambiar,
+  aceptaVideo = false,
+  compacto = false,
+  // El mismo campo sirve para el fondo de una tarjeta y para una foto suelta
+  // (la del destacamento destacado): solo cambian sus textos.
+  etiqueta = 'Fondo',
+  textoSinMedio = 'Se usa el fondo de siempre.',
+}) {
   const { user } = useAuthContext();
   const entradaRef = useRef(null);
   const [subiendo, setSubiendo] = useState(false);
@@ -390,12 +400,12 @@ export function CampoMedio({ idBloque, valor, onCambiar, aceptaVideo = false }) 
 
   return (
     <Stack spacing={1}>
-      <Typography variant="subtitle2">Fondo</Typography>
+      <Typography variant="subtitle2">{etiqueta}</Typography>
 
       {valor ? (
         <Box
           sx={{
-            height: 120,
+            height: compacto ? 64 : 120,
             overflow: 'hidden',
             borderRadius: 1,
             bgcolor: 'background.neutral',
@@ -415,14 +425,14 @@ export function CampoMedio({ idBloque, valor, onCambiar, aceptaVideo = false }) 
             <Box
               component="img"
               src={valor.url}
-              alt="Fondo"
+              alt={etiqueta}
               sx={{ width: 1, height: 1, objectFit: 'cover' }}
             />
           )}
         </Box>
       ) : (
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          Se usa el fondo de siempre.
+          {textoSinMedio}
         </Typography>
       )}
 

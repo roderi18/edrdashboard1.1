@@ -92,22 +92,25 @@ test('los extras son productos de la tienda; los que no existen no salen', () =>
   );
 });
 
-test('un extra va uno por combo elegido, sin pasar de lo que hay', () => {
-  assert.equal(cantidadDeExtra({ cantidadCombo: 3, marcado: true, extra: pines }), 3);
-  assert.equal(cantidadDeExtra({ cantidadCombo: 3, marcado: false, extra: pines }), 0);
-  assert.equal(cantidadDeExtra({ cantidadCombo: 3, marcado: true, extra: parche }), 1);
+test('cada extra lleva su contador: suma por unidad, sin pasar de lo que hay', () => {
+  // Antes era un interruptor que ponía uno por combo; ahora se elige cuántos.
+  assert.equal(cantidadDeExtra({ cantidadCombo: 1, pedidos: 3, extra: pines }), 3);
+  assert.equal(cantidadDeExtra({ cantidadCombo: 1, pedidos: 0, extra: pines }), 0);
+  assert.equal(cantidadDeExtra({ cantidadCombo: 2, pedidos: 4, extra: parche }), 1);
+  // Son extras DEL combo: sin el combo no cuentan.
+  assert.equal(cantidadDeExtra({ cantidadCombo: 0, pedidos: 3, extra: pines }), 0);
 });
 
-test('el total suma combos y extras marcados, y un extra pedido dos veces va en una línea', () => {
+test('el total suma combos y extras pedidos, y un extra pedido dos veces va en una línea', () => {
   const pedido = pedidoDeCombos({
     combos: [plus, completo],
     productos: [plus, completo, parche, pines],
     cantidades: { plus: 2, completo: 1 },
-    extrasMarcados: { 'plus:pines': true, 'completo:pines': true, 'plus:parche': true },
+    cantidadesExtras: { 'plus:pines': 2, 'completo:pines': 1, 'plus:parche': 1 },
   });
 
   assert.equal(pedido.personas, 3);
-  // 2 × 3500 + 1 × 2500 + 3 pines × 250 + 1 parche (solo hay uno) × 300
+  // 2 × 3500 + 1 × 2500 + 3 pines × 250 + 1 parche × 300
   assert.equal(pedido.total, 7000 + 2500 + 750 + 300);
   assert.equal(pedido.items.filter((item) => item.id === 'pines').length, 1);
 });

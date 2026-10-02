@@ -44,12 +44,14 @@ export function useImagenDeTarjeta(idTarjeta, { aceptaVideo = false } = {}) {
   useEffect(() => {
     let cancelado = false;
 
-    leerConCache(claveDeTarjeta(idTarjeta), async () =>
-      (await obtenerFotoPrincipal({
-        tipoEntidad: TIPO_DE_ENTIDAD,
-        idEntidad: idTarjeta,
-        tipoFoto: 'portada',
-      })) ?? null
+    leerConCache(
+      claveDeTarjeta(idTarjeta),
+      async () =>
+        (await obtenerFotoPrincipal({
+          tipoEntidad: TIPO_DE_ENTIDAD,
+          idEntidad: idTarjeta,
+          tipoFoto: 'portada',
+        })) ?? null
     )
       .then((leido) => {
         if (!cancelado) setRegistro(leido ?? null);
@@ -84,12 +86,16 @@ export function useImagenDeTarjeta(idTarjeta, { aceptaVideo = false } = {}) {
  * Las cuatro paradas no son decoracion: con dos, el corte se nota como una linea
  * recta cruzando la tarjeta.
  */
-const veloDeTarjeta = ({ navy, varAlpha }) =>
-  `linear-gradient(90deg, ${varAlpha(navy.canal, 0.97)} 0%, ` +
-  `${varAlpha(navy.canal, 0.92)} 34%, ${varAlpha(navy.canal, 0.55)} 62%, ` +
-  `${varAlpha(navy.canal, 0.15)} 100%)`;
+const veloDeTarjeta = ({ navy, varAlpha, veloLigero = false }) =>
+  veloLigero
+    ? `linear-gradient(90deg, ${varAlpha(navy.canal, 0.86)} 0%, ` +
+      `${varAlpha(navy.canal, 0.7)} 34%, ${varAlpha(navy.canal, 0.28)} 62%, ` +
+      `${varAlpha(navy.canal, 0.04)} 100%)`
+    : `linear-gradient(90deg, ${varAlpha(navy.canal, 0.97)} 0%, ` +
+      `${varAlpha(navy.canal, 0.92)} 34%, ${varAlpha(navy.canal, 0.55)} 62%, ` +
+      `${varAlpha(navy.canal, 0.15)} 100%)`;
 
-export const fondoDeTarjeta = ({ foto, esVideo = false, navy, varAlpha }) =>
+export const fondoDeTarjeta = ({ foto, esVideo = false, navy, varAlpha, veloLigero = false }) =>
   // CON VIDEO, EL FONDO LO PINTA `FondoEnVideo`. Aqui solo queda el navy de
   // debajo —lo que se ve mientras el video carga— y el recorte, para que el
   // video no se salga por las esquinas redondeadas.
@@ -108,7 +114,7 @@ export const fondoDeTarjeta = ({ foto, esVideo = false, navy, varAlpha }) =>
       ? {
           backgroundSize: 'cover',
           backgroundPosition: 'center right',
-          backgroundImage: `${veloDeTarjeta({ navy, varAlpha })}, url(${foto})`,
+          backgroundImage: `${veloDeTarjeta({ navy, varAlpha, veloLigero })}, url(${foto})`,
         }
       : {
           backgroundImage: `linear-gradient(160deg, ${navy.claro} 0%, ${navy.fondo} 100%)`,
@@ -133,7 +139,7 @@ export const fondoDeTarjeta = ({ foto, esVideo = false, navy, varAlpha }) =>
  *
  * Encima lleva el mismo velo que la imagen, para que el texto se lea igual.
  */
-export function FondoEnVideo({ src, navy, varAlpha }) {
+export function FondoEnVideo({ src, navy, varAlpha, veloLigero = false }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -181,7 +187,11 @@ export function FondoEnVideo({ src, navy, varAlpha }) {
         }}
       />
       <Box
-        sx={{ inset: 0, position: 'absolute', backgroundImage: veloDeTarjeta({ navy, varAlpha }) }}
+        sx={{
+          inset: 0,
+          position: 'absolute',
+          backgroundImage: veloDeTarjeta({ navy, varAlpha, veloLigero }),
+        }}
       />
     </Box>
   );

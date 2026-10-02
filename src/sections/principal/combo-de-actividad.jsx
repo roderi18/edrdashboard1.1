@@ -4,11 +4,12 @@ import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 
 import { fDopCurrency } from 'src/utils/format-number';
 import { sanearCombo, maximoDeCombo, tiempoRestante } from 'src/utils/combos-de-actividad.mjs';
+
+import { azulLegible } from 'src/theme/azul-legible';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -29,7 +30,7 @@ import { NumberInput } from 'src/components/number-input';
 
 // El icono de cada cosa que incluye un combo (ver `TIPOS_DE_INCLUYE`). Todos del
 // paquete registrado: uno sin registrar se carga de internet y parpadea.
-const ICONO_DE_INCLUYE = {
+export const ICONO_DE_INCLUYE = {
   camiseta: 'custom:categoria-camisetas',
   parche: 'custom:categoria-parches',
   gorra: 'custom:categoria-accesorios',
@@ -38,12 +39,12 @@ const ICONO_DE_INCLUYE = {
   otro: 'solar:box-minimalistic-bold',
 };
 
-const iconoDeExtra = (producto = {}) =>
+export const iconoDeExtra = (producto = {}) =>
   producto.category === 'pines' ? ICONO_DE_INCLUYE.pin : ICONO_DE_INCLUYE.parche;
 
 // Las etiquetas se distinguen por el puesto del combo: el 1 con el azul de la
 // casa, el 2 y el 3 con los otros colores de la paleta.
-const COLOR_POR_PUESTO = ['primary', 'secondary', 'warning'];
+export const COLOR_POR_PUESTO = ['primary', 'secondary', 'warning'];
 
 const FOTO = { width: { xs: 76, md: 104 }, height: { xs: 76, md: 104 }, borderRadius: 2 };
 
@@ -95,8 +96,9 @@ function ConteoRegresivo({ restante }) {
   );
 }
 
-function ExtraDelCombo({ extra, producto, marcado, onCambiar }) {
-  const agotado = maximoDeCombo(producto) === 0;
+function ExtraDelCombo({ extra, producto, cantidad, conCombo, onCambiar }) {
+  const maximo = maximoDeCombo(producto);
+  const agotado = maximo === 0;
 
   return (
     <Box
@@ -106,18 +108,18 @@ function ExtraDelCombo({ extra, producto, marcado, onCambiar }) {
         display: 'flex',
         alignItems: 'center',
         borderRadius: 2,
-        border: `solid 1px ${varAlpha(theme.vars.palette.secondary.mainChannel, 0.24)}`,
-        bgcolor: varAlpha(theme.vars.palette.secondary.mainChannel, 0.08),
+        border: `solid 1px ${varAlpha(theme.vars.palette.primary.mainChannel, 0.24)}`,
+        bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.08),
       })}
     >
       <Iconify
         icon={iconoDeExtra(producto)}
         width={28}
-        sx={{ color: 'secondary.main', flexShrink: 0 }}
+        sx={(theme) => ({ ...azulLegible(theme), flexShrink: 0 })}
       />
 
       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-        <Typography variant="subtitle2" sx={{ color: 'secondary.main' }}>
+        <Typography variant="subtitle2" sx={(theme) => azulLegible(theme)}>
           {extra.titulo || `Agregar ${producto.name}`}{' '}
           <Box component="span" sx={{ typography: 'caption', color: 'text.secondary' }}>
             (opcional)
@@ -131,13 +133,24 @@ function ExtraDelCombo({ extra, producto, marcado, onCambiar }) {
         </Typography>
       </Box>
 
-      <Switch
-        color="secondary"
-        checked={marcado && !agotado}
-        disabled={agotado}
-        onChange={(event) => onCambiar(event.target.checked)}
-        slotProps={{ input: { 'aria-label': extra.titulo || producto.name } }}
-      />
+      {/* Contador y no interruptor: se pueden llevar varios, y cada uno suma
+          su precio. Apagado mientras no se elija el combo: es un extra suyo. */}
+      <Box sx={{ flexShrink: 0, textAlign: 'center' }}>
+        <NumberInput
+          hideDivider
+          min={0}
+          max={maximo}
+          value={conCombo ? cantidad : 0}
+          disabled={agotado || !conCombo}
+          onChange={(event, valor) => onCambiar(valor)}
+          sx={{ width: 120 }}
+        />
+        {!conCombo && !agotado && (
+          <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mt: 0.5 }}>
+            Elige el combo primero
+          </Typography>
+        )}
+      </Box>
     </Box>
   );
 }
@@ -149,7 +162,7 @@ export function ComboDeActividad({
   cantidad,
   onCantidad,
   extras,
-  extrasMarcados,
+  cantidadesExtras,
   onExtra,
 }) {
   const datos = sanearCombo(combo.combo) ?? {};
@@ -233,7 +246,9 @@ export function ComboDeActividad({
             {datos.etiqueta}
           </Label>
         )}
-        <Typography variant="h6">{combo.name}</Typography>
+        {/* El nombre del producto sobra: la etiqueta de arriba ya dice qué combo
+            es. Solo sale si el combo no tiene etiqueta, para que se sepa cuál es. */}
+        {!datos.etiqueta && <Typography variant="h6">{combo.name}</Typography>}
         {!!combo.subDescription && (
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {combo.subDescription}
@@ -283,7 +298,7 @@ export function ComboDeActividad({
           direction="row"
           sx={{
             gridArea: 'incluye',
-            // La franja azul de la casa (la de los extras es la secundaria).
+            // La franja azul de la casa (los extras van en el mismo azul).
             bgcolor: (theme) => varAlpha(theme.vars.palette.primary.mainChannel, 0.08),
             px: 2,
             py: 1.25,
@@ -322,8 +337,9 @@ export function ComboDeActividad({
               key={producto.id}
               extra={extra}
               producto={producto}
-              marcado={Boolean(extrasMarcados[`${combo.id}:${producto.id}`])}
-              onCambiar={(marcado) => onExtra(producto.id, marcado)}
+              cantidad={cantidadesExtras[`${combo.id}:${producto.id}`] ?? 0}
+              conCombo={cantidad > 0}
+              onCambiar={(valor) => onExtra(producto.id, valor)}
             />
           ))}
         </Box>

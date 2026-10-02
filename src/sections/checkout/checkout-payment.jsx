@@ -60,6 +60,7 @@ export function CheckoutPayment() {
   const [paymentProofFile, setPaymentProofFile] = useState(null);
   const {
     loading,
+    sinEntrega,
     onChangeStep,
     onCreateOrder,
     onApplyShipping,
@@ -103,11 +104,15 @@ export function CheckoutPayment() {
     <Form methods={methods} onSubmit={onSubmit}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 8 }}>
-          <CheckoutDelivery
-            name="delivery"
-            onApplyShipping={onApplyShipping}
-            options={DELIVERY_OPTIONS}
-          />
+          {/* Un combo de campamento se recoge en la actividad: ni entrega ni
+              direccion (el paso "Direccion" ya se salto). */}
+          {!sinEntrega && (
+            <CheckoutDelivery
+              name="delivery"
+              onApplyShipping={onApplyShipping}
+              options={DELIVERY_OPTIONS}
+            />
+          )}
 
           <CheckoutPaymentMethods
             name="payment"
@@ -116,7 +121,7 @@ export function CheckoutPayment() {
             paymentProofFile={paymentProofFile}
             onDropPaymentProof={handleDropPaymentProof}
             onRemovePaymentProof={() => setPaymentProofFile(null)}
-            sx={{ my: 3 }}
+            sx={{ mb: 3, mt: sinEntrega ? 0 : 3 }}
           />
 
           <Button
@@ -130,11 +135,13 @@ export function CheckoutPayment() {
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <CheckoutBillingInfo
-            loading={loading}
-            onChangeStep={onChangeStep}
-            checkoutState={checkoutState}
-          />
+          {!sinEntrega && (
+            <CheckoutBillingInfo
+              loading={loading}
+              onChangeStep={onChangeStep}
+              checkoutState={checkoutState}
+            />
+          )}
 
           <CheckoutSummary checkoutState={checkoutState} onEdit={() => onChangeStep('go', 0)} />
 

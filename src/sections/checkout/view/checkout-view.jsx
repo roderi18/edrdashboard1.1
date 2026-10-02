@@ -22,7 +22,14 @@ import { CheckoutBillingAddress } from '../checkout-billing-address';
 // ----------------------------------------------------------------------
 
 export function CheckoutView() {
-  const { steps, activeStep, completed, onResetCart, state: checkoutState } = useCheckoutContext();
+  const {
+    steps,
+    activeStep,
+    pasoVisible,
+    completed,
+    onResetCart,
+    state: checkoutState,
+  } = useCheckoutContext();
 
   // EL MISMO MARCO QUE `/dashboard/product`, para que la portada mida lo mismo
   // aqui que alli. Este `Container` venia con el tope de la plantilla ('lg',
@@ -54,7 +61,7 @@ export function CheckoutView() {
 
         <Grid container justifyContent={completed ? 'center' : 'flex-start'}>
           <Grid size={{ xs: 12, md: 8 }}>
-            <CheckoutSteps steps={steps} activeStep={activeStep ?? 0} />
+            <CheckoutSteps steps={steps} activeStep={pasoVisible ?? 0} />
           </Grid>
         </Grid>
 

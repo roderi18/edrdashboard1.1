@@ -8,8 +8,10 @@ import { isAdminGlobal } from 'src/utils/org-level-access';
 import {
   mensajeAlto,
   mensajeLista,
+  mensajeMover,
   mensajeValido,
   FUENTE_DESIGNER,
+  mensajeSeleccion,
   TIPOS_DE_MENSAJE,
 } from 'src/utils/everest/mensajes-vista-previa.mjs';
 
@@ -52,6 +54,7 @@ export function EverestVistaPreviaView() {
           idBloque: mensaje.idBloque,
           contenido: mensaje.contenido,
           diseno: mensaje.diseno,
+          seleccionado: mensaje.seleccionado,
         });
       }
     };
@@ -89,6 +92,14 @@ export function EverestVistaPreviaView() {
           idBloque={recibido.idBloque}
           contenido={recibido.contenido}
           diseno={recibido.diseno}
+          editando
+          seleccionado={recibido.seleccionado}
+          onSeleccionar={(seleccionado) =>
+            window.parent.postMessage(mensajeSeleccion(seleccionado), window.location.origin)
+          }
+          onMover={(movimiento) =>
+            window.parent.postMessage(mensajeMover(movimiento), window.location.origin)
+          }
         />
       )}
     </Box>

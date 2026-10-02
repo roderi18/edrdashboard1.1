@@ -71,3 +71,19 @@ test('se puede llevar más de uno, hasta lo que haya en existencia', () => {
   assert.equal(item.subtotal, 10500);
   assert.equal(item.id, 'c');
 });
+
+// Al cambiar el título de la actividad ("Campamento Regional Inquebrantables
+// 2027") los combos dejaban de encontrarse e "Inscribirme" volvía al
+// calendario. Con la categoría elegida en el Designer, manda esa.
+test('con la categoría elegida en el Designer, el título no importa', () => {
+  const combos = combosDeActividad(
+    productos,
+    'Campamento Regional Inquebrantables 2027',
+    'campamento-regional-2026'
+  );
+  assert.deepEqual(
+    combos.map((c) => c.id),
+    ['c', 'b', 'a']
+  );
+  assert.deepEqual(combosDeActividad(productos, 'Campamento Regional Inquebrantables 2027'), []);
+});
