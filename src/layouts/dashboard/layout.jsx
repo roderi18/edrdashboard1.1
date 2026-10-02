@@ -23,7 +23,6 @@ import {
   puedeEditarDirectivaHistorica,
 } from 'src/utils/org-level-access';
 
-import { _notifications } from 'src/_mock';
 import { useGetLabels } from 'src/actions/mail';
 import { useCargarSonidosDeAviso } from 'src/actions/sonidos';
 import { iniciarAvisosDeLecturas } from 'src/lib/avisos-de-lecturas';
@@ -264,7 +263,11 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     (conversationId) => conversationId !== activeChatId
   ).length;
   const mailsSinLeer = Number(mailLabels.find((label) => label.id === 'inbox')?.unreadCount || 0);
-  const [notificacionesDrawer, setNotificacionesDrawer] = useState(_notifications);
+  // SOLO LO REAL. La campana arrancaba con las notificaciones de ejemplo de la
+  // plantilla (`_notifications`: "Deja Brady te envió una solicitud de
+  // amistad", pagos, archivos…) y las sumaba a las de Firestore: todo el mundo
+  // veía avisos de personas que no existen.
+  const [notificacionesDrawer, setNotificacionesDrawer] = useState([]);
   // LO QUE SE ACABA DE MARCAR NO VUELVE ATRAS.
   //
   // Las notificaciones se recargan cada 30 segundos. Si la recarga llegaba antes
@@ -380,7 +383,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     const cargarNotificaciones = async () => {
       if (!user?.uid) {
         if (isMounted) {
-          setNotificacionesDrawer(_notifications);
+          setNotificacionesDrawer([]);
         }
         return;
       }
@@ -396,14 +399,13 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           conMarcasPendientes([
             ...notificacionesReportesLocales,
             ...notificacionesFirestore,
-            ..._notifications,
           ])
         );
       } catch (error) {
         console.error('[notifications test] no se pudo cargar la prueba', error);
 
         if (isMounted) {
-          setNotificacionesDrawer([...notificacionesReportesLocales, ..._notifications]);
+          setNotificacionesDrawer(notificacionesReportesLocales);
         }
       }
     };
