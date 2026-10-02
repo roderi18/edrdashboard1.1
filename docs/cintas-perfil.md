@@ -17,7 +17,7 @@ El prefijo numérico del nombre **es el orden oficial** (`1-cinta-al-valor.webp`
 - `12a` y `12b` van entre la 11 y la 13, `12a` primero.
 - Una letra **delante** del número (`a5`, `z1`…) manda al final, agrupada por esa
   letra y luego por número: `40` → `a5` → `z1` … `z6`.
-- **Desde la aplicación**: EXPLORA Designer → Cintas (o Medallas, o Pines) → "Agregar". Pide
+- **Desde la aplicación**: EXPEDITION Designer → Cintas (o Medallas, o Pines) → "Agregar". Pide
   imagen, nombre y descripción; se guardan en Storage y en `insignias_personalizadas`,
   y salen detrás de las de fábrica en todos los perfiles. Es lo que sirve en
   producción, donde nadie escribe en la carpeta pública.
@@ -45,7 +45,7 @@ Ejemplo con las cintas 3, 8, 14, 20, 25:
 Algoritmo: ordenar por número; `resto = n % 3`; si `resto > 0`, la primera fila
 (arriba) lleva las primeras `resto` cintas centradas; el resto se parte en filas de 3.
 
-### Orden global (EXPLORA Designer)
+### Orden global (EXPEDITION Designer)
 
 El número del archivo es el orden **de fábrica**. En `/dashboard/explora-designer?seccion=cintas`
 el Administrador Global arrastra las cintas (o usa las flechas, en el teléfono) y pulsa
@@ -118,7 +118,7 @@ Documento:
 ## Medallas
 
 Mismo trato que las cintas —perfil, pestaña **Medallas** dentro del mismo diálogo (el lápiz de las cintas) del
-Administrador Global y pestaña **Medallas** en EXPLORA Designer
+Administrador Global y pestaña **Medallas** en EXPEDITION Designer
 (`/dashboard/explora-designer?seccion=medallas`) con orden global arrastrable—, con una
 diferencia: **el catálogo es la carpeta** `public/insignias/medallas`.
 
@@ -165,7 +165,7 @@ diferencia: **el catálogo es la carpeta** `public/insignias/medallas`.
 
 El tercer apartado del perfil, con el mismo trato que las medallas: **perfil**,
 pestaña **Pines** del mismo diálogo del lápiz de las cintas (Administrador Global,
-un solo Guardar para las tres) y pestaña **Pines** en EXPLORA Designer
+un solo Guardar para las tres) y pestaña **Pines** en EXPEDITION Designer
 (`/dashboard/explora-designer?seccion=pines`) con orden global arrastrable y
 "Agregar pin".
 

@@ -161,7 +161,7 @@ export const CATALOGO_CINTAS_PERFIL = Object.freeze(
 
 const POR_ID = new Map(CATALOGO_CINTAS_PERFIL.map((cinta) => [cinta.id, cinta]));
 
-// LAS CINTAS AÑADIDAS DESDE EXPLORA DESIGNER (`insignias-personalizadas.mjs`).
+// LAS CINTAS AÑADIDAS DESDE EXPEDITION DESIGNER (`insignias-personalizadas.mjs`).
 //
 // Viven en Firestore, así que no pueden estar en el catálogo de fábrica, que se
 // arma al cargar el módulo. Las registra la escucha compartida del navegador
@@ -201,7 +201,7 @@ export const obtenerCintaPerfil = (id) => {
 // EL ORDEN GLOBAL.
 //
 // El número del archivo es el orden de fábrica. El Administrador Global puede
-// cambiarlo arrastrando las cintas en EXPLORA Designer, y ese orden manda EN
+// cambiarlo arrastrando las cintas en EXPEDITION Designer, y ese orden manda EN
 // TODAS PARTES: en los perfiles que ya tienen cintas y en el diálogo para
 // asignarlas. Se guarda la lista completa de ids; lo que falte (una cinta nueva
 // en la carpeta) va al final en su orden de fábrica, y lo que ya no exista se

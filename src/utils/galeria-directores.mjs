@@ -2,7 +2,7 @@
 // GALERÍA DE DIRECTORES NACIONALES (pestaña de Consejo Nacional).
 //
 // Cada director es una tarjeta con foto, nombre y año ("2008-2010" o "1998"),
-// pintada con el diseño de EXPLORA Designer → Tarjeta. Se ordena del año más
+// pintada con el diseño de EXPEDITION Designer → Tarjeta. Se ordena del año más
 // ANTIGUO al más reciente: los primeros directores arriba (antes era al revés).
 // Sin año, al final.
 //
@@ -92,7 +92,7 @@ export function directorDesdeDocumento(id, datos = {}) {
 const texto80 = (valor) => (typeof valor === 'string' ? valor.trim().slice(0, MAX_ANIO) : '');
 
 /**
- * LA BARRA DORADA ES DE CADA DIRECTOR. El texto escrito en EXPLORA Designer es
+ * LA BARRA DORADA ES DE CADA DIRECTOR. El texto escrito en EXPEDITION Designer es
  * solo el de muestra: sin esto, todas las tarjetas repetían el de una persona
  * ("Dany Trinidad Feliz" salía también en la de Alejandro Terrero). Cada uno
  * lleva el suyo, y si no se escribió, su nombre arriba y su año abajo.

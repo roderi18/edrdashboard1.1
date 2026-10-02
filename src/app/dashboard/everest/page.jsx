@@ -4,7 +4,7 @@ import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
-// EXPLORA DESIGNER SE LLAMA /dashboard/explora-designer. La dirección vieja solo
+// EXPEDITION DESIGNER SE LLAMA /dashboard/explora-designer. La dirección vieja solo
 // redirige, con su `?seccion=`: el Historial y los enlaces guardados apuntan aquí.
 export default async function Page({ searchParams }) {
   const parametros = new URLSearchParams();

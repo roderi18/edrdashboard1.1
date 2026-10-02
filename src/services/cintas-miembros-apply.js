@@ -26,7 +26,7 @@ export const escribirCintasDeMiembro = (idMiembros, cintas, actualizadoPor = '')
     actualizadoPor,
   });
 
-// El orden global de las cintas (EXPLORA Designer → Cintas).
+// El orden global de las cintas (EXPEDITION Designer → Cintas).
 export const referenciaDeOrdenDeCintas = () =>
   doc(FIRESTORE, COLECCION_CONFIGURACION_CINTAS, DOCUMENTO_ORDEN_CINTAS);
 

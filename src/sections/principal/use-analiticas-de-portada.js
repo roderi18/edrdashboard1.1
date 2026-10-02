@@ -82,7 +82,7 @@ export function useAnaliticasDePortada({ raizRef, portada, activo = true }) {
       const tarjeta = evento.target?.closest?.('[data-everest-bloque]');
       const enlace = evento.target?.closest?.('a, button');
       // El lapiz del Designer no es una pulsacion de nadie que lea la portada.
-      const esLapiz = enlace?.getAttribute('aria-label') === 'Editar en EXPLORA Designer';
+      const esLapiz = enlace?.getAttribute('aria-label') === 'Editar en EXPEDITION Designer';
 
       if (!tarjeta || !enlace || esLapiz) return;
 

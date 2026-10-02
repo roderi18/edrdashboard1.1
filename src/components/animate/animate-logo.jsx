@@ -12,8 +12,8 @@ import { Logo } from '../logo';
 //
 // Antes era el isotipo de EXPLORA girando dentro de dos marcos que también
 // giraban. Ahora es el logotipo completo y no gira: solo respira (opacidad),
-// para que se note que la aplicación sigue cargando. Texto oscuro en el tema
-// claro y claro en el oscuro, como en el menú lateral.
+// para que se note que la aplicación sigue cargando. El logotipo 3D se lee
+// igual sobre fondo claro y oscuro: una sola imagen.
 export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
   return (
     <LogoZoomRoot sx={sx} {...other}>
@@ -23,25 +23,13 @@ export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
         style={{ display: 'inline-flex' }}
       >
         {logo ?? (
-          <>
-            <LoadingLogotipo
-              src="/marca/expedition-logotipo.webp?v=1"
-              alt="EXPEDITION"
-              width={200}
-              height={139}
-              data-tema="claro"
-              {...slotProps?.logo}
-            />
-            <LoadingLogotipo
-              src="/marca/expedition-logotipo-claro.webp?v=1"
-              alt=""
-              aria-hidden="true"
-              width={200}
-              height={139}
-              data-tema="oscuro"
-              {...slotProps?.logo}
-            />
-          </>
+          <LoadingLogotipo
+            src="/marca/expedition-logotipo.webp?v=2"
+            alt="EXPEDITION"
+            width={200}
+            height={137}
+            {...slotProps?.logo}
+          />
         )}
       </m.span>
     </LogoZoomRoot>
@@ -50,24 +38,17 @@ export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
 
 const LogoZoomRoot = styled('div')(() => ({
   width: 200,
-  height: 139,
+  height: 137,
   alignItems: 'center',
   position: 'relative',
   display: 'inline-flex',
   justifyContent: 'center',
 }));
 
-// Las dos variantes van en la página y el tema decide cuál se ve: así no hay
-// parpadeo esperando a saber el tema.
-const LoadingLogotipo = styled('img')(({ theme }) => ({
+const LoadingLogotipo = styled('img')(() => ({
   width: 200,
-  height: 139,
+  height: 137,
   objectFit: 'contain',
-  '&[data-tema="oscuro"]': { display: 'none' },
-  ...theme.applyStyles('dark', {
-    '&[data-tema="claro"]': { display: 'none' },
-    '&[data-tema="oscuro"]': { display: 'block' },
-  }),
 }));
 
 // ----------------------------------------------------------------------

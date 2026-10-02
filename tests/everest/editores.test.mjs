@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// LOS EDITORES DE EXPLORA DESIGNER (fase 4).
+// LOS EDITORES DE EXPEDITION DESIGNER (fase 4).
 //
 // Lo que se podia romper al empezar a editar, y se comprueba aqui:
 //

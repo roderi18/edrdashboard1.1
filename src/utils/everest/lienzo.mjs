@@ -1,4 +1,4 @@
-// Ajustes visuales compartidos por cualquier bloque de EXPLORA Designer.
+// Ajustes visuales compartidos por cualquier bloque de EXPEDITION Designer.
 // Se guardan dentro de `diseno` y pasan por el mismo ciclo de borrador,
 // publicación, versiones y campañas que los demás ajustes.
 

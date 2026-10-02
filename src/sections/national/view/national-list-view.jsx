@@ -559,7 +559,7 @@ export function NationalListView() {
   });
   // Que se pinta en la tarjeta: la lista de personas o el organigrama.
   // `?vista=galeria` abre la Galería de Directores Nacionales (el enlace de
-  // Historial y el de EXPLORA Designer llevan ahí).
+  // Historial y el de EXPEDITION Designer llevan ahí).
   const [vista, setVista] = useState(() =>
     searchParams?.get('vista') === 'galeria' ? 'galeria' : 'lista'
   );

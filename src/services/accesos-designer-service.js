@@ -7,7 +7,7 @@ import { escribirAccesosDesigner } from './accesos-designer-apply';
 import { AMBITOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 
 // ----------------------------------------------------------------------
-// GUARDAR LOS ACCESOS DE EXPLORA DESIGNER (pestaña "Accesos"). Solo el
+// GUARDAR LOS ACCESOS DE EXPEDITION DESIGNER (pestaña "Accesos"). Solo el
 // Administrador Global: es quien da los permisos. Pasa por `proponerCambio`, así
 // que se aplica al momento y en Historial queda quién dio qué a quién.
 // ----------------------------------------------------------------------
@@ -25,7 +25,7 @@ export async function guardarAccesosDesigner({ reglas, anteriores = [], usuario 
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
   if (!isAdminGlobal(usuario)) {
-    throw new Error('Solo el Administrador Global da accesos a EXPLORA Designer.');
+    throw new Error('Solo el Administrador Global da accesos a EXPEDITION Designer.');
   }
 
   const documento = documentoDeAccesos(reglas);
@@ -46,14 +46,14 @@ export async function guardarAccesosDesigner({ reglas, anteriores = [], usuario 
     entidad: {
       tipo: 'accesos_designer',
       id: 'accesos',
-      nombre: 'Accesos de EXPLORA Designer',
+      nombre: 'Accesos de EXPEDITION Designer',
       ruta: '/dashboard/explora-designer?seccion=accesos',
     },
     cambios: cambios.length
       ? cambios
       : [{ campo: 'reglas', etiqueta: 'Accesos', antes: null, despues: 'Sin cambios' }],
     usuario,
-    descripcion: `Accesos de EXPLORA Designer actualizados (${documento.reglas.length} ${
+    descripcion: `Accesos de EXPEDITION Designer actualizados (${documento.reglas.length} ${
       documento.reglas.length === 1 ? 'regla' : 'reglas'
     }).`,
     aplicarDirecto: true,

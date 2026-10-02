@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // EDITAR Y ELIMINAR CINTAS, MEDALLAS Y PINES (también los de fábrica).
 //
-// Qué se pedía: en EXPLORA Designer → Cintas, Medallas y Pines, editar y eliminar
+// Qué se pedía: en EXPEDITION Designer → Cintas, Medallas y Pines, editar y eliminar
 // todas. Las de fábrica viven en `public/` y en producción no se tocan: se guarda
 // un AJUSTE (nombre, descripción, imagen u `oculta`). Una añadida se elimina
 // marcándola `activo: false`: las ya asignadas siguen apuntando a su id, pero

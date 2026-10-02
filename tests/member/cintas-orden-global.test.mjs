@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // EL ORDEN GLOBAL DE LAS CINTAS MANDA EN TODOS LOS PERFILES.
 //
-// Qué se pidió: en EXPLORA Designer se arrastran las cintas y ese lugar es su
+// Qué se pidió: en EXPEDITION Designer se arrastran las cintas y ese lugar es su
 // posición en todas partes, en los perfiles que ya las tienen y al asignarlas.
 // Qué no se puede romper: sin orden guardado, todo sigue con el número del
 // archivo (el manual), y un orden guardado viejo o incompleto nunca pierde una
@@ -57,7 +57,7 @@ test('arrastrar una cinta sobre otra la pone en su lugar', () => {
 });
 
 // El orden lo escribe el Administrador Global y, desde que ordenar va con
-// editar, quien puede editar esa pestaña en EXPLORA Designer → Accesos.
+// editar, quien puede editar esa pestaña en EXPEDITION Designer → Accesos.
 test('el orden lo escribe quien edita esa pestaña y no cae en el comodín', async () => {
   const reglas = await readFile(new URL('../../firestore.rules', import.meta.url), 'utf8');
 

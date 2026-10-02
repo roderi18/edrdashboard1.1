@@ -12,7 +12,7 @@ import {
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// LAS CINTAS Y MEDALLAS AÑADIDAS EN EXPLORA DESIGNER, UNA SOLA ESCUCHA POR PÁGINA.
+// LAS CINTAS Y MEDALLAS AÑADIDAS EN EXPEDITION DESIGNER, UNA SOLA ESCUCHA POR PÁGINA.
 //
 // Como el orden global (`use-orden-de-cintas.js`): una lista de miembros pinta
 // muchas tarjetas y cada una abriría su escucha. Aquí hay una sola, que se abre

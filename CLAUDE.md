@@ -269,7 +269,7 @@ Suite que lo cubre: `npm run test:acceso`.
 - Tests en español, nombrados por el comportamiento, con encabezado que explica
   qué se rompía. Importan el **código real** vía `tests/soporte/resolver-alias-src.mjs`.
 
-## EXPLORA Designer — la portada no cambia hasta que se publica
+## EXPEDITION Designer — la portada no cambia hasta que se publica
 
 Herramienta del Administrador Global para editar desde la aplicación todo lo de
 `/principal` (encabezados, próxima actividad, eventos, comunicados, destacamento destacado…)

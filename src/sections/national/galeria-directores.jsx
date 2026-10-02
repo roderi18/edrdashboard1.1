@@ -46,7 +46,7 @@ import { useAuthContext } from 'src/auth/hooks';
 // ----------------------------------------------------------------------
 
 // LA GALERÍA HEREDA LA TARJETA TAL CUAL: mismo ancho, alto de foto, letra,
-// tamaños, redondeo y placa que en EXPLORA Designer → Tarjeta. Antes cada
+// tamaños, redondeo y placa que en EXPEDITION Designer → Tarjeta. Antes cada
 // tarjeta se estiraba a su columna y la foto (y la placa encima) cambiaba de
 // proporción. Ahora las columnas miden lo que la tarjeta: tres como mucho, y
 // en pantallas estrechas bajan a dos o a una.

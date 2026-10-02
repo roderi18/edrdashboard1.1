@@ -52,7 +52,7 @@ import { useInsigniasPersonalizadas } from './use-insignias-personalizadas';
 //
 // Las hermanas de las cintas (`cintas-de-miembro.jsx`): se leen de
 // `medallas_miembros/{idMiembros}`, salen en el orden global que se arrastra en
-// EXPLORA Designer y, de momento, solo las pone a mano el Administrador Global
+// EXPEDITION Designer y, de momento, solo las pone a mano el Administrador Global
 // con el MISMO lápiz de las cintas, en su pestaña "Medallas".
 // El catálogo es la carpeta `public/insignias/medallas`: una
 // imagen nueva ahí aparece aquí sin tocar código (`/api/insignias/medallas`).
@@ -69,7 +69,7 @@ function useLecturaDelCatalogo() {
     { revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true }
   );
 
-  // Las añadidas en EXPLORA Designer (Firestore) van detrás de las de la carpeta.
+  // Las añadidas en EXPEDITION Designer (Firestore) van detrás de las de la carpeta.
   // Las de la carpeta llevan los cambios del Designer (nombre, descripción,
   // imagen) y no las eliminadas.
   const { medallas: personalizadas, ajustes } = useInsigniasPersonalizadas();
@@ -634,7 +634,7 @@ const normalizarBusqueda = (texto) =>
 /**
  * Las cuatro perillas de los efectos (velocidad y fuerza del movimiento,
  * velocidad e intensidad del brillo). Sirve igual en el diálogo del miembro y en
- * EXPLORA Designer. `valores` trae las cuatro claves de `AJUSTES_MEDALLA`.
+ * EXPEDITION Designer. `valores` trae las cuatro claves de `AJUSTES_MEDALLA`.
  */
 export function AjustesDeEfectosDeMedalla({ valores = {}, onCambiar, sx }) {
   return (
@@ -715,7 +715,7 @@ export function SelectorDeMedallas({
     <>
       <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
         Elegidas: {elegidas.size} de {MAXIMO_MEDALLAS}. En el perfil van debajo de las cintas, en el
-        orden global de EXPLORA Designer.
+        orden global de EXPEDITION Designer.
       </Typography>
 
       {/* Globales para el miembro, como el brillo de las cintas: valen para todas

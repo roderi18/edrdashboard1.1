@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// LOS BLOQUES QUE EDITA EXPLORA DESIGNER.
+// LOS BLOQUES QUE EDITA EXPEDITION DESIGNER.
 //
 // Es la UNICA lista. De aqui salen el menu del Designer, lo que se puede publicar
 // y como se limpia cada cosa antes de pintarse. Un bloque nuevo en la portada se

@@ -44,7 +44,7 @@ import { AccionesDeInsignia } from './acciones-de-insignia';
 import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 
 // ----------------------------------------------------------------------
-// LAS MEDALLAS, DENTRO DE EXPLORA DESIGNER.
+// LAS MEDALLAS, DENTRO DE EXPEDITION DESIGNER.
 //
 // Todas las imagenes de la carpeta de medallas, con la misma pieza que el perfil
 // (`ImagenDeMedalla`). Arrastrandolas se cambia el ORDEN GLOBAL, que al guardar

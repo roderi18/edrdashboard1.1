@@ -5,7 +5,7 @@ import { COLECCION_INSIGNIAS_PERSONALIZADAS } from 'src/utils/insignias-personal
 import { FIRESTORE } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// EL BRAZO QUE APLICA el alta de una cinta o medalla desde EXPLORA Designer.
+// EL BRAZO QUE APLICA el alta de una cinta o medalla desde EXPEDITION Designer.
 //
 // Mismo caso que `cintas-miembros-apply.js`: aquí solo vive la escritura que
 // `proponerCambio` ejecuta DESPUÉS de haberla registrado en Historial.

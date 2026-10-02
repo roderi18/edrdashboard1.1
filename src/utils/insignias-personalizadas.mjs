@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// CINTAS, MEDALLAS Y PINES AÑADIDOS DESDE EXPLORA DESIGNER.
+// CINTAS, MEDALLAS Y PINES AÑADIDOS DESDE EXPEDITION DESIGNER.
 //
 // Las de fábrica salen de `public/insignias/`: para sumar una
 // había que dejar la imagen en la carpeta y, en las cintas, además tocar código,

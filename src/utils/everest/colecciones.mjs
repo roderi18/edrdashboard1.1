@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// DONDE GUARDA EXPLORA DESIGNER.
+// DONDE GUARDA EXPEDITION DESIGNER.
 //
 // Tres colecciones, cada una con un proposito, y separadas a proposito:
 //

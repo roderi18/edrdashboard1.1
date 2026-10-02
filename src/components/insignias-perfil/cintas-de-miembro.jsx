@@ -357,7 +357,7 @@ export function CintasDeMiembro({
     );
   }, [id]);
 
-  // El orden global que se arrastra en EXPLORA Designer manda también aquí, en
+  // El orden global que se arrastra en EXPEDITION Designer manda también aquí, en
   // los perfiles que ya tenían sus cintas puestas.
   const orden = useOrdenDeCintas();
   // Las añadidas en el Designer: al llegar se registran en el catálogo y esto se

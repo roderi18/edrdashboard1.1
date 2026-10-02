@@ -23,7 +23,7 @@ export async function leerTarjetaEditable(id) {
 export async function guardarTarjetaEditable({ id, tarjeta, usuario }) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
   if (!puedeEnDesigner(usuario, 'tarjeta', 'editar')) {
-    throw new Error('No tienes permiso para cambiar la Tarjeta (EXPLORA Designer → Accesos).');
+    throw new Error('No tienes permiso para cambiar la Tarjeta (EXPEDITION Designer → Accesos).');
   }
 
   const limpia = sanearTarjeta(tarjeta);

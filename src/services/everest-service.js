@@ -36,7 +36,7 @@ import {
 } from './everest-apply';
 
 // ----------------------------------------------------------------------
-// EXPLORA DESIGNER: LEER Y PUBLICAR LA PORTADA.
+// EXPEDITION DESIGNER: LEER Y PUBLICAR LA PORTADA.
 //
 // Lo que se publica aqui lo ve toda la organizacion, asi que pasa por la puerta
 // de cambios (`proponerCambio`), igual que la Paleta y los Sonidos: se aplica en
@@ -61,7 +61,7 @@ const asegurarPuedePublicar = (usuario) => {
 
   // El Administrador Global, o a quien "Accesos" le dé editar la Portada.
   if (!puedeEnDesigner(usuario, 'portada', 'editar')) {
-    throw new Error('No tienes permiso para publicar la Portada (EXPLORA Designer → Accesos).');
+    throw new Error('No tienes permiso para publicar la Portada (EXPEDITION Designer → Accesos).');
   }
 };
 
@@ -95,7 +95,7 @@ const describirOrigen = (publicado, idBloque) =>
 const entidadDelBloque = (pantalla, bloque) => ({
   tipo: 'everest_bloque',
   id: `${pantalla}/${bloque.id}`,
-  nombre: `EXPLORA Designer · ${bloque.nombre}`,
+  nombre: `EXPEDITION Designer · ${bloque.nombre}`,
   ruta: `${paths.dashboard.everest}?bloque=${bloque.id}`,
 });
 
@@ -197,10 +197,10 @@ async function publicarBloqueDirecto({
       anterior,
       antes: enVivo(anterior, pantalla, idBloque),
       despues: publicacion,
-      textoDespues: 'Publicado desde EXPLORA Designer',
+      textoDespues: 'Publicado desde EXPEDITION Designer',
     }),
     usuario,
-    descripcion: `Publicó "${bloque.nombre}" en la pantalla ${pantalla} desde EXPLORA Designer.`,
+    descripcion: `Publicó "${bloque.nombre}" en la pantalla ${pantalla} desde EXPEDITION Designer.`,
     aplicar: () => escribirBloquePublicado(pantalla, idBloque, publicacion, version),
   });
 
@@ -252,7 +252,7 @@ async function volverBloqueAlOriginalDirecto({ pantalla, idBloque, usuario }) {
       textoDespues: 'Original del código',
     }),
     usuario,
-    descripcion: `Devolvió "${bloque.nombre}" a su diseño original desde EXPLORA Designer.`,
+    descripcion: `Devolvió "${bloque.nombre}" a su diseño original desde EXPEDITION Designer.`,
     aplicar: () => quitarBloquePublicado(pantalla, idBloque, version),
   });
 }
@@ -334,7 +334,7 @@ async function programarCampanaDirecto({
     entidad: {
       ...entidadDelBloque(pantalla, bloque),
       id: `${pantalla}/${idBloque}/${campana.id}`,
-      nombre: `EXPLORA Designer · ${bloque.nombre} · campaña ${campana.nombre}`,
+      nombre: `EXPEDITION Designer · ${bloque.nombre} · campaña ${campana.nombre}`,
     },
     cambios: [
       {
@@ -345,7 +345,7 @@ async function programarCampanaDirecto({
       },
     ],
     usuario,
-    descripcion: `Programó la campaña "${campana.nombre}" en "${bloque.nombre}" desde EXPLORA Designer.`,
+    descripcion: `Programó la campaña "${campana.nombre}" en "${bloque.nombre}" desde EXPEDITION Designer.`,
     aplicar: () => escribirCampana(pantalla, campana),
   });
 
@@ -381,7 +381,7 @@ async function quitarCampanaProgramadaDirecto({ pantalla, idCampana, usuario }) 
     entidad: {
       tipo: 'everest_campana',
       id: `${pantalla}/${idCampana}`,
-      nombre: `EXPLORA Designer · campaña ${campana?.nombre ?? idCampana}`,
+      nombre: `EXPEDITION Designer · campaña ${campana?.nombre ?? idCampana}`,
       ruta: bloque ? `${paths.dashboard.everest}?bloque=${bloque.id}` : paths.dashboard.everest,
     },
     cambios: [
@@ -393,7 +393,7 @@ async function quitarCampanaProgramadaDirecto({ pantalla, idCampana, usuario }) 
       },
     ],
     usuario,
-    descripcion: `Quitó la campaña "${campana?.nombre ?? idCampana}" desde EXPLORA Designer.`,
+    descripcion: `Quitó la campaña "${campana?.nombre ?? idCampana}" desde EXPEDITION Designer.`,
     aplicar: () => quitarCampana(pantalla, idCampana),
   });
 }

@@ -23,7 +23,7 @@ const precioDelElemento = (elemento) => {
 
 const seleccionables = (raiz) =>
   Array.from(raiz?.querySelectorAll(SELECTOR) ?? []).filter((elemento) => {
-    if (elemento.closest('[aria-label="Editar en EXPLORA Designer"]')) return false;
+    if (elemento.closest('[aria-label="Editar en EXPEDITION Designer"]')) return false;
     if (elemento.matches('span')) {
       return Array.from(elemento.childNodes).some(
         (nodo) => nodo.nodeType === Node.TEXT_NODE && nodo.nodeValue.trim()
@@ -223,7 +223,7 @@ export function LienzoDelBloque({
       const tipo = capa ? 'capa' : 'elemento';
       const elemento = capa || evento.target.closest(SELECTOR);
       if (!elemento || !raizRef.current?.contains(elemento)) return;
-      if (elemento.closest('[aria-label="Editar en EXPLORA Designer"]')) return;
+      if (elemento.closest('[aria-label="Editar en EXPEDITION Designer"]')) return;
 
       const id =
         capa?.dataset.lienzoCapa ?? String(seleccionables(contenidoRef.current).indexOf(elemento));

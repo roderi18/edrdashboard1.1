@@ -5,7 +5,7 @@
 // medallas (`medallas-perfil.mjs`). Se tratan como las medallas: el catálogo es
 // la carpeta `public/insignias/pines` —una imagen nueva ahí sale
 // en la aplicación sin tocar código— más los que el Administrador Global añade
-// en EXPLORA Designer, y encima manda el orden global que se arrastra allí.
+// en EXPEDITION Designer, y encima manda el orden global que se arrastra allí.
 //
 // En el perfil van ENCIMA de las cintas, en una sola fila centrada: como mucho
 // tres, cada uno del ancho de una cinta.

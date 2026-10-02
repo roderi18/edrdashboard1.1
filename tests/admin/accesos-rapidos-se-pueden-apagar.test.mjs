@@ -13,7 +13,7 @@ register(new URL('../soporte/resolver-alias-src.mjs', import.meta.url));
 // "Registrar actividad", "Proxima actividad", "Mis insignias" y "Capacitacion"
 // eran atajos a sitios que tambien estan en el menu, y se podian apagar desde
 // Ajustes. El 20/09/2026 (commit 8bdfaf66) se quitaron de la portada y el
-// interruptor de Ajustes. Qué se rompía después: EXPLORA Designer seguía
+// interruptor de Ajustes. Qué se rompía después: EXPEDITION Designer seguía
 // ofreciendo editar y publicar el bloque, sin que cambiara nada en pantalla. El
 // bloque quedó `retirado`: se conserva (y se sanea) lo ya publicado, pero no se
 // pinta ni sale en el Designer.

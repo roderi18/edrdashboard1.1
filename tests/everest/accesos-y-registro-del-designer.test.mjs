@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// EXPLORA DESIGNER: "ACCESOS" Y "REGISTRO" (solo el Administrador Global).
+// EXPEDITION DESIGNER: "ACCESOS" Y "REGISTRO" (solo el Administrador Global).
 //
 // Qué se pedía:
 //  - Accesos: a quién (un usuario o un rol), a qué pestañas y para qué (crear,
@@ -120,15 +120,15 @@ test('el registro clasifica cada cambio por pestaña y acción, con la persona',
     'portada'
   );
   assert.equal(
-    accionDelRegistro({ descripcion: 'EXPLORA Designer: se eliminó la cinta X.' }),
+    accionDelRegistro({ descripcion: 'EXPEDITION Designer: se eliminó la cinta X.' }),
     'eliminar'
   );
   assert.equal(
-    accionDelRegistro({ descripcion: 'EXPLORA Designer: se editó el pin X.' }),
+    accionDelRegistro({ descripcion: 'EXPEDITION Designer: se editó el pin X.' }),
     'editar'
   );
   assert.equal(
-    accionDelRegistro({ descripcion: 'Nueva medalla en EXPLORA Designer: X.' }),
+    accionDelRegistro({ descripcion: 'Nueva medalla en EXPEDITION Designer: X.' }),
     'guardar'
   );
   assert.equal(personaDelRegistro({ realizadoPor: { nombre: 'Ana' } }), 'Ana');
@@ -138,8 +138,25 @@ test('todo lo del Designer, también el orden global, se registra con su ámbito
   ['cintas', 'medallas', 'pines'].forEach((tipo) => {
     assert.match(
       leer(`src/services/${tipo}-miembros-service.js`),
-      /Es de EXPLORA Designer: sale en su pestaña "Registro"\.\s*ambito: AMBITOS_CAMBIO\.everestDesigner,/
+      /Es de EXPEDITION Designer: sale en su pestaña "Registro"\.\s*ambito: AMBITOS_CAMBIO\.everestDesigner,/
     );
   });
   assert.match(leer('src/services/audit-log-service.js'), /where\('modulo', '==', modulo\)/);
+});
+
+// "EXPEDITION" lleva "edit" dentro: al renombrar EXPLORA, todo lo guardado en el
+// Designer empezó a salir como "Editó".
+test('"EXPEDITION Designer" no hace pasar un guardado por una edición', () => {
+  assert.equal(
+    accionDelRegistro({ descripcion: 'Nueva medalla en EXPEDITION Designer: X.' }),
+    'guardar'
+  );
+  assert.equal(
+    accionDelRegistro({ descripcion: 'Publicó "Portada" desde EXPEDITION Designer.' }),
+    'guardar'
+  );
+  assert.equal(
+    accionDelRegistro({ descripcion: 'EXPEDITION Designer: se editó el pin X.' }),
+    'editar'
+  );
 });

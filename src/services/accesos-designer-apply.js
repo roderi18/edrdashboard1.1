@@ -8,7 +8,7 @@ import {
 import { FIRESTORE } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// EL BRAZO QUE APLICA los accesos de EXPLORA Designer. Como los demás `-apply`:
+// EL BRAZO QUE APLICA los accesos de EXPEDITION Designer. Como los demás `-apply`:
 // aquí solo vive la escritura que `proponerCambio` ejecuta DESPUÉS de haberla
 // registrado en Historial.
 // ----------------------------------------------------------------------

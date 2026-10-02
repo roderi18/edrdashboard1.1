@@ -49,7 +49,7 @@ export const COLECCIONES_POR_MODULO = [
   { id: 'informacion_medica_basica_miembros', modulo: 'Salud del miembro' },
   { id: 'fotos', modulo: 'Fotos' },
   { id: 'cintas_miembros', modulo: 'Insignias' },
-  { id: 'everest_publicado', modulo: 'Portada (EXPLORA Designer)' },
+  { id: 'everest_publicado', modulo: 'Portada (EXPEDITION Designer)' },
   { id: 'gestorArchivos', modulo: 'Gestor de archivos' },
 ];
 

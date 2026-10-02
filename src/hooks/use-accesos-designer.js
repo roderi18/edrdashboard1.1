@@ -14,7 +14,7 @@ import {
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// LAS REGLAS DE "ACCESOS" DE EXPLORA DESIGNER, UNA SOLA ESCUCHA POR PÁGINA.
+// LAS REGLAS DE "ACCESOS" DE EXPEDITION DESIGNER, UNA SOLA ESCUCHA POR PÁGINA.
 //
 // Las piden el menú (para enseñar o no la entrada), el Designer (qué pestañas) y
 // sus botones (crear, editar, eliminar). Como las insignias: una escucha que se

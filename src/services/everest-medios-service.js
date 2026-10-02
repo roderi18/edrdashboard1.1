@@ -11,7 +11,7 @@ import { PANTALLAS_EXPLORA, CARPETA_MEDIOS_EXPLORA } from 'src/utils/everest/col
 import { FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// LAS FOTOS Y VIDEOS QUE SE SUBEN DESDE EXPLORA DESIGNER.
+// LAS FOTOS Y VIDEOS QUE SE SUBEN DESDE EXPEDITION DESIGNER.
 //
 // Van a `everest/<bloque>/<marca de tiempo>`, y NUNCA a la carpeta de las
 // tarjetas de hoy (`principal-tarjetas/`): subir un fondo nuevo para un borrador
@@ -57,7 +57,7 @@ async function subirMedioDeBloqueDirecto({ idBloque, archivo, aceptaVideo = fals
   }
 
   if (!isAdminGlobal(usuario)) {
-    throw new Error('Solo el Administrador Global sube archivos en EXPLORA Designer.');
+    throw new Error('Solo el Administrador Global sube archivos en EXPEDITION Designer.');
   }
 
   const bloque = bloquePorId(idBloque);
@@ -141,7 +141,7 @@ async function listarBibliotecaDeMediosSinCache({ usuario, tipos = ['imagen', 'v
   if (!isFirebaseConfigured || !FIREBASE_STORAGE) return [];
 
   if (!isAdminGlobal(usuario)) {
-    throw new Error('Solo el Administrador Global usa la biblioteca de EXPLORA Designer.');
+    throw new Error('Solo el Administrador Global usa la biblioteca de EXPEDITION Designer.');
   }
 
   const carpetas = await Promise.all(

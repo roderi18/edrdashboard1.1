@@ -191,7 +191,7 @@ async function eliminarAuditoriaTemporalPruebaDirecto() {
 // al cerrar la aplicación, también lo sensible (salud, tutores).
 // ----------------------------------------------------------------------
 
-// EL REGISTRO DE EXPLORA DESIGNER (pestaña "Registro"): lo de su módulo, de lo
+// EL REGISTRO DE EXPEDITION DESIGNER (pestaña "Registro"): lo de su módulo, de lo
 // más reciente a lo más antiguo. Con el índice `modulo` + `fecha`; si aún no está
 // creado, se lee todo el módulo y se ordena aquí.
 async function listarRegistroDelDesignerSinCache({ modulo, maxRegistros = 300 } = {}) {

@@ -268,7 +268,7 @@ export const tiendaDeAdministracion = [
 // Pone la tienda de administracion en lugar de "Tienda Virtual", dentro del
 // grupo "Tienda". Lo demas del grupo —"Mi carrito"— se queda donde esta.
 // ----------------------------------------------------------------------
-// EXPLORA DESIGNER, DEBAJO DE "ADMINISTRADORES".
+// EXPEDITION DESIGNER, DEBAJO DE "ADMINISTRADORES".
 //
 // Cambia la portada de toda la organizacion, asi que en su primera version es
 // solo del Administrador Global. No va dentro de las pestañas de Administracion
@@ -281,7 +281,7 @@ export const tiendaDeAdministracion = [
 // ----------------------------------------------------------------------
 
 export const entradaEverestDesigner = {
-  title: 'EXPLORA Designer',
+  title: 'EXPEDITION Designer',
   path: paths.dashboard.everest,
   icon: ICONS.designer,
 };

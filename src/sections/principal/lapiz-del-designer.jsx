@@ -22,12 +22,12 @@ export const enlaceAlDesigner = (idBloque) =>
 
 export function LapizDelDesigner({ idBloque, sobreOscuro = false, sx }) {
   return (
-    <Tooltip title="Editar en EXPLORA Designer">
+    <Tooltip title="Editar en EXPEDITION Designer">
       <IconButton
         component={RouterLink}
         href={enlaceAlDesigner(idBloque)}
         size="small"
-        aria-label="Editar en EXPLORA Designer"
+        aria-label="Editar en EXPEDITION Designer"
         sx={[
           sobreOscuro
             ? {

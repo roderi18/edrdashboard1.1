@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// LA PANTALLA DE EXPLORA DESIGNER (fase 3).
+// LA PANTALLA DE EXPEDITION DESIGNER (fase 3).
 //
 // Lo que se rompia o se podia romper, y se comprueba aqui:
 //
@@ -199,7 +199,7 @@ test('el alto que manda la vista previa es siempre un numero entero y positivo',
 test('va en el menu lateral, justo debajo de Administradores, y fuera de /dashboard/admin', () => {
   const menu = leer('src/layouts/nav-config-dashboard.jsx');
 
-  assert.match(menu, /title: 'EXPLORA Designer',\s*path: paths\.dashboard\.everest,/);
+  assert.match(menu, /title: 'EXPEDITION Designer',\s*path: paths\.dashboard\.everest,/);
   // Se inserta DETRAS de la entrada de Administradores, dentro de su seccion.
   assert.match(menu, /seccion\.subheader === 'Administración'/);
   assert.match(menu, /if \(item\.path !== paths\.dashboard\.admin\.root\) return \[item\];/);

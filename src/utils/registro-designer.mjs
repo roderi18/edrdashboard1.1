@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// EL REGISTRO DE EXPLORA DESIGNER (pestaña "Registro", solo el Administrador
+// EL REGISTRO DE EXPEDITION DESIGNER (pestaña "Registro", solo el Administrador
 // Global): qué se guardó, editó o eliminó, cuándo y quién, en todas las pestañas.
 //
 // No es otra colección: todo lo del Designer pasa por `proponerCambio` con el
@@ -59,7 +59,9 @@ export const accionDelRegistro = (registro = {}) => {
   const despues = registro?.despues || {};
 
   if (/elimin|quit|retir|borr/.test(texto) || despues.eliminada === true) return 'eliminar';
-  if (/edit|cambi|actualiz|nuevo orden|renombr/.test(texto)) return 'editar';
+  // `\bedit`: "EXPEDITION Designer" lleva "edit" dentro, y todo lo guardado en
+  // el Designer salía como "Editó".
+  if (/\bedit|cambi|actualiz|nuevo orden|renombr/.test(texto)) return 'editar';
 
   return 'guardar';
 };

@@ -33,7 +33,7 @@ import { AccionesDeInsignia } from './acciones-de-insignia';
 import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 
 // ----------------------------------------------------------------------
-// LOS PINES, DENTRO DE EXPLORA DESIGNER.
+// LOS PINES, DENTRO DE EXPEDITION DESIGNER.
 //
 // Como las medallas: todas las imágenes de la carpeta de pines y los añadidos
 // aquí, con la misma pieza que el perfil (`ImagenDePin`). Arrastrándolos se

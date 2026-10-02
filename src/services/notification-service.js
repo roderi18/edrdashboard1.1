@@ -1142,7 +1142,7 @@ export async function crearNotificacionNumeroDestacamento({
 }
 
 /**
- * Comunicados nuevos en la portada, publicados desde EXPLORA Designer.
+ * Comunicados nuevos en la portada, publicados desde EXPEDITION Designer.
  *
  * Es de las pocas cosas que van a TODA la organizacion —cargos y miembros—: un
  * comunicado oficial que solo se ve si uno entra a la portada no llega a quien

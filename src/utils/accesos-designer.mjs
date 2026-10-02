@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// QUIÉN ENTRA A EXPLORA DESIGNER, A QUÉ PESTAÑAS Y PARA QUÉ.
+// QUIÉN ENTRA A EXPEDITION DESIGNER, A QUÉ PESTAÑAS Y PARA QUÉ.
 //
 // El Designer era solo del Administrador Global, y cada excepción (la Oficina
 // Nacional en Cintas, Medallas y Pines) iba escrita en el código. Ahora el

@@ -73,4 +73,9 @@ export const RUTAS_ANTIGUAS_DE_IMAGENES = [
     destination: '/marca/expedition-wordmark-light.webp',
   },
   { source: '/marca/explora-o-isotipo.webp', destination: '/marca/expedition-isotipo.webp' },
+  // El logotipo 3D se lee sobre fondo claro y oscuro: ya no hay variante clara.
+  {
+    source: '/marca/expedition-logotipo-claro.webp',
+    destination: '/marca/expedition-logotipo.webp',
+  },
 ];

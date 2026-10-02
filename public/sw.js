@@ -1,4 +1,4 @@
-const VERSION = 'edr-pwa-v10';
+const VERSION = 'edr-pwa-v11';
 
 // EN DESARROLLO NO SE INTERCEPTA NADA. Los bundles de `/_next/static/` se guardan
 // "para siempre" porque en produccion llevan una huella en el nombre; en `next

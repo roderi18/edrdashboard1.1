@@ -15,7 +15,7 @@ import { COLECCIONES_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 import { FIRESTORE } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// EL BRAZO QUE APLICA lo que se publica en EXPLORA Designer.
+// EL BRAZO QUE APLICA lo que se publica en EXPEDITION Designer.
 //
 // Mismo caso que `sonidos-apply.js`: aqui solo viven las escrituras que
 // `proponerCambio` ejecuta DESPUES de haberlas registrado en Historial. No es

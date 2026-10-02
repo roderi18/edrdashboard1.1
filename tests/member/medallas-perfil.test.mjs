@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // LAS MEDALLAS SON LA CARPETA, Y SU ORDEN LO DECIDE EL DESIGNER.
 //
-// Qué se pidió: las medallas existen igual que las cintas —en EXPLORA Designer y
+// Qué se pidió: las medallas existen igual que las cintas —en EXPEDITION Designer y
 // en los perfiles— y cualquier imagen que se deje en
 // `public/insignias/medallas` aparece en la aplicación sin tocar
 // código. Qué no se puede romper: una imagen que se quita no deja un hueco en los

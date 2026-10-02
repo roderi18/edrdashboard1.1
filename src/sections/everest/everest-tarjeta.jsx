@@ -41,7 +41,7 @@ import { TarjetaEditable } from 'src/components/tarjeta-editable/tarjeta-editabl
 import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
-// EXPLORA DESIGNER → TARJETA (`?seccion=tarjeta`).
+// EXPEDITION DESIGNER → TARJETA (`?seccion=tarjeta`).
 //
 // Nació en "Desarrollo · pantalla" (`/dashboard/desarrollo/tarjeta`, que ahora
 // solo redirige aquí): es diseño, del mismo Administrador Global del Designer.

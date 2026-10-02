@@ -26,7 +26,7 @@ import {
 } from './insignias-personalizadas-apply';
 
 // ----------------------------------------------------------------------
-// ALTA DE UNA CINTA, MEDALLA O PIN DESDE EXPLORA DESIGNER.
+// ALTA DE UNA CINTA, MEDALLA O PIN DESDE EXPEDITION DESIGNER.
 //
 // El Administrador Global y la Oficina Nacional. La imagen se sube a
 // `everest/insignias-{tipo}/` —la carpeta del Designer, con su regla de Storage—
@@ -64,7 +64,7 @@ async function crearInsigniaPersonalizadaDirecto({
 
   if (!puedeCrearInsignia(usuario, tipo)) {
     throw new Error(
-      'No tienes permiso para agregar aquí (EXPLORA Designer → Accesos).'
+      'No tienes permiso para agregar aquí (EXPEDITION Designer → Accesos).'
     );
   }
 
@@ -115,7 +115,7 @@ async function crearInsigniaPersonalizadaDirecto({
       },
     ],
     usuario,
-    descripcion: `${tipo === TIPOS_INSIGNIA.PIN ? 'Nuevo' : 'Nueva'} ${ETIQUETA[tipo]} en EXPLORA Designer: ${documento.nombre}.`,
+    descripcion: `${tipo === TIPOS_INSIGNIA.PIN ? 'Nuevo' : 'Nueva'} ${ETIQUETA[tipo]} en EXPEDITION Designer: ${documento.nombre}.`,
     aplicarDirecto: true,
     aplicar: () =>
       escribirInsigniaPersonalizada(
@@ -156,7 +156,7 @@ async function editarInsigniaDirecto({
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
   if (!puedeEditarInsignia(usuario, tipo)) {
-    throw new Error('No tienes permiso para editar aquí (EXPLORA Designer → Accesos).');
+    throw new Error('No tienes permiso para editar aquí (EXPEDITION Designer → Accesos).');
   }
 
   const error = validarInsigniaEditada({ nombre, descripcion });
@@ -221,7 +221,7 @@ async function editarInsigniaDirecto({
         : []),
     ],
     usuario,
-    descripcion: `EXPLORA Designer: se editó ${ARTICULO[tipo]} ${ETIQUETA[tipo]} ${cambios.nombre}.`,
+    descripcion: `EXPEDITION Designer: se editó ${ARTICULO[tipo]} ${ETIQUETA[tipo]} ${cambios.nombre}.`,
     aplicarDirecto: true,
     aplicar: () => actualizarInsigniaPersonalizada(idDoc, cambios, quienEs(usuario)),
   });
@@ -233,7 +233,7 @@ async function eliminarInsigniaDirecto({ tipo, insignia, usuario }) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
   if (!puedeEliminarInsignia(usuario, tipo)) {
-    throw new Error('No tienes permiso para eliminar aquí (EXPLORA Designer → Accesos).');
+    throw new Error('No tienes permiso para eliminar aquí (EXPEDITION Designer → Accesos).');
   }
 
   const { idDoc, campos } = destinoDe(tipo, insignia);
@@ -249,7 +249,7 @@ async function eliminarInsigniaDirecto({ tipo, insignia, usuario }) {
     },
     cambios: [{ campo: 'eliminada', etiqueta: 'Eliminada', antes: false, despues: true }],
     usuario,
-    descripcion: `EXPLORA Designer: se eliminó ${ARTICULO[tipo]} ${ETIQUETA[tipo]} ${insignia?.nombre || ''}.`,
+    descripcion: `EXPEDITION Designer: se eliminó ${ARTICULO[tipo]} ${ETIQUETA[tipo]} ${insignia?.nombre || ''}.`,
     aplicarDirecto: true,
     aplicar: () => actualizarInsigniaPersonalizada(idDoc, cambios, quienEs(usuario)),
   });

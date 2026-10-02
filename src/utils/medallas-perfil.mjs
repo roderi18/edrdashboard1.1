@@ -4,7 +4,7 @@
 // Hermanas de las cintas (`cintas-perfil.mjs`), con una diferencia de fondo: el
 // catálogo NO está escrito en el código. Es la carpeta
 // `public/insignias/medallas` tal cual: cualquier imagen que se
-// deje ahí aparece en la aplicación (en EXPLORA Designer, en el diálogo para
+// deje ahí aparece en la aplicación (en EXPEDITION Designer, en el diálogo para
 // asignarlas y en los perfiles). Las subcarpetas ("en proceso") no cuentan.
 //
 // El id de una medalla es el nombre de su archivo sin extensión. El número del
@@ -35,7 +35,7 @@ const EXTENSIONES = /\.(webp|png|jpe?g|gif|avif)$/i;
 // Dos ajustes que se combinan, como el brillo de bordes y el de números de las
 // cintas: cómo SE MUEVE y cómo BRILLA. Se eligen para cada miembro en el mismo
 // diálogo de las cintas (pestaña Medallas) y valen para todas sus medallas; en
-// EXPLORA Designer se prueban sobre el catálogo entero.
+// EXPEDITION Designer se prueban sobre el catálogo entero.
 //
 // La imagen se pinta en dos capas —la cinta arriba y el medallón abajo—, así que
 // puede moverse la pieza entera, solo el medallón, o la cinta con el medallón

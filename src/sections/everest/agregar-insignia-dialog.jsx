@@ -35,7 +35,7 @@ import { ImagenDePin, ImagenDeCinta, ImagenDeMedalla } from 'src/components/insi
 import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
-// AGREGAR UNA CINTA, UNA MEDALLA O UN PIN desde EXPLORA Designer: imagen, nombre
+// AGREGAR UNA CINTA, UNA MEDALLA O UN PIN desde EXPEDITION Designer: imagen, nombre
 // y descripción, las tres obligatorias.
 //
 // Con `insignia` es EDITAR (también las de fábrica): parte de su nombre, su

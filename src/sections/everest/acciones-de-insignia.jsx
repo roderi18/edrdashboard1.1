@@ -98,7 +98,7 @@ export function AccionesDeInsignia({ tipo, insignia, deshabilitado = false }) {
         open={confirmar}
         onClose={() => setConfirmar(false)}
         title={`Eliminar ${NOMBRE[tipo]} "${insignia.nombre}"`}
-        content="Deja de verse en EXPLORA Designer, en los perfiles y al asignarlas. Queda en Historial."
+        content="Deja de verse en EXPEDITION Designer, en los perfiles y al asignarlas. Queda en Historial."
         action={
           <Button variant="contained" color="error" loading={eliminando} onClick={eliminar}>
             Eliminar

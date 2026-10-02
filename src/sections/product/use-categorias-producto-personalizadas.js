@@ -14,7 +14,7 @@ import { referenciaDeCategoriasProducto } from 'src/services/producto-categorias
 // ----------------------------------------------------------------------
 // LAS CATEGORÍAS DE PRODUCTO AÑADIDAS DESDE /product/new, UNA SOLA ESCUCHA POR PÁGINA.
 //
-// Igual que las cintas y medallas añadidas en EXPLORA Designer
+// Igual que las cintas y medallas añadidas en EXPEDITION Designer
 // (`use-insignias-personalizadas.js`): una sola escucha compartida entre el
 // formulario y la lista, que se abre con el primero que la pide y se cierra con
 // el último. Se registran ANTES de avisar a nadie, para que `etiquetaDeCategoria`

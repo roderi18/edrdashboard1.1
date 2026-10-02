@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // QUIEN PUEDE REESCRIBIR LA PORTADA, Y QUE QUEDA CONSTANCIA.
 //
-// Lo que se publica desde EXPLORA Designer lo ve toda la organizacion al entrar.
+// Lo que se publica desde EXPEDITION Designer lo ve toda la organizacion al entrar.
 // Tres cosas lo protegen, y las tres se comprueban aqui:
 //
 //   1. Las REGLAS: solo el Administrador Global escribe, y las colecciones estan

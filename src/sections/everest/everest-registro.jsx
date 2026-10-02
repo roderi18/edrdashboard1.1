@@ -37,7 +37,7 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
-// EXPLORA DESIGNER → REGISTRO (solo el Administrador Global). Todo lo guardado,
+// EXPEDITION DESIGNER → REGISTRO (solo el Administrador Global). Todo lo guardado,
 // editado y eliminado en cualquier pestaña: qué, fecha y hora, y quién. Sale de
 // Historial (`registro-designer.mjs`), así que lo nuevo que entre al Designer
 // por `proponerCambio` aparece aquí sin tocar esta pantalla.
@@ -105,7 +105,7 @@ export function EverestRegistro() {
             {registros && <Label color="info">{filas.length}</Label>}
           </Stack>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Lo guardado, editado y eliminado en EXPLORA Designer, en todas sus pestañas: qué se
+            Lo guardado, editado y eliminado en EXPEDITION Designer, en todas sus pestañas: qué se
             hizo, cuándo y quién. Solo lo ve el Administrador Global.
           </Typography>
         </Box>

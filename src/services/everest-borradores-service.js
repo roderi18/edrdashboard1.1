@@ -16,7 +16,7 @@ import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// LOS BORRADORES DE EXPLORA DESIGNER.
+// LOS BORRADORES DE EXPEDITION DESIGNER.
 //
 // Lo que se esta editando y todavia no se publico. No lo ve nadie mas que quien
 // edita —las reglas solo dejan al Administrador Global—, y por eso NO pasa por la
@@ -37,7 +37,7 @@ const asegurar = (usuario) => {
   }
 
   if (!isAdminGlobal(usuario)) {
-    throw new Error('Solo el Administrador Global edita en EXPLORA Designer.');
+    throw new Error('Solo el Administrador Global edita en EXPEDITION Designer.');
   }
 };
 

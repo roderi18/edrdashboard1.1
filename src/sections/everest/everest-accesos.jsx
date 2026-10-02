@@ -49,7 +49,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { ROLES_CATALOGO } from 'src/auth/permissions/roles';
 
 // ----------------------------------------------------------------------
-// EXPLORA DESIGNER → ACCESOS (solo el Administrador Global: es quien da los
+// EXPEDITION DESIGNER → ACCESOS (solo el Administrador Global: es quien da los
 // permisos). Cada fila es una regla: a QUIÉN (un usuario con cuenta o un rol
 // entero), qué PESTAÑAS ve y qué puede hacer en ellas (crear, editar,
 // eliminar). Varias reglas que alcanzan a la misma persona se suman. Las reglas
@@ -359,7 +359,7 @@ export function EverestAccesos() {
             <Label color="info">{reglas.length}</Label>
           </Stack>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Quién entra a EXPLORA Designer, qué pestañas ve y qué puede hacer en ellas. Se da a un
+            Quién entra a EXPEDITION Designer, qué pestañas ve y qué puede hacer en ellas. Se da a un
             usuario concreto o a un rol entero; si a una persona la alcanzan varias reglas, se
             suman. El Administrador Global lo puede todo siempre y es el único que ve esta pestaña.
           </Typography>
@@ -460,7 +460,7 @@ export function EverestAccesos() {
         </Box>
       ) : (
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Nadie más que el Administrador Global entra a EXPLORA Designer.
+          Nadie más que el Administrador Global entra a EXPEDITION Designer.
         </Typography>
       )}
 

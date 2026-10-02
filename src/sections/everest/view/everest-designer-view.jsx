@@ -47,7 +47,7 @@ import { EverestCampanasDelBloque } from '../everest-campanas-del-bloque';
 import { EverestVersionesDelBloque } from '../everest-versiones-del-bloque';
 
 // ----------------------------------------------------------------------
-// EXPLORA DESIGNER.
+// EXPEDITION DESIGNER.
 //
 // Donde se cambia la portada sin tocar codigo. Tres zonas: los bloques a la
 // izquierda con su estado, la vista previa en el centro —con los componentes de
@@ -106,8 +106,8 @@ const PESTANAS_CON_ACCESO = [
 
 const ENCABEZADO = (
   <CustomBreadcrumbs
-    heading="EXPLORA Designer"
-    links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'EXPLORA Designer' }]}
+    heading="EXPEDITION Designer"
+    links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'EXPEDITION Designer' }]}
     sx={{ mb: 3 }}
   />
 );
@@ -188,7 +188,7 @@ export function EverestDesignerView() {
       <DashboardContent maxWidth="xl">
         {ENCABEZADO}
         <Alert severity="error">
-          EXPLORA Designer es, por ahora, solo para el Administrador Global.
+          EXPEDITION Designer es, por ahora, solo para el Administrador Global.
         </Alert>
       </DashboardContent>
     );
@@ -349,7 +349,7 @@ export function EverestDesignerView() {
           noWrap
           sx={{ fontWeight: 800, flexShrink: 0, display: { xs: 'none', md: 'block' } }}
         >
-          EXPLORA Designer
+          EXPEDITION Designer
         </Typography>
         {seccion === SECCIONES.portada && (
           <>

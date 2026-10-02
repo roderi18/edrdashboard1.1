@@ -1008,7 +1008,7 @@ export const requiereRevisionDeAdministradorGlobal = (user = {}, ambito = '') =>
 export const puedeEditarDirectivaHistorica = (user = {}) =>
   ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
 
-// EXPLORA DESIGNER: quién entra, a qué pestañas y para qué lo decide el
+// EXPEDITION DESIGNER: quién entra, a qué pestañas y para qué lo decide el
 // Administrador Global en su pestaña "Accesos" (`accesos-designer.mjs`), por
 // usuario o por rol; él lo puede todo siempre. Los roles se cuentan TODOS
 // (`rolesQueEjerce`): la Oficina Nacional es un rol a mano.

@@ -45,7 +45,7 @@ import { AccionesDeInsignia } from './acciones-de-insignia';
 import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 
 // ----------------------------------------------------------------------
-// LAS CINTAS, DENTRO DE EXPLORA DESIGNER.
+// LAS CINTAS, DENTRO DE EXPEDITION DESIGNER.
 //
 // Todas las cintas que existen —las de la carpeta y las añadidas aquí con
 // "Agregar cinta"—, pintadas con la MISMA pieza que el perfil (`ImagenDeCinta`).

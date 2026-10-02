@@ -538,7 +538,7 @@ const actualizarPrecioProductoFirestoreDirecto = async (productId, precio, user 
       },
     ],
     usuario: user,
-    descripcion: `Precio de ${actual?.nombre || productId} cambiado desde EXPLORA Designer.`,
+    descripcion: `Precio de ${actual?.nombre || productId} cambiado desde EXPEDITION Designer.`,
     aplicar: () => setDoc(productRef, cambios, { merge: true }),
   });
 

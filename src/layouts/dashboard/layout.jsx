@@ -446,7 +446,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   // perdia las pestañas para moverse. Los permisos de la pareja los siguen
   // aplicando los guardas de cada pantalla.
   const usuarioDelMenu = (pruebaDeRolesActiva && user?.sesionSinPrueba) || user;
-  // Las reglas de "Accesos" de EXPLORA Designer: la entrada del menu sale o no
+  // Las reglas de "Accesos" de EXPEDITION Designer: la entrada del menu sale o no
   // segun ellas, y se pone al dia en vivo si el Administrador Global las cambia.
   const reglasDelDesigner = useAccesosDesigner();
   const menuDeAdministradorGlobal =
@@ -491,7 +491,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
         ? conTiendaDeAdministracion(navDataFiltrada)
         : navDataFiltrada;
 
-    // EXPLORA DESIGNER, debajo de "Administradores", solo para el Administrador
+    // EXPEDITION DESIGNER, debajo de "Administradores", solo para el Administrador
     // Global de verdad —no la cuenta administrativa antigua—: es la misma
     // comprobacion que hace la pantalla, asi que nadie ve un enlace que le cierra.
     // Los demas lo ven si "Accesos" les da alguna pestaña, y entran por la primera.
