@@ -775,7 +775,17 @@ const SECTION_OR_REGION_LEVEL_ROLES = new Set(
 // CUALQUIER entidad, no solo la propia. Es consulta de estructura, no de personas:
 // el contador de MIEMBROS sigue acotado por `isForeign*ForMembers`.
 export const canBrowseOrgStructureCounts = (user = {}) =>
-  isUnrestrictedOrgViewer(user) || SECTION_OR_REGION_LEVEL_ROLES.has(getOrgRoleId(user));
+  isUnrestrictedOrgViewer(user) ||
+  SECTION_OR_REGION_LEVEL_ROLES.has(getOrgRoleId(user)) ||
+  ejerceCargoNacional(user);
+
+// Consejo Ejecutivo y Nacional: con un cargo nacional (entre TODOS los suyos)
+// no hay region, seccion ni destacamento ajeno para los contadores. La lista de
+// miembros y el contador de destacamentos ya lo daban por hecho
+// (`getMemberAllowedDestIds`, `isForeignDestForMembers`); los de regiones y
+// secciones les quedaban atenuados y sin enlace.
+const ejerceCargoNacional = (user = {}) =>
+  nivelDeSusCargosSobreElDestacamento(user) === ALCANCES.NACIONAL;
 
 // Cargo de nivel seccion o region (sin incluir los nacionales). Se usa para los
 // textos de la ficha del miembro, donde el motivo de la restriccion es distinto
@@ -847,7 +857,7 @@ export const puedeEntrarALaRegion = (user = {}, regionId = null, { ownRegionIds 
 };
 
 export const isForeignRegionForMembers = (user = {}, { regionId, ownRegionIds } = {}) => {
-  if (isUnrestrictedOrgViewer(user)) return false;
+  if (isUnrestrictedOrgViewer(user) || ejerceCargoNacional(user)) return false;
   const own = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
   return !own.has(normalizeId(regionId));
 };
@@ -856,7 +866,7 @@ export const isForeignSectionForMembers = (
   user = {},
   { sectionId, regionId, ownRegionIds, ownSectionIds } = {}
 ) => {
-  if (isUnrestrictedOrgViewer(user)) return false;
+  if (isUnrestrictedOrgViewer(user) || ejerceCargoNacional(user)) return false;
   // Que la region coincida solo abre el contador a quien ve los miembros de la
   // region entera. Un cargo SECCIONAL ve las secciones de su region, pero su
   // gente llega hasta la suya: en las demas el contador lleva a una lista vacia.

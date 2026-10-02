@@ -29,7 +29,7 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
 3. **Ver se suma entre cargos; editar sigue la dominancia.**
 4. **Tres listas, tres alcances**: secciones, destacamentos y miembros se acotan por separado.
 5. **Oficina Nacional es un rol a mano**: no ocupa casilla de directiva.
-6. `/member` es la lista del destacamento propio (salvo Administrador Global); a los de otro destacamento se llega por la pestaña "Miembros" de su ficha.
+6. `/member` es la lista del destacamento propio (salvo Administrador Global y **Consejo Ejecutivo**, que ven a todos con "Solo ver miembros de mi destacamento"); a los de otro destacamento se llega por la pestaña "Miembros" de su ficha. El Consejo Ejecutivo (y todo cargo nacional) pulsa además los contadores de secciones, destacamentos y miembros en todos los niveles, y cambia todos sus datos en `/user/account`. Test: `tests/acceso/consejo-ejecutivo-abre-los-contadores.test.mjs`.
 7. **Director Regional (antes "Coordinador Regional") y Sub-Director Regional proponen en las secciones de su región** (ficha y directiva): el titular propone, el asistente sugiere, y lo aprueba la Oficina Nacional. Los otros seis cargos regionales siguen siendo de consulta, y los destacamentos siguen cerrados para los ocho.
 
 8. **Buzones compartidos del chat** (Tienda Virtual 20001, Oficina Nacional 20002): un poder, no una cuenta. Cada uno es una entrada de `src/utils/chat-buzones.mjs`; lo atienden sus cargos (entre todos los de la persona) y el Administrador Global atiende todos. El servidor comprueba el cargo antes de escribir como el buzón; una persona nunca usa esos números. Test: `tests/chat/chat-buzones-compartidos.test.mjs`.

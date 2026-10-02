@@ -1040,7 +1040,13 @@ export const filtrarMiembrosDentroDelAlcance = (members = [], user, context = {}
  * trabajo es el padron entero.
  */
 export const filterMembersByMemberScope = (members = [], user, context = {}) => {
-  if (isAdminGlobal(user)) {
+  // El Administrador Global y el Consejo Ejecutivo (por cualquiera de sus
+  // cargos) ven a todos los miembros de todas las regiones, secciones y
+  // destacamentos; los dos tienen el boton "Solo ver miembros de mi
+  // destacamento", que sale solo cuando la lista abarca varios. Antes el
+  // Consejo Ejecutivo se quedaba con su destacamento, y el contador de miembros
+  // de una region lo llevaba a una lista sin esa gente.
+  if (isAdminGlobal(user) || ejerceConsejoEjecutivo(user)) {
     return members;
   }
 
@@ -2539,6 +2545,15 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
               title.includes('actividades') ||
               title.includes('flujo') ||
               title.includes('kanban');
+
+            // LA TIENDA DEL MIEMBRO: "Lista de productos", "Mis ordenes" y "Mis
+            // recibos". Se arma aunque "Tienda Virtual" llegue SIN hijos: desde que
+            // es un enlace directo, esta rama (que exigia `children`) no se
+            // cumplia y ningun miembro con cargo —el Consejo Ejecutivo incluido—
+            // veia sus ordenes ni sus recibos en el menu.
+            if (isMemberSessionUser(user) && isCustomerShopParentItem(item)) {
+              return itemAllowed ? buildCustomerShopNavItem(item, user) : null;
+            }
 
             if (item.children) {
               if (isMemberSessionUser(user) && isShopItem) {
