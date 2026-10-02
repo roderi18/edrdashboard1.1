@@ -251,9 +251,20 @@ export function EverestMedallas() {
               </Box>
             </Tooltip>
 
-            <Stack direction="row" alignItems="center" spacing={0.25} sx={{ mt: 0.75 }}>
+            {/* El nombre entero, en varias líneas si hace falta: cortado con "…" no
+                se distinguían cintas de nombre parecido. */}
+            <Stack direction="row" alignItems="flex-start" spacing={0.25} sx={{ mt: 0.75 }}>
               <Label sx={{ flexShrink: 0 }}>{indice + 1}</Label>
-              <Typography variant="caption" noWrap sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 0,
+                  lineHeight: 1.3,
+                  whiteSpace: 'normal',
+                  overflowWrap: 'anywhere',
+                }}
+              >
                 {medalla.nombre}
               </Typography>
               {!flotante && (
