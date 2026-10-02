@@ -6,7 +6,7 @@ import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 
 import { TIPOS_INSIGNIA } from 'src/utils/insignias-personalizadas.mjs';
-import { puedeEliminarInsignias, puedeGestionarInsignias } from 'src/utils/org-level-access';
+import { puedeEditarInsignia, puedeEliminarInsignia } from 'src/utils/org-level-access';
 
 import { eliminarInsignia } from 'src/services/insignias-personalizadas-service';
 
@@ -21,9 +21,9 @@ import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 // ----------------------------------------------------------------------
 // EDITAR Y ELIMINAR UNA CINTA, MEDALLA O PIN (todas, también las de fábrica).
 //
-// El lápiz lo ven el Administrador Global y la Oficina Nacional; la papelera,
-// solo el Administrador Global. Eliminar no borra nada: deja de pintarse en el
-// Designer y en los perfiles (ver `insignias-personalizadas.mjs`).
+// El lápiz y la papelera salen según los permisos de esa pestaña (EXPLORA
+// Designer → Accesos). Eliminar no borra nada: deja de pintarse en el Designer y
+// en los perfiles (ver `insignias-personalizadas.mjs`).
 // ----------------------------------------------------------------------
 
 const NOMBRE = {
@@ -40,7 +40,10 @@ export function AccionesDeInsignia({ tipo, insignia, deshabilitado = false }) {
   const [confirmar, setConfirmar] = useState(false);
   const [eliminando, setEliminando] = useState(false);
 
-  if (!puedeGestionarInsignias(user)) return null;
+  const puedeEditar = puedeEditarInsignia(user, tipo);
+  const puedeEliminar = puedeEliminarInsignia(user, tipo);
+
+  if (!puedeEditar && !puedeEliminar) return null;
 
   const eliminar = async () => {
     setEliminando(true);
@@ -57,17 +60,19 @@ export function AccionesDeInsignia({ tipo, insignia, deshabilitado = false }) {
 
   return (
     <>
-      <IconButton
-        size="small"
-        aria-label={`Editar ${insignia.nombre}`}
-        disabled={deshabilitado}
-        onClick={() => setEditando(true)}
-        sx={BOTON}
-      >
-        <Iconify icon="solar:pen-bold" width={15} />
-      </IconButton>
+      {puedeEditar && (
+        <IconButton
+          size="small"
+          aria-label={`Editar ${insignia.nombre}`}
+          disabled={deshabilitado}
+          onClick={() => setEditando(true)}
+          sx={BOTON}
+        >
+          <Iconify icon="solar:pen-bold" width={15} />
+        </IconButton>
+      )}
 
-      {puedeEliminarInsignias(user) && (
+      {puedeEliminar && (
         <IconButton
           size="small"
           color="error"

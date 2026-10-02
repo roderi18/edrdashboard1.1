@@ -1,6 +1,10 @@
 import { conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
-import { puedeEliminarInsignias, puedeGestionarInsignias } from 'src/utils/org-level-access';
+import {
+  puedeCrearInsignia,
+  puedeEditarInsignia,
+  puedeEliminarInsignia,
+} from 'src/utils/org-level-access';
 import {
   TIPOS_INSIGNIA,
   idDeInsigniaNueva,
@@ -51,9 +55,9 @@ const SECCION = {
 async function crearInsigniaPersonalizadaDirecto({ tipo, archivo, nombre, descripcion, usuario }) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
-  if (!puedeGestionarInsignias(usuario)) {
+  if (!puedeCrearInsignia(usuario, tipo)) {
     throw new Error(
-      'Solo el Administrador Global y la Oficina Nacional añaden cintas, medallas y pines.'
+      'No tienes permiso para agregar aquí (EXPLORA Designer → Accesos).'
     );
   }
 
@@ -134,10 +138,8 @@ const destinoDe = (tipo, insignia) => {
 async function editarInsigniaDirecto({ tipo, insignia, archivo, nombre, descripcion, usuario }) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
-  if (!puedeGestionarInsignias(usuario)) {
-    throw new Error(
-      'Solo el Administrador Global y la Oficina Nacional editan cintas, medallas y pines.'
-    );
+  if (!puedeEditarInsignia(usuario, tipo)) {
+    throw new Error('No tienes permiso para editar aquí (EXPLORA Designer → Accesos).');
   }
 
   const error = validarInsigniaEditada({ nombre, descripcion });
@@ -201,8 +203,8 @@ async function editarInsigniaDirecto({ tipo, insignia, archivo, nombre, descripc
 async function eliminarInsigniaDirecto({ tipo, insignia, usuario }) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
 
-  if (!puedeEliminarInsignias(usuario)) {
-    throw new Error('Solo el Administrador Global elimina cintas, medallas y pines.');
+  if (!puedeEliminarInsignia(usuario, tipo)) {
+    throw new Error('No tienes permiso para eliminar aquí (EXPLORA Designer → Accesos).');
   }
 
   const { idDoc, campos } = destinoDe(tipo, insignia);

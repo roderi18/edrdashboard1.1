@@ -269,7 +269,16 @@ Designer.**
   guarda la misma forma que hoy recibe su componente.
 - **Solo publica el Administrador Global**, por `proponerCambio` (ámbito
   `everest_designer`): se aplica al momento y queda en Historial.
-- **Pestañas:** Portada, Cintas, Medallas, Pines, Paleta y Tarjeta (`?seccion=`). La Paleta vivía
+- **Pestañas:** Portada, Cintas, Medallas, Pines, Paleta y Tarjeta (`?seccion=`).
+- **Accesos y Registro (solo el Administrador Global).** "Accesos" da a un usuario
+  (su cuenta) o a un rol las pestañas que ve y qué hace en ellas (crear, editar,
+  eliminar); se suman. Se guarda en `configuracion_designer/accesos` con un índice
+  plano que leen `firestore.rules` y `storage.rules` (`src/utils/accesos-designer.mjs`).
+  Pregunta siempre con `puedeEnDesigner`, nunca con `isAdminGlobal`. Ordenar y dar
+  accesos siguen siendo del Administrador Global. "Registro" lista lo guardado,
+  editado y eliminado (qué, fecha, hora, quién) desde Historial: **toda escritura del
+  Designer pasa por `proponerCambio` con `AMBITOS_CAMBIO.everestDesigner`**, o no sale.
+  Test: `tests/everest/accesos-y-registro-del-designer.test.mjs`. La Paleta vivía
   en Administración; `/dashboard/admin/paleta` solo redirige aquí.
 - **Pantalla:** `/dashboard/explora-designer` (la vieja `/dashboard/everest` redirige), entrada del menú lateral debajo de
   "Administradores" (no es una pestaña de Administración), solo para el

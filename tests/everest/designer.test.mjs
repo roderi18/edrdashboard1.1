@@ -226,9 +226,11 @@ test('el menu se la enseña al Administrador Global y, solo con las insignias, a
     layout,
     /if \(isAdminGlobal\(usuarioDelMenu\)\) return conEverestDesigner\(conTienda\);/
   );
+  // Los demás, si "Accesos" les da alguna pestaña, entrando por la primera.
+  assert.match(layout, /const \[primera\] = accesoDesignerDe\(usuarioDelMenu\)\.pestanas;/);
   assert.match(
     layout,
-    /puedeGestionarInsignias\(usuarioDelMenu\)\s*\? conEverestDesigner\(conTienda, entradaEverestDesignerInsignias\)/
+    /primera \? conEverestDesigner\(conTienda, entradaEverestDesignerEn\(primera\)\) : conTienda/
   );
   assert.match(layout, /filterDashboardNavDataByUser\([\s\S]*?conEverestDesigner\(/);
 });
@@ -236,9 +238,21 @@ test('el menu se la enseña al Administrador Global y, solo con las insignias, a
 test('escribir la direccion a mano tampoco abre el Designer a otro cargo', () => {
   const vista = leer('src/sections/everest/view/everest-designer-view.jsx');
 
-  assert.match(vista, /if \(!esAdministradorGlobal && !soloInsignias\) \{/);
-  // A la Oficina Nacional, solo Cintas, Medallas y Pines.
-  assert.match(vista, /\? \[SECCIONES\.cintas, SECCIONES\.medallas, SECCIONES\.pines\]/);
+  assert.match(vista, /if \(!conAcceso\) \{/);
+  // Los demás, solo las pestañas que les dé "Accesos"; "Accesos" y "Registro",
+  // solo el Administrador Global.
+  assert.match(
+    vista,
+    /: PESTANAS_CON_ACCESO\.filter\(\(id\) => acceso\.pestanas\.includes\(id\)\)/
+  );
+  assert.match(
+    vista,
+    /seccion === SECCIONES\.accesos && esAdministradorGlobal && <EverestAccesos \/>/
+  );
+  assert.match(
+    vista,
+    /seccion === SECCIONES\.registro && esAdministradorGlobal && <EverestRegistro \/>/
+  );
   assert.match(
     leer('src/sections/everest/view/everest-vista-previa-view.jsx'),
     /if \(!puedeVer\) return null;/

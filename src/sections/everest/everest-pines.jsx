@@ -10,8 +10,8 @@ import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
-import { puedeOrdenarInsignias } from 'src/utils/org-level-access';
 import { TIPOS_INSIGNIA } from 'src/utils/insignias-personalizadas.mjs';
+import { puedeCrearInsignia, puedeOrdenarInsignias } from 'src/utils/org-level-access';
 import {
   moverPinEnOrden,
   normalizarOrdenDePines,
@@ -46,6 +46,8 @@ export function EverestPines() {
   // Ordenar (arrastrar, flechas, guardar el orden) es solo del Administrador
   // Global; la Oficina Nacional agrega y edita.
   const puedeOrdenar = puedeOrdenarInsignias(user);
+  // "Agregar" solo con permiso de crear en esta pestaña (Designer → Accesos).
+  const puedeCrear = puedeCrearInsignia(user, TIPOS_INSIGNIA.PIN);
   const catalogo = useCatalogoDePines();
   const ordenGuardado = useOrdenDePines();
   // `null`: sin tocar, se sigue lo guardado (y lo que llegue en vivo).
@@ -107,7 +109,7 @@ export function EverestPines() {
           startIcon={<Iconify icon="mingcute:add-line" />}
           disabled={guardando}
           onClick={() => setAgregando(true)}
-          sx={{ mr: 'auto' }}
+          sx={{ mr: 'auto', visibility: puedeCrear ? 'visible' : 'hidden' }}
         >
           Agregar pin
         </Button>

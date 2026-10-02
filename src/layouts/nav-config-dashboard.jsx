@@ -286,12 +286,15 @@ export const entradaEverestDesigner = {
   icon: ICONS.designer,
 };
 
-// La Oficina Nacional entra solo a Cintas, Medallas y Pines (ver
-// `puedeGestionarInsignias`): su entrada abre directamente las cintas.
-export const entradaEverestDesignerInsignias = {
+// Quien no es Administrador Global entra solo a las pestañas que le dé
+// "Accesos" (`accesos-designer.mjs`): su entrada abre la primera.
+export const entradaEverestDesignerEn = (pestana) => ({
   ...entradaEverestDesigner,
-  path: `${paths.dashboard.everest}?seccion=cintas`,
-};
+  path:
+    pestana === 'portada'
+      ? paths.dashboard.everest
+      : `${paths.dashboard.everest}?seccion=${pestana}`,
+});
 
 export const conEverestDesigner = (secciones = [], entrada = entradaEverestDesigner) => {
   let puesta = false;

@@ -2,8 +2,8 @@ import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
-import { isAdminGlobal } from 'src/utils/org-level-access';
 import { campanasDe } from 'src/utils/everest/campanas.mjs';
+import { puedeEnDesigner } from 'src/utils/org-level-access';
 import { PANTALLAS_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 import { publicacionDeVersion } from 'src/utils/everest/versiones.mjs';
 import { bloquePorId, BLOQUES_DEL_DESIGNER } from 'src/utils/everest/bloques.mjs';
@@ -123,7 +123,7 @@ export function useEverestDesigner() {
       // Administrador Global y el servicio lanzaba "Solo el Administrador Global
       // publica..." como error de consola. Sin el cargo no hay versiones que pedir;
       // cuando llegue, `user` cambia y se vuelven a pedir.
-      if (!isAdminGlobal(user)) {
+      if (!puedeEnDesigner(user, 'portada', 'editar')) {
         setVersiones({ idBloque, lista: [], cargando: false, error: null });
         return;
       }

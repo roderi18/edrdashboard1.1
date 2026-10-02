@@ -96,19 +96,20 @@ test('las cintas de fábrica toman su ajuste y la eliminada no se encuentra', ()
   assert.ok(obtenerCintaPerfil(segunda.id));
 });
 
-test('Oficina Nacional agrega y edita; eliminar y ordenar, solo el Administrador Global', () => {
+// Quién agrega, edita y elimina lo decide "Accesos" (`accesos-designer.mjs`);
+// cambiar el orden global sigue siendo solo del Administrador Global.
+test('crear, editar y eliminar insignias siguen a "Accesos"; ordenar, solo el Administrador Global', () => {
   const acceso = leer('src/utils/org-level-access.js');
   const reglas = leer('firestore.rules');
   const acciones = leer('src/sections/everest/acciones-de-insignia.jsx');
-  const designer = leer('src/sections/everest/view/everest-designer-view.jsx');
 
   assert.match(
     acceso,
-    /puedeGestionarInsignias = \(user = \{\}\) => puedeEditarDirectivaHistorica\(user\)/
+    /puedeCrearInsignia = \(user, tipo\) =>\s*puedeEnDesigner\(user, PESTANA_DE_INSIGNIA\[tipo\], 'crear'\)/
   );
   assert.match(
     acceso,
-    /puedeEliminarInsignias = \(user = \{\}\) => ejerceAdministradorGlobal\(user\)/
+    /puedeEliminarInsignia = \(user, tipo\) =>\s*puedeEnDesigner\(user, PESTANA_DE_INSIGNIA\[tipo\], 'eliminar'\)/
   );
   assert.match(
     acceso,
@@ -116,8 +117,7 @@ test('Oficina Nacional agrega y edita; eliminar y ordenar, solo el Administrador
   );
   assert.match(
     reglas,
-    /esOficinaNacional\(\)\s*&& request\.resource\.data\.get\('activo', true\) != false/
+    /permisoDesigner\(pestanaDeInsignia\(request\.resource\.data\.tipo\), accionSobreInsignia\(\)\)/
   );
-  assert.match(acciones, /puedeEliminarInsignias\(user\) &&/);
-  assert.match(designer, /\[SECCIONES\.cintas, SECCIONES\.medallas, SECCIONES\.pines\]/);
+  assert.match(acciones, /\{puedeEliminar && \(/);
 });

@@ -18,7 +18,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { isAdminGlobal } from 'src/utils/org-level-access';
+import { puedeEnDesigner } from 'src/utils/org-level-access';
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
 import { recortarBordesTransparentes } from 'src/utils/recortar-bordes-transparentes';
 import {
@@ -57,7 +57,8 @@ import { useAuthContext } from 'src/auth/hooks';
 
 export function EverestTarjeta() {
   const { user } = useAuthContext();
-  const esAdmin = isAdminGlobal(user);
+  // Quien puede editar la Tarjeta (el Administrador Global, o a quien se la dé "Accesos").
+  const esAdmin = puedeEnDesigner(user, 'tarjeta', 'editar');
 
   const [tarjeta, setTarjeta] = useState(() => ({ ...TARJETA_DE_FABRICA }));
   const [guardando, setGuardando] = useState(false);

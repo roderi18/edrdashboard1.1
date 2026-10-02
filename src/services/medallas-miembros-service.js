@@ -65,7 +65,8 @@ async function guardarOrdenDeMedallasDirecto({ orden = [], anterior = [], usuari
   if (antes === despues) return orden;
 
   await proponerCambio({
-    ambito: AMBITOS_CAMBIO.cintasMiembro,
+    // Es de EXPLORA Designer: sale en su pestaña "Registro".
+    ambito: AMBITOS_CAMBIO.everestDesigner,
     entidad: {
       tipo: 'configuracion_cintas',
       id: 'orden-medallas',
