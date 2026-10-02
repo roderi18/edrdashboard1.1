@@ -59,6 +59,17 @@ consejo. Lo que colgaba de un contenedor quitado sube a su sitio.
 
 Las directivas de un cuatrienio pasado no muestran casillas añadidas.
 
+## Quitar del organigrama (también las de fábrica)
+
+En el panel del lápiz, con una casilla o un contenedor marcado, **Quitar del organigrama**
+lo quita de todos los organigramas del nivel. Una añadida se marca inactiva, como siempre.
+Una de fábrica vive en el código: se guarda en `casillas_directiva_personalizadas` una ficha
+`tipo: 'oculta'` cuyo `idNodoPadre` es el nodo que deja de dibujarse. `arbolesConCasillas`
+no lo pinta y sube a su sitio lo que colgaba de él. La raíz no se quita, y una casilla
+ocupada tampoco: en la entidad abierta lo comprueba el panel y en las demás del nivel, el
+servicio (en el destacamento, solo la entidad abierta). **Devolver**, en el mismo panel,
+marca la ficha inactiva. La ficha oculta no entra en el catálogo de posiciones.
+
 ## Pendiente
 
 - El PDF de la directiva del destacamento y la vista de Líderes Juveniles no dibujan

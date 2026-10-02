@@ -1173,7 +1173,7 @@ service cloud.firestore {
       allow create, update: if esAdministradorGlobal()
         && request.resource.data.id == idCasilla
         && request.resource.data.nivel in ['nacional', 'regional', 'seccional', 'destacamento']
-        && request.resource.data.tipo in ['casilla', 'contenedor']
+        && request.resource.data.tipo in ['casilla', 'contenedor', 'oculta']
         && request.resource.data.nombre is string
         && request.resource.data.nombre.size() >= 2
         && request.resource.data.nombre.size() <= 60;

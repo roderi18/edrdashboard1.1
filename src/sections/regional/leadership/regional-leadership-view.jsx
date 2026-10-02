@@ -29,6 +29,7 @@ import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-d
 
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigrama';
+import { QuitarCasillaDelNivel } from 'src/sections/common/quitar-casilla-del-nivel';
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { CasillasDirectivaBoton } from 'src/sections/common/casillas-directiva-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
@@ -777,6 +778,19 @@ export function RegionalLeadershipView({
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
             mostrarMargenHorizontal
+            accionesDelNodo={
+              historico
+                ? null
+                : (nodo) => (
+                    <QuitarCasillaDelNivel
+                      nivel="regional"
+                      nodo={nodo}
+                      arboles={[diagrama]}
+                      todas={casillasAnadidas.todas}
+                      onCambio={casillasAnadidas.recargar}
+                    />
+                  )
+            }
             accionesExtra={
               historico ? null : (
                 <CasillasDirectivaBoton

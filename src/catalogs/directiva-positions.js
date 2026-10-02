@@ -2,9 +2,9 @@
 // el resolvedor de ESM no la deduce.
 import { tieneCasillaEnOrganigrama } from './directiva-diagrams.js';
 import {
-  casillasValidas,
   posicionDeCasilla,
   cargoDeCasillaDest,
+  casillasDelCatalogo,
 } from '../utils/casillas-personalizadas.mjs';
 
 export const DIRECTIVA_LEVELS = {
@@ -896,7 +896,7 @@ let firmaCasillas = '';
 export const versionDeCasillasPersonalizadas = () => versionCasillas;
 
 export const registrarCasillasPersonalizadas = (lista = []) => {
-  const nuevas = casillasValidas(lista).map(posicionDeCasilla);
+  const nuevas = casillasDelCatalogo(lista).map(posicionDeCasilla);
   // Se registra en cada lectura; solo cambia algo (y la versión) si la lista
   // es otra. Si no, la caché de cargos se vaciaría a cada paso.
   const firma = JSON.stringify(nuevas);

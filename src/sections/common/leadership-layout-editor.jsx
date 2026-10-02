@@ -1495,6 +1495,9 @@ export function LeadershipLayoutEditor({
   // Botones que van encima del lápiz (p. ej. "Agregar casilla"): los mismos
   // que ve quien diseña, en la misma esquina.
   accionesExtra = null,
+  // Lo que se puede hacer con la casilla marcada, dentro del panel (p. ej.
+  // "Quitar del organigrama"). Recibe la casilla marcada, o null.
+  accionesDelNodo = null,
 }) {
   const selectedOffset = editor.selectedNode
     ? (editor.nodeOffsets[editor.selectedNode.id] ?? EMPTY_OFFSET)
@@ -1976,6 +1979,8 @@ export function LeadershipLayoutEditor({
                 Selecciona y arrastra un nodo para ver su movimiento.
               </Typography>
             )}
+
+            {accionesDelNodo?.(editor.selectedNode ?? null)}
 
             {onSaveLayout && (
               <Button

@@ -18,6 +18,13 @@
 // inactiva (no se borra): así un nombre ya asignado sigue traduciéndose en el
 // historial en vez de quedar como un id suelto.
 //
+// QUITAR CUALQUIER CASILLA DEL ORGANIGRAMA, TAMBIÉN LAS DE FÁBRICA. Desde el
+// lápiz ("Quitar del organigrama") el Administrador Global quita una casilla o
+// un contenedor de TODOS los organigramas del nivel. Las de fábrica viven en el
+// código, así que no se borran: se guarda una ficha de tipo `oculta` cuyo
+// `idNodoPadre` es el nodo que deja de dibujarse (lo que colgaba de él sube a
+// su sitio). "Devolver" la marca inactiva y el nodo vuelve.
+//
 // Relativo y con extensión: lo importan también las pruebas de `node --test`.
 // ----------------------------------------------------------------------
 
@@ -28,7 +35,11 @@ export const NIVELES_CON_CASILLAS = ['nacional', 'regional', 'seccional', 'desta
 export const TIPOS_CASILLA = Object.freeze({
   casilla: 'casilla',
   contenedor: 'contenedor',
+  // No se dibuja: dice qué nodo de fábrica se quitó del nivel (ver arriba).
+  oculta: 'oculta',
 });
+
+export const esNodoOculto = (casilla) => casilla?.tipo === TIPOS_CASILLA.oculta;
 
 export const LARGO_NOMBRE_CASILLA = Object.freeze({ minimo: 2, maximo: 60 });
 
@@ -75,6 +86,8 @@ export const sanearCasilla = (valor = {}) => {
   if (!ES_ID_NODO.test(idNodoPadre)) return null;
   // La división solo existe en el destacamento (Líder de Grupo de Exploradores…).
   if (division && (nivel !== 'destacamento' || !DIVISIONES.includes(division))) return null;
+  // Una oculta solo quita nodos de fábrica: una añadida se quita a sí misma.
+  if (tipo === TIPOS_CASILLA.oculta && idNodoPadre.startsWith('casilla-')) return null;
 
   return {
     id,
@@ -97,7 +110,57 @@ export const casillasValidas = (lista = []) =>
 
 /** Las que se dibujan y se ofrecen: las válidas que no se han quitado. */
 export const casillasVigentes = (lista = []) =>
-  casillasValidas(lista).filter((casilla) => casilla.activo);
+  casillasValidas(lista).filter((casilla) => casilla.activo && !esNodoOculto(casilla));
+
+/** Las que van al catálogo de posiciones: todas menos las fichas de nodos quitados. */
+export const casillasDelCatalogo = (lista = []) =>
+  casillasValidas(lista).filter((casilla) => !esNodoOculto(casilla));
+
+/** Los nodos de fábrica quitados hoy del nivel, con su ficha (para "Devolver"). */
+export const nodosOcultosDelNivel = (lista = [], nivel) =>
+  casillasValidas(lista).filter(
+    (casilla) => esNodoOculto(casilla) && casilla.activo && casilla.nivel === nivel
+  );
+
+const claveDeNombre = (valor) =>
+  texto(valor)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
+/**
+ * ¿Ya hay en el nivel un cargo QUE SE VE con ese nombre? Solo cuentan los que
+ * tienen casilla en el organigrama: el catálogo trae cargos de fábrica sin
+ * dibujar ("Tesorero Ejecutivo" de la Nacional) y con ellos no se podía crear
+ * una casilla que nadie veía repetida. Tampoco cuentan los quitados del nivel
+ * ni la propia casilla al renombrarla.
+ *
+ * `tieneCasilla(nivel, idNodo)` dice si un cargo de fábrica se dibuja.
+ */
+export const nombreDeCargoEnUso = ({
+  posiciones = [],
+  lista = [],
+  nivel,
+  nombre,
+  division = null,
+  idCasillaPropia = null,
+  tieneCasilla = () => true,
+} = {}) => {
+  const ocultos = new Set(nodosOcultosDelNivel(lista, nivel).map((ficha) => ficha.idNodoPadre));
+  const clave = claveDeNombre(nombre);
+
+  return posiciones.some(
+    (posicion) =>
+      posicion.nivel === nivel &&
+      posicion.activo !== false &&
+      (posicion.division ?? null) === (division ?? null) &&
+      (!idCasillaPropia || posicion.idCasilla !== idCasillaPropia) &&
+      (posicion.personalizada ||
+        (tieneCasilla(nivel, posicion.idNodoDiagrama) && !ocultos.has(posicion.idNodoDiagrama))) &&
+      claveDeNombre(posicion.nombreCargo) === clave
+  );
+};
 
 /** Id del nodo del árbol (y del diseño guardado) de una casilla añadida. */
 export const idNodoDeCasilla = (casilla) => `casilla-${casilla.id}`;
@@ -191,16 +254,25 @@ const nodoDeCasilla = (casilla, hijos, { nivel }) => {
 export const arbolesConCasillas = (arboles = [], nivel, casillas = []) => {
   const lista = casillasVigentes(casillas).filter((casilla) => casilla.nivel === nivel);
   const bases = (Array.isArray(arboles) ? arboles : [arboles]).filter(Boolean);
+  const ocultos = new Set(
+    nodosOcultosDelNivel(casillas, nivel).map((casilla) => casilla.idNodoPadre)
+  );
 
-  if (!lista.length || !bases.length) return bases;
+  if ((!lista.length && !ocultos.size) || !bases.length) return bases;
 
   const idsDeFabrica = new Set();
-  const recoger = (nodo) => {
+  // De quién cuelga cada nodo de fábrica: una casilla añadida bajo un nodo
+  // quitado sube al padre de este.
+  const padreDeFabrica = new Map();
+  const recoger = (nodo, padre = null) => {
     if (!nodo?.id) return;
     idsDeFabrica.add(nodo.id);
-    (nodo.children || []).forEach(recoger);
+    if (padre) padreDeFabrica.set(nodo.id, padre);
+    (nodo.children || []).forEach((hijo) => recoger(hijo, nodo.id));
   };
-  bases.forEach(recoger);
+  bases.forEach((base) => recoger(base));
+  // La raíz de un árbol no se quita: se quedaría sin dibujo.
+  bases.forEach((base) => ocultos.delete(base.id));
 
   const idsAnadidos = new Set(lista.map(idNodoDeCasilla));
   const hijosPorPadre = new Map();
@@ -215,9 +287,11 @@ export const arbolesConCasillas = (arboles = [], nivel, casillas = []) => {
     let actual = idNodoPadre;
     const vistos = new Set();
 
-    while (quitadasPorNodo.has(actual) && !vistos.has(actual)) {
+    while ((quitadasPorNodo.has(actual) || ocultos.has(actual)) && !vistos.has(actual)) {
       vistos.add(actual);
-      actual = quitadasPorNodo.get(actual).idNodoPadre;
+      actual = quitadasPorNodo.has(actual)
+        ? quitadasPorNodo.get(actual).idNodoPadre
+        : padreDeFabrica.get(actual);
     }
 
     return actual;
@@ -246,11 +320,17 @@ export const arbolesConCasillas = (arboles = [], nivel, casillas = []) => {
     return nodoDeCasilla(casilla, hijos, { nivel });
   };
 
+  // Un nodo quitado no se dibuja, pero sus hijos sí: ocupan su sitio.
+  const clonarHijos = (hijos) =>
+    (Array.isArray(hijos) ? hijos : []).flatMap((hijo) =>
+      ocultos.has(hijo.id) ? clonarHijos(hijo.children) : [clonar(hijo)]
+    );
+
   const clonar = (nodo) => {
     const anadidas = (hijosPorPadre.get(nodo.id) || [])
       .map((casilla) => construir(casilla, new Set()))
       .filter(Boolean);
-    const propios = Array.isArray(nodo.children) ? nodo.children.map(clonar) : [];
+    const propios = clonarHijos(nodo.children);
 
     if (!anadidas.length && !Array.isArray(nodo.children)) return { ...nodo };
 
