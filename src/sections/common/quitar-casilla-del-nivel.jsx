@@ -4,14 +4,21 @@ import { useState } from 'react';
 
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
-import { nodosOcultosDelNivel } from 'src/utils/casillas-personalizadas.mjs';
+import {
+  LARGO_NOMBRE_CASILLA,
+  limpiarNombreCasilla,
+  nodosOcultosDelNivel,
+} from 'src/utils/casillas-personalizadas.mjs';
 
 import {
   ocultarNodoDeDirectiva,
   devolverNodoDeDirectiva,
   quitarCasillaPersonalizada,
+  renombrarCasillaPersonalizada,
+  renombrarContenedorDeDirectiva,
 } from 'src/services/directivas-organizacionales-service';
 
 import { toast } from 'src/components/snackbar';
@@ -28,6 +35,9 @@ import { useAuthContext } from 'src/auth/hooks';
 // añade a todos. Lo que colgaba de él sube a su sitio. Una añadida se quita
 // como siempre; una de fábrica deja una ficha `oculta` que "Devolver" deshace
 // (ver `casillas-personalizadas.mjs`). Ocupada no se quita.
+//
+// Con un CONTENEDOR marcado también se le cambia el nombre, en todo el nivel:
+// el añadido como siempre, el de fábrica con una ficha `nombre`.
 // ----------------------------------------------------------------------
 
 const PREFIJO_ANADIDA = 'casilla-';
@@ -59,6 +69,8 @@ export function QuitarCasillaDelNivel({ nivel, nodo, arboles, todas = [], onCamb
   const { user } = useAuthContext();
   const [confirmar, setConfirmar] = useState(false);
   const [trabajando, setTrabajando] = useState(false);
+  // null = sin editar; texto = el nombre que se está escribiendo.
+  const [nombreNuevo, setNombreNuevo] = useState(null);
   const ocultos = nodosOcultosDelNivel(todas, nivel);
 
   const enArbol = nodo ? buscarNodo(arboles, nodo.id) : null;
@@ -96,6 +108,43 @@ export function QuitarCasillaDelNivel({ nivel, nodo, arboles, todas = [], onCamb
     }
   };
 
+  const nombreLimpio = limpiarNombreCasilla(nombreNuevo ?? '');
+  const nombreValido =
+    nombreLimpio.length >= LARGO_NOMBRE_CASILLA.minimo &&
+    nombreLimpio.length <= LARGO_NOMBRE_CASILLA.maximo &&
+    nombreLimpio !== nombre;
+
+  const renombrar = async () => {
+    if (!nombreValido) return;
+
+    setTrabajando(true);
+    try {
+      if (nodo.id.startsWith(PREFIJO_ANADIDA)) {
+        await renombrarCasillaPersonalizada({
+          id: nodo.id.slice(PREFIJO_ANADIDA.length),
+          nombre: nombreLimpio,
+          usuario: user,
+        });
+      } else {
+        await renombrarContenedorDeDirectiva({
+          nivel,
+          idNodo: nodo.id,
+          nombre: nombreLimpio,
+          usuario: user,
+        });
+      }
+      toast.success(
+        `Ahora se llama "${nombreLimpio}" en ${NOMBRE_DEL_NIVEL[nivel] || 'este nivel'}.`
+      );
+      setNombreNuevo(null);
+      onCambio?.();
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo cambiar el nombre.');
+    } finally {
+      setTrabajando(false);
+    }
+  };
+
   const devolver = async (ficha) => {
     try {
       await devolverNodoDeDirectiva({ id: ficha.id, usuario: user });
@@ -108,6 +157,44 @@ export function QuitarCasillaDelNivel({ nivel, nodo, arboles, todas = [], onCamb
 
   return (
     <Stack spacing={0.75}>
+      {enArbol && esContenedor && nombreNuevo === null && (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => setNombreNuevo(nombre || '')}
+          startIcon={<Iconify width={16} icon="solar:pen-bold" />}
+        >
+          Cambiar nombre
+        </Button>
+      )}
+
+      {enArbol && esContenedor && nombreNuevo !== null && (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <TextField
+            size="small"
+            autoFocus
+            label="Nombre del contenedor"
+            value={nombreNuevo}
+            onChange={(event) => setNombreNuevo(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') renombrar();
+              if (event.key === 'Escape') setNombreNuevo(null);
+            }}
+            slotProps={{ htmlInput: { maxLength: LARGO_NOMBRE_CASILLA.maximo } }}
+            sx={{ flexGrow: 1 }}
+          />
+          <Button
+            size="small"
+            variant="contained"
+            disabled={!nombreValido}
+            loading={trabajando}
+            onClick={renombrar}
+          >
+            Guardar
+          </Button>
+        </Stack>
+      )}
+
       {enArbol && (
         <>
           <Button

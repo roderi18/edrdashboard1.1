@@ -9,6 +9,10 @@ import ListSubheader from '@mui/material/ListSubheader';
 
 import { esOficialEspecial } from 'src/utils/cargos-compatibles.mjs';
 import {
+  OPCION_EX_DIRECTOR_NACIONAL,
+  NOMBRE_EX_DIRECTOR_NACIONAL,
+} from 'src/utils/directiva-cuatrienios.mjs';
+import {
   valorEnElDesplegable,
   unaSolaOpcionDeOficial,
   OPCION_OFICIAL_ESPECIAL,
@@ -90,6 +94,10 @@ export default function CargoSelectApi({
   // "Cargo Nacional": las veinte casillas de Oficial Especial como UNA opción.
   // La casilla concreta la decide quien guarda (`oficial-especial-una-opcion.mjs`).
   unaOpcionDeOficial = false,
+  // "Ex Director Nacional" al final del Consejo Nacional: 'elegible' (quien
+  // edita la Directiva por cuatrienio), 'mostrar' (sale si la persona lo es,
+  // sin poder elegirlo) o null.
+  exDirector = null,
 }) {
   const { setValue, watch } = useFormContext();
 
@@ -150,8 +158,25 @@ export default function CargoSelectApi({
         : NIVEL_LABELS[cargo.nivel] || cargo.nivel || 'Otros',
     }));
 
+    // Va detrás del último del Consejo Nacional: los grupos tienen que ir seguidos.
+    if (exDirector) {
+      const opcion = {
+        value: OPCION_EX_DIRECTOR_NACIONAL,
+        label: NOMBRE_EX_DIRECTOR_NACIONAL,
+        nivel: NIVELES_DIRECTIVA.nacional,
+        groupLabel: NIVEL_LABELS[NIVELES_DIRECTIVA.nacional],
+        soloMostrar: exDirector !== 'elegible',
+      };
+      const ultimoNacional = cargoOptions.reduce(
+        (indice, cargo, posicion) => (cargo.nivel === NIVELES_DIRECTIVA.nacional ? posicion : indice),
+        -1
+      );
+
+      cargoOptions.splice(ultimoNacional + 1, 0, opcion);
+    }
+
     return includeNone ? [{ ...NONE_OPTION, label: noneLabel }, ...cargoOptions] : cargoOptions;
-  }, [cargos, includeNone, groupByDivision, noneLabel, etiquetas]);
+  }, [cargos, includeNone, groupByDivision, noneLabel, etiquetas, exDirector]);
 
   const currentValue = watch(name);
   // Con una sola opción de Oficial, la casilla guardada (`nacional-oficial-especial-7`)
@@ -206,6 +231,9 @@ export default function CargoSelectApi({
         }
       }}
       groupBy={hasCollapsibleGroups ? getGroupLabel : undefined}
+      getOptionDisabled={(option) =>
+        Boolean(option?.soloMostrar) && String(option.value) !== valorMostrado
+      }
       getOptionLabel={(option) => (typeof option === 'string' ? option : option?.label || '')}
       isOptionEqualToValue={(option, selectedOption) =>
         String(option.value) === String(selectedOption?.value)

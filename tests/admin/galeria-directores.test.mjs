@@ -1,6 +1,7 @@
-// La Galería de Directores Nacionales se pide ordenada del año más reciente al
-// más antiguo (los menores debajo). Ordenar por el texto ponía "1998" delante
-// de "2008-2010", y una placa con {nombre} salía con las llaves a la vista.
+// La Galería de Directores Nacionales se pide ordenada del año más ANTIGUO al
+// más reciente (los primeros directores arriba; antes era al revés). Ordenar por
+// el texto ponía "1998" detrás de "2008-2010", y una placa con {nombre} salía con
+// las llaves a la vista.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,14 +16,15 @@ import {
   directorDesdeDocumento,
 } from '../../src/utils/galeria-directores.mjs';
 
-test('de mayor a menor por el año de inicio; los menores quedan debajo', () => {
+test('de menor a mayor por el año de inicio; los más antiguos arriba y sin año al final', () => {
   const orden = ordenarGaleria([
     { nombre: 'A', anio: '1998-2002' },
     { nombre: 'B', anio: '2008-2010' },
     { nombre: 'C', anio: '2022' },
     { nombre: 'D', anio: '2008-2012' },
+    { nombre: 'E', anio: 'sin año' },
   ]).map((d) => d.nombre);
-  assert.deepEqual(orden, ['C', 'D', 'B', 'A']);
+  assert.deepEqual(orden, ['A', 'B', 'D', 'C', 'E']);
 });
 
 test('el año que ordena es el primero de cuatro cifras', () => {
@@ -49,6 +51,7 @@ test('sin foto https o sin nombre no se pinta', () => {
       fotoUrl: 'https://x',
       placaArriba: '',
       placaAbajo: '',
+      idMiembros: '',
     }
   );
 });
@@ -75,7 +78,7 @@ test('dos periodos: se leen los dos y manda el más reciente', () => {
     { nombre: 'Dany', anio: '2010-2014 / 2018-2022' },
     { nombre: 'Tres', anio: '2022-2026' },
   ]).map((d) => d.nombre);
-  assert.deepEqual(orden, ['Tres', 'Dany', 'Uno']);
+  assert.deepEqual(orden, ['Uno', 'Dany', 'Tres']);
 });
 
 test('el texto largo de dos periodos no se corta', () => {

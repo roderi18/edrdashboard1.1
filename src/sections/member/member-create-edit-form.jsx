@@ -28,6 +28,7 @@ import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 // third-party
 import { esOficialEspecial } from 'src/utils/cargos-compatibles.mjs';
 import { normalizeMemberUsername } from 'src/utils/member-auth-credentials';
+import { OPCION_EX_DIRECTOR_NACIONAL } from 'src/utils/directiva-cuatrienios.mjs';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import { buildOrgIndex, getMemberOrgPath } from 'src/utils/leadership-member-options';
 import { nombreDeMiembro, buscarMiembroConCorreo } from 'src/utils/member-correo-duplicado';
@@ -79,10 +80,15 @@ import { getSectionals } from 'src/services/sectional-service';
 import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
 import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
+import { ID_CUATRIENIO_LISTADO } from 'src/catalogs/directiva-2022-2026.mjs';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { createFirebaseAuthForMember } from 'src/services/member-auth-provisioning-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
+import {
+  obtenerPermanentes,
+  marcarExDirectorNacional,
+} from 'src/services/directiva-cuatrienios-service';
 import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   getMembers,
@@ -943,9 +949,10 @@ export function MemberCreateEditForm({
       }
 
       try {
-        const [cargosDirectiva, asignacionesDirectiva] = await Promise.all([
+        const [cargosDirectiva, asignacionesDirectiva, permanentes] = await Promise.all([
           obtenerCargosDirectivaCached({ incluirNoAsignables: false }),
           obtenerAsignacionesDirectivaPorMiembro({ idMiembro: memberId }),
+          obtenerPermanentes().catch(() => []),
         ]);
 
         if (!isMounted) {
@@ -978,6 +985,11 @@ export function MemberCreateEditForm({
           cargosDeConsejo.find((cargo) => !esOficialEspecial(cargo.idPosicionDirectiva || cargo.id)) ||
           cargosDeConsejo[0];
         const destCargo = posiciones.find((cargo) => cargo.nivel === 'destacamento');
+        // Un ex director sin cargo de consejo hoy enseña "Ex Director Nacional"
+        // (antes "Ninguno"). Con un cargo, manda el cargo, como en la lista.
+        const esExDirector = permanentes.some(
+          (fila) => String(fila.idMiembros) === String(memberId) && fila.exComandante
+        );
 
         // El aviso de ficha incompleta es SOLO para el pastor: es la unica persona
         // que el sistema da de alta por su cuenta, con el nombre como unico dato.
@@ -1006,9 +1018,12 @@ export function MemberCreateEditForm({
                   nationalCargo.idPosicionDirectiva || nationalCargo.id || nationalCargo.idCargo,
               }
             : null,
+          esExDirector,
           nationalLeadershipRole: nationalCargo
             ? nationalCargo.idPosicionDirectiva || nationalCargo.id || nationalCargo.idCargo
-            : '',
+            : esExDirector
+              ? OPCION_EX_DIRECTOR_NACIONAL
+              : '',
           memberPosition: destCargo
             ? destCargo.idPosicionDirectiva || destCargo.id || destCargo.idCargo
             : '',
@@ -1545,6 +1560,22 @@ export function MemberCreateEditForm({
       ? dayjs().diff(dayjs(formData.birthdate), 'year')
       : null;
     const esMenorDeEdad = edadAlGuardar !== null && edadAlGuardar < EDAD_MAYORIA;
+
+    // "Ex Director Nacional" no es una casilla: deja la persona sin cargo de
+    // consejo (lo de abajo, con un valor que no es cargo, lo retira) y, si aún
+    // no lo era, la suma al grupo de ex directores. Elegir otro cargo después
+    // no le quita la condición: eso se hace en la memoria del cuatrienio.
+    if (
+      !esMenorDeEdad &&
+      formData.nationalLeadershipRole === OPCION_EX_DIRECTOR_NACIONAL &&
+      !cargosDeDirectivaRef.current?.esExDirector
+    ) {
+      await marcarExDirectorNacional({
+        miembro: { ...currentMember, ...formData, idMiembros: idMiembro },
+        cuatrienio: ID_CUATRIENIO_LISTADO,
+        usuario: user,
+      });
+    }
 
     await Promise.all([
       saveSelectedCargo({

@@ -29,6 +29,7 @@ import {
   casillasValidas,
   posicionDeCasilla,
   nombreDeCargoEnUso,
+  esNombreDeContenedor,
   limpiarNombreCasilla,
   COLECCION_CASILLAS_PERSONALIZADAS,
 } from 'src/utils/casillas-personalizadas.mjs';
@@ -1813,4 +1814,71 @@ export async function devolverNodoDeDirectiva({ id, usuario = {} } = {}) {
     realizadoPor: usuario,
     origen: 'directivas',
   });
+}
+
+// ----------------------------------------------------------------------
+// CAMBIAR EL NOMBRE DE UN CONTENEDOR DE FÁBRICA ("Consejo Ejecutivo", una
+// división…) en todos los organigramas del nivel. Los añadidos se renombran con
+// `renombrarCasillaPersonalizada`; los de fábrica viven en el código, así que se
+// guarda una ficha `nombre` (ver `casillas-personalizadas.mjs`).
+// ----------------------------------------------------------------------
+
+export async function renombrarContenedorDeDirectiva({ nivel, idNodo, nombre, usuario = {} } = {}) {
+  asegurarFirebaseDirectivas();
+
+  if (!isAdminGlobal(usuario)) {
+    throw new Error('Solo el Administrador Global renombra contenedores de las directivas.');
+  }
+
+  const lista = await obtenerCasillasPersonalizadas();
+  const existente = lista.find(
+    (casilla) =>
+      esNombreDeContenedor(casilla) && casilla.nivel === nivel && casilla.idNodoPadre === idNodo
+  );
+  const ficha = sanearCasilla({
+    id: existente?.id || crearIdCasilla(),
+    nivel,
+    nombre,
+    tipo: TIPOS_CASILLA.nombre,
+    idNodoPadre: idNodo,
+    orden: existente?.orden || Date.now(),
+    activo: true,
+  });
+
+  if (!ficha) throw new Error('El nombre debe tener de 2 a 60 letras.');
+  if (existente?.activo && existente.nombre === ficha.nombre) return existente;
+
+  await writeBatch(FIRESTORE)
+    .set(
+      doc(FIRESTORE, COLECCION_CASILLAS_PERSONALIZADAS, ficha.id),
+      {
+        ...ficha,
+        ...(existente
+          ? { fechaActualizacion: serverTimestamp() }
+          : {
+              creadoPor: describirActorDirectiva(usuario),
+              uidCreador: String(usuario?.uid || usuario?.id || ''),
+              fechaCreacion: serverTimestamp(),
+              fechaActualizacion: serverTimestamp(),
+            }),
+      },
+      { merge: true }
+    )
+    .commit();
+
+  registrarCasillasPersonalizadas([...lista.filter((casilla) => casilla.id !== ficha.id), ficha]);
+  avisarCambioDeCasillas();
+
+  registrarAuditoriaSilenciosa({
+    modulo: 'cargos_liderazgos',
+    accion: 'contenedor_directiva_renombrado',
+    descripcion: `El contenedor ${idNodo} de las directivas de nivel ${nivel} se llama ahora "${ficha.nombre}".`,
+    entidad: { tipo: 'casilla_directiva', id: ficha.id, nombre: ficha.nombre },
+    antes: existente || null,
+    despues: ficha,
+    realizadoPor: usuario,
+    origen: 'directivas',
+  });
+
+  return ficha;
 }

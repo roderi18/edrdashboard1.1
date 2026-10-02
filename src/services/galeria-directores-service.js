@@ -1,9 +1,11 @@
-import { getDocs, collection } from 'firebase/firestore';
+import { query, where, getDocs, collection } from 'firebase/firestore';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
+import { cuatrienioDeFecha, COLECCION_INTEGRANTES } from 'src/utils/directiva-cuatrienios.mjs';
 import {
   ordenarGaleria,
+  periodoDeCuatrienios,
   validarDirectorNuevo,
   directorDesdeDocumento,
   COLECCION_GALERIA_DIRECTORES,
@@ -12,6 +14,7 @@ import {
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { AMBITOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
+import { obtenerAsignacionesDirectivaPorMiembro } from './directivas-organizacionales-service';
 import { escribirDirectorDeGaleria, actualizarDirectorDeGaleria } from './galeria-directores-apply';
 
 // ----------------------------------------------------------------------
@@ -36,6 +39,7 @@ export async function agregarDirectorALaGaleria({
   anio,
   foto,
   usuario,
+  idMiembros = '',
   placaArriba = '',
   placaAbajo = '',
 }) {
@@ -60,6 +64,7 @@ export async function agregarDirectorALaGaleria({
     rutaStorage: subida.storagePath,
     placaArriba: String(placaArriba).trim(),
     placaAbajo: String(placaAbajo).trim(),
+    ...(idMiembros ? { idMiembros: String(idMiembros) } : {}),
   };
 
   await proponerCambio({
@@ -96,6 +101,7 @@ export async function editarDirectorDeLaGaleria({
   anio,
   foto,
   usuario,
+  idMiembros = '',
   placaArriba = '',
   placaAbajo = '',
 }) {
@@ -117,6 +123,9 @@ export async function editarDirectorDeLaGaleria({
     anio: String(anio).trim(),
     placaArriba: String(placaArriba).trim(),
     placaAbajo: String(placaAbajo).trim(),
+    // Elegir a otra persona del padrón cambia el enlace; escribir el nombre a
+    // mano lo conserva.
+    ...(idMiembros ? { idMiembros: String(idMiembros) } : {}),
   };
 
   if (foto) {
@@ -175,4 +184,36 @@ export async function editarDirectorDeLaGaleria({
   });
 
   return { ...director, ...cambios };
+}
+
+// EL AÑO DE UNA PERSONA DEL PADRÓN, para rellenarlo al darla de alta: los
+// cuatrienios en que fue Director Nacional según la memoria de la Directiva, más
+// el vigente si hoy ocupa la casilla. '' si no consta ninguno.
+export async function periodoDeDirectorNacionalDe(idMiembros) {
+  const id = String(idMiembros || '').trim();
+
+  if (!id || !isFirebaseConfigured || !FIRESTORE) return '';
+
+  const [filas, asignaciones] = await Promise.all([
+    getDocs(query(collection(FIRESTORE, COLECCION_INTEGRANTES), where('idMiembros', '==', id)))
+      .then((snap) => snap.docs.map((d) => d.data()))
+      .catch(() => []),
+    obtenerAsignacionesDirectivaPorMiembro({ idMiembro: id }).catch(() => []),
+  ]);
+
+  const cuatrienios = filas
+    .filter((fila) => fila.nivel === 'nacional' && fila.cargo === 'director')
+    .map((fila) => fila.cuatrienio);
+
+  if (
+    asignaciones.some(
+      (asignacion) =>
+        asignacion.activo !== false &&
+        asignacion.idPosicionDirectiva === 'nacional-director-nacional'
+    )
+  ) {
+    cuatrienios.push(cuatrienioDeFecha()?.id);
+  }
+
+  return periodoDeCuatrienios(cuatrienios.filter(Boolean));
 }

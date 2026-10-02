@@ -70,6 +70,14 @@ ocupada tampoco: en la entidad abierta lo comprueba el panel y en las demás del
 servicio (en el destacamento, solo la entidad abierta). **Devolver**, en el mismo panel,
 marca la ficha inactiva. La ficha oculta no entra en el catálogo de posiciones.
 
+## Cambiar el nombre de un contenedor
+
+Con un contenedor marcado en el panel del lápiz, **Cambiar nombre** lo renombra en todo el
+nivel. Uno añadido se renombra como siempre; uno de fábrica ("Consejo Ejecutivo", una
+división…) guarda una ficha `tipo: 'nombre'` con el nodo en `idNodoPadre`, y
+`arbolesConCasillas` lo pinta con ese nombre. Las casillas (cargos) no se renombran aquí:
+su nombre es el del catálogo.
+
 ## Pendiente
 
 - El PDF de la directiva del destacamento y la vista de Líderes Juveniles no dibujan

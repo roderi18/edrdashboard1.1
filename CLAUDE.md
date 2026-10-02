@@ -96,7 +96,10 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    **no da permisos**; mandan los cargos actuales. Única excepción: quien es o fue
    Director Nacional —o Comandante Nacional, su nombre antiguo— conserva los
    permisos de Director Nacional (lo suma el servidor en `leerAsignacionesDe`), y
-   el ex comandante sale siempre como "Ex Director Nacional" en el Consejo Nacional. Una persona, un cargo
+   el ex comandante sale siempre como "Ex Director Nacional" en el Consejo Nacional.
+   "Ex Director Nacional" es también una opción de "Cargo Nacional" en la ficha:
+   la enseña quien lo es sin otro cargo de consejo, y elegirla (quien edita la
+   Directiva por cuatrienio) suma a la persona al grupo de ex comandantes de 2022-2026. Una persona, un cargo
    por cuatrienio. Editan Administrador Global y Oficina Nacional, avisándose;
    crear en el padrón (carga del listado) solo el Administrador Global. Los
    organigramas históricos son los de siempre con `historico`. Reglas en
@@ -170,7 +173,8 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    **Quitar del organigrama** (panel del lápiz, solo Administrador Global): quita
    cualquier casilla o contenedor del nivel entero, también los de fábrica
    (ficha `oculta` en la misma colección; lo que colgaba sube a su sitio).
-   Ocupada no se quita; "Devolver" en el mismo panel. Pieza:
+   Ocupada no se quita; "Devolver" en el mismo panel. Con un contenedor marcado,
+   **Cambiar nombre** (también los de fábrica: ficha `nombre`). Pieza:
    `quitar-casilla-del-nivel.jsx`. Test: `tests/directivas/quitar-casilla-del-organigrama.test.mjs`. Piezas:
    `src/utils/casillas-personalizadas.mjs`, `use-casillas-personalizadas.js`,
    `casillas-directiva-dialog.jsx`. Detalle en `docs/casillas-personalizadas.md`.

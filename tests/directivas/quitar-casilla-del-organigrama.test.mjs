@@ -89,7 +89,7 @@ test('el panel del lápiz lo ofrece en los cuatro organigramas y las reglas lo a
     'src/sections/sectional/leadership/sectional-leadership-view.jsx',
     'src/app/dashboard/level/dest/[id]/edit/leadership/page.jsx',
   ].forEach((ruta) => assert.match(leer(ruta), /<QuitarCasillaDelNivel/, ruta));
-  assert.match(leer('firestore.rules'), /tipo in \['casilla', 'contenedor', 'oculta'\]/);
+  assert.match(leer('firestore.rules'), /tipo in \['casilla', 'contenedor', 'oculta'/);
 });
 
 // ----------------------------------------------------------------------
@@ -119,4 +119,60 @@ test('un cargo de fábrica sin casilla no impide crear uno con su nombre', () =>
 test('tampoco lo impide uno quitado del nivel, ni la propia casilla al renombrarla', () => {
   assert.equal(usado('Secretario Nacional', { lista: [oculta('secretario-nacional')] }), false);
   assert.equal(usado('Zonas', { idCasillaPropia: 'czonas01' }), false);
+});
+
+// ----------------------------------------------------------------------
+// CAMBIAR EL NOMBRE DE CUALQUIER CONTENEDOR (también los de fábrica), para todo
+// el nivel: una ficha `nombre` con el nodo y el nombre nuevo.
+// ----------------------------------------------------------------------
+
+const CON_CONTENEDOR = {
+  id: 'raiz',
+  name: 'Concilio',
+  isDivision: true,
+  children: [
+    { id: 'consejo-ejecutivo', name: 'Consejo Ejecutivo', isDivision: true, children: [] },
+  ],
+};
+
+const renombre = (idNodo, nombre, extra = {}) => ({
+  id: 'cnombre01',
+  nivel: 'nacional',
+  nombre,
+  tipo: TIPOS_CASILLA.nombre,
+  idNodoPadre: idNodo,
+  activo: true,
+  ...extra,
+});
+
+test('un contenedor de fábrica renombrado sale con su nombre nuevo en todo el nivel', () => {
+  const arbol = arbolConCasillas(CON_CONTENEDOR, 'nacional', [
+    renombre('consejo-ejecutivo', 'Junta Ejecutiva'),
+    renombre('raiz', 'Concilio General', { id: 'cnombre02' }),
+  ]);
+
+  assert.equal(arbol.name, 'Concilio General');
+  assert.equal(arbol.children[0].name, 'Junta Ejecutiva');
+  // Otro nivel y el árbol de fábrica no cambian.
+  assert.equal(
+    arbolConCasillas(CON_CONTENEDOR, 'regional', [renombre('consejo-ejecutivo', 'X Y')]).children[0]
+      .name,
+    'Consejo Ejecutivo'
+  );
+  assert.equal(CON_CONTENEDOR.children[0].name, 'Consejo Ejecutivo');
+});
+
+test('la ficha de nombre ni se dibuja ni entra en el catálogo, y no vale para una añadida', () => {
+  const lista = [renombre('consejo-ejecutivo', 'Junta Ejecutiva')];
+
+  assert.equal(casillasVigentes(lista).length, 0);
+  assert.equal(casillasDelCatalogo(lista).length, 0);
+  assert.equal(sanearCasilla(renombre('casilla-cabcdef9', 'Algo')), null);
+});
+
+test('las reglas admiten la ficha de nombre y el panel ofrece "Cambiar nombre"', () => {
+  const leer = (ruta) => readFileSync(new URL(`../../${ruta}`, import.meta.url), 'utf8');
+
+  assert.match(leer('firestore.rules'), /'oculta', 'nombre'\]/);
+  assert.match(leer('src/sections/common/quitar-casilla-del-nivel.jsx'), /Cambiar nombre/);
 });

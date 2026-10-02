@@ -123,7 +123,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'produccion',
     orden: 5,
     nombres: {
-      nacional: 'Director Nacional de Producción',
+      nacional: 'Coordinador Nacional de Producción',
       regional: 'Coordinador de Producción',
       seccional: 'Coordinador de Producción',
     },
@@ -151,7 +151,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'promocion',
     orden: 7,
     nombres: {
-      nacional: 'Director Nacional de Promoción',
+      nacional: 'Coordinador Nacional de Promoción',
       regional: 'Coordinador de Promoción',
       seccional: 'Coordinador de Promoción',
     },
@@ -165,7 +165,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'adiestramiento',
     orden: 8,
     nombres: {
-      nacional: 'Director Nacional de Adiestramiento',
+      nacional: 'Coordinador Nacional de Adiestramiento',
       regional: 'Coordinador de Adiestramiento',
       seccional: 'Coordinador de Adiestramiento',
     },
@@ -204,6 +204,12 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     nodos: {},
   },
 ]);
+
+// "Ex Director Nacional" en "Cargo Nacional" de la ficha. No es una casilla:
+// elegirlo suma a la persona al grupo de ex comandantes del cuatrienio cerrado
+// (sale en la lista y conserva permisos de Director Nacional, punto 12).
+export const OPCION_EX_DIRECTOR_NACIONAL = 'nacional-ex-director';
+export const NOMBRE_EX_DIRECTOR_NACIONAL = 'Ex Director Nacional';
 
 const CARGO_POR_ID = new Map(CARGOS_DIRECTIVA.map((cargo) => [cargo.id, cargo]));
 

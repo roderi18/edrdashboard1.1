@@ -25,6 +25,10 @@
 // `idNodoPadre` es el nodo que deja de dibujarse (lo que colgaba de él sube a
 // su sitio). "Devolver" la marca inactiva y el nodo vuelve.
 //
+// RENOMBRAR CUALQUIER CONTENEDOR ("Consejo Ejecutivo", una división…), igual:
+// una ficha de tipo `nombre` con el nodo en `idNodoPadre` y el nombre nuevo. El
+// árbol del nivel lo pinta con ese nombre en todas las entidades.
+//
 // Relativo y con extensión: lo importan también las pruebas de `node --test`.
 // ----------------------------------------------------------------------
 
@@ -37,9 +41,14 @@ export const TIPOS_CASILLA = Object.freeze({
   contenedor: 'contenedor',
   // No se dibuja: dice qué nodo de fábrica se quitó del nivel (ver arriba).
   oculta: 'oculta',
+  // No se dibuja: el nombre nuevo de un contenedor de fábrica (ver arriba).
+  nombre: 'nombre',
 });
 
 export const esNodoOculto = (casilla) => casilla?.tipo === TIPOS_CASILLA.oculta;
+export const esNombreDeContenedor = (casilla) => casilla?.tipo === TIPOS_CASILLA.nombre;
+// Fichas que cambian un nodo de fábrica en vez de añadir uno.
+const esFichaDeFabrica = (casilla) => esNodoOculto(casilla) || esNombreDeContenedor(casilla);
 
 export const LARGO_NOMBRE_CASILLA = Object.freeze({ minimo: 2, maximo: 60 });
 
@@ -86,8 +95,14 @@ export const sanearCasilla = (valor = {}) => {
   if (!ES_ID_NODO.test(idNodoPadre)) return null;
   // La división solo existe en el destacamento (Líder de Grupo de Exploradores…).
   if (division && (nivel !== 'destacamento' || !DIVISIONES.includes(division))) return null;
-  // Una oculta solo quita nodos de fábrica: una añadida se quita a sí misma.
-  if (tipo === TIPOS_CASILLA.oculta && idNodoPadre.startsWith('casilla-')) return null;
+  // Una oculta o un nombre solo cambian nodos de fábrica: una añadida se quita
+  // y se renombra a sí misma.
+  if (
+    (tipo === TIPOS_CASILLA.oculta || tipo === TIPOS_CASILLA.nombre) &&
+    idNodoPadre.startsWith('casilla-')
+  ) {
+    return null;
+  }
 
   return {
     id,
@@ -110,11 +125,21 @@ export const casillasValidas = (lista = []) =>
 
 /** Las que se dibujan y se ofrecen: las válidas que no se han quitado. */
 export const casillasVigentes = (lista = []) =>
-  casillasValidas(lista).filter((casilla) => casilla.activo && !esNodoOculto(casilla));
+  casillasValidas(lista).filter((casilla) => casilla.activo && !esFichaDeFabrica(casilla));
 
 /** Las que van al catálogo de posiciones: todas menos las fichas de nodos quitados. */
 export const casillasDelCatalogo = (lista = []) =>
-  casillasValidas(lista).filter((casilla) => !esNodoOculto(casilla));
+  casillasValidas(lista).filter((casilla) => !esFichaDeFabrica(casilla));
+
+/** El nombre nuevo de cada contenedor de fábrica renombrado en el nivel: idNodo → nombre. */
+export const nombresDeContenedoresDelNivel = (lista = [], nivel) =>
+  new Map(
+    casillasValidas(lista)
+      .filter(
+        (casilla) => esNombreDeContenedor(casilla) && casilla.activo && casilla.nivel === nivel
+      )
+      .map((casilla) => [casilla.idNodoPadre, casilla.nombre])
+  );
 
 /** Los nodos de fábrica quitados hoy del nivel, con su ficha (para "Devolver"). */
 export const nodosOcultosDelNivel = (lista = [], nivel) =>
@@ -258,7 +283,9 @@ export const arbolesConCasillas = (arboles = [], nivel, casillas = []) => {
     nodosOcultosDelNivel(casillas, nivel).map((casilla) => casilla.idNodoPadre)
   );
 
-  if ((!lista.length && !ocultos.size) || !bases.length) return bases;
+  const nombres = nombresDeContenedoresDelNivel(casillas, nivel);
+
+  if ((!lista.length && !ocultos.size && !nombres.size) || !bases.length) return bases;
 
   const idsDeFabrica = new Set();
   // De quién cuelga cada nodo de fábrica: una casilla añadida bajo un nodo
@@ -326,7 +353,13 @@ export const arbolesConCasillas = (arboles = [], nivel, casillas = []) => {
       ocultos.has(hijo.id) ? clonarHijos(hijo.children) : [clonar(hijo)]
     );
 
-  const clonar = (nodo) => {
+  const clonar = (nodoDeFabrica) => {
+    // Un contenedor renombrado lleva su nombre nuevo (las casillas no: su
+    // nombre es el del cargo, que sale del catálogo).
+    const nodo =
+      nodoDeFabrica.isDivision && nombres.has(nodoDeFabrica.id)
+        ? { ...nodoDeFabrica, name: nombres.get(nodoDeFabrica.id) }
+        : nodoDeFabrica;
     const anadidas = (hijosPorPadre.get(nodo.id) || [])
       .map((casilla) => construir(casilla, new Set()))
       .filter(Boolean);

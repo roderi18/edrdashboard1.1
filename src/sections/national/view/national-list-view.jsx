@@ -23,9 +23,9 @@ import { fDate } from 'src/utils/format-time';
 import { normalizeText } from 'src/utils/normalize-text';
 import { claveNodo } from 'src/utils/leadership-assignments';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
+import { periodoDeDirector } from 'src/utils/galeria-directores.mjs';
 import { tituloDe } from 'src/utils/titulos-oficiales-nacionales.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
-import { periodoDeDirectorPorNombre } from 'src/utils/galeria-directores.mjs';
 import { unirOficialesConSuCargo } from 'src/utils/consejo-nacional-filas.mjs';
 import { ordenarDirectivaParaExportar } from 'src/utils/directiva-exportacion.mjs';
 import { getAvailableOptionsFromData } from 'src/utils/get-available-options-from-data';
@@ -572,7 +572,8 @@ export function NationalListView() {
   const { asignaciones: titulosOficiales } = useTitulosOficiales();
 
   // LOS AÑOS DE CADA EX DIRECTOR, de la Galería de Directores Nacionales (se
-  // casan por nombre: `periodoDeDirectorPorNombre`). Sin galería, o sin la
+  // casan por la persona del padrón si la ficha la tiene, y si no por nombre:
+  // `periodoDeDirector`). Sin galería, o sin la
   // persona en ella, la posición sale sin año, como antes.
   const [galeriaDirectores, setGaleriaDirectores] = useState([]);
 
@@ -589,10 +590,7 @@ export function NationalListView() {
   }, []);
 
   const periodoDeExDirector = useCallback(
-    (nombres) =>
-      nombres
-        .map((nombre) => periodoDeDirectorPorNombre(galeriaDirectores, nombre))
-        .find(Boolean) || '',
+    (idMiembros, nombres) => periodoDeDirector(galeriaDirectores, { idMiembros, nombres }),
     [galeriaDirectores]
   );
 
@@ -701,10 +699,15 @@ export function NationalListView() {
         nationalXMemberPositionLabel: ETIQUETA_EX_DIRECTOR,
         // Sus años van DEBAJO de "Ex Director Nacional" (la misma línea que el
         // "desde – hasta" de una directiva pasada), no pegados al cargo.
-        nationalXMemberPositionPeriodo: periodoDeExDirector([
-          `${member?.firstName ?? ''} ${member?.lastName ?? ''}`,
-          `${permanente.nombres ?? ''} ${permanente.apellidos ?? ''}`,
-        ]),
+        // La galería manda; si la persona no está en ella, el periodo guardado en
+        // su ficha de ex director.
+        nationalXMemberPositionPeriodo:
+          periodoDeExDirector(permanente.idMiembros, [
+            `${member?.firstName ?? ''} ${member?.lastName ?? ''}`,
+            `${permanente.nombres ?? ''} ${permanente.apellidos ?? ''}`,
+          ]) ||
+          permanente.periodoDirector ||
+          '',
         nationalXMemberPositionScope: NIVEL_CONSEJO_NACIONAL,
         nationalXMemberPositionHref: rutaDelCuatrienio(ultimoCerrado, vigente),
         nationalEstructure: 'consejo_ejecutivo',
@@ -784,10 +787,13 @@ export function NationalListView() {
         ? ETIQUETA_EX_DIRECTOR
         : integrante.cargoNombre || '-',
       ...(esExDirector && {
-        nationalXMemberPositionPeriodo: periodoDeExDirector([
-          nombreCompleto(integrante),
-          `${member?.firstName ?? ''} ${member?.lastName ?? ''}`,
-        ]),
+        nationalXMemberPositionPeriodo:
+          periodoDeExDirector(integrante.idMiembros, [
+            nombreCompleto(integrante),
+            `${member?.firstName ?? ''} ${member?.lastName ?? ''}`,
+          ]) ||
+          integrante.periodoDirector ||
+          '',
       }),
       nationalXMemberPositionScope: ambito,
       // El cargo abre el organigrama de su entidad en ese cuatrienio.
