@@ -9,9 +9,8 @@ import {
 
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
-import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { listarAuditoriaSistema } from 'src/services/audit-log-service';
-import { crearNotificacionSaludSistemaAlerta } from 'src/services/notification-service';
+import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { ADMIN_BACKUP_COLLECTIONS, obtenerUltimoRespaldoAdmin } from 'src/services/admin-maintenance-service';
 import {
   FIREBASE_STORAGE_LIMIT_BYTES,
@@ -36,6 +35,27 @@ const daysSince = (dateValue) => {
   if (Number.isNaN(date.getTime())) return null;
 
   return Math.floor((now() - date.getTime()) / (24 * 60 * 60 * 1000));
+};
+
+// Lo que sale mal, al servidor (`/api/admin/salud-sistema/avisar`). Si falla,
+// no se rompe la pantalla: la revisión automática de cada hora lo avisará igual.
+const avisarDeLaSaludDesdeLaPantalla = async (chequeos) => {
+  if (!chequeos.length) return;
+
+  try {
+    const token = await AUTH?.currentUser?.getIdToken();
+
+    if (!token) return;
+
+    await fetch('/api/admin/salud-sistema/avisar', {
+      // eslint-disable-next-line no-restricted-syntax
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ chequeos }),
+    });
+  } catch {
+    // Sin red: lo avisará la revisión automática.
+  }
 };
 
 const countQuery = async (queryRef) => {
@@ -343,10 +363,11 @@ export async function obtenerSaludSistemaAdmin() {
   const unreadNotifications =
     notificationChecks.find((item) => item.id === 'notificaciones_no_leidas')?.value || 0;
 
-  await Promise.all(
-    checks
-      .filter((item) => item.status === 'advertencia' || item.status === 'critico')
-      .map((item) => crearNotificacionSaludSistemaAlerta({ chequeo: item }).catch(() => null))
+  // Los avisos los da el servidor: la campana de cada Administrador Global y, si
+  // es un fallo, el chat del grupo (eso solo lo escribe Sistema). Sin esperar:
+  // la pantalla no tiene por qué tardar más por avisar.
+  avisarDeLaSaludDesdeLaPantalla(
+    checks.filter((item) => item.status === 'advertencia' || item.status === 'critico')
   );
 
   return {

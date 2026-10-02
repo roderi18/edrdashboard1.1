@@ -45,6 +45,19 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    Piezas: `src/utils/chat-sistema.mjs`, `src/server/chat-sistema-*.mjs`; prueba a
    mano: `scripts/prueba-chat-sistema-cumpleanos.mjs`. Test: `tests/chat/chat-sistema.test.mjs`.
 
+8c. **La salud del sistema se revisa sola** (no hace falta abrir
+   `/dashboard/admin/health`). Cada hora, en silencio, y a las 4:00 p. m. con un
+   resumen corto que Sistema escribe en el chat "ADMINISTRADORES GLOBALES":
+   Firestore (escribe y lee), Auth, Storage (peso real), los 7 servicios de la API
+   .NET, una colección por módulo, respaldo, notificaciones, auditoría de 24 h y
+   la configuración del servidor. Un **fallo** va a la campana de cada
+   Administrador Global y al chat; una **advertencia**, solo a la campana. Cada
+   chequeo avisa una vez por día (mismo id que la pantalla, que ahora también
+   avisa por el servidor: `/api/admin/salud-sistema/avisar`). Queda en
+   `salud_sistema/ultima` y `salud_sistema_revisiones`. Piezas:
+   `src/utils/salud-sistema.mjs`, `src/server/salud-sistema/`,
+   `src/server/tareas/salud-sistema.mjs`. Test: `tests/admin/salud-sistema-en-segundo-plano.test.mjs`.
+
 9. **El Administrador Global reina sobre cualquier otro cargo.** Si lo ejerce por cualquier vía (principal o en `cargos`), es su rol principal en todos los módulos; la dominancia por módulo no se lo quita. Una sola pieza: `src/utils/administrador-global-reina.mjs` (la sesión y los guardas). Solo la prueba de roles lo sustituye, y aun entonces el menú lateral sigue siendo el suyo (`sesionSinPrueba`): los permisos de la pareja los aplican las pantallas. Test: `tests/acceso/administrador-global-reina.test.mjs`.
 
 10. **El estatus del miembro lo mueve la asistencia** (activo, reclutamiento,

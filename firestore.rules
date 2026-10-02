@@ -1152,6 +1152,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // LA SALUD DEL SISTEMA EN SEGUNDO PLANO: la última revisión y su historia.
+    // Las escribe solo el servidor (la revisión de cada hora y la diaria de las
+    // 4:00 p. m.); las lee el Administrador Global.
+    match /salud_sistema/{documento} {
+      allow read: if esAdministradorGlobal();
+      allow write: if false;
+    }
+
+    match /salud_sistema_revisiones/{idRevision} {
+      allow read: if esAdministradorGlobal();
+      allow write: if false;
+    }
+
     match /buzones_chat/{claveBuzon} {
       allow read: if estaAutenticado();
       allow create, update: if esAdministradorGlobal()
@@ -1913,6 +1926,8 @@ service cloud.firestore {
         // El registro del chat de Sistema: sin excluirlo, cualquier sesion lo
         // leeria (con nombres de todo el destacamento) o lo reescribiria.
         && coleccion != 'chat_sistema_registro'
+        && coleccion != 'salud_sistema'
+        && coleccion != 'salud_sistema_revisiones'
         // Las analiticas de la portada tienen su bloque arriba: sin excluirlas
         // aqui, el comodin dejaria leerlas a cualquiera con cuenta.
         && coleccion != 'analiticas_encabezado_tienda'

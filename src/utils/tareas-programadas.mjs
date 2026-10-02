@@ -33,6 +33,22 @@ export const TAREAS_PROGRAMADAS = [
     zonaHoraria: 'America/Santo_Domingo',
     descripcion: 'Resumen de destacamentos actualizados para la Oficina Nacional.',
   },
+  {
+    id: 'salud-sistema-diaria',
+    ruta: '/api/tareas/salud-sistema-diaria',
+    // 20:00 UTC = 16:00 (4:00 p. m.) en Santo Domingo.
+    horario: '0 16 * * *',
+    zonaHoraria: 'America/Santo_Domingo',
+    descripcion: 'Salud del sistema: revisión completa y resumen en el chat de Administradores Globales.',
+  },
+  {
+    id: 'salud-sistema-cada-hora',
+    ruta: '/api/tareas/salud-sistema-cada-hora',
+    // Cada hora en punto menos a las 4:00 p. m., que ya la hace la diaria.
+    horario: '0 0-15,17-23 * * *',
+    zonaHoraria: 'America/Santo_Domingo',
+    descripcion: 'Salud del sistema: revisión silenciosa; solo avisa si algo falla.',
+  },
 ];
 
 export const CABECERA_SECRETO_TAREAS = 'x-tarea-secreto';
