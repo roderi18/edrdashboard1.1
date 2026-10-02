@@ -40,14 +40,16 @@ export function NavVertical({
           aria-label="Ir a Principal"
           sx={{ pl: 3.5, pt: 2.5, pb: 1, display: 'block', width: 'fit-content' }}
         >
+          {/* Solo la palabra EXPEDITION, como estaba la de EXPLORA: texto oscuro
+              sobre el menú claro y claro sobre el oscuro. */}
           <Box
             component="img"
             src={
               isNavLight
-                ? '/marca/explora-wordmark.webp?v=2'
-                : '/marca/explora-wordmark-light.webp?v=2'
+                ? '/marca/expedition-wordmark.webp?v=1'
+                : '/marca/expedition-wordmark-light.webp?v=1'
             }
-            alt="EXPLORA"
+            alt="EXPEDITION"
             width={190}
             height={40}
             loading="eager"

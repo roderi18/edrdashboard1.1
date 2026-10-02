@@ -40,7 +40,7 @@ const nuevaCapa = (tipo) => ({
   width: tipo === 'forma' ? 25 : 55,
   height: tipo === 'forma' ? 20 : 18,
   ...(tipo === 'texto' ? { texto: 'Nuevo texto' } : {}),
-  ...(tipo === 'imagen' ? { src: '/marca/explora-o-isotipo.webp' } : {}),
+  ...(tipo === 'imagen' ? { src: '/marca/expedition-isotipo.webp' } : {}),
   estilo: {},
 });
 
@@ -335,7 +335,7 @@ export function EditorVisualUniversal({
                 etiqueta="Imagen"
                 valor={{ tipo: 'imagen', url: capa.src }}
                 onCambiar={(medio) =>
-                  cambiarCapa(capa.id, { src: medio?.url ?? '/marca/explora-o-isotipo.webp' })
+                  cambiarCapa(capa.id, { src: medio?.url ?? '/marca/expedition-isotipo.webp' })
                 }
                 compacto
               />

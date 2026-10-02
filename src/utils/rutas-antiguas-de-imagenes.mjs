@@ -64,4 +64,13 @@ export const RUTAS_ANTIGUAS_DE_IMAGENES = [
     destination: `/app/${archivo}`,
   })),
   { source: '/watermark.webp', destination: '/marca/watermark.webp' },
+
+  // EXPLORA pasó a llamarse EXPEDITION (logotipo e isotipo nuevos). La portada
+  // del Designer puede tener guardada la imagen vieja en una capa.
+  { source: '/marca/explora-wordmark.webp', destination: '/marca/expedition-wordmark.webp' },
+  {
+    source: '/marca/explora-wordmark-light.webp',
+    destination: '/marca/expedition-wordmark-light.webp',
+  },
+  { source: '/marca/explora-o-isotipo.webp', destination: '/marca/expedition-isotipo.webp' },
 ];
