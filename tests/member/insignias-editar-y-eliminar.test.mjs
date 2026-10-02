@@ -97,8 +97,8 @@ test('las cintas de fábrica toman su ajuste y la eliminada no se encuentra', ()
 });
 
 // Quién agrega, edita y elimina lo decide "Accesos" (`accesos-designer.mjs`);
-// cambiar el orden global sigue siendo solo del Administrador Global.
-test('crear, editar y eliminar insignias siguen a "Accesos"; ordenar, solo el Administrador Global', () => {
+// ordenar (arrastrar) va con editar: quien edita una pestaña también la ordena.
+test('crear, editar, eliminar y ordenar insignias siguen a "Accesos"', () => {
   const acceso = leer('src/utils/org-level-access.js');
   const reglas = leer('firestore.rules');
   const acciones = leer('src/sections/everest/acciones-de-insignia.jsx');
@@ -113,7 +113,15 @@ test('crear, editar y eliminar insignias siguen a "Accesos"; ordenar, solo el Ad
   );
   assert.match(
     acceso,
-    /puedeOrdenarInsignias = \(user = \{\}\) => ejerceAdministradorGlobal\(user\)/
+    /puedeOrdenarInsignias = \(user, tipo\) => puedeEditarInsignia\(user, tipo\)/
+  );
+  assert.match(reglas, /documento == 'orden-medallas' && permisoDesigner\('medallas', 'editar'\)/);
+  assert.match(reglas, /documento == 'orden-pines' && permisoDesigner\('pines', 'editar'\)/);
+  ['cintas', 'medallas', 'pines'].forEach((pestana) =>
+    assert.match(
+      leer(`src/sections/everest/everest-${pestana}.jsx`),
+      /puedeOrdenarInsignias\(user, TIPOS_INSIGNIA\.[A-Z]+\)/
+    )
   );
   assert.match(
     reglas,

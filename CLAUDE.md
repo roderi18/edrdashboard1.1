@@ -111,9 +111,10 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    tarjeta del Designer. Una de fábrica guarda un ajuste `f-{tipo}-{id}` (nombre,
    descripción, imagen u `oculta`); una añadida se elimina con `activo: false`.
    Nada se borra. Agregan y editan Administrador Global y **Oficina Nacional** (que
-   entra al Designer solo a Cintas, Medallas y Pines); eliminar y ordenar, solo el
-   Administrador Global (`puedeGestionarInsignias`, `puedeEliminarInsignias`,
-   `puedeOrdenarInsignias`). Test: `tests/member/insignias-editar-y-eliminar.test.mjs`.
+   entra al Designer solo a Cintas, Medallas y Pines); eliminar, según "Accesos".
+   **Ordenar (arrastrar) va con editar**: quien puede editar una pestaña también
+   la ordena (`puedeOrdenarInsignias(user, tipo)`, y `configuracion_cintas/orden*`
+   en `firestore.rules`). Test: `tests/member/insignias-editar-y-eliminar.test.mjs`.
    Tests: `tests/member/cintas-perfil-orden.test.mjs`, `tests/member/cintas-orden-global.test.mjs`,
    `tests/member/medallas-perfil.test.mjs`, `tests/member/insignias-personalizadas.test.mjs`,
    `tests/member/pines-perfil.test.mjs`.

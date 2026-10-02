@@ -1495,7 +1495,12 @@ service cloud.firestore {
     // todos los perfiles; solo lo cambia el Administrador Global.
     match /configuracion_cintas/{documento} {
       allow read: if esUsuarioDelSistema();
-      allow write: if esAdministradorGlobal();
+      // El orden global de cada pestaña lo cambia también quien puede editarla
+      // (EXPLORA Designer → Accesos); lo demás, solo el Administrador Global.
+      allow write: if esAdministradorGlobal()
+        || (documento == 'orden' && permisoDesigner('cintas', 'editar'))
+        || (documento == 'orden-medallas' && permisoDesigner('medallas', 'editar'))
+        || (documento == 'orden-pines' && permisoDesigner('pines', 'editar'));
     }
 
     // Las cintas y medallas añadidas desde EXPLORA Designer (imagen, nombre y

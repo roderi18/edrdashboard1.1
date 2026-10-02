@@ -1013,15 +1013,17 @@ export const accesoDesignerDe = (user = {}) =>
 export const puedeEnDesigner = (user, pestana, accion = 'ver') =>
   accesoDesignerDe(user).puede(pestana, accion);
 
-// Cintas, medallas y pines: crear, editar y eliminar según "Accesos". Cambiar
-// el orden global sigue siendo solo del Administrador Global.
+// Cintas, medallas y pines: crear, editar y eliminar según "Accesos". Ordenar
+// (arrastrar) es editar: quien edita una pestaña también la ordena. Antes era
+// solo del Administrador Global y a quien se le daba "editar" en Medallas o
+// Pines no podía moverlas.
 export const puedeCrearInsignia = (user, tipo) =>
   puedeEnDesigner(user, PESTANA_DE_INSIGNIA[tipo], 'crear');
 export const puedeEditarInsignia = (user, tipo) =>
   puedeEnDesigner(user, PESTANA_DE_INSIGNIA[tipo], 'editar');
 export const puedeEliminarInsignia = (user, tipo) =>
   puedeEnDesigner(user, PESTANA_DE_INSIGNIA[tipo], 'eliminar');
-export const puedeOrdenarInsignias = (user = {}) => ejerceAdministradorGlobal(user);
+export const puedeOrdenarInsignias = (user, tipo) => puedeEditarInsignia(user, tipo);
 
 // EL ESTADO DEL DESTACAMENTO (Activo / Inactivo) es del registro nacional, como
 // el numero: lo mueven el Administrador Global y la Oficina Nacional, por

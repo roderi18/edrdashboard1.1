@@ -56,9 +56,9 @@ import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 
 export function EverestMedallas() {
   const { user } = useAuthContext();
-  // Ordenar (arrastrar, flechas, guardar el orden) es solo del Administrador
-  // Global; la Oficina Nacional agrega y edita.
-  const puedeOrdenar = puedeOrdenarInsignias(user);
+  // Ordenar (arrastrar, flechas, guardar el orden): quien puede editar esta
+  // pestaña (Designer → Accesos).
+  const puedeOrdenar = puedeOrdenarInsignias(user, TIPOS_INSIGNIA.MEDALLA);
   // "Agregar" solo con permiso de crear en esta pestaña (Designer → Accesos).
   const puedeCrear = puedeCrearInsignia(user, TIPOS_INSIGNIA.MEDALLA);
   const catalogo = useCatalogoDeMedallas();
