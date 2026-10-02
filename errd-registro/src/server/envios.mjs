@@ -38,6 +38,16 @@ const telefono = z
     );
   }, "El teléfono debe tener como máximo 10 dígitos");
 
+const limitesNumerosDestacamentos = (destacamentos) => {
+  const numeros = (Array.isArray(destacamentos) ? destacamentos : [])
+    .map((d) => Number.parseInt(String(d?.numero ?? ""), 10))
+    .filter((n) => Number.isInteger(n) && n >= 11);
+  return {
+    minimo: 11,
+    maximo: numeros.length ? Math.max(...numeros) : 11,
+  };
+};
+
 export const EsquemaEnvio = z
   .object({
     trampa: z.string().max(200).optional().default(""), // campo oculto: si viene lleno, es un bot
@@ -230,6 +240,16 @@ export async function guardarEnvio({ envio, logo, fotoMiembro, ip, rafaga = fals
       }
     : null;
   const { datos } = envio;
+  const limites = limitesNumerosDestacamentos(destacamentos);
+  const numero = String(datos?.numero ?? "").trim();
+  if (numero) {
+    const numeroEntero = Number.parseInt(numero, 10);
+    if (!/^\d+$/.test(numero) || numeroEntero < limites.minimo || numeroEntero > limites.maximo) {
+      throw new Error(
+        `El número del destacamento debe estar entre ${limites.minimo} y ${limites.maximo}.`
+      );
+    }
+  }
   const comparable = {
     ...datos,
     coordinador: {

@@ -107,6 +107,17 @@ const POSICION_COORDINADOR_DEST = DIRECTIVA_POSITIONS.find(
 const direccionSinTocar = (datos, inicial) =>
   buildChurchPayload(datos).direccion === buildChurchPayload(inicial || {}).direccion;
 
+const limitesNumerosDestacamentos = (destacamentos) => {
+  const numeros = (Array.isArray(destacamentos) ? destacamentos : [])
+    .map((dest) => Number.parseInt(String(dest?.destNumber ?? dest?.numero ?? ''), 10))
+    .filter((numero) => Number.isInteger(numero) && numero >= 11);
+
+  return {
+    minimo: 11,
+    maximo: numeros.length ? Math.max(...numeros) : 11,
+  };
+};
+
 const hayCambiosDeIglesia = (datosIglesia, iglesiaActual, inicial) => {
   // Sin registro previo no hay con que comparar: se intenta la actualizacion.
   if (!iglesiaActual) return true;
@@ -726,6 +737,18 @@ export function DestCreateEditForm({ currentDest }) {
         return;
       }
 
+      const numero = String(data.destNumber ?? '').trim();
+      if (numero) {
+        const limites = limitesNumerosDestacamentos(dests);
+        const numeroEntero = Number.parseInt(numero, 10);
+        if (!/^\d+$/.test(numero) || numeroEntero < limites.minimo || numeroEntero > limites.maximo) {
+          toast.error(
+            `El número del destacamento debe estar entre ${limites.minimo} y ${limites.maximo}.`
+          );
+          return;
+        }
+      }
+
       // Espera de cortesia, en paralelo con el guardado. Arranca DESPUES de las
       // validaciones para que un error salga al instante. Ver `ui-delays`.
       const espera = esperar(RETARDO_GUARDADO_MS);
@@ -839,9 +862,9 @@ export function DestCreateEditForm({ currentDest }) {
           try {
             await updateChurchApi(datosIglesia);
           } catch (churchUpdateError) {
-            // El backend de Iglesias puede fallar (p. ej. 500 de Somee). No creamos
-            // una iglesia de reemplazo —generaría duplicados—: avisamos y seguimos
-            // guardando el resto del destacamento, conservando la iglesia actual.
+            // No crear una iglesia de reemplazo automáticamente: dejaría el
+            // registro anterior y podría producir duplicados. Se conserva la
+            // relación original hasta que el endpoint de actualización funcione.
             churchUpdateFailed = true;
             console.warn('[dest form] no se pudo actualizar la iglesia:', churchUpdateError);
           }
