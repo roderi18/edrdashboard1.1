@@ -14,8 +14,12 @@ import { usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { setModuloActivo, moduloDesdeRuta } from 'src/utils/modulo-activo';
-import { isAdminGlobal, puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
 import { canManageStoreProducts, filterDashboardNavDataByUser } from 'src/utils/member-access';
+import {
+  isAdminGlobal,
+  puedeGestionarInsignias,
+  puedeEditarDirectivaHistorica,
+} from 'src/utils/org-level-access';
 
 import { _notifications } from 'src/_mock';
 import { useGetLabels } from 'src/actions/mail';
@@ -79,6 +83,7 @@ import {
   conEverestDesigner,
   conTiendaDeAdministracion,
   navData as dashboardNavData,
+  entradaEverestDesignerInsignias,
 } from '../nav-config-dashboard';
 
 // ----------------------------------------------------------------------
@@ -482,7 +487,12 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     // EXPLORA DESIGNER, debajo de "Administradores", solo para el Administrador
     // Global de verdad —no la cuenta administrativa antigua—: es la misma
     // comprobacion que hace la pantalla, asi que nadie ve un enlace que le cierra.
-    return isAdminGlobal(usuarioDelMenu) ? conEverestDesigner(conTienda) : conTienda;
+    // La Oficina Nacional lo ve tambien, pero solo con Cintas, Medallas y Pines.
+    if (isAdminGlobal(usuarioDelMenu)) return conEverestDesigner(conTienda);
+
+    return puedeGestionarInsignias(usuarioDelMenu)
+      ? conEverestDesigner(conTienda, entradaEverestDesignerInsignias)
+      : conTienda;
   }, [chatsSinLeer, menuDeAdministradorGlobal, mailsSinLeer, slotProps?.nav?.data, usuarioDelMenu]);
 
   const isNavMini = settings.state.navLayout === 'mini';

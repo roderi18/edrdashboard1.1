@@ -574,6 +574,16 @@ service firebase.storage {
       allow delete: if false;
     }
 
+    // CINTAS, MEDALLAS Y PINES DEL DESIGNER: la Oficina Nacional también los
+    // agrega y edita, así que sube SOLO imágenes y SOLO en sus tres carpetas. Va
+    // aparte para no tocar la regla de arriba (igual a la de las tarjetas).
+    match /everest/{carpetaDeInsignias}/{archivo} {
+      allow create, update: if esOficinaNacional()
+        && carpetaDeInsignias in ['insignias-cinta', 'insignias-medalla', 'insignias-pin']
+        && request.resource != null
+        && esImagenPermitida();
+    }
+
     // LAS CARAS DE LA DIRECTIVA POR CUATRIENIO. Copias, no enlaces: la foto de
     // perfil se reemplaza al cambiarla y la historia tiene que quedarse con la de
     // entonces. Las guardan el Administrador Global y la Oficina Nacional (la

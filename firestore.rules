@@ -1446,9 +1446,18 @@ service cloud.firestore {
     // Las cintas y medallas añadidas desde EXPLORA Designer (imagen, nombre y
     // descripción). Salen en todos los perfiles, así que las lee cualquiera con
     // cuenta; las añade solo el Administrador Global, como todo el Designer.
+    // Cintas, medallas y pines añadidos o ajustados en EXPLORA Designer. Agregan y
+    // editan el Administrador Global y la Oficina Nacional; eliminar (marcar
+    // `activo: false` u `oculta: true`) solo el Administrador Global.
     match /insignias_personalizadas/{idInsignia} {
       allow read: if esUsuarioDelSistema();
-      allow write: if esAdministradorGlobal();
+      allow create, update: if esAdministradorGlobal()
+        || (
+          esOficinaNacional()
+          && request.resource.data.get('activo', true) != false
+          && request.resource.data.get('oculta', false) != true
+        );
+      allow delete: if esAdministradorGlobal();
     }
 
     // La Galería de Directores Nacionales (pestaña de Consejo Nacional): la ve

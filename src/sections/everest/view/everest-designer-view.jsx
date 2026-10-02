@@ -15,8 +15,8 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
-import { isAdminGlobal } from 'src/utils/org-level-access';
 import { ESTADOS_DEL_BLOQUE } from 'src/utils/everest/estado-del-bloque.mjs';
+import { isAdminGlobal, puedeGestionarInsignias } from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -90,15 +90,18 @@ export function EverestDesignerView() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const seccion = [
-    SECCIONES.cintas,
-    SECCIONES.medallas,
-    SECCIONES.pines,
-    SECCIONES.paleta,
-    SECCIONES.tarjeta,
-  ].includes(searchParams.get('seccion'))
+  // La Oficina Nacional entra solo a Cintas, Medallas y Pines (agrega y edita);
+  // todo lo demás del Designer sigue siendo del Administrador Global.
+  const esAdministradorGlobal = isAdminGlobal(user);
+  const soloInsignias = !esAdministradorGlobal && puedeGestionarInsignias(user);
+  const seccionesPermitidas = soloInsignias
+    ? [SECCIONES.cintas, SECCIONES.medallas, SECCIONES.pines]
+    : [SECCIONES.cintas, SECCIONES.medallas, SECCIONES.pines, SECCIONES.paleta, SECCIONES.tarjeta];
+  const seccion = seccionesPermitidas.includes(searchParams.get('seccion'))
     ? searchParams.get('seccion')
-    : SECCIONES.portada;
+    : soloInsignias
+      ? SECCIONES.cintas
+      : SECCIONES.portada;
   const [mostrarBloques, setMostrarBloques] = useState(true);
   const [mostrarInspector, setMostrarInspector] = useState(true);
   const [herramienta, setHerramienta] = useState('visual');
@@ -150,9 +153,9 @@ export function EverestDesignerView() {
     router.replace(consulta ? `${pathname}?${consulta}` : pathname);
   };
 
-  // En su primera version es solo del Administrador Global. El menu no se lo
-  // enseña a nadie mas, pero la direccion se puede escribir a mano.
-  if (!isAdminGlobal(user)) {
+  // Es del Administrador Global; la Oficina Nacional entra solo a las insignias.
+  // El menu no se lo enseña a nadie mas, pero la direccion se puede escribir a mano.
+  if (!esAdministradorGlobal && !soloInsignias) {
     return (
       <DashboardContent maxWidth="xl">
         {ENCABEZADO}
@@ -359,12 +362,12 @@ export function EverestDesignerView() {
           variant="scrollable"
           scrollButtons="auto"
         >
-          <Tab value={SECCIONES.portada} label="Portada" />
+          {!soloInsignias && <Tab value={SECCIONES.portada} label="Portada" />}
           <Tab value={SECCIONES.cintas} label="Cintas" />
           <Tab value={SECCIONES.medallas} label="Medallas" />
           <Tab value={SECCIONES.pines} label="Pines" />
-          <Tab value={SECCIONES.paleta} label="Paleta" />
-          <Tab value={SECCIONES.tarjeta} label="Tarjeta" />
+          {!soloInsignias && <Tab value={SECCIONES.paleta} label="Paleta" />}
+          {!soloInsignias && <Tab value={SECCIONES.tarjeta} label="Tarjeta" />}
         </Tabs>
         {seccion === SECCIONES.portada && (
           <>

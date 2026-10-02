@@ -17,3 +17,12 @@ export const escribirInsigniaPersonalizada = (documento, creadaPor = '') =>
     creadaPor,
     creadaEn: serverTimestamp(),
   });
+
+// Editar o eliminar: solo los campos que cambian (merge), sin tocar quién la creó.
+// Sirve también para el AJUSTE de una de fábrica, que se crea la primera vez.
+export const actualizarInsigniaPersonalizada = (id, campos, actualizadaPor = '') =>
+  setDoc(
+    doc(FIRESTORE, COLECCION_INSIGNIAS_PERSONALIZADAS, id),
+    { ...campos, actualizadaPor, actualizadaEn: serverTimestamp() },
+    { merge: true }
+  );

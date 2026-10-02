@@ -286,17 +286,42 @@ export const entradaEverestDesigner = {
   icon: ICONS.designer,
 };
 
-export const conEverestDesigner = (secciones = []) =>
-  secciones.map((seccion) =>
+// La Oficina Nacional entra solo a Cintas, Medallas y Pines (ver
+// `puedeGestionarInsignias`): su entrada abre directamente las cintas.
+export const entradaEverestDesignerInsignias = {
+  ...entradaEverestDesigner,
+  path: `${paths.dashboard.everest}?seccion=cintas`,
+};
+
+export const conEverestDesigner = (secciones = [], entrada = entradaEverestDesigner) => {
+  let puesta = false;
+  const conEntrada = secciones.map((seccion) =>
     seccion.subheader === 'Administración'
       ? {
         ...seccion,
-        items: (seccion.items ?? []).flatMap((item) =>
-          item.path === paths.dashboard.admin.root ? [item, entradaEverestDesigner] : [item]
-        ),
+        items: (seccion.items ?? []).flatMap((item) => {
+          if (item.path !== paths.dashboard.admin.root) return [item];
+          puesta = true;
+          return [item, entrada];
+        }),
       }
       : seccion
   );
+
+  if (puesta) return conEntrada;
+
+  // Sin "Administradores" en su menú (la Oficina Nacional), al final de su
+  // grupo de Administración, o en uno propio si no lo tiene.
+  const conGrupo = conEntrada.some((seccion) => seccion.subheader === 'Administración');
+
+  return conGrupo
+    ? conEntrada.map((seccion) =>
+      seccion.subheader === 'Administración'
+        ? { ...seccion, items: [...(seccion.items ?? []), entrada] }
+        : seccion
+    )
+    : [...conEntrada, { subheader: 'Administración', items: [entrada] }];
+};
 
 export const conTiendaDeAdministracion = (secciones = []) =>
   secciones.map((seccion) =>

@@ -84,6 +84,13 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    cintas se registran en el catálogo con `registrarCintasPersonalizadas`). En el
    Designer se ordenan arrastrando: la tarjeta sigue al puntero y las demás se
    apartan en vivo (`src/sections/everest/rejilla-ordenable.jsx`).
+   **Editar y eliminar todas** (también las de fábrica): lápiz y papelera en cada
+   tarjeta del Designer. Una de fábrica guarda un ajuste `f-{tipo}-{id}` (nombre,
+   descripción, imagen u `oculta`); una añadida se elimina con `activo: false`.
+   Nada se borra. Agregan y editan Administrador Global y **Oficina Nacional** (que
+   entra al Designer solo a Cintas, Medallas y Pines); eliminar y ordenar, solo el
+   Administrador Global (`puedeGestionarInsignias`, `puedeEliminarInsignias`,
+   `puedeOrdenarInsignias`). Test: `tests/member/insignias-editar-y-eliminar.test.mjs`.
    Tests: `tests/member/cintas-perfil-orden.test.mjs`, `tests/member/cintas-orden-global.test.mjs`,
    `tests/member/medallas-perfil.test.mjs`, `tests/member/insignias-personalizadas.test.mjs`,
    `tests/member/pines-perfil.test.mjs`.

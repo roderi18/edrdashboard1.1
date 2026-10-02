@@ -12,6 +12,7 @@ import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
+import { puedeOrdenarInsignias } from 'src/utils/org-level-access';
 import { TIPOS_INSIGNIA } from 'src/utils/insignias-personalizadas.mjs';
 import {
   catalogoEnOrden,
@@ -40,6 +41,7 @@ import {
 import { useAuthContext } from 'src/auth/hooks';
 
 import { RejillaOrdenable } from './rejilla-ordenable';
+import { AccionesDeInsignia } from './acciones-de-insignia';
 import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 
 // ----------------------------------------------------------------------
@@ -58,6 +60,9 @@ import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 
 export function EverestCintas() {
   const { user } = useAuthContext();
+  // Ordenar (arrastrar, flechas, guardar el orden) es solo del Administrador
+  // Global; la Oficina Nacional agrega y edita.
+  const puedeOrdenar = puedeOrdenarInsignias(user);
   const ordenGuardado = useOrdenDeCintas();
   // `null`: sin tocar, se sigue lo guardado (y lo que llegue en vivo).
   const [borrador, setBorrador] = useState(null);
@@ -187,34 +192,38 @@ export function EverestCintas() {
         >
           Agregar cinta
         </Button>
-        <Button
-          color="inherit"
-          startIcon={<Iconify icon="solar:restart-bold" />}
-          disabled={guardando || esOrdenDeFabrica(actual)}
-          onClick={() => setBorrador(normalizarOrdenGlobal([]))}
-        >
-          Orden de fábrica
-        </Button>
-        <Button
-          color="inherit"
-          disabled={!hayCambios || guardando}
-          onClick={() => setBorrador(null)}
-        >
-          Descartar
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={<Iconify icon="eva:checkmark-fill" />}
-          disabled={!hayCambios || guardando}
-          onClick={guardar}
-        >
-          {guardando ? 'Guardando…' : 'Guardar orden'}
-        </Button>
+        {puedeOrdenar && (
+          <>
+            <Button
+              color="inherit"
+              startIcon={<Iconify icon="solar:restart-bold" />}
+              disabled={guardando || esOrdenDeFabrica(actual)}
+              onClick={() => setBorrador(normalizarOrdenGlobal([]))}
+            >
+              Orden de fábrica
+            </Button>
+            <Button
+              color="inherit"
+              disabled={!hayCambios || guardando}
+              onClick={() => setBorrador(null)}
+            >
+              Descartar
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Iconify icon="eva:checkmark-fill" />}
+              disabled={!hayCambios || guardando}
+              onClick={guardar}
+            >
+              {guardando ? 'Guardando…' : 'Guardar orden'}
+            </Button>
+          </>
+        )}
       </Stack>
 
       <RejillaOrdenable
         items={cintas}
-        deshabilitado={guardando}
+        deshabilitado={guardando || !puedeOrdenar}
         onMover={mover}
         sx={{
           // `minmax(0, 1fr)`: con `1fr` a secas un nombre largo ensanchaba la columna.
@@ -256,6 +265,13 @@ export function EverestCintas() {
                 {cinta.personalizada ? cinta.nombre : `${cinta.id}. ${cinta.nombre}`}
               </Typography>
               {!flotante && (
+                <AccionesDeInsignia
+                  tipo={TIPOS_INSIGNIA.CINTA}
+                  insignia={cinta}
+                  deshabilitado={guardando}
+                />
+              )}
+              {!flotante && puedeOrdenar && (
                 <>
                   <IconButton
                     size="small"

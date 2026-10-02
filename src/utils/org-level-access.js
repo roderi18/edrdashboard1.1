@@ -993,6 +993,15 @@ export const requiereRevisionDeAdministradorGlobal = (user = {}, ambito = '') =>
 export const puedeEditarDirectivaHistorica = (user = {}) =>
   ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
 
+// CINTAS, MEDALLAS Y PINES (EXPLORA Designer → Cintas, Medallas, Pines): los
+// agregan y editan el Administrador Global y la Oficina Nacional (por cualquiera
+// de sus cargos: es un rol a mano); eliminarlas y cambiar el orden global, solo
+// el Administrador Global. La Oficina Nacional entra al Designer solo a esas
+// tres pestañas.
+export const puedeGestionarInsignias = (user = {}) => puedeEditarDirectivaHistorica(user);
+export const puedeEliminarInsignias = (user = {}) => ejerceAdministradorGlobal(user);
+export const puedeOrdenarInsignias = (user = {}) => ejerceAdministradorGlobal(user);
+
 // EL ESTADO DEL DESTACAMENTO (Activo / Inactivo) es del registro nacional, como
 // el numero: lo mueven el Administrador Global y la Oficina Nacional, por
 // cualquiera de sus cargos (la Oficina Nacional es un rol a mano). Ver

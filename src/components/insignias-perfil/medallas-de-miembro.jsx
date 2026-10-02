@@ -13,6 +13,7 @@ import TextField from '@mui/material/TextField';
 import { keyframes } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
+import { aplicarAjustes } from 'src/utils/insignias-personalizadas.mjs';
 import {
   recordarImagenDelPerfil,
   imagenDelPerfilYaResuelta,
@@ -66,8 +67,14 @@ function useLecturaDelCatalogo() {
   );
 
   // Las añadidas en EXPLORA Designer (Firestore) van detrás de las de la carpeta.
-  const { medallas: personalizadas } = useInsigniasPersonalizadas();
-  const deCarpeta = data?.medallas ?? VACIO;
+  // Las de la carpeta llevan los cambios del Designer (nombre, descripción,
+  // imagen) y no las eliminadas.
+  const { medallas: personalizadas, ajustes } = useInsigniasPersonalizadas();
+  const datosDeCarpeta = data?.medallas ?? VACIO;
+  const deCarpeta = useMemo(
+    () => aplicarAjustes(datosDeCarpeta, ajustes.medalla),
+    [datosDeCarpeta, ajustes.medalla]
+  );
   const medallas = useMemo(
     () => (personalizadas.length ? [...deCarpeta, ...personalizadas] : deCarpeta),
     [deCarpeta, personalizadas]

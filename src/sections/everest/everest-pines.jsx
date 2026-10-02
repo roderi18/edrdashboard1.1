@@ -10,6 +10,7 @@ import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
+import { puedeOrdenarInsignias } from 'src/utils/org-level-access';
 import { TIPOS_INSIGNIA } from 'src/utils/insignias-personalizadas.mjs';
 import {
   moverPinEnOrden,
@@ -28,6 +29,7 @@ import { ImagenDePin, useOrdenDePines, useCatalogoDePines } from 'src/components
 import { useAuthContext } from 'src/auth/hooks';
 
 import { RejillaOrdenable } from './rejilla-ordenable';
+import { AccionesDeInsignia } from './acciones-de-insignia';
 import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 
 // ----------------------------------------------------------------------
@@ -41,6 +43,9 @@ import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 
 export function EverestPines() {
   const { user } = useAuthContext();
+  // Ordenar (arrastrar, flechas, guardar el orden) es solo del Administrador
+  // Global; la Oficina Nacional agrega y edita.
+  const puedeOrdenar = puedeOrdenarInsignias(user);
   const catalogo = useCatalogoDePines();
   const ordenGuardado = useOrdenDePines();
   // `null`: sin tocar, se sigue lo guardado (y lo que llegue en vivo).
@@ -106,36 +111,38 @@ export function EverestPines() {
         >
           Agregar pin
         </Button>
-        <Stack direction="row" spacing={1}>
-          <Button
-            color="inherit"
-            startIcon={<Iconify icon="solar:restart-bold" />}
-            disabled={guardando || esOrdenDePinesDeFabrica(actual, catalogo)}
-            onClick={() => setBorrador(normalizarOrdenDePines([], catalogo))}
-          >
-            Orden de fábrica
-          </Button>
-          <Button
-            color="inherit"
-            disabled={!hayCambios || guardando}
-            onClick={() => setBorrador(null)}
-          >
-            Descartar
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<Iconify icon="eva:checkmark-fill" />}
-            disabled={!hayCambios || guardando}
-            onClick={guardar}
-          >
-            {guardando ? 'Guardando…' : 'Guardar orden'}
-          </Button>
-        </Stack>
+        {puedeOrdenar && (
+          <Stack direction="row" spacing={1}>
+            <Button
+              color="inherit"
+              startIcon={<Iconify icon="solar:restart-bold" />}
+              disabled={guardando || esOrdenDePinesDeFabrica(actual, catalogo)}
+              onClick={() => setBorrador(normalizarOrdenDePines([], catalogo))}
+            >
+              Orden de fábrica
+            </Button>
+            <Button
+              color="inherit"
+              disabled={!hayCambios || guardando}
+              onClick={() => setBorrador(null)}
+            >
+              Descartar
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Iconify icon="eva:checkmark-fill" />}
+              disabled={!hayCambios || guardando}
+              onClick={guardar}
+            >
+              {guardando ? 'Guardando…' : 'Guardar orden'}
+            </Button>
+          </Stack>
+        )}
       </Stack>
 
       <RejillaOrdenable
         items={pines}
-        deshabilitado={guardando}
+        deshabilitado={guardando || !puedeOrdenar}
         onMover={mover}
         sx={{
           gridTemplateColumns: {
@@ -188,6 +195,13 @@ export function EverestPines() {
                 {pin.nombre}
               </Typography>
               {!flotante && (
+                <AccionesDeInsignia
+                  tipo={TIPOS_INSIGNIA.PIN}
+                  insignia={pin}
+                  deshabilitado={guardando}
+                />
+              )}
+              {!flotante && puedeOrdenar && (
                 <>
                   <IconButton
                     size="small"
