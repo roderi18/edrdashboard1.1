@@ -202,10 +202,8 @@ test('va en el menu lateral, justo debajo de Administradores, y fuera de /dashbo
   assert.match(menu, /title: 'EXPLORA Designer',\s*path: paths\.dashboard\.everest,/);
   // Se inserta DETRAS de la entrada de Administradores, dentro de su seccion.
   assert.match(menu, /seccion\.subheader === 'Administración'/);
-  assert.match(
-    menu,
-    /item\.path === paths\.dashboard\.admin\.root \? \[item, entradaEverestDesigner\] : \[item\]/
-  );
+  assert.match(menu, /if \(item\.path !== paths\.dashboard\.admin\.root\) return \[item\];/);
+  assert.match(menu, /return \[item, entrada\];/);
 
   const paths = leer('src/routes/paths.js');
 
@@ -218,21 +216,42 @@ test('va en el menu lateral, justo debajo de Administradores, y fuera de /dashbo
   assert.doesNotMatch(leer('src/sections/admin/layout/admin-tabs-layout.jsx'), /EXPLORA/);
 });
 
-test('el menu solo se la enseña al Administrador Global, el mismo que puede abrirla', () => {
+// La Oficina Nacional la ve tambien, pero su entrada abre las cintas: entra solo
+// a Cintas, Medallas y Pines (agrega y edita).
+test('el menu se la enseña al Administrador Global y, solo con las insignias, a la Oficina Nacional', () => {
   const layout = leer('src/layouts/dashboard/layout.jsx');
 
   // Despues del filtro del menu, como la tienda de administracion.
   assert.match(
     layout,
-    /return isAdminGlobal\(usuarioDelMenu\) \? conEverestDesigner\(conTienda\) : conTienda;/
+    /if \(isAdminGlobal\(usuarioDelMenu\)\) return conEverestDesigner\(conTienda\);/
+  );
+  // Los demás, si "Accesos" les da alguna pestaña, entrando por la primera.
+  assert.match(layout, /const \[primera\] = accesoDesignerDe\(usuarioDelMenu\)\.pestanas;/);
+  assert.match(
+    layout,
+    /primera \? conEverestDesigner\(conTienda, entradaEverestDesignerEn\(primera\)\) : conTienda/
   );
   assert.match(layout, /filterDashboardNavDataByUser\([\s\S]*?conEverestDesigner\(/);
 });
 
 test('escribir la direccion a mano tampoco abre el Designer a otro cargo', () => {
+  const vista = leer('src/sections/everest/view/everest-designer-view.jsx');
+
+  assert.match(vista, /if \(!conAcceso\) \{/);
+  // Los demás, solo las pestañas que les dé "Accesos"; "Accesos" y "Registro",
+  // solo el Administrador Global.
   assert.match(
-    leer('src/sections/everest/view/everest-designer-view.jsx'),
-    /if \(!isAdminGlobal\(user\)\) \{/
+    vista,
+    /: PESTANAS_CON_ACCESO\.filter\(\(id\) => acceso\.pestanas\.includes\(id\)\)/
+  );
+  assert.match(
+    vista,
+    /seccion === SECCIONES\.accesos && esAdministradorGlobal && <EverestAccesos \/>/
+  );
+  assert.match(
+    vista,
+    /seccion === SECCIONES\.registro && esAdministradorGlobal && <EverestRegistro \/>/
   );
   assert.match(
     leer('src/sections/everest/view/everest-vista-previa-view.jsx'),

@@ -134,6 +134,8 @@ test('sin efecto guardado, la medalla se mueve con el soplo y brilla con el dest
     amplitudMovimiento: 1,
     velocidadBrillo: 1,
     intensidadBrillo: 1,
+    // Veces ganada: 1 sin decir otra cosa (el número dorado sale con 2 o más).
+    veces: 1,
   };
 
   assert.deepEqual(config.get('a'), {

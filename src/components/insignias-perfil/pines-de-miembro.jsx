@@ -10,6 +10,7 @@ import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import { aplicarAjustes } from 'src/utils/insignias-personalizadas.mjs';
 import {
   ordenarPines,
   MAXIMO_PINES,
@@ -56,8 +57,13 @@ function useLecturaDelCatalogo() {
   );
 
   // Los añadidos en EXPLORA Designer (Firestore) van detrás de los de la carpeta.
-  const { pines: personalizados } = useInsigniasPersonalizadas();
-  const deCarpeta = data?.pines ?? VACIO;
+  // Los de la carpeta llevan los cambios del Designer y no los eliminados.
+  const { pines: personalizados, ajustes } = useInsigniasPersonalizadas();
+  const datosDeCarpeta = data?.pines ?? VACIO;
+  const deCarpeta = useMemo(
+    () => aplicarAjustes(datosDeCarpeta, ajustes.pin),
+    [datosDeCarpeta, ajustes.pin]
+  );
   const pines = useMemo(
     () => (personalizados.length ? [...deCarpeta, ...personalizados] : deCarpeta),
     [deCarpeta, personalizados]

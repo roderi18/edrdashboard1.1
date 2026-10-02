@@ -15,8 +15,10 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
-import { isAdminGlobal } from 'src/utils/org-level-access';
+import { useAccesosDesigner } from 'src/hooks/use-accesos-designer';
+
 import { ESTADOS_DEL_BLOQUE } from 'src/utils/everest/estado-del-bloque.mjs';
+import { isAdminGlobal, accesoDesignerDe } from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -32,6 +34,8 @@ import { EDITORES_DE_BLOQUE } from '../editores';
 import { EverestCintas } from '../everest-cintas';
 import { EverestPaleta } from '../everest-paleta';
 import { EverestTarjeta } from '../everest-tarjeta';
+import { EverestAccesos } from '../everest-accesos';
+import { EverestRegistro } from '../everest-registro';
 import { EverestMedallas } from '../everest-medallas';
 import { EverestVistaPrevia } from '../everest-vista-previa';
 import { EditorDeDiseno } from '../editores/editor-de-diseno';
@@ -74,7 +78,31 @@ const SECCIONES = Object.freeze({
   pines: 'pines',
   paleta: 'paleta',
   tarjeta: 'tarjeta',
+  // Solo del Administrador Global: quién entra y qué hizo cada uno.
+  accesos: 'accesos',
+  registro: 'registro',
 });
+
+const NOMBRE_DE_SECCION = {
+  portada: 'Portada',
+  cintas: 'Cintas',
+  medallas: 'Medallas',
+  pines: 'Pines',
+  paleta: 'Paleta',
+  tarjeta: 'Tarjeta',
+  accesos: 'Accesos',
+  registro: 'Registro',
+};
+
+// Las pestañas que se pueden dar en "Accesos", en su orden.
+const PESTANAS_CON_ACCESO = [
+  SECCIONES.portada,
+  SECCIONES.cintas,
+  SECCIONES.medallas,
+  SECCIONES.pines,
+  SECCIONES.paleta,
+  SECCIONES.tarjeta,
+];
 
 const ENCABEZADO = (
   <CustomBreadcrumbs
@@ -90,15 +118,18 @@ export function EverestDesignerView() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const seccion = [
-    SECCIONES.cintas,
-    SECCIONES.medallas,
-    SECCIONES.pines,
-    SECCIONES.paleta,
-    SECCIONES.tarjeta,
-  ].includes(searchParams.get('seccion'))
-    ? searchParams.get('seccion')
-    : SECCIONES.portada;
+  // QUÉ PESTAÑAS VE: el Administrador Global, todas más "Accesos" y "Registro";
+  // los demás, las que les dé "Accesos" (`accesos-designer.mjs`). Escuchar las
+  // reglas aquí hace que un cambio de permisos se vea al momento.
+  useAccesosDesigner();
+  const esAdministradorGlobal = isAdminGlobal(user);
+  const acceso = accesoDesignerDe(user);
+  const seccionesPermitidas = esAdministradorGlobal
+    ? [...PESTANAS_CON_ACCESO, SECCIONES.accesos, SECCIONES.registro]
+    : PESTANAS_CON_ACCESO.filter((id) => acceso.pestanas.includes(id));
+  const pedida = searchParams.get('seccion') || SECCIONES.portada;
+  const seccion = seccionesPermitidas.includes(pedida) ? pedida : seccionesPermitidas[0];
+  const conAcceso = seccionesPermitidas.length > 0;
   const [mostrarBloques, setMostrarBloques] = useState(true);
   const [mostrarInspector, setMostrarInspector] = useState(true);
   const [herramienta, setHerramienta] = useState('visual');
@@ -150,9 +181,9 @@ export function EverestDesignerView() {
     router.replace(consulta ? `${pathname}?${consulta}` : pathname);
   };
 
-  // En su primera version es solo del Administrador Global. El menu no se lo
-  // enseña a nadie mas, pero la direccion se puede escribir a mano.
-  if (!isAdminGlobal(user)) {
+  // Es del Administrador Global; la Oficina Nacional entra solo a las insignias.
+  // El menu no se lo enseña a nadie mas, pero la direccion se puede escribir a mano.
+  if (!conAcceso) {
     return (
       <DashboardContent maxWidth="xl">
         {ENCABEZADO}
@@ -359,12 +390,9 @@ export function EverestDesignerView() {
           variant="scrollable"
           scrollButtons="auto"
         >
-          <Tab value={SECCIONES.portada} label="Portada" />
-          <Tab value={SECCIONES.cintas} label="Cintas" />
-          <Tab value={SECCIONES.medallas} label="Medallas" />
-          <Tab value={SECCIONES.pines} label="Pines" />
-          <Tab value={SECCIONES.paleta} label="Paleta" />
-          <Tab value={SECCIONES.tarjeta} label="Tarjeta" />
+          {seccionesPermitidas.map((id) => (
+            <Tab key={id} value={id} label={NOMBRE_DE_SECCION[id]} />
+          ))}
         </Tabs>
         {seccion === SECCIONES.portada && (
           <>
@@ -606,6 +634,8 @@ export function EverestDesignerView() {
           {seccion === SECCIONES.pines && <EverestPines />}
           {seccion === SECCIONES.paleta && <EverestPaleta />}
           {seccion === SECCIONES.tarjeta && <EverestTarjeta />}
+          {seccion === SECCIONES.accesos && esAdministradorGlobal && <EverestAccesos />}
+          {seccion === SECCIONES.registro && esAdministradorGlobal && <EverestRegistro />}
         </Box>
       )}
 

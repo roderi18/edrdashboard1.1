@@ -15,6 +15,8 @@
 // Sin React ni Firebase, para probarlo con `node --test`.
 // ----------------------------------------------------------------------
 
+import { normalizarVeces } from './cintas-perfil.mjs';
+
 export const RUTA_MEDALLAS = '/insignias/medallas';
 export const CARPETA_MEDALLAS = ['public', 'insignias', 'medallas'];
 export const COLECCION_MEDALLAS_MIEMBROS = 'medallas_miembros';
@@ -106,6 +108,7 @@ export const configuracionDeMedallas = (entradas = []) =>
           efectoMovimiento: normalizarMovimientoMedalla(entrada.efectoMovimiento),
           efectoBrillo: normalizarBrilloMedalla(entrada.efectoBrillo),
           ...ajustesDe(entrada),
+          veces: normalizarVeces(entrada.veces),
         },
       ])
   );
@@ -290,6 +293,8 @@ export const construirMedallasAsignadas = (anteriores = [], elegidas = [], ahora
       if (entrada.efectoMovimiento !== undefined) {
         resultado.efectoMovimiento = normalizarMovimientoMedalla(entrada.efectoMovimiento);
       }
+      // Cuántas veces se ganó (el número dorado, en las medallas que lo llevan).
+      if (entrada.veces !== undefined) resultado.veces = normalizarVeces(entrada.veces);
       if (entrada.efectoBrillo !== undefined) {
         resultado.efectoBrillo = normalizarBrilloMedalla(entrada.efectoBrillo);
       }

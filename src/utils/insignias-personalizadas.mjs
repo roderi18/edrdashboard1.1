@@ -9,8 +9,28 @@
 // (`insignias_personalizadas/{id}`). Se suman al catálogo de fábrica, detrás de
 // todas, y se ordenan y se asignan igual que las demás.
 //
+// EDITAR Y ELIMINAR TODAS, TAMBIÉN LAS DE FÁBRICA. Una añadida se edita en su
+// propia ficha y se elimina marcándola `activo: false` (no se borra: las ya
+// asignadas a miembros siguen apuntando a su id; simplemente deja de pintarse).
+// Una de fábrica vive en `public/`, que en producción no se puede tocar: se
+// guarda un AJUSTE (`f-{tipo}-{id}`, con `fabrica: true`) con su nombre,
+// descripción o imagen nuevos, u `oculta: true` para quitarla del catálogo.
+// Agregan y editan el Administrador Global y la Oficina Nacional; elimina solo
+// el Administrador Global.
+//
+// EL NÚMERO DORADO DE "VECES GANADA" (`llevaNumero`). Cada cinta y cada medalla
+// dice si lo lleva: por defecto las cintas sí y las medallas no
+// (`llevaNumeroDorado`). Se elige en su ficha del Designer.
+//
 // Sin React ni Firebase para poder probarlo con `node --test`.
 // ----------------------------------------------------------------------
+
+/** ¿Pinta el número dorado? Si su ficha no lo dice: las cintas sí, las medallas no. */
+export const llevaNumeroDorado = (insignia = {}, tipo = 'cinta') =>
+  typeof insignia?.llevaNumero === 'boolean' ? insignia.llevaNumero : tipo === 'cinta';
+
+const conLlevaNumero = (documento) =>
+  typeof documento?.llevaNumero === 'boolean' ? { llevaNumero: documento.llevaNumero } : {};
 
 export const COLECCION_INSIGNIAS_PERSONALIZADAS = 'insignias_personalizadas';
 
@@ -65,6 +85,8 @@ export const insigniaDesdeDocumento = (documento = {}) => {
 
   if (!ES_ID_PERSONALIZADO.test(id) || !nombre || !ES_URL_DE_STORAGE.test(src)) return null;
   if (!Object.values(TIPOS_INSIGNIA).includes(tipo)) return null;
+  // Eliminada: deja de pintarse en todas partes.
+  if (documento?.activo === false) return null;
 
   const base = {
     id,
@@ -73,6 +95,7 @@ export const insigniaDesdeDocumento = (documento = {}) => {
     descripcion: limpiar(documento?.descripcion, MAXIMO_DESCRIPCION_INSIGNIA),
     src,
     personalizada: true,
+    ...conLlevaNumero(documento),
   };
 
   // La medalla y el pin llevan además su variante pequeña (la del perfil) y un
@@ -82,8 +105,81 @@ export const insigniaDesdeDocumento = (documento = {}) => {
     : { ...base, srcPequena: src, numero: Number.MAX_SAFE_INTEGER };
 };
 
-/** Todas las fichas → `{ cintas, medallas, pines }`, cada lista por fecha de alta. */
+// ----------------------------------------------------------------------
+// LOS AJUSTES DE LAS DE FÁBRICA.
+// ----------------------------------------------------------------------
+
+/** El id del ajuste de una de fábrica: estable, sin "/" (no cabe en un id de Firestore). */
+export const idDeAjusteDeFabrica = (tipo, idFabrica) =>
+  `f-${tipo}-${String(idFabrica ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')}`;
+
+/** Documento → `{ tipo, idFabrica, nombre?, descripcion?, src?, oculta }`, o null si no es un ajuste. */
+export const ajusteDesdeDocumento = (documento = {}) => {
+  if (documento?.fabrica !== true) return null;
+
+  const tipo = documento?.tipo;
+  const idFabrica = String(documento?.idFabrica ?? '').trim();
+
+  if (!Object.values(TIPOS_INSIGNIA).includes(tipo) || !idFabrica) return null;
+
+  const nombre = limpiar(documento?.nombre, MAXIMO_NOMBRE_INSIGNIA);
+  const descripcion = limpiar(documento?.descripcion, MAXIMO_DESCRIPCION_INSIGNIA);
+  const src = String(documento?.src ?? '').trim();
+
+  return {
+    tipo,
+    idFabrica,
+    ...(nombre ? { nombre } : {}),
+    ...(descripcion ? { descripcion } : {}),
+    // Solo una imagen de nuestro Storage reemplaza a la de la carpeta.
+    ...(ES_URL_DE_STORAGE.test(src) ? { src } : {}),
+    ...conLlevaNumero(documento),
+    oculta: documento?.oculta === true,
+  };
+};
+
+/**
+ * Las de fábrica de un tipo con sus ajustes: nombre, descripción e imagen
+ * cambiados, y sin las eliminadas. `ajustes` es `{ [idFabrica]: ajuste }`.
+ * Medallas y pines llevan además `srcPequena`, que sigue a la imagen nueva.
+ */
+export const aplicarAjustes = (catalogo = [], ajustes = {}) => {
+  if (!ajustes || !Object.keys(ajustes).length) return catalogo;
+
+  return catalogo.flatMap((insignia) => {
+    const ajuste = ajustes[String(insignia?.id ?? '')];
+
+    if (!ajuste) return [insignia];
+    if (ajuste.oculta) return [];
+
+    return [
+      {
+        ...insignia,
+        ...(ajuste.nombre ? { nombre: ajuste.nombre } : {}),
+        ...(ajuste.descripcion ? { descripcion: ajuste.descripcion } : {}),
+        ...(ajuste.src
+          ? { src: ajuste.src, ...('srcPequena' in insignia ? { srcPequena: ajuste.src } : {}) }
+          : {}),
+        ...conLlevaNumero(ajuste),
+        ajustada: true,
+      },
+    ];
+  });
+};
+
+/** Todas las fichas → `{ cintas, medallas, pines, ajustes }`, cada lista por fecha de alta. */
 export const separarInsignias = (documentos = []) => {
+  const ajustes = { cinta: {}, medalla: {}, pin: {} };
+
+  (Array.isArray(documentos) ? documentos : []).forEach((documento) => {
+    const ajuste = ajusteDesdeDocumento(documento);
+
+    if (ajuste) ajustes[ajuste.tipo][ajuste.idFabrica] = ajuste;
+  });
+
   const validas = (Array.isArray(documentos) ? documentos : [])
     .map(insigniaDesdeDocumento)
     .filter(Boolean)
@@ -93,8 +189,23 @@ export const separarInsignias = (documentos = []) => {
     cintas: validas.filter((insignia) => insignia.tipo === TIPOS_INSIGNIA.CINTA),
     medallas: validas.filter((insignia) => insignia.tipo === TIPOS_INSIGNIA.MEDALLA),
     pines: validas.filter((insignia) => insignia.tipo === TIPOS_INSIGNIA.PIN),
+    ajustes,
   };
 };
+
+/**
+ * Lo que se pide al editar: el nombre. La imagen es opcional (se queda la que
+ * tiene) y la descripción también: muchas cintas de fábrica no traen y, si se
+ * exigía, no se podía cambiar nada de ellas (ni si llevan número).
+ */
+export const validarInsigniaEditada = ({ nombre }) => {
+  if (!limpiar(nombre, MAXIMO_NOMBRE_INSIGNIA)) return 'Escribe el nombre.';
+
+  return '';
+};
+
+export const limpiarNombreInsignia = (nombre) => limpiar(nombre, MAXIMO_NOMBRE_INSIGNIA);
+export const limpiarDescripcionInsignia = (texto) => limpiar(texto, MAXIMO_DESCRIPCION_INSIGNIA);
 
 /** Lo que se guarda en Firestore al darla de alta. */
 export const documentoDeInsigniaNueva = ({ id, tipo, nombre, descripcion, src, rutaStorage }) => ({

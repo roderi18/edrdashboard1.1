@@ -1,6 +1,11 @@
 import { alcanceQueMandaAhora } from 'src/utils/modulo-activo';
 import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 import { ejerceAdministradorGlobal } from 'src/utils/administrador-global-reina.mjs';
+import {
+  accesoDesigner,
+  PESTANA_DE_INSIGNIA,
+  reglasDesignerVigentes,
+} from 'src/utils/accesos-designer.mjs';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
@@ -992,6 +997,31 @@ export const requiereRevisionDeAdministradorGlobal = (user = {}, ambito = '') =>
 // no ser el principal de quien lo tiene.
 export const puedeEditarDirectivaHistorica = (user = {}) =>
   ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
+
+// EXPLORA DESIGNER: quién entra, a qué pestañas y para qué lo decide el
+// Administrador Global en su pestaña "Accesos" (`accesos-designer.mjs`), por
+// usuario o por rol; él lo puede todo siempre. Los roles se cuentan TODOS
+// (`rolesQueEjerce`): la Oficina Nacional es un rol a mano.
+export const accesoDesignerDe = (user = {}) =>
+  accesoDesigner({
+    esAdministradorGlobal: ejerceAdministradorGlobal(user),
+    uid: String(user?.uid || ''),
+    roles: rolesQueEjerce(user),
+    reglas: reglasDesignerVigentes(),
+  });
+
+export const puedeEnDesigner = (user, pestana, accion = 'ver') =>
+  accesoDesignerDe(user).puede(pestana, accion);
+
+// Cintas, medallas y pines: crear, editar y eliminar según "Accesos". Cambiar
+// el orden global sigue siendo solo del Administrador Global.
+export const puedeCrearInsignia = (user, tipo) =>
+  puedeEnDesigner(user, PESTANA_DE_INSIGNIA[tipo], 'crear');
+export const puedeEditarInsignia = (user, tipo) =>
+  puedeEnDesigner(user, PESTANA_DE_INSIGNIA[tipo], 'editar');
+export const puedeEliminarInsignia = (user, tipo) =>
+  puedeEnDesigner(user, PESTANA_DE_INSIGNIA[tipo], 'eliminar');
+export const puedeOrdenarInsignias = (user = {}) => ejerceAdministradorGlobal(user);
 
 // EL ESTADO DEL DESTACAMENTO (Activo / Inactivo) es del registro nacional, como
 // el numero: lo mueven el Administrador Global y la Oficina Nacional, por

@@ -989,6 +989,48 @@ service cloud.firestore {
         || rolDelDocumento() == 'oficina_nacional';
     }
 
+    // EXPLORA DESIGNER → ACCESOS: lo que el Administrador Global da a un usuario
+    // (su uid) o a un rol, por pestaña y acción. Se lee el índice plano que se
+    // guarda con las reglas (`permisos["cintas:crear"] = { usuarios, roles }`,
+    // ver `src/utils/accesos-designer.mjs`). Los roles se cuentan todos: el del
+    // token, el del documento y `rolesQueEjerce`.
+    function rutaAccesosDesigner() {
+      return /databases/$(database)/documents/configuracion_designer/accesos;
+    }
+
+    function permisoDesigner(pestana, accion) {
+      return request.auth != null
+        && exists(rutaAccesosDesigner())
+        && permisoDesignerEn(
+          get(rutaAccesosDesigner()).data.get('permisos', {}).get(pestana + ':' + accion, {})
+        );
+    }
+
+    function permisoDesignerEn(quienes) {
+      return quienes.get('usuarios', []).hasAny([request.auth.uid])
+        || quienes.get('roles', []).hasAny([rolDelToken(), rolDelDocumento()])
+        || (
+          exists(rutaAsignacion())
+          && get(rutaAsignacion()).data.get('rolesQueEjerce', []) is list
+          && quienes.get('roles', []).hasAny(get(rutaAsignacion()).data.get('rolesQueEjerce', []))
+        );
+    }
+
+    function pestanaDeInsignia(tipo) {
+      return tipo == 'cinta' ? 'cintas' : (tipo == 'medalla' ? 'medallas' : 'pines');
+    }
+
+    // Qué acción es escribir una insignia: eliminar si la marca eliminada; si no,
+    // crear una nueva añadida, o editar (también el primer ajuste de una de fábrica).
+    function accionSobreInsignia() {
+      return request.resource.data.get('activo', true) == false
+          || request.resource.data.get('oculta', false) == true
+        ? 'eliminar'
+        : (resource == null && request.resource.data.get('fabrica', false) != true
+          ? 'crear'
+          : 'editar');
+    }
+
     function nivelDirectivaValido(nivel) {
       return nivel in ['nacional', 'regional', 'seccional', 'destacamento'];
     }
@@ -1446,7 +1488,20 @@ service cloud.firestore {
     // Las cintas y medallas añadidas desde EXPLORA Designer (imagen, nombre y
     // descripción). Salen en todos los perfiles, así que las lee cualquiera con
     // cuenta; las añade solo el Administrador Global, como todo el Designer.
+    // Cintas, medallas y pines añadidos o ajustados en EXPLORA Designer. Agregan y
+    // editan el Administrador Global y la Oficina Nacional; eliminar (marcar
+    // `activo: false` u `oculta: true`) solo el Administrador Global.
     match /insignias_personalizadas/{idInsignia} {
+      allow read: if esUsuarioDelSistema();
+      // El Administrador Global, o a quien "Accesos" le dé esa acción en esa pestaña.
+      allow create, update: if esAdministradorGlobal()
+        || permisoDesigner(pestanaDeInsignia(request.resource.data.tipo), accionSobreInsignia());
+      allow delete: if esAdministradorGlobal();
+    }
+
+    // Quién entra a EXPLORA Designer (pestaña "Accesos"). Lo leen todos para saber
+    // qué ven; solo el Administrador Global lo cambia: es quien da los permisos.
+    match /configuracion_designer/{documento} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();
     }
@@ -1464,7 +1519,7 @@ service cloud.firestore {
     // comodín, cualquiera podría).
     match /tarjetas_desarrollo/{idTarjeta} {
       allow read: if esUsuarioDelSistema();
-      allow write: if esAdministradorGlobal();
+      allow write: if esAdministradorGlobal() || permisoDesigner('tarjeta', 'editar');
     }
 
     // Premios añadidos desde la pestaña de premios (Sistema de Ascenso y
@@ -1520,17 +1575,17 @@ service cloud.firestore {
 
     match /everest_publicado/{pantalla} {
       allow read: if esUsuarioDelSistema();
-      allow write: if esAdministradorGlobal();
+      allow write: if esAdministradorGlobal() || permisoDesigner('portada', 'editar');
     }
 
     // Lo que se esta editando sin publicar, y la copia de cada publicacion para
     // volver atras. No lo ve nadie mas que quien edita.
     match /everest_borradores/{pantalla} {
-      allow read, write: if esAdministradorGlobal();
+      allow read, write: if esAdministradorGlobal() || permisoDesigner('portada', 'editar');
     }
 
     match /everest_versiones/{idVersion} {
-      allow read, create: if esAdministradorGlobal();
+      allow read, create: if esAdministradorGlobal() || permisoDesigner('portada', 'editar');
       // Una version es historia: no se reescribe ni se borra.
       allow update, delete: if false;
     }
@@ -1844,6 +1899,7 @@ service cloud.firestore {
         && coleccion != 'cintas_miembros'
         && coleccion != 'configuracion_cintas'
         && coleccion != 'insignias_personalizadas'
+        && coleccion != 'configuracion_designer'
         && coleccion != 'tarjetas_desarrollo'
         && coleccion != 'galeria_directores_nacionales'
         && coleccion != 'directiva_cuatrienios_integrantes'

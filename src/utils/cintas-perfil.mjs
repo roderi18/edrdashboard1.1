@@ -13,6 +13,7 @@
 // Sin React ni Firebase para poder probarlo con `node --test`.
 // ----------------------------------------------------------------------
 
+import { aplicarAjustes } from './insignias-personalizadas.mjs';
 import { TEXTOS_CINTAS_PERFIL } from './cintas-perfil-textos.mjs';
 
 export const RUTA_CINTAS_PERFIL = '/insignias/cintas';
@@ -169,24 +170,31 @@ const POR_ID = new Map(CATALOGO_CINTAS_PERFIL.map((cinta) => [cinta.id, cinta]))
 // servidor y en las pruebas la lista está vacía: el catálogo es el de fábrica.
 let personalizadas = [];
 let personalizadasPorId = new Map();
+// Las de fábrica con sus ajustes del Designer (nombre, descripción, imagen) y
+// sin las eliminadas (`aplicarAjustes` de `insignias-personalizadas.mjs`).
+let deFabrica = CATALOGO_CINTAS_PERFIL;
+let deFabricaPorId = POR_ID;
 
-export const registrarCintasPersonalizadas = (lista = []) => {
+export const registrarCintasPersonalizadas = (lista = [], ajustes = {}) => {
   personalizadas = (Array.isArray(lista) ? lista : []).filter(
     (cinta) => cinta?.id && !POR_ID.has(cinta.id)
   );
   personalizadasPorId = new Map(personalizadas.map((cinta) => [cinta.id, cinta]));
+  deFabrica = aplicarAjustes(CATALOGO_CINTAS_PERFIL, ajustes);
+  deFabricaPorId = new Map(deFabrica.map((cinta) => [cinta.id, cinta]));
 };
 
 /** Todo el catálogo: las de fábrica y, detrás, las añadidas en el Designer. */
 export const catalogoDeCintas = () =>
-  personalizadas.length ? [...CATALOGO_CINTAS_PERFIL, ...personalizadas] : CATALOGO_CINTAS_PERFIL;
+  personalizadas.length ? [...deFabrica, ...personalizadas] : deFabrica;
 
+/** La cinta, o null si no existe o se eliminó (deja de pintarse en los perfiles). */
 export const obtenerCintaPerfil = (id) => {
   const clave = String(id ?? '')
     .trim()
     .toLowerCase();
 
-  return POR_ID.get(clave) ?? personalizadasPorId.get(clave) ?? null;
+  return deFabricaPorId.get(clave) ?? personalizadasPorId.get(clave) ?? null;
 };
 
 // ----------------------------------------------------------------------

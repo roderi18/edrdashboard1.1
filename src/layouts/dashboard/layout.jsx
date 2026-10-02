@@ -12,10 +12,16 @@ import { iconButtonClasses } from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { usePathname, useSearchParams } from 'src/routes/hooks';
 
+import { useAccesosDesigner } from 'src/hooks/use-accesos-designer';
+
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { setModuloActivo, moduloDesdeRuta } from 'src/utils/modulo-activo';
-import { isAdminGlobal, puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
 import { canManageStoreProducts, filterDashboardNavDataByUser } from 'src/utils/member-access';
+import {
+  isAdminGlobal,
+  accesoDesignerDe,
+  puedeEditarDirectivaHistorica,
+} from 'src/utils/org-level-access';
 
 import { _notifications } from 'src/_mock';
 import { useGetLabels } from 'src/actions/mail';
@@ -77,6 +83,7 @@ const PresenciaEnLaAplicacion = dynamic(
 import {
   navDataDesarrollo,
   conEverestDesigner,
+  entradaEverestDesignerEn,
   conTiendaDeAdministracion,
   navData as dashboardNavData,
 } from '../nav-config-dashboard';
@@ -437,6 +444,9 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   // perdia las pestañas para moverse. Los permisos de la pareja los siguen
   // aplicando los guardas de cada pantalla.
   const usuarioDelMenu = (pruebaDeRolesActiva && user?.sesionSinPrueba) || user;
+  // Las reglas de "Accesos" de EXPLORA Designer: la entrada del menu sale o no
+  // segun ellas, y se pone al dia en vivo si el Administrador Global las cambia.
+  const reglasDelDesigner = useAccesosDesigner();
   const menuDeAdministradorGlobal =
     isAdminGlobal(usuarioDelMenu) ||
     String(usuarioDelMenu?.role ?? usuarioDelMenu?.rol ?? '')
@@ -482,8 +492,22 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     // EXPLORA DESIGNER, debajo de "Administradores", solo para el Administrador
     // Global de verdad —no la cuenta administrativa antigua—: es la misma
     // comprobacion que hace la pantalla, asi que nadie ve un enlace que le cierra.
-    return isAdminGlobal(usuarioDelMenu) ? conEverestDesigner(conTienda) : conTienda;
-  }, [chatsSinLeer, menuDeAdministradorGlobal, mailsSinLeer, slotProps?.nav?.data, usuarioDelMenu]);
+    // Los demas lo ven si "Accesos" les da alguna pestaña, y entran por la primera.
+    if (isAdminGlobal(usuarioDelMenu)) return conEverestDesigner(conTienda);
+
+    const [primera] = accesoDesignerDe(usuarioDelMenu).pestanas;
+
+    return primera ? conEverestDesigner(conTienda, entradaEverestDesignerEn(primera)) : conTienda;
+    // `reglasDelDesigner` no se lee aqui: cambia lo que responde `accesoDesignerDe`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    chatsSinLeer,
+    menuDeAdministradorGlobal,
+    mailsSinLeer,
+    slotProps?.nav?.data,
+    usuarioDelMenu,
+    reglasDelDesigner,
+  ]);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';

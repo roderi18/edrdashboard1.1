@@ -59,16 +59,25 @@ const nextConfig = {
       },
       // LAS IMÁGENES FIJAS NO SE VUELVEN A PEDIR EN CADA VISITA. Sin esto Netlify
       // las servía con `max-age=0` y el navegador preguntaba por cada insignia
-      // de cada pantalla. Un día sin preguntar y, pasado, se muestra la guardada
-      // mientras se comprueba por detrás: no llevan huella en el nombre, así que
-      // una insignia cambiada tiene que poder verse sin borrar nada a mano.
+      // de cada pantalla. Se muestra la guardada mientras se comprueba por
+      // detrás: no llevan huella en el nombre, así que una insignia cambiada
+      // tiene que poder verse sin borrar nada a mano.
+      //
+      // Antes eran 24 horas sin preguntar: cambiar un número dorado en
+      // `public/insignias/numeros-cintas` (mismo nombre de archivo) no se veía
+      // hasta el día siguiente. Ahora 5 minutos en producción (el service
+      // worker ya las sirve al instante) y, en desarrollo, siempre se pregunta
+      // (`no-cache`: si no cambió, el servidor contesta 304 sin mandarla).
       ...['/insignias/:ruta*', '/sistema-ascenso/:ruta*', '/marca/:ruta*', '/iconos/:ruta*'].map(
         (source) => ({
           source,
           headers: [
             {
               key: 'Cache-Control',
-              value: 'public, max-age=86400, stale-while-revalidate=604800',
+              value:
+                process.env.NODE_ENV === 'development'
+                  ? 'no-cache'
+                  : 'public, max-age=300, stale-while-revalidate=604800',
             },
           ],
         })
