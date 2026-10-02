@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 
+import { opcionDeSectorLibre } from 'src/utils/sector-fuera-de-catalogo.mjs';
+
 import { Field } from 'src/components/hook-form';
 import NameInput from 'src/components/common/name-input';
 import { MaskedField } from 'src/components/masked-field';
@@ -42,6 +44,9 @@ export default function LocationSelect({ disabled = false, masked = false }) {
     const selectedMunicipio = municipios.find(
         m => String(m.id) === String(municipioId)
     );
+    // Un sector guardado que no está en el catálogo ("Los Mina") sale como una
+    // opción más; si no, el campo se veía vacío aunque la dirección lo tuviera.
+    const sectorLibre = opcionDeSectorLibre(watch('sectorId'));
     useEffect(() => {
         Promise.all([
             import('src/data/provincias.json'),
@@ -127,13 +132,18 @@ export default function LocationSelect({ disabled = false, masked = false }) {
                     name="sectorId"
                     label="Sector"
                     disabled={disabled}
-                    options={sectores.filter(
-                        s => String(s.municipio_id) === String(selectedMunicipio?.municipioId)
-                    )}
+                    options={[
+                        ...(sectorLibre ? [sectorLibre] : []),
+                        ...sectores.filter(
+                            s => String(s.municipio_id) === String(selectedMunicipio?.municipioId)
+                        ),
+                    ]}
                     getOptionLabel={(option) => option?.nombre || ''}
                     getOptionKey={(option) => option.id}
-                    isOptionEqualToValue={(option, value) => option.id === value?.id}
-                    value={sectores.find(s => String(s.id) === watch('sectorId')) || null}
+                    isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
+                    value={
+                        sectorLibre || sectores.find(s => String(s.id) === watch('sectorId')) || null
+                    }
                     noOptionsText={
                         watch('municipioId')
                             ? 'Sin opciones'

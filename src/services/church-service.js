@@ -1,3 +1,4 @@
+import { nombreDeSector } from 'src/utils/sector-fuera-de-catalogo.mjs';
 import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 
 import barriosData from 'src/data/barrios.json';
@@ -60,7 +61,8 @@ export const buildChurchPayload = (data) => ({
     direccion: [
         provinces?.find(p => String(p.id) === String(data?.provinceId))?.nombre,
         municipios?.find(m => String(m.id) === String(data?.municipioId))?.nombre,
-        sectores?.find(s => String(s.id) === String(data?.sectorId))?.nombre,
+        // Del catálogo o, si no estaba en él ("Los Mina"), el que se recibió.
+        nombreDeSector(data?.sectorId, sectores),
         data?.street,
     ]
         .filter(Boolean)

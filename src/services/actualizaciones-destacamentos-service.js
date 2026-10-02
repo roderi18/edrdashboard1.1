@@ -134,7 +134,11 @@ const direccionEnTexto = (direccion = {}, anterior = '') =>
   [
     direccion.provincia,
     direccion.municipio,
-    direccion.sector || String(anterior).split(',')[2],
+    // Sin comas propias: "Los Cantines, la altagracia" partía la dirección (que
+    // se lee por comas) y media palabra caía en la calle.
+    String(direccion.sector ?? '')
+      .replace(/\s*,\s*/g, ' ')
+      .trim() || String(anterior).split(',')[2],
     direccion.calle,
   ]
     .map((parte) => String(parte ?? '').trim())

@@ -21,6 +21,7 @@ import { countMembersByDestId } from 'src/utils/member-count';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 import { isDestacamentoAdminRole } from 'src/utils/admin-role-label';
 import { construirResumenMiembro } from 'src/utils/leadership-assignments';
+import { sectorIdDesdeNombre } from 'src/utils/sector-fuera-de-catalogo.mjs';
 import { etiquetaEstadoDestacamento } from 'src/utils/estado-destacamento.mjs';
 import {
   subirFotoEntidadPropuesta,
@@ -187,7 +188,9 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
   const street = resto.join(', ');
   const province = provinces.find(p => p.nombre?.trim() === provinceName);
   const municipio = municipios.find(m => m.nombre === municipioName);
-  const sector = sectores.find(s => s.nombre === sectorName);
+  // Un sector que no está en el catálogo se conserva como texto: antes se
+  // buscaba solo en `barrios.json` y el campo salía vacío aunque estuviera guardado.
+  const sectorId = sectorIdDesdeNombre(sectorName, sectores);
 
   return {
     avatarUrl: dest.avatarUrl ?? null,
@@ -223,7 +226,7 @@ const mapDestToForm = (dest, sectionals, regionals, churches, members) => {
     address: church.address ?? '',
     provinceId: province?.id ? String(province.id) : '',
     municipioId: municipio?.id ? String(municipio.id) : '',
-    sectorId: sector?.id ? String(sector.id) : '',
+    sectorId,
     street: street ?? '',
     countryId: church.countryId ?? '',
 
