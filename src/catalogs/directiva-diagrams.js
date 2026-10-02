@@ -80,7 +80,7 @@ export const NATIONAL_LEADERSHIP_DATA = {
                 ),
                 createNode('coordinador-nacional-promocion', 'Coordinador Nacional de Promoción'),
                 createNode('coordinador-nacional-produccion', 'Coordinador Nacional de Producción'),
-                createNode('coordinador-nacional-programa', 'Director Nacional de Programa'),
+                createNode('coordinador-nacional-programa', 'Coordinador Nacional de Programa'),
                 // Justo antes de Oficiales Especiales, en la misma fila.
                 createNode('secretario-nacional', 'Secretario Nacional'),
                 createNode('comites-especiales', 'Comités Especiales', [

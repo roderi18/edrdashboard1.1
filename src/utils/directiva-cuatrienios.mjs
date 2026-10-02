@@ -137,7 +137,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'programa',
     orden: 6,
     nombres: {
-      nacional: 'Director Nacional de Programa',
+      nacional: 'Coordinador Nacional de Programa',
       regional: 'Coordinador de Programa',
       seccional: 'Coordinador de Programa',
     },

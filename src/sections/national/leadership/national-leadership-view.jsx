@@ -525,16 +525,15 @@ export function NationalLeadershipView({
   // en su casilla). Se gestionan desde la franja "Ver más" y "Asignar miembros".
   // Más lo añadido con "Agregar casilla" (`casillas-personalizadas.mjs`).
   const casillasAnadidas = useCasillasPersonalizadas();
-  // En la memoria de un cuatrienio no se añaden: salían como "Vacante" cargos
-  // que entonces no existían.
+  // LA MEMORIA DE UN CUATRIENIO COPIA EL ORGANIGRAMA DE HOY: las mismas
+  // casillas añadidas, quitadas y renombradas, y el mismo diseño (que ya era
+  // uno solo, `entidadesDeDisenoDe`). Antes la memoria se pintaba sin ellas, para
+  // no enseñar como "Vacante" cargos que entonces no existían, y las dos
+  // jerarquías no se parecían. Lo pidió la organización: solo cambian las personas.
   const diagramaNacional = useMemo(
     () =>
-      arbolConCasillas(
-        obtenerDiagramaNacionalConOficiales([]),
-        'nacional',
-        historico ? [] : casillasAnadidas.todas
-      ),
-    [historico, casillasAnadidas.todas]
+      arbolConCasillas(obtenerDiagramaNacionalConOficiales([]), 'nacional', casillasAnadidas.todas),
+    [casillasAnadidas.todas]
   );
   // Quienes van en la tarjeta "Oficiales Especiales": en una directiva anterior,
   // su grupo de Oficiales de la Nacional (que no tiene casillas; por eso el

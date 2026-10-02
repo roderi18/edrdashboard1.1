@@ -441,7 +441,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idCargo: 'nacional-coordinador-programa',
     idCargoApi: API_CARGO_IDS.coordinadorNacionalPrograma,
     nivel: DIRECTIVA_LEVELS.nacional,
-    nombreCargo: 'Director Nacional de Programa',
+    nombreCargo: 'Coordinador Nacional de Programa',
     idNodoDiagrama: 'coordinador-nacional-programa',
     idCargoPadre: 'nacional-consejo-ejecutivo',
     idNodoPadre: 'consejo-ejecutivo',

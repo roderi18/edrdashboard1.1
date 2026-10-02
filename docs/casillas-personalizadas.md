@@ -57,7 +57,10 @@ nombre se sigue traduciendo en el historial. **No se puede quitar si alguien la
 ocupa**: su asignación seguiría activa sin verse y le impediría recibir otro cargo de
 consejo. Lo que colgaba de un contenedor quitado sube a su sitio.
 
-Las directivas de un cuatrienio pasado no muestran casillas añadidas.
+Las directivas de un cuatrienio pasado copian el organigrama de hoy: las mismas casillas
+añadidas, quitadas y renombradas, y el mismo diseño. Solo cambian las personas; quien
+ocupó en su día una casilla que hoy está quitada no sale en el árbol de esa memoria
+(sigue en la pestaña "Todos").
 
 ## Quitar del organigrama (también las de fábrica)
 

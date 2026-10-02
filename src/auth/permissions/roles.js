@@ -333,7 +333,7 @@ export const ROLES_CATALOGO = [
   },
   {
     codigo: ROLES.COORDINADOR_PROGRAMA_NACIONAL,
-    nombre: 'Director Nacional de Programa',
+    nombre: 'Coordinador Nacional de Programa',
     descripcion:
       'Consejo Nacional: perfil de Director Nacional, con consulta nacional y Dispensa Médica completa en solo lectura.',
     alcancePredeterminado: ALCANCES.NACIONAL,

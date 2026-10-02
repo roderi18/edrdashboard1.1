@@ -216,7 +216,7 @@ export const buscarPosicionDirectiva = (nivel, texto) => {
     .replace(/\s+/g, ' ')
     .trim()
     // Antes se llamaban "Director Nacional de …": un Excel viejo sigue casando.
-    .replace(/^director nacional de (adiestramiento|promocion|produccion)$/, 'coordinador nacional de $1');
+    .replace(/^director nacional de (adiestramiento|promocion|produccion|programa)$/, 'coordinador nacional de $1');
 
   if (!buscado) return null;
 

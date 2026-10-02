@@ -80,7 +80,7 @@ const SUBROLES_POR_ROL = {
       label: 'Coordinador Nacional de Producción',
       rolCodigo: ROLES.COORDINADOR_PRODUCCION_NACIONAL,
     },
-    { label: 'Director Nacional de Programa', rolCodigo: ROLES.COORDINADOR_PROGRAMA_NACIONAL },
+    { label: 'Coordinador Nacional de Programa', rolCodigo: ROLES.COORDINADOR_PROGRAMA_NACIONAL },
     { label: 'Comités Especiales', rolCodigo: ROLES.COMITES_ESPECIALES_NACIONAL },
     {
       label: 'Oficiales de Adiestramientos Especiales',
