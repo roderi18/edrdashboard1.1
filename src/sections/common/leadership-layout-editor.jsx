@@ -516,28 +516,36 @@ export function useLeadershipLayoutEditor({
 
     guardarParaDeshacer();
 
-    let eraAMano = false;
+    // Se decide con lo que hay AHORA, no dentro de un `set...`: React aplicaba
+    // antes la lista de escondidas (su estado va primero) y el vinculo a mano,
+    // ademas de borrarse, quedaba escondido. Al volver a unir esas dos casillas
+    // la linea se creaba, pero la escondida la tapaba: "no se deja conectar".
+    const eraAMano = extraConnections.some((vinculo) => `${vinculo.from}-${vinculo.to}` === id);
 
-    setExtraConnections((actuales) => {
-      const quedan = actuales.filter((vinculo) => `${vinculo.from}-${vinculo.to}` !== id);
-
-      eraAMano = quedan.length !== actuales.length;
-
-      return eraAMano ? quedan : actuales;
-    });
-
-    setHiddenConnections((actuales) => {
-      if (eraAMano || actuales.includes(id)) return actuales;
-
-      return [...actuales, id];
-    });
+    if (eraAMano) {
+      setExtraConnections((actuales) =>
+        actuales.filter((vinculo) => `${vinculo.from}-${vinculo.to}` !== id)
+      );
+    } else {
+      setHiddenConnections((actuales) => (actuales.includes(id) ? actuales : [...actuales, id]));
+    }
     setConnectionGroups((grupos) =>
       grupos
         .map((grupo) => ({ ...grupo, ids: grupo.ids.filter((clave) => clave !== id) }))
         .filter((grupo) => grupo.ids.length > 1)
     );
     setSelectedConnections((actuales) => actuales.filter((clave) => clave !== id));
-  }, [guardarParaDeshacer]);
+  }, [guardarParaDeshacer, extraConnections]);
+
+  // Unir dos casillas a mano. Si esa linea estaba escondida (quitada antes, o
+  // escondida por el fallo de arriba en organigramas ya guardados), deja de
+  // estarlo: si no, se creaba y no se veia.
+  const agregarVinculo = useCallback((vinculo) => {
+    setExtraConnections((actuales) => normalizarVinculos([...actuales, vinculo]));
+    setHiddenConnections((actuales) =>
+      actuales.filter((clave) => clave !== `${vinculo.from}-${vinculo.to}`)
+    );
+  }, []);
 
   const revincularConexion = useCallback((id) => {
     guardarParaDeshacer();
@@ -566,13 +574,11 @@ export function useLeadershipLayoutEditor({
       if (!origen) return nodeId;
       if (origen === nodeId) return null;
 
-      setExtraConnections((actuales) =>
-        normalizarVinculos([...actuales, { from: origen, to: nodeId }])
-      );
+      agregarVinculo({ from: origen, to: nodeId });
 
       return null;
     });
-  }, [guardarParaDeshacer]);
+  }, [guardarParaDeshacer, agregarVinculo]);
 
   // ARRASTRAR DE UNA ESQUINA A OTRA. Se agarra el circulito de una tarjeta y se
   // suelta en el de otra: ahi queda la linea, saliendo y entrando justo por esas
@@ -608,16 +614,11 @@ export function useLeadershipLayoutEditor({
       // Soltar en el aire, o en la misma tarjeta, no crea nada.
       if (!origen || !nodeId || origen.nodeId === nodeId) return null;
 
-      setExtraConnections((actuales) =>
-        normalizarVinculos([
-          ...actuales,
-          { from: origen.nodeId, fromLado: origen.lado, to: nodeId, toLado: lado },
-        ])
-      );
+      agregarVinculo({ from: origen.nodeId, fromLado: origen.lado, to: nodeId, toLado: lado });
 
       return null;
     });
-  }, [guardarParaDeshacer]);
+  }, [guardarParaDeshacer, agregarVinculo]);
 
   const cambiarOrientacionDe = useCallback((id, orientacion) => {
     guardarParaDeshacer();
