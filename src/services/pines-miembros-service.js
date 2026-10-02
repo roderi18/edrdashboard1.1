@@ -59,8 +59,7 @@ async function guardarOrdenDePinesDirecto({ orden = [], anterior = [], usuario =
   if (antes === despues) return orden;
 
   await proponerCambio({
-    // Es de EXPLORA Designer: sale en su pestaña "Registro".
-    ambito: AMBITOS_CAMBIO.everestDesigner,
+    ambito: AMBITOS_CAMBIO.cintasMiembro,
     entidad: { tipo: 'configuracion_cintas', id: 'orden-pines', nombre: 'Orden de los pines' },
     cambios: [{ campo: 'orden', etiqueta: 'Orden de los pines', antes, despues }],
     usuario,

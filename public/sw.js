@@ -1,4 +1,4 @@
-const VERSION = 'edr-pwa-v9';
+const VERSION = 'edr-pwa-v8';
 
 // EN DESARROLLO NO SE INTERCEPTA NADA. Los bundles de `/_next/static/` se guardan
 // "para siempre" porque en produccion llevan una huella en el nombre; en `next
@@ -248,10 +248,7 @@ async function redPrimeroConMemoria(request) {
 async function guardadaYRenovada(request, event) {
   const cache = await caches.open(STATIC_CACHE);
   const guardada = await cache.match(request);
-  // `no-cache`: la renovación pregunta al servidor de verdad. Sin esto la
-  // contestaba la caché HTTP del navegador (que guardaba un día) y una insignia
-  // cambiada con el mismo nombre no se veía hasta el día siguiente.
-  const renovar = fetch(request, { cache: 'no-cache' })
+  const renovar = fetch(request)
     .then((response) => {
       if (response.ok) cache.put(request, response.clone());
       return response;

@@ -1,14 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "auditoria_sistema",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "modulo", "order": "ASCENDING" },
-        { "fieldPath": "fecha", "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "conversaciones_chat",
       "queryScope": "COLLECTION",
       "fields": [

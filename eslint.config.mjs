@@ -245,8 +245,6 @@ export default [
       // Mismo caso: las categorías de producto añadidas con "+ Nuevo" (alta,
       // nombre y borrado de las de campamento).
       'src/services/producto-categorias-apply.js',
-      // Mismo caso: los accesos de EXPLORA Designer (pestaña "Accesos").
-      'src/services/accesos-designer-apply.js',
       // Mismo caso: el estatus de cada miembro, que mueve la regla de asistencia
       // despues de registrarlo en Historial.
       'src/services/estatus-miembros-apply.js',

@@ -2,8 +2,8 @@ import { query, where, getDoc, getDocs, collection } from 'firebase/firestore';
 
 import { paths } from 'src/routes/paths';
 
+import { isAdminGlobal } from 'src/utils/org-level-access';
 import { bloquePorId } from 'src/utils/everest/bloques.mjs';
-import { puedeEnDesigner } from 'src/utils/org-level-access';
 import { comunicadosNuevos } from 'src/utils/everest/avisos.mjs';
 import { COLECCIONES_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
@@ -59,9 +59,8 @@ const asegurarPuedePublicar = (usuario) => {
     throw new Error('Firebase no está configurado.');
   }
 
-  // El Administrador Global, o a quien "Accesos" le dé editar la Portada.
-  if (!puedeEnDesigner(usuario, 'portada', 'editar')) {
-    throw new Error('No tienes permiso para publicar la Portada (EXPLORA Designer → Accesos).');
+  if (!isAdminGlobal(usuario)) {
+    throw new Error('Solo el Administrador Global publica desde EXPLORA Designer.');
   }
 };
 

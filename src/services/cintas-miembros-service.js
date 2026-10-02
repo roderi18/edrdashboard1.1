@@ -91,8 +91,7 @@ async function guardarOrdenDeCintasDirecto({ orden = [], anterior = [], usuario 
   if (antes === despues) return nuevo;
 
   await proponerCambio({
-    // Es de EXPLORA Designer: sale en su pestaña "Registro".
-    ambito: AMBITOS_CAMBIO.everestDesigner,
+    ambito: AMBITOS_CAMBIO.cintasMiembro,
     entidad: { tipo: 'configuracion_cintas', id: 'orden', nombre: 'Orden de las cintas' },
     cambios: [{ campo: 'orden', etiqueta: 'Orden de las cintas', antes, despues }],
     usuario,

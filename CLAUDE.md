@@ -84,13 +84,6 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    cintas se registran en el catálogo con `registrarCintasPersonalizadas`). En el
    Designer se ordenan arrastrando: la tarjeta sigue al puntero y las demás se
    apartan en vivo (`src/sections/everest/rejilla-ordenable.jsx`).
-   **Editar y eliminar todas** (también las de fábrica): lápiz y papelera en cada
-   tarjeta del Designer. Una de fábrica guarda un ajuste `f-{tipo}-{id}` (nombre,
-   descripción, imagen u `oculta`); una añadida se elimina con `activo: false`.
-   Nada se borra. Agregan y editan Administrador Global y **Oficina Nacional** (que
-   entra al Designer solo a Cintas, Medallas y Pines); eliminar y ordenar, solo el
-   Administrador Global (`puedeGestionarInsignias`, `puedeEliminarInsignias`,
-   `puedeOrdenarInsignias`). Test: `tests/member/insignias-editar-y-eliminar.test.mjs`.
    Tests: `tests/member/cintas-perfil-orden.test.mjs`, `tests/member/cintas-orden-global.test.mjs`,
    `tests/member/medallas-perfil.test.mjs`, `tests/member/insignias-personalizadas.test.mjs`,
    `tests/member/pines-perfil.test.mjs`.
@@ -269,16 +262,7 @@ Designer.**
   guarda la misma forma que hoy recibe su componente.
 - **Solo publica el Administrador Global**, por `proponerCambio` (ámbito
   `everest_designer`): se aplica al momento y queda en Historial.
-- **Pestañas:** Portada, Cintas, Medallas, Pines, Paleta y Tarjeta (`?seccion=`).
-- **Accesos y Registro (solo el Administrador Global).** "Accesos" da a un usuario
-  (su cuenta) o a un rol las pestañas que ve y qué hace en ellas (crear, editar,
-  eliminar); se suman. Se guarda en `configuracion_designer/accesos` con un índice
-  plano que leen `firestore.rules` y `storage.rules` (`src/utils/accesos-designer.mjs`).
-  Pregunta siempre con `puedeEnDesigner`, nunca con `isAdminGlobal`. Ordenar y dar
-  accesos siguen siendo del Administrador Global. "Registro" lista lo guardado,
-  editado y eliminado (qué, fecha, hora, quién) desde Historial: **toda escritura del
-  Designer pasa por `proponerCambio` con `AMBITOS_CAMBIO.everestDesigner`**, o no sale.
-  Test: `tests/everest/accesos-y-registro-del-designer.test.mjs`. La Paleta vivía
+- **Pestañas:** Portada, Cintas, Medallas, Pines, Paleta y Tarjeta (`?seccion=`). La Paleta vivía
   en Administración; `/dashboard/admin/paleta` solo redirige aquí.
 - **Pantalla:** `/dashboard/explora-designer` (la vieja `/dashboard/everest` redirige), entrada del menú lateral debajo de
   "Administradores" (no es una pestaña de Administración), solo para el

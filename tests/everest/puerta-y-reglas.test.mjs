@@ -38,34 +38,27 @@ const bloqueDeRegla = (reglas, encabezado) => {
 // 1. LAS REGLAS
 // ----------------------------------------------------------------------
 
-// Lo escriben el Administrador Global y a quien "Accesos" le dé editar la Portada.
-test('lo publicado lo lee cualquier sesion y lo escribe quien puede editar la Portada', () => {
+test('lo publicado lo lee cualquier sesion y lo escribe solo el Administrador Global', () => {
   const regla = bloqueDeRegla(
     leer('firestore.rules'),
     `match /${COLECCIONES_EXPLORA.publicado}/{pantalla} {`
   );
 
   assert.match(regla, /allow read: if esUsuarioDelSistema\(\);/);
-  assert.match(
-    regla,
-    /allow write: if esAdministradorGlobal\(\) \|\| permisoDesigner\('portada', 'editar'\);/
-  );
+  assert.match(regla, /allow write: if esAdministradorGlobal\(\);/);
 });
 
-test('los borradores y las versiones son de quien puede editar la Portada', () => {
+test('los borradores y las versiones son solo del Administrador Global', () => {
   const reglas = leer('firestore.rules');
 
   assert.match(
     bloqueDeRegla(reglas, `match /${COLECCIONES_EXPLORA.borradores}/{pantalla} {`),
-    /allow read, write: if esAdministradorGlobal\(\) \|\| permisoDesigner\('portada', 'editar'\);/
+    /allow read, write: if esAdministradorGlobal\(\);/
   );
 
   const versiones = bloqueDeRegla(reglas, `match /${COLECCIONES_EXPLORA.versiones}/{idVersion} {`);
 
-  assert.match(
-    versiones,
-    /allow read, create: if esAdministradorGlobal\(\) \|\| permisoDesigner\('portada', 'editar'\);/
-  );
+  assert.match(versiones, /allow read, create: if esAdministradorGlobal\(\);/);
   // Una version es historia: no se reescribe ni se borra.
   assert.match(versiones, /allow update, delete: if false;/);
 });
@@ -119,7 +112,7 @@ test('publicar y volver al original pasan por la puerta y quedan en Historial', 
   );
 });
 
-test('el ambito no espera a la Oficina Nacional: publica quien puede editar la Portada', () => {
+test('el ambito no espera a la Oficina Nacional: lo publica el Administrador Global', () => {
   const puerta = leer('src/services/solicitudes-cambio-service.js');
   const listaDeOficina = puerta.slice(
     puerta.indexOf('export const AMBITOS_QUE_APRUEBA_OFICINA_NACIONAL'),
@@ -127,10 +120,7 @@ test('el ambito no espera a la Oficina Nacional: publica quien puede editar la P
   );
 
   assert.doesNotMatch(listaDeOficina, /everestDesigner/);
-  assert.match(
-    leer('src/services/everest-service.js'),
-    /if \(!puedeEnDesigner\(usuario, 'portada', 'editar'\)\)/
-  );
+  assert.match(leer('src/services/everest-service.js'), /if \(!isAdminGlobal\(usuario\)\)/);
 });
 
 test('solo el brazo que aplica escribe, y esta en la lista de ESLint con su motivo', () => {

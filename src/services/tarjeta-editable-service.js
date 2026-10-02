@@ -1,6 +1,6 @@
 import { doc, getDoc } from 'firebase/firestore';
 
-import { puedeEnDesigner } from 'src/utils/org-level-access';
+import { isAdminGlobal } from 'src/utils/org-level-access';
 import { sanearTarjeta, COLECCION_TARJETAS_DESARROLLO } from 'src/utils/tarjeta-editable.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -22,8 +22,8 @@ export async function leerTarjetaEditable(id) {
 
 export async function guardarTarjetaEditable({ id, tarjeta, usuario }) {
   if (!isFirebaseConfigured || !FIRESTORE) throw new Error('Firebase no está configurado.');
-  if (!puedeEnDesigner(usuario, 'tarjeta', 'editar')) {
-    throw new Error('No tienes permiso para cambiar la Tarjeta (EXPLORA Designer → Accesos).');
+  if (!isAdminGlobal(usuario)) {
+    throw new Error('Solo el Administrador Global cambia la tarjeta editable.');
   }
 
   const limpia = sanearTarjeta(tarjeta);

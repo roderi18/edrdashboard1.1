@@ -13,7 +13,6 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
 import { TIPOS_INSIGNIA } from 'src/utils/insignias-personalizadas.mjs';
-import { puedeCrearInsignia, puedeOrdenarInsignias } from 'src/utils/org-level-access';
 import {
   catalogoEnOrden,
   esOrdenDeFabrica,
@@ -41,7 +40,6 @@ import {
 import { useAuthContext } from 'src/auth/hooks';
 
 import { RejillaOrdenable } from './rejilla-ordenable';
-import { AccionesDeInsignia } from './acciones-de-insignia';
 import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 
 // ----------------------------------------------------------------------
@@ -60,11 +58,6 @@ import { AgregarInsigniaDialog } from './agregar-insignia-dialog';
 
 export function EverestCintas() {
   const { user } = useAuthContext();
-  // Ordenar (arrastrar, flechas, guardar el orden) es solo del Administrador
-  // Global; la Oficina Nacional agrega y edita.
-  const puedeOrdenar = puedeOrdenarInsignias(user);
-  // "Agregar" solo con permiso de crear en esta pestaña (Designer → Accesos).
-  const puedeCrear = puedeCrearInsignia(user, TIPOS_INSIGNIA.CINTA);
   const ordenGuardado = useOrdenDeCintas();
   // `null`: sin tocar, se sigue lo guardado (y lo que llegue en vivo).
   const [borrador, setBorrador] = useState(null);
@@ -190,42 +183,38 @@ export function EverestCintas() {
           startIcon={<Iconify icon="mingcute:add-line" />}
           disabled={guardando}
           onClick={() => setAgregando(true)}
-          sx={{ mr: 'auto', visibility: puedeCrear ? 'visible' : 'hidden' }}
+          sx={{ mr: 'auto' }}
         >
           Agregar cinta
         </Button>
-        {puedeOrdenar && (
-          <>
-            <Button
-              color="inherit"
-              startIcon={<Iconify icon="solar:restart-bold" />}
-              disabled={guardando || esOrdenDeFabrica(actual)}
-              onClick={() => setBorrador(normalizarOrdenGlobal([]))}
-            >
-              Orden de fábrica
-            </Button>
-            <Button
-              color="inherit"
-              disabled={!hayCambios || guardando}
-              onClick={() => setBorrador(null)}
-            >
-              Descartar
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<Iconify icon="eva:checkmark-fill" />}
-              disabled={!hayCambios || guardando}
-              onClick={guardar}
-            >
-              {guardando ? 'Guardando…' : 'Guardar orden'}
-            </Button>
-          </>
-        )}
+        <Button
+          color="inherit"
+          startIcon={<Iconify icon="solar:restart-bold" />}
+          disabled={guardando || esOrdenDeFabrica(actual)}
+          onClick={() => setBorrador(normalizarOrdenGlobal([]))}
+        >
+          Orden de fábrica
+        </Button>
+        <Button
+          color="inherit"
+          disabled={!hayCambios || guardando}
+          onClick={() => setBorrador(null)}
+        >
+          Descartar
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<Iconify icon="eva:checkmark-fill" />}
+          disabled={!hayCambios || guardando}
+          onClick={guardar}
+        >
+          {guardando ? 'Guardando…' : 'Guardar orden'}
+        </Button>
       </Stack>
 
       <RejillaOrdenable
         items={cintas}
-        deshabilitado={guardando || !puedeOrdenar}
+        deshabilitado={guardando}
         onMover={mover}
         sx={{
           // `minmax(0, 1fr)`: con `1fr` a secas un nombre largo ensanchaba la columna.
@@ -261,30 +250,12 @@ export function EverestCintas() {
               </Box>
             </Tooltip>
 
-            {/* El nombre entero, en varias líneas si hace falta: cortado con "…" no
-                se distinguían cintas de nombre parecido. */}
-            <Stack direction="row" alignItems="flex-start" spacing={0.25} sx={{ mt: 0.75 }}>
+            <Stack direction="row" alignItems="center" spacing={0.25} sx={{ mt: 0.75 }}>
               <Label sx={{ flexShrink: 0 }}>{indice + 1}</Label>
-              <Typography
-                variant="caption"
-                sx={{
-                  flexGrow: 1,
-                  minWidth: 0,
-                  lineHeight: 1.3,
-                  whiteSpace: 'normal',
-                  overflowWrap: 'anywhere',
-                }}
-              >
+              <Typography variant="caption" noWrap sx={{ flexGrow: 1, minWidth: 0 }}>
                 {cinta.personalizada ? cinta.nombre : `${cinta.id}. ${cinta.nombre}`}
               </Typography>
               {!flotante && (
-                <AccionesDeInsignia
-                  tipo={TIPOS_INSIGNIA.CINTA}
-                  insignia={cinta}
-                  deshabilitado={guardando}
-                />
-              )}
-              {!flotante && puedeOrdenar && (
                 <>
                   <IconButton
                     size="small"

@@ -22,7 +22,6 @@ import DialogContent from '@mui/material/DialogContent';
 
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { catalogoDePinesEnOrden } from 'src/utils/pines-perfil.mjs';
-import { llevaNumeroDorado } from 'src/utils/insignias-personalizadas.mjs';
 import { configuracionDeMedallas, catalogoDeMedallasEnOrden } from 'src/utils/medallas-perfil.mjs';
 import {
   recordarImagenDelPerfil,
@@ -479,8 +478,7 @@ export function ImagenDeCinta({
   velocidadNumero,
   intensidadNumero,
 }) {
-  // Sin número si su ficha del Designer dice que no lo lleva.
-  const digitos = llevaNumeroDorado(cinta, 'cinta') ? digitosDeVeces(veces) : [];
+  const digitos = digitosDeVeces(veces);
   const tieneBordeDorado = CINTAS_CON_BORDE_DORADO.has(cinta.id);
   const bordeElegido = normalizarEfectoBorde(efectoBorde);
   const numeroElegido = normalizarEfectoNumero(efectoNumero);
@@ -832,16 +830,6 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
   const [medallasElegidas, setMedallasElegidas] = useState(null);
   // Movimiento y brillo, globales para sus medallas. `null`: los que ya tenían.
   const [efectosMedallas, setEfectosMedallas] = useState(null);
-  // Cuántas veces ganó cada medalla (las que llevan número). `null`: lo guardado.
-  const [vecesMedallas, setVecesMedallas] = useState(null);
-  const vecesDeMedallas = useMemo(
-    () =>
-      vecesMedallas ??
-      new Map(
-        [...configuracionDeMedallas(medallasGuardadas.medallas)].map(([id, c]) => [id, c.veces])
-      ),
-    [vecesMedallas, medallasGuardadas.medallas]
-  );
   const medallasEnOrden = useMemo(
     () => catalogoDeMedallasEnOrden(catalogoDeMedallas, ordenDeMedallas),
     [catalogoDeMedallas, ordenDeMedallas]
@@ -929,7 +917,7 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
         })),
         usuario: user,
       });
-      const tocoMedallas = Boolean(medallasElegidas || efectosMedallas || vecesMedallas);
+      const tocoMedallas = Boolean(medallasElegidas || efectosMedallas);
       if (tocoMedallas) {
         await guardarMedallasDeMiembro({
           idMiembros,
@@ -938,11 +926,7 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
           elegidas: medallasEnOrden
             .map((medalla) => medalla.id)
             .filter((idMedalla) => medallasActuales.has(idMedalla))
-            .map((idMedalla) => ({
-              id: idMedalla,
-              ...efectosActuales,
-              veces: vecesDeMedallas.get(idMedalla) ?? 1,
-            })),
+            .map((idMedalla) => ({ id: idMedalla, ...efectosActuales })),
           usuario: user,
         });
       }
@@ -1009,10 +993,6 @@ function DialogoCintasDePrueba({ idMiembros, asignadas, user, onClose }) {
             onCambiar={setMedallasElegidas}
             efectos={efectosActuales}
             onCambiarEfectos={setEfectosMedallas}
-            veces={vecesDeMedallas}
-            onCambiarVeces={(idMedalla, valor) =>
-              setVecesMedallas(new Map(vecesDeMedallas).set(idMedalla, valor))
-            }
           />
         ) : (
           <>
