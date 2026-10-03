@@ -155,6 +155,19 @@ test('la carpeta del respaldo no la abre nadie desde el navegador', () => {
   const reglas = leer('storage.rules');
 
   assert.match(reglas, /match \/respaldos\/\{allPaths=\*\*\} \{\s*allow read, write: if false;/);
-  // El comodín de imágenes del Administrador Global no la alcanza.
-  assert.equal((reglas.match(/!rutaImagen\.matches\('respaldos\/\.\*'\)/g) || []).length, 2);
+  // El comodín de imágenes del Administrador Global no la alcanza. Por el NOMBRE
+  // (texto): `rutaImagen` con `=**` es una ruta y `.matches` sobre ella daba
+  // error, que deniega, y se cayeron las fotos de los productos.
+  assert.match(reglas, /!resource\.name\.matches\('respaldos\/\.\*'\)/);
+  assert.match(reglas, /!request\.resource\.name\.matches\('respaldos\/\.\*'\)/);
+  assert.doesNotMatch(reglas, /rutaImagen\.matches/);
+});
+
+test('las fotos de los productos las suben el Administrador Global y el de Gestión de Tienda', () => {
+  const reglas = leer('storage.rules');
+
+  assert.match(
+    reglas,
+    /match \/productos\/\{allPaths=\*\*\} \{[\s\S]*?allow create, update: if \(esAdministradorGlobal\(\) \|\| esAdministradorDeTienda\(\)\)\s*&& esImagenPermitida\(\);/
+  );
 });

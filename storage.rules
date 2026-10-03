@@ -795,6 +795,18 @@ service firebase.storage {
       allow delete: if false;
     }
 
+    // LAS FOTOS DE LOS PRODUCTOS DE LA TIENDA (`productos/<id>/imagen-….webp`).
+    // No tenían regla propia: entraban por el comodín de imágenes, que es solo
+    // del Administrador Global, así que el Administrador de Gestión de Tienda
+    // —quien lleva el catálogo— no podía subirlas. Las ve cualquiera con sesión
+    // (el catálogo es para todos); nadie las borra desde el navegador.
+    match /productos/{allPaths=**} {
+      allow read: if estaAutenticado();
+      allow create, update: if (esAdministradorGlobal() || esAdministradorDeTienda())
+        && esImagenPermitida();
+      allow delete: if false;
+    }
+
     // EL RESPALDO DIARIO (`src/utils/respaldo-diario.mjs`): la base de datos, el
     // padrón y las cuentas de toda la organización, y el espejo de los archivos.
     // Solo lo escribe y lo lee el servidor (Admin SDK, que no pasa por aquí).
@@ -808,13 +820,17 @@ service firebase.storage {
     // incluidas las fotos de secciones y regiones que no tienen un match propio.
     // No concede borrado ni permite subir archivos que no sean imagenes.
     match /{rutaImagen=**} {
-      // Nunca dentro del respaldo: nadie lo toca desde el navegador.
+      // Nunca dentro del respaldo: nadie lo toca desde el navegador. Se mira el
+      // NOMBRE del archivo (texto), no `rutaImagen`: con `=**` esa variable es
+      // una ruta, `.matches` sobre ella da error y un error deniega. Así se
+      // cayeron TODAS las subidas que dependían de esta regla (las fotos de los
+      // productos de la tienda, por ejemplo).
       allow read: if esAdministradorGlobal()
         && resource.contentType.matches('image/.*')
-        && !rutaImagen.matches('respaldos/.*');
+        && !resource.name.matches('respaldos/.*');
       allow create, update: if esAdministradorGlobal()
         && esImagenPermitida()
-        && !rutaImagen.matches('respaldos/.*');
+        && !request.resource.name.matches('respaldos/.*');
     }
   }
 }
