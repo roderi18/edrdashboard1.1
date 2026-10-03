@@ -41,6 +41,8 @@ const ICONS = {
   analytics: icon('ic-analytics'),
   dashboard: icon('ic-dashboard'),
   designer: <Iconify width={24} icon="solar:paint-brush-bold-duotone" />,
+  // Un grupo de personas: la Comunidad ERRD es la gente, no un panel de cifras.
+  comunidad: <Iconify width={24} icon="solar:users-group-rounded-bold-duotone" />,
   pruebas: <Iconify width={24} icon="custom:constructor-duotone" />,
 };
 
@@ -102,7 +104,7 @@ export const navData = [
    */
   {
     subheader: 'Principal',
-    items: [{ title: 'Inicio', path: paths.dashboard.principal, icon: ICONS.dashboard }],
+    items: [{ title: 'Comunidad ERRD', path: paths.dashboard.principal, icon: ICONS.comunidad }],
   },
   {
     subheader: 'Organización',
