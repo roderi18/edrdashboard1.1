@@ -65,7 +65,7 @@ export const metadata = {
     {
       rel: 'icon',
       // `?v=`: el navegador guarda el favicon aparte y no lo renueva solo.
-      url: `${CONFIG.assetsDir}/app/exploradores-del-rey-icono.ico?v=3`,
+      url: `${CONFIG.assetsDir}/app/exploradores-del-rey-icono.ico?v=4`,
     },
     {
       rel: 'apple-touch-icon',
@@ -100,7 +100,7 @@ export default function RootLayout({ children }) {
       <head>
         <link
           rel="preload"
-          href="/marca/expedition-logotipo.webp?v=2"
+          href="/marca/expedition-logotipo.webp?v=3"
           as="image"
           type="image/webp"
         />

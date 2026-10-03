@@ -13,6 +13,7 @@ import { NavSectionVertical } from 'src/components/nav-section';
 
 import { layoutClasses } from '../core';
 import { NavUpgrade } from '../components/nav-upgrade';
+import { PalabraExpedition } from './palabra-expedition';
 
 // ----------------------------------------------------------------------
 
@@ -61,29 +62,7 @@ export function NavMobile({
           aria-label="Ir a Principal"
           sx={{ pl: 3.5, pt: 2.5, pb: 1, display: 'block', width: 'fit-content' }}
         >
-          {/* Solo la palabra EXPEDITION, como estaba la de EXPLORA: texto oscuro
-              sobre el menú claro y claro sobre el oscuro. */}
-          <Box
-            component="img"
-            src={
-              isNavLight
-                ? '/marca/expedition-wordmark.webp?v=1'
-                : '/marca/expedition-wordmark-light.webp?v=1'
-            }
-            alt="EXPEDITION"
-            width={170}
-            height={36}
-            loading="eager"
-            decoding="sync"
-            fetchPriority="high"
-            sx={{
-              width: 170,
-              height: 36,
-              display: 'block',
-              objectFit: 'contain',
-              objectPosition: 'left center',
-            }}
-          />
+          <PalabraExpedition isNavLight={isNavLight} width={170} height={36} />
         </Box>
       )}
 

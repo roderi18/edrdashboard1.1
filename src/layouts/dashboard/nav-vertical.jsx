@@ -14,6 +14,7 @@ import { BugReportFab } from 'src/sections/bug-report/bug-report-fab';
 
 import { layoutClasses } from '../core';
 import { NavUpgrade } from '../components/nav-upgrade';
+import { PalabraExpedition } from './palabra-expedition';
 import { NavToggleButton } from '../components/nav-toggle-button';
 
 // ----------------------------------------------------------------------
@@ -40,29 +41,7 @@ export function NavVertical({
           aria-label="Ir a Principal"
           sx={{ pl: 3.5, pt: 2.5, pb: 1, display: 'block', width: 'fit-content' }}
         >
-          {/* Solo la palabra EXPEDITION, como estaba la de EXPLORA: texto oscuro
-              sobre el menú claro y claro sobre el oscuro. */}
-          <Box
-            component="img"
-            src={
-              isNavLight
-                ? '/marca/expedition-wordmark.webp?v=1'
-                : '/marca/expedition-wordmark-light.webp?v=1'
-            }
-            alt="EXPEDITION"
-            width={190}
-            height={40}
-            loading="eager"
-            decoding="sync"
-            fetchPriority="high"
-            sx={{
-              width: 190,
-              height: 40,
-              display: 'block',
-              objectFit: 'contain',
-              objectPosition: 'left center',
-            }}
-          />
+          <PalabraExpedition isNavLight={isNavLight} width={190} height={40} />
         </Box>
       )}
 

@@ -12,7 +12,7 @@ import { Logo } from '../logo';
 //
 // Antes era el isotipo de EXPLORA girando dentro de dos marcos que también
 // giraban. Ahora es el logotipo completo y no gira: solo respira (opacidad),
-// para que se note que la aplicación sigue cargando. El logotipo 3D se lee
+// para que se note que la aplicación sigue cargando. El logotipo se lee
 // igual sobre fondo claro y oscuro: una sola imagen.
 export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
   return (
@@ -24,10 +24,10 @@ export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
       >
         {logo ?? (
           <LoadingLogotipo
-            src="/marca/expedition-logotipo.webp?v=2"
+            src="/marca/expedition-logotipo.webp?v=3"
             alt="EXPEDITION"
             width={200}
-            height={137}
+            height={126}
             {...slotProps?.logo}
           />
         )}
@@ -38,7 +38,7 @@ export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
 
 const LogoZoomRoot = styled('div')(() => ({
   width: 200,
-  height: 137,
+  height: 126,
   alignItems: 'center',
   position: 'relative',
   display: 'inline-flex',
@@ -47,7 +47,7 @@ const LogoZoomRoot = styled('div')(() => ({
 
 const LoadingLogotipo = styled('img')(() => ({
   width: 200,
-  height: 137,
+  height: 126,
   objectFit: 'contain',
 }));
 
