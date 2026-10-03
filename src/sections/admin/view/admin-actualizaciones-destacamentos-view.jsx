@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
+import Tabs from '@mui/material/Tabs';
 import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import Alert from '@mui/material/Alert';
@@ -23,6 +25,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import TableContainer from '@mui/material/TableContainer';
+import TablePagination from '@mui/material/TablePagination';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
@@ -61,7 +64,9 @@ import { CuentaRegresivaLandingCard } from '../cuenta-regresiva-landing-card';
 // si se carga o se descarta: se marcan con la casilla los que de verdad deben
 // entrar en la aplicación. Los ya cargados también se pueden marcar y volver a
 // cargar (por si la primera carga salió mal): la carga compara con lo que hay
-// en la aplicación y solo escribe lo que difiere. Los descartados, no.
+// en la aplicación y solo escribe lo que difiere. Los descartados también: un
+// descarte por error no tiene por qué ser para siempre, y antes la casilla
+// quedaba apagada sin otra salida.
 // ----------------------------------------------------------------------
 
 const COLOR_ESTADO = {
@@ -69,6 +74,15 @@ const COLOR_ESTADO = {
   [ESTADOS_ACTUALIZACION.cargada]: 'success',
   [ESTADOS_ACTUALIZACION.descartada]: 'default',
 };
+
+const POR_PAGINA = [20, 30, 50];
+
+const FILTROS_ESTADO = [
+  { valor: 'todos', texto: 'Todas' },
+  { valor: ESTADOS_ACTUALIZACION.pendiente, texto: 'Pendientes' },
+  { valor: ESTADOS_ACTUALIZACION.cargada, texto: 'Cargadas' },
+  { valor: ESTADOS_ACTUALIZACION.descartada, texto: 'Descartadas' },
+];
 
 const TEXTO_ESTADO = {
   [ESTADOS_ACTUALIZACION.pendiente]: 'Pendiente',
@@ -412,17 +426,38 @@ export function AdminActualizacionesDestacamentosView() {
   const [trabajando, setTrabajando] = useState(false);
   const [abierta, setAbierta] = useState(null);
   const [porCampos, setPorCampos] = useState(false);
+  const [filtroEstado, setFiltroEstado] = useState('todos');
+  const [pagina, setPagina] = useState(0);
+  const [porPagina, setPorPagina] = useState(POR_PAGINA[0]);
   const repetidos = repeticionesPorEnvio(filas || []);
 
-  // Se marcan las pendientes y también las cargadas, para volver a cargarlas.
-  const marcables = (filas || []).filter(
-    (f) =>
-      f.estado === ESTADOS_ACTUALIZACION.pendiente || f.estado === ESTADOS_ACTUALIZACION.cargada
+  // Con cientos de envíos la tabla era una sola tira: se filtra por estado y se
+  // pagina. Las repeticiones se cuentan sobre TODAS, no solo las que se ven.
+  const filtradas = (filas || []).filter(
+    (f) => filtroEstado === 'todos' || f.estado === filtroEstado
   );
-  const pendientes = marcables;
+  const ultimaPagina = Math.max(0, Math.ceil(filtradas.length / porPagina) - 1);
+  const paginaVista = Math.min(pagina, ultimaPagina);
+  const visibles = filtradas.slice(paginaVista * porPagina, (paginaVista + 1) * porPagina);
+  const cuantasEn = (estado) => (filas || []).filter((f) => f.estado === estado).length;
+
+  // Se marcan todas: las pendientes, las cargadas (para volver a cargarlas) y
+  // las descartadas (para cargarlas si se quiere).
+  const marcables = (filas || []).filter((f) =>
+    [
+      ESTADOS_ACTUALIZACION.pendiente,
+      ESTADOS_ACTUALIZACION.cargada,
+      ESTADOS_ACTUALIZACION.descartada,
+    ].includes(f.estado)
+  );
+  // "Elegir todas" se queda en lo que deja ver el filtro.
+  const pendientes = marcables.filter((f) => filtradas.includes(f));
   // Una elegida que otro descartó mientras tanto deja de contar.
   const seleccion = marcables.filter((f) => elegidas.includes(f.id));
   const hayRecargas = seleccion.some((f) => f.estado === ESTADOS_ACTUALIZACION.cargada);
+  // Descartar solo tiene sentido con pendientes: lo cargado no se deshace y lo
+  // descartado ya lo está.
+  const soloPendientes = seleccion.every((f) => f.estado === ESTADOS_ACTUALIZACION.pendiente);
   const alternar = (id) =>
     setElegidas((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const alternarTodas = () =>
@@ -530,7 +565,7 @@ export function AdminActualizacionesDestacamentosView() {
             {seleccion.length} seleccionada{seleccion.length === 1 ? '' : 's'}
           </Typography>
           {/* Descartar algo ya cargado no deshace la carga: solo con pendientes. */}
-          <Button color="inherit" onClick={handleDescartar} disabled={trabajando || hayRecargas}>
+          <Button color="inherit" onClick={handleDescartar} disabled={trabajando || !soloPendientes}>
             Descartar
           </Button>
           <Button
@@ -554,6 +589,32 @@ export function AdminActualizacionesDestacamentosView() {
         </Stack>
       )}
 
+      <Tabs
+        value={filtroEstado}
+        onChange={(_, valor) => {
+          setFiltroEstado(valor);
+          setPagina(0);
+        }}
+        sx={{ px: 3, mt: 2, boxShadow: (theme) => `inset 0 -2px 0 0 ${theme.vars.palette.divider}` }}
+      >
+        {FILTROS_ESTADO.map(({ valor, texto }) => (
+          <Tab
+            key={valor}
+            value={valor}
+            iconPosition="end"
+            label={texto}
+            icon={
+              <Label
+                variant={valor === filtroEstado ? 'filled' : 'soft'}
+                color={valor === 'todos' ? 'default' : COLOR_ESTADO[valor]}
+              >
+                {valor === 'todos' ? (filas || []).length : cuantasEn(valor)}
+              </Label>
+            }
+          />
+        ))}
+      </Tabs>
+
       {error && (
         <Alert severity="error" sx={{ m: 3, mb: 0 }}>
           {error}
@@ -570,7 +631,7 @@ export function AdminActualizacionesDestacamentosView() {
                   checked={!!pendientes.length && seleccion.length === pendientes.length}
                   indeterminate={seleccion.length > 0 && seleccion.length < pendientes.length}
                   onChange={alternarTodas}
-                  inputProps={{ 'aria-label': 'Elegir todas (pendientes y cargadas)' }}
+                  inputProps={{ 'aria-label': 'Elegir todas las que se ven en el filtro' }}
                 />
               </TableCell>
               <TableCell>Recibida</TableCell>
@@ -595,7 +656,7 @@ export function AdminActualizacionesDestacamentosView() {
                 </TableRow>
               ))}
 
-            {filas?.map((fila) => (
+            {visibles.map((fila) => (
               <TableRow key={fila.id} hover selected={elegidas.includes(fila.id)}>
                 <TableCell padding="checkbox">
                   <Checkbox
@@ -658,9 +719,33 @@ export function AdminActualizacionesDestacamentosView() {
                 </TableCell>
               </TableRow>
             ))}
+            {filas?.length > 0 && !filtradas.length && (
+              <TableRow>
+                <TableCell colSpan={8} sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
+                  No hay envíos con este estado.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>
+
+      {filtradas.length > 0 && (
+        <TablePagination
+          component="div"
+          count={filtradas.length}
+          page={paginaVista}
+          onPageChange={(_, nueva) => setPagina(nueva)}
+          rowsPerPage={porPagina}
+          rowsPerPageOptions={POR_PAGINA}
+          onRowsPerPageChange={(evento) => {
+            setPorPagina(Number(evento.target.value));
+            setPagina(0);
+          }}
+          labelRowsPerPage="Filas por página"
+          labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
+        />
+      )}
 
       {/* Elegir qué datos del envío se aplican, con vista previa. */}
       <CargaPorCamposDialog
@@ -679,8 +764,9 @@ export function AdminActualizacionesDestacamentosView() {
         <DialogTitle>{abierta ? destacamentoDe(abierta) : ''}</DialogTitle>
         <DialogContent dividers>
           {/* Un envío de destacamento nuevo sin cargar: decidir si es uno que ya
-              existe o si se crea. Antes solo se podía saltar. */}
-          {abierta?.esNuevo && abierta.estado !== ESTADOS_ACTUALIZACION.descartada && (
+              existe o si se crea. Antes solo se podía saltar. También el
+              descartado, que se puede cargar si se quiere. */}
+          {abierta?.esNuevo && (
             <ResolverDestacamentoNuevo
               fila={abierta}
               user={user}
