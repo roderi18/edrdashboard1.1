@@ -60,9 +60,9 @@ export function NavMobile({
           component={RouterLink}
           href={paths.dashboard.principal}
           aria-label="Ir a Principal"
-          sx={{ pl: 3.5, pt: 2.5, pb: 1, display: 'block', width: 'fit-content' }}
+          sx={{ display: 'block', width: 1 }}
         >
-          <PalabraExpedition isNavLight={isNavLight} width={170} height={36} />
+          <PalabraExpedition />
         </Box>
       )}
 

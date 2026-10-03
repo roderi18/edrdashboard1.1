@@ -1,46 +1,53 @@
 import Box from '@mui/material/Box';
 
 // ----------------------------------------------------------------------
-// LA PALABRA EXPEDITION DEL MENÚ LATERAL (escritorio y móvil).
+// EL LOGOTIPO DE EXPEDITION EN EL MENÚ LATERAL (escritorio y móvil).
 //
-// Texto azul marino sobre el menú claro y blanco sobre el oscuro. Con "menú en
-// blanco" el fondo es el del tema, así que en el tema OSCURO también es oscuro:
-// elegir la imagen solo por ese ajuste dejaba la palabra azul marino sobre azul
-// marino, casi invisible. Van las dos imágenes y el tema decide cuál se ve, sin
-// parpadeo mientras se averigua.
+// El logotipo plano se lee igual sobre el menú claro y el oscuro, así que es
+// una sola imagen para los dos temas.
+//
+// TAMAÑO Y POSICIÓN: se cambian AQUÍ, en `LOGO_DEL_MENU`, y valen para el menú
+// de escritorio y el del móvil.
+//  - ancho / alto: en píxeles. Mantén la proporción del archivo (480 × 303,
+//    unos 1,58 de ancho por cada 1 de alto) o se verá con aire a los lados.
+//  - horizontal: desplazamiento a la derecha desde el borde izquierdo del menú
+//    (negativo, a la izquierda). 'centro' lo centra en el menú.
+//  - arriba / abajo: espacio por encima y por debajo, en píxeles.
 // ----------------------------------------------------------------------
 
-const OSCURA = '/marca/expedition-wordmark.webp?v=1';
-const BLANCA = '/marca/expedition-wordmark-light.webp?v=1';
+export const LOGO_DEL_MENU = {
+  ancho: 120,
+  alto: 76,
+  horizontal: 'centro',
+  arriba: 16,
+  abajo: 8,
+};
 
-export function PalabraExpedition({ isNavLight, width, height }) {
-  const imagen = (src, sx) => (
+const SRC = '/marca/expedition-logotipo.webp?v=3';
+
+export function PalabraExpedition() {
+  const { ancho, alto, horizontal, arriba, abajo } = LOGO_DEL_MENU;
+  const centrado = horizontal === 'centro';
+
+  return (
     <Box
       component="img"
-      src={src}
+      src={SRC}
       alt="EXPEDITION"
-      width={width}
-      height={height}
+      width={ancho}
+      height={alto}
       loading="eager"
       decoding="sync"
       fetchPriority="high"
-      sx={[
-        { width, height, display: 'block', objectFit: 'contain', objectPosition: 'left center' },
-        sx,
-      ]}
+      sx={{
+        width: ancho,
+        height: alto,
+        display: 'block',
+        objectFit: 'contain',
+        mt: `${arriba}px`,
+        mb: `${abajo}px`,
+        ...(centrado ? { mx: 'auto' } : { ml: `${horizontal}px` }),
+      }}
     />
-  );
-
-  // Menú oscuro en los dos temas: siempre la blanca.
-  if (!isNavLight) return imagen(BLANCA);
-
-  return (
-    <>
-      {imagen(OSCURA, (theme) => theme.applyStyles('dark', { display: 'none' }))}
-      {imagen(BLANCA, (theme) => ({
-        display: 'none',
-        ...theme.applyStyles('dark', { display: 'block' }),
-      }))}
-    </>
   );
 }

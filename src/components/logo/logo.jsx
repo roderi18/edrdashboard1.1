@@ -31,7 +31,8 @@ export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...
       {...other}
     >
       <img
-        src="/marca/exploradores-del-rey-logo.webp"
+        // El isotipo de EXPEDITION: menú cerrado, inicio de sesión y demás.
+        src="/marca/expedition-isotipo.webp?v=2"
         alt="EXPEDITION ™"
         width="100%"
         height="100%"
