@@ -185,7 +185,10 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    esos): es la única excepción a "nadie sirve en dos consejos". Ni se bloquea al
    darlo ni se retira el otro (servicio, organigramas y ficha). Dentro del
    Consejo Ejecutivo sigue valiendo un cargo por persona. En la ficha, "Cargo
-   Nacional" enseña el de región o sección. Regla en `src/utils/cargos-compatibles.mjs`.
+   Nacional" enseña el de región o sección. **En la nacional hay dos grupos**: lo
+   que cuelga del Consejo Ejecutivo y el resto del Consejo Nacional; una persona
+   puede tener uno de cada (Vicepresidente + Coordinador de Adiestramiento) y se
+   suma sin "traspaso". Regla en `src/utils/cargos-compatibles.mjs`.
 
 17. **Asignar en cualquier directiva es instantáneo**: la casilla (y el título)
    se pinta en el mismo clic, el diálogo se cierra y la escritura va por detrás;
@@ -205,7 +208,8 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    cualquier casilla o contenedor del nivel entero, también los de fábrica
    (ficha `oculta` en la misma colección; lo que colgaba sube a su sitio).
    Ocupada no se quita; "Devolver" en el mismo panel. Con un contenedor marcado,
-   **Cambiar nombre** (también los de fábrica: ficha `nombre`). Pieza:
+   **Cambiar nombre** (también los de fábrica: ficha `nombre`). También desde los tres
+   puntitos del contenedor (`menu-de-contenedor.jsx`). Pieza:
    `quitar-casilla-del-nivel.jsx`. Test: `tests/directivas/quitar-casilla-del-organigrama.test.mjs`. Piezas:
    `src/utils/casillas-personalizadas.mjs`, `use-casillas-personalizadas.js`,
    `casillas-directiva-dialog.jsx`. Detalle en `docs/casillas-personalizadas.md`.

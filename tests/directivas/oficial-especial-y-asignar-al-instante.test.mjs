@@ -37,8 +37,17 @@ test('Oficial Especial convive con un cargo de región o de sección, en los dos
 });
 
 test('lo demás sigue siendo un solo consejo', () => {
-  // Dentro del Consejo Ejecutivo, un cargo por persona.
-  assert.equal(sonCargosCompatibles(oficial, directorNacional), false);
+  // Dentro del Consejo Ejecutivo, un cargo por persona. (Con el Director
+  // Nacional sí convive: él es del grupo del Consejo Nacional, ver
+  // `dos-grupos-de-la-nacional-y-nombres-de-contenedores.test.mjs`.)
+  assert.equal(
+    sonCargosCompatibles(oficial, {
+      nivel: 'nacional',
+      idPosicionDirectiva: 'nacional-coordinador-adiestramiento',
+    }),
+    false
+  );
+  assert.equal(sonCargosCompatibles(oficial, directorNacional), true);
   assert.equal(sonCargosCompatibles(subdirectorRegional, seccional), false);
   assert.equal(sonCargosCompatibles(directorNacional, seccional), false);
   assert.equal(esOficialEspecial('nacional-oficial-especial-21'), false);

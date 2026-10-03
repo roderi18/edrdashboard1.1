@@ -60,6 +60,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
+import { MenuDeContenedor } from 'src/sections/common/menu-de-contenedor';
 import { QuitarCasillaDelNivel } from 'src/sections/common/quitar-casilla-del-nivel';
 import { CasillasDirectivaBoton } from 'src/sections/common/casillas-directiva-dialog';
 import { useCasillasPersonalizadas } from 'src/sections/common/use-casillas-personalizadas';
@@ -184,6 +185,7 @@ function DivisionNode({ id, name, depth, avatarUrl, role, sx, layoutEditor }) {
         </Typography>
       </Box>
       <LeadershipNodeAnchors editor={layoutEditor} nodeId={nodeId} />
+      <MenuDeContenedor nivel="destacamento" idNodo={nodeId} nombre={name} />
     </Card>
   );
 }

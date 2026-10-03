@@ -35,6 +35,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 
+import { MenuDeContenedor } from 'src/sections/common/menu-de-contenedor';
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigrama';
 import { QuitarCasillaDelNivel } from 'src/sections/common/quitar-casilla-del-nivel';
@@ -120,6 +121,7 @@ function NationalDivisionNode({ id, name, depth, avatarUrl, role, layoutEditor }
       sx={getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode })}
     >
       <LeadershipNodeAnchors editor={layoutEditor} nodeId={id} />
+      <MenuDeContenedor nivel="nacional" idNodo={id} nombre={name} />
     </LeadershipStructureNode>
   );
 }

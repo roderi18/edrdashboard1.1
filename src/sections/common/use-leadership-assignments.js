@@ -3,8 +3,8 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { valorGuardado } from 'src/utils/cache-de-lecturas.mjs';
-import { esOficialEspecial } from 'src/utils/cargos-compatibles.mjs';
 import { obtenerFotosPrincipalesPorEntidad } from 'src/utils/firebase-photos';
+import { esOficialEspecial, sonCargosCompatibles } from 'src/utils/cargos-compatibles.mjs';
 import {
   buildOrgIndex,
   describirCargoDeDirectiva,
@@ -493,8 +493,35 @@ export function useLeadershipAssignments({
       normalizarIdAsignacion(asignado?.id ?? asignado?.idMiembros) === idMiembro;
     const cargoQueOcupa =
       ocupantesPorMiembro.get(idMiembro) || ocupantesEnOtroConsejo.get(idMiembro);
+    // Si TODO lo que ya ocupa puede ir junto al cargo nuevo (en la nacional, uno
+    // del Consejo Ejecutivo y otro del Consejo Nacional; o un Oficial Especial
+    // con su región o sección), no es un traspaso: se suma sin preguntar ni
+    // quitarle nada (`cargos-compatibles.mjs`).
+    const nuevo = {
+      nivel,
+      idPosicionDirectiva: findPositionByNode(nivel, selectedNode?.id)?.idCargo,
+    };
+    const suyos = [
+      ...Object.values(assignments),
+      ...asignacionesDeConsejo,
+    ].filter(
+      (asignacion) =>
+        asignacion?.idMiembro &&
+        normalizarIdAsignacion(asignacion.idMiembro) === idMiembro &&
+        normalizarIdAsignacion(asignacion.idPosicionDirectiva) !==
+          normalizarIdAsignacion(nuevo.idPosicionDirectiva)
+    );
+    const seSuma =
+      suyos.length > 0 &&
+      Boolean(nuevo.idPosicionDirectiva) &&
+      suyos.every((asignacion) =>
+        sonCargosCompatibles(
+          { nivel: asignacion.nivel || nivel, idPosicionDirectiva: asignacion.idPosicionDirectiva },
+          nuevo
+        )
+      );
 
-    if (cargoQueOcupa && !yaEstaEnEsteNodo) {
+    if (cargoQueOcupa && !yaEstaEnEsteNodo && !seSuma) {
       setTraspasoPendiente({
         node: selectedNode,
         idMiembro,
@@ -518,6 +545,9 @@ export function useLeadershipAssignments({
     ocupantesEnOtroConsejo,
     selectedMember,
     selectedNode,
+    nivel,
+    assignments,
+    asignacionesDeConsejo,
   ]);
 
   // --- Traspaso: confirmar que se le quita del otro consejo ---
