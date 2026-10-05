@@ -158,10 +158,10 @@ en documentos compartidos ni dentro de archivos `apphosting.*.yaml`.
 - [x] Identificar 32 archivos con la API .NET productiva escrita directamente.
 - [x] Documentar arquitectura, promoción y política de datos.
 - [x] Confirmar **EXPEDITION** como nombre oficial de la aplicación.
-- [ ] Confirmar nombres definitivos de los proyectos Firebase Dev y QA.
+- [x] Confirmar nombres definitivos de los proyectos Firebase Dev y QA.
 - [ ] Decidir dónde correrá la API .NET de Desarrollo y QA.
-- [ ] Designar quién aprueba QA y quién autoriza Producción.
-- [ ] Definir si QA usará datos totalmente sintéticos o copia anonimizada.
+- [x] Designar al propietario del repositorio como autorizador de Producción.
+- [x] Definir la copia controlada de los datos de prueba actuales para Dev y QA.
 
 **Criterio de salida:** decisiones anteriores registradas y responsables
 asignados.
@@ -177,7 +177,7 @@ asignados.
 - [ ] Crear pruebas que impidan conectar Dev/QA con Producción.
 - [ ] Corregir los tres fallos conocidos de la suite actual.
 - [ ] Configurar Firebase Emulator Suite en el repositorio.
-- [ ] Crear CI de validación para pull requests.
+- [x] Crear CI de validación para pull requests.
 
 **Criterio de salida:** suite, lint, build y emuladores pasan; una ejecución con
 `PADRON_READ_ONLY=true` no modifica la API .NET.
@@ -187,8 +187,8 @@ asignados.
 - [x] Crear `systexploradores-dev` y Firestore en `nam5`, igual que el origen.
 - [x] Activar Firebase Authentication y Firestore.
 - [x] Activar Storage y desplegar sus reglas.
-- [ ] Activar App Hosting y crear el backend `expedition-dev`.
-- [ ] Crear backend `expedition-dev` conectado a `development`.
+- [x] Activar App Hosting y crear el backend `expedition-dev`.
+- [x] Crear backend `expedition-dev` conectado a `development`.
 - [x] Registrar la app web `EXPEDITION Development Web` y crear variables públicas locales.
 - [ ] Configurar secretos de servidor exclusivos de Desarrollo.
 - [x] Desplegar reglas e índices de Firestore en Desarrollo.
@@ -206,8 +206,8 @@ Producción y cada cambio aprobado en `development` se despliega automáticament
 - [x] Crear `systexploradores-qa` y Firestore en `nam5`.
 - [x] Activar Firebase Authentication y Firestore.
 - [x] Activar Storage y desplegar sus reglas.
-- [ ] Activar App Hosting y crear el backend `expedition-qa`.
-- [ ] Crear backend `expedition-qa` conectado a `qa`.
+- [x] Activar App Hosting y crear el backend `expedition-qa`.
+- [x] Crear backend `expedition-qa` conectado a `qa`.
 - [x] Registrar la app web `EXPEDITION QA Web` y crear variables públicas locales.
 - [ ] Configurar secretos de servidor exclusivos de QA.
 - [x] Desplegar reglas e índices de Firestore.
@@ -229,8 +229,8 @@ personas reales y existe una aprobación funcional trazable.
 - [ ] Actualizar dominio, `WEB_PUSH_VAPID_SUBJECT` y enlaces operativos.
 - [ ] Mantener redirección desde la URL heredada durante la transición.
 - [ ] Añadir alias explícito `prod` sin depender del alias `default`.
-- [ ] Proteger `main` y requerir CI + aprobación.
-- [ ] Configurar despliegue con aprobación manual.
+- [x] Proteger `main` y requerir CI + aprobación.
+- [x] Configurar el ambiente `production` con aprobación manual.
 - [ ] Documentar respaldo, migración, reversión y pruebas posteriores.
 - [ ] Activar alertas de errores, disponibilidad, cuota y respaldo incompleto.
 - [ ] Verificar restauración de un respaldo en un ambiente aislado.

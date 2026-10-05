@@ -10,7 +10,8 @@ que se haga en QA toque producción ni a personas reales.
 
 > Estado actualizado (05/10/2026): existen Producción, Desarrollo y QA.
 > Firestore, Authentication y Storage de QA ya fueron poblados y verificados.
-> App Hosting y los secretos de servidor continúan pendientes.
+> App Hosting ya está conectado: `expedition-dev` → `development` y
+> `expedition-qa` → `qa`. Los secretos de servidor continúan pendientes.
 
 ---
 
