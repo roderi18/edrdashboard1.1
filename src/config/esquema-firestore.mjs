@@ -29,6 +29,8 @@ export const DEFINICIONES_COLECCIONES = Object.freeze({
   amistades: definir('amistades'),
   auditoriaPermisos: definir('auditoriaPermisos', 'auditoria_permisos'),
   auditoriaSistema: definir('auditoriaSistema', 'auditoria_sistema'),
+  // Lo escribe SOLO el servidor (Admin SDK): ver `src/server/auditoria-seguridad.js`.
+  auditoriaSeguridad: definir('auditoriaSeguridad', 'auditoria_seguridad'),
   buzonesChat: definir('buzonesChat', 'buzones_chat'),
   cargosDirectiva: definir('cargosDirectiva'),
   carpetasAscenso: definir('carpetasAscenso'),

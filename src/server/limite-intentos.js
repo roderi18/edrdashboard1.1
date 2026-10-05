@@ -1,6 +1,7 @@
 import 'server-only';
 
-import { ipDeLaLista } from 'src/server/ip-del-cliente.mjs';
+import { ipDelCliente } from 'src/server/ip-del-cliente.mjs';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 // ----------------------------------------------------------------------
 // Limite de intentos para las rutas de acceso.
@@ -50,29 +51,10 @@ const limpiar = (registro, ahora) => {
   }
 };
 
-// CUANTOS SALTOS DE CONFIANZA HAY DETRAS DEL CLIENTE.
-//
-// `x-forwarded-for` es una lista: lo que mando el propio cliente, y despues una
-// direccion por cada proxy que la toco. Solo la parte DERECHA la escriben los
-// proxys de la infraestructura; lo de la izquierda lo inventa quien llama. Antes
-// se tomaba la primera entrada —la mas facil de falsificar— y bastaba cambiarla
-// en cada peticion para saltarse todo limite por IP.
-//
-// En App Hosting (Cloud Run detras del balanceador de Google) la lista termina en
-// `<ip del cliente>, <ip del balanceador>`: un salto de confianza. Si el
-// despliegue cambia, se ajusta con `PROXIES_DE_CONFIANZA` sin tocar codigo.
-const saltosDeConfianza = () => {
-  const valor = Number(process.env.PROXIES_DE_CONFIANZA ?? 1);
-
-  return Number.isInteger(valor) && valor >= 0 ? valor : 1;
-};
-
-/**
- * De donde viene la llamada. Solo se fia de lo que añaden los proxys propios:
- * `x-real-ip` y `x-nf-client-connection-ip` los puede poner cualquiera.
- */
-export const origenDe = (req) =>
-  ipDeLaLista(req.headers.get('x-forwarded-for'), saltosDeConfianza()) || 'desconocido';
+// De donde viene la llamada: la IP real, leida desde la derecha de
+// `x-forwarded-for` (ver `ip-del-cliente.mjs`). Antes se tomaba la primera
+// entrada —la que inventa el cliente— y bastaba cambiarla para saltarse el limite.
+export const origenDe = ipDelCliente;
 
 /**
  * ¿Se pasó de intentos?
@@ -101,6 +83,20 @@ export const limiteSuperado = (
 
   if (marcas.length >= maximo) {
     const esperaSegundos = Math.max(1, Math.ceil((marcas[0] + ventanaMs - ahora) / 1000));
+
+    // Que alguien choque con el limite es la señal de un barrido, y antes no
+    // quedaba en ninguna parte. Una vez por clave y ventana: escribir cada
+    // rechazo seria pagarle al atacante por atacar. Sin esperar —esta funcion
+    // responde al momento—; el registro no tumba nada si falla.
+    void registrarEventoDeSeguridad(
+      req,
+      {
+        accion: ACCIONES_DE_SEGURIDAD.limiteSuperado,
+        resultado: 'bloqueado',
+        detalle: { grupo, identificador: identificador || null, maximo, ventanaMs },
+      },
+      { unaVezCada: { clave: `limite:${clave}`, ms: ventanaMs } }
+    );
 
     return Response.json(
       { error: 'Demasiados intentos. Espera un momento y vuelve a probar.' },

@@ -2,6 +2,7 @@ import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
@@ -90,6 +91,13 @@ export async function POST(req) {
   // roles. Es el mismo orden que `requireRole` y `identificarSolicitante`.
   const callerRol = callerAssignment?.rolId || caller.rol || '';
   if (!puedeGestionarRoles(callerRol)) {
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.accesoDenegado,
+      resultado: 'denegado',
+      actor: { uid: caller.uid, rol: callerRol },
+      detalle: { motivo: 'sin_permiso_gestionar_roles' },
+    });
+
     return jsonError('No tienes permiso para gestionar roles.', 403);
   }
 
@@ -127,6 +135,13 @@ export async function POST(req) {
   });
   // Sin borrar `debeCambiarClave`: ver `claims-con-marca-de-clave.js`.
   await fijarClaimsConservandoClave(auth, authUid, claims);
+
+  await registrarEventoDeSeguridad(req, {
+    accion: ACCIONES_DE_SEGURIDAD.claimsFijados,
+    actor: { uid: caller.uid, rol: callerRol },
+    objetivo: { uid: authUid, idMiembros: asignacion.idMiembros ?? asignacion.memberId },
+    detalle: { rolId: asignacion.rolId },
+  });
 
   return Response.json({ ok: true, uid: authUid, claims });
 }

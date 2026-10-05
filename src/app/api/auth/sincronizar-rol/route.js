@@ -1,7 +1,9 @@
 import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 
+import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { ROLES_QUE_NO_SALEN_DE_UNA_CASILLA } from 'src/catalogs/directiva-roles';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 import {
   leerAsignacionesDe,
   resolverAccesoPorCargo,
@@ -80,9 +82,27 @@ export async function POST(req) {
   let caller;
 
   try {
-    caller = await auth.verifyIdToken(token);
+    caller = await verificarTokenDeSesion(token);
   } catch {
     return jsonError('Token inválido o expirado.', 401);
+  }
+
+  // INICIO DE SESION. Entrar ocurre en el navegador, directo contra Firebase, y
+  // no dejaba nada en ningun registro. La sesion llama aqui al arrancar; si la
+  // contraseña (o el codigo) se escribio hace menos de cinco minutos, es un
+  // inicio de sesion de verdad y no una recarga. Una vez por sesion.
+  const segundosDesdeQueEntro = Date.now() / 1000 - Number(caller.auth_time || 0);
+
+  if (caller.auth_time && segundosDesdeQueEntro < 5 * 60) {
+    await registrarEventoDeSeguridad(
+      req,
+      {
+        accion: ACCIONES_DE_SEGURIDAD.sesionIniciada,
+        actor: { uid: caller.uid, correo: caller.email, rol: caller.rol },
+        detalle: { proveedor: caller.firebase?.sign_in_provider ?? null },
+      },
+      { unaVezCada: { clave: `sesion:${caller.uid}:${caller.auth_time}`, ms: 6 * 60 * 60 * 1000 } }
+    );
   }
 
   // Una cuenta con Administrador Global elige aquí un rol manual para probar la
@@ -126,6 +146,15 @@ export async function POST(req) {
       },
       { merge: true }
     );
+
+    // Un Administrador Global que nace solo, sin que nadie lo asigne: tiene que
+    // quedar constancia, aunque la cuenta este en la lista autorizada.
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.administradorGlobalCreado,
+      actor: { uid: caller.uid, correo: caller.email },
+      objetivo: { uid: caller.uid, correo: caller.email },
+      detalle: { origen: 'cuenta_autorizada_sin_documento' },
+    });
 
     return Response.json({ ok: true, rolId: 'administrador_global', creado: true });
   }
@@ -184,6 +213,16 @@ export async function POST(req) {
     rolesAdministracion,
   });
   await escribirAccesoPorCargo({ db, auth, uid: caller.uid, idMiembros, acceso });
+
+  // Su cargo cambio por lo que dice la directiva: de cual a cual.
+  if (rolActual !== normalizarRol(acceso.rolId)) {
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.rolSincronizado,
+      actor: { uid: caller.uid, idMiembros },
+      objetivo: { uid: caller.uid, idMiembros },
+      detalle: { de: rolActual || null, a: acceso.rolId, cargos: acceso.cargos.length },
+    });
+  }
 
   return Response.json({ ok: true, rolId: acceso.rolId, cargos: acceso.cargos.length });
 }

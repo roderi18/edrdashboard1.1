@@ -58,6 +58,8 @@ export const verificarTokenDeSesion = async (token, { graciaPrimerAcceso = false
   if (tokenRevocado(decodificado, cuenta, { graciaPrimerAcceso })) {
     const error = new Error('La sesión fue revocada.');
     error.code = 'auth/id-token-revoked';
+    // De quien era: usar una sesion revocada es justo lo que hay que registrar.
+    error.uid = decodificado.uid;
     throw error;
   }
 

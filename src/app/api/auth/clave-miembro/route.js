@@ -6,6 +6,7 @@ import { limiteSuperado } from 'src/server/limite-intentos';
 import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { olvidarEstadoDeCuenta } from 'src/server/verificar-token';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 import {
   claveYaUsada,
   CLAVES_RECORDADAS,
@@ -81,6 +82,15 @@ export async function POST(req) {
       .revokeRefreshTokens(solicitante.uid)
       .catch((error) => console.error('[clave-miembro] no se pudieron revocar las sesiones', error));
     olvidarEstadoDeCuenta(solicitante.uid);
+
+    // Nueva contraseña y todas sus sesiones anteriores cerradas. La clave no se
+    // registra, ni su huella: solo que cambio, quien y si fue su primer acceso.
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.claveCambiada,
+      actor: solicitante,
+      objetivo: solicitante,
+      detalle: { primerAcceso: solicitante.debeCambiarClave === true, sesionesCerradas: true },
+    });
 
     // Ya tiene contraseña suya: se retira la marca y se tira el codigo del
     // Coordinador, que existia solo para llegar hasta aqui.

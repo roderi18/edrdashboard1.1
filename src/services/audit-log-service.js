@@ -14,7 +14,7 @@ import {
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
 import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
-import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
@@ -120,6 +120,10 @@ export async function registrarAuditoriaSistema({
     antes: normalizarValor(antes),
     despues: normalizarValor(despues),
     realizadoPor: normalizarValor(normalizarUsuario(realizadoPor)),
+    // La cuenta que de verdad escribe la entrada, aunque se presente "a nombre
+    // del Sistema". Lo exigen las reglas (`laAuditoriaLaFirmaQuienEscribe`): antes
+    // se podian dejar entradas sin autor o con el contenido que se quisiera.
+    registradoPorUid: AUTH?.currentUser?.uid ?? null,
     origen,
     metadatos: normalizarValor(metadatos),
     fecha,

@@ -192,7 +192,8 @@ test('la llave de "probar como usuario" caduca y deja constancia', async () => {
 
   assert.match(fuente, /VIGENCIA_LLAVE = 60 \* 60 \* 12/);
   assert.match(fuente, /contenido\.exp < Date\.now\(\)/);
-  assert.match(fuente, /\[probar-como-usuario\] entrada/);
+  // La constancia va a la auditoria de seguridad (`auditoria-de-seguridad.test.mjs`).
+  assert.match(fuente, /ACCIONES_DE_SEGURIDAD\.suplantacionIniciada/);
   assert.doesNotMatch(fuente, /UN_ANO/);
 });
 

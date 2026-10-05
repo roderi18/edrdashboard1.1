@@ -4,6 +4,7 @@ import { limiteSuperado } from 'src/server/limite-intentos';
 import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { leerSecretos, registrarFalloDeCodigo } from 'src/server/secretos-acceso';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 import {
   codigoVigente,
   codigoCoincide,
@@ -79,7 +80,19 @@ export async function POST(req) {
       ({ registro }) => codigoVigente(registro) && !codigoBloqueado(registro)
     );
 
+    // Quien prueba y con que numero. El codigo escrito NUNCA se registra.
+    const numero = numeroDeCodigoMiembro(numeroUsuario);
+    const registrarFallo = (motivo, objetivo = null) =>
+      registrarEventoDeSeguridad(req, {
+        accion: ACCIONES_DE_SEGURIDAD.accesoConCodigo,
+        resultado: 'fallo',
+        objetivo,
+        detalle: { numero, motivo },
+      });
+
     if (!pendientes.length) {
+      await registrarFallo('sin_codigo_vigente');
+
       return Response.json({ error: NO_VALE }, { status: 400 });
     }
 
@@ -90,7 +103,7 @@ export async function POST(req) {
       // Cada fallo se cuenta en una transaccion (atomico, y compartido entre
       // instancias): contarlo con leer-sumar-escribir lo dejaba esquivar con
       // peticiones en paralelo.
-      await Promise.all(
+      const fallos = await Promise.all(
         pendientes.map(({ documento, registro }) =>
           registrarFalloDeCodigo(documento.id, {
             registroDeRespaldo: registro,
@@ -99,6 +112,27 @@ export async function POST(req) {
           })
         )
       );
+      const objetivo = {
+        idMiembros: pendientes[0].documento.id,
+        uid: pendientes[0].registro?.uid,
+      };
+
+      await registrarFallo('codigo_incorrecto', objetivo);
+
+      // Congelado: cinco fallos seguidos contra el mismo codigo. Es la señal mas
+      // clara de que alguien esta tanteando la cuenta de otro.
+      if (fallos.some((fallo) => fallo?.bloqueado)) {
+        await registrarEventoDeSeguridad(req, {
+          accion: ACCIONES_DE_SEGURIDAD.codigoCongelado,
+          resultado: 'bloqueado',
+          objetivo,
+          detalle: {
+            numero,
+            intentos: INTENTOS_CODIGO_UN_USO,
+            bloqueoMs: BLOQUEO_CODIGO_UN_USO_MS,
+          },
+        });
+      }
 
       return Response.json({ error: NO_VALE }, { status: 400 });
     }
@@ -106,7 +140,11 @@ export async function POST(req) {
     const { documento } = acertado;
     const { uid } = acertado.registro;
 
-    if (!uid) return Response.json({ error: NO_VALE }, { status: 400 });
+    if (!uid) {
+      await registrarFallo('codigo_sin_cuenta', { idMiembros: documento.id });
+
+      return Response.json({ error: NO_VALE }, { status: 400 });
+    }
 
     const marca = {
       debeCambiarClave: true,
@@ -141,6 +179,13 @@ export async function POST(req) {
     // una hora y no lleva permisos por si mismo: los saca del perfil, como
     // cualquier otra sesion de ese miembro.
     const token = await getAdminAuth().createCustomToken(String(uid));
+
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.accesoConCodigo,
+      actor: { uid, idMiembros: documento.id },
+      objetivo: { uid, idMiembros: documento.id },
+      detalle: { numero, generadoPor: acertado.registro?.generadoPor ?? null },
+    });
 
     return Response.json({ token });
   } catch (error) {

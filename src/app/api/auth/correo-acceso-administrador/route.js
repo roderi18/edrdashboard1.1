@@ -2,6 +2,7 @@ import 'server-only';
 
 import { limiteSuperado } from 'src/server/limite-intentos';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 export const runtime = 'nodejs';
 
@@ -103,6 +104,19 @@ export async function POST(req) {
 
     const { usuario } = await req.json();
     const usuarioNormalizado = normalizar(usuario);
+
+    // Solo en el log del servidor: que usuario se pidio y si existia. Asi se ve
+    // si alguien prueba nombres de administrador uno tras otro.
+    const registrar = (encontrado) =>
+      void registrarEventoDeSeguridad(
+        req,
+        {
+          accion: ACCIONES_DE_SEGURIDAD.correoDeAccesoConsultado,
+          resultado: encontrado ? 'ok' : 'fallo',
+          detalle: { usuario: usuarioNormalizado.slice(0, 60), administrador: true, encontrado },
+        },
+        { persistir: false }
+      );
     const esCodigoAdministrativo = usuarioNormalizado.startsWith('admin');
     const esCodigoDeMiembro = /^edr-\d+$/.test(usuarioNormalizado);
 
@@ -112,6 +126,8 @@ export async function POST(req) {
       usuarioNormalizado.includes('@') ||
       (!esCodigoAdministrativo && !esCodigoDeMiembro)
     ) {
+      registrar(false);
+
       return Response.json({ correo: '' });
     }
 
@@ -120,7 +136,11 @@ export async function POST(req) {
     for (const perfil of perfilesAdmin) {
       const correo = await correoAutorizadoDe(perfil);
 
-      if (correo) return Response.json({ correo: String(correo).trim().toLowerCase() });
+      if (correo) {
+        registrar(true);
+
+        return Response.json({ correo: String(correo).trim().toLowerCase() });
+      }
     }
 
     // Compatibilidad con administradores antiguos que quedaron solamente en
@@ -135,11 +155,17 @@ export async function POST(req) {
 
       const correo = await correoAutorizadoDe(perfil);
 
-      if (correo) return Response.json({ correo: String(correo).trim().toLowerCase() });
+      if (correo) {
+        registrar(true);
+
+        return Response.json({ correo: String(correo).trim().toLowerCase() });
+      }
     }
 
     // No se diferencia entre "no existe" y "no es administrador" para no
     // convertir esta ruta pública en un listado de cuentas.
+    registrar(false);
+
     return Response.json({ correo: '' });
   } catch (error) {
     console.error('[correo-acceso-administrador] no se pudo resolver', error);

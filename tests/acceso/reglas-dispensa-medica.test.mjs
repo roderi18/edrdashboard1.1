@@ -97,10 +97,20 @@ for (const cola of COLAS_DE_APROBACION) {
 
 test('una entrada de auditoria no puede ir a nombre de otro', () => {
   const desde = reglas.indexOf('match /auditoria_sistema/');
-  const bloque = reglas.slice(desde, desde + 400);
+  const bloque = reglas.slice(desde, desde + 800);
 
-  assert.match(bloque, /allow create: if esUsuarioDelSistema\(\) && laAuditoriaVaASuNombre\(\)/);
-  assert.match(bloque, /allow update, delete: if false/);
+  // A su nombre Y firmada por la cuenta que la escribe (`registradoPorUid`): las
+  // entradas "del Sistema" siguen entrando, pero ya no sin autor real.
+  assert.match(
+    bloque,
+    /allow create: if esUsuarioDelSistema\(\)\s*&& laAuditoriaVaASuNombre\(\)\s*&& laAuditoriaLaFirmaQuienEscribe\(\)/
+  );
+  // No se corrige; solo se borran las entradas de prueba del entorno local.
+  assert.match(bloque, /allow update: if false/);
+  assert.match(
+    bloque,
+    /allow delete: if esAdministradorGlobal\(\) && resource\.data\.origen == 'prueba_localhost'/
+  );
   assert.match(
     reglas,
     /realizadoPor\.idUsuario == request\.auth\.uid/

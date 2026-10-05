@@ -6,6 +6,7 @@ import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 import { buscarAccesoMiembro, buscarPerfilesPorNumeroMiembro } from 'src/server/claves-miembro';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 import { puedeUsarSelectorDeRol } from 'src/auth/permissions/admin-role-switch-policy';
 
@@ -169,7 +170,10 @@ export async function POST(req) {
       return jsonError('La cuenta ya no es el Administrador Global activo.', 403);
     }
 
-    console.info('[probar-como-usuario] regreso', { administrador: cuenta.uid });
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.suplantacionTerminada,
+      actor: { uid: cuenta.uid, correo: cuenta.email },
+    });
 
     const token = await auth.createCustomToken(cuenta.uid);
     const response = Response.json({ token });
@@ -179,6 +183,12 @@ export async function POST(req) {
 
   const administrador = await verificarAdminGlobal(bearer(req));
   if (!administrador) {
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.suplantacionDenegada,
+      resultado: 'denegado',
+      detalle: { codigoPedido: String(body?.codigoMiembro ?? '').slice(0, 30) },
+    });
+
     return jsonError('Solo las cuentas Administrador Global autorizadas pueden usar esta función.', 403);
   }
 
@@ -191,11 +201,12 @@ export async function POST(req) {
     return jsonError('Ya estás usando esa cuenta.', 422);
   }
 
-  // Queda constancia en el registro del servidor de quien entro como quien.
-  console.info('[probar-como-usuario] entrada', {
-    administrador: administrador.uid,
-    objetivo: objetivo.cuenta.uid,
-    codigo,
+  // Quien entro como quien: con esto se actua con la cuenta de otra persona,
+  // asi que queda en la auditoria de seguridad (no solo en el log).
+  await registrarEventoDeSeguridad(req, {
+    accion: ACCIONES_DE_SEGURIDAD.suplantacionIniciada,
+    actor: { uid: administrador.uid, correo: administrador.email },
+    objetivo: { uid: objetivo.cuenta.uid, codigoMiembro: codigo },
   });
 
   const token = await auth.createCustomToken(objetivo.cuenta.uid);

@@ -7,9 +7,11 @@ import {
 } from 'src/utils/roles-de-administracion.mjs';
 
 import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { resolverCuentasDelObjetivo } from 'src/server/cuenta-del-objetivo.mjs';
 import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 import { deriveUserClaims } from 'src/auth/permissions/user-claims';
 import { ROLES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
@@ -116,18 +118,33 @@ export async function POST(req) {
   let quienLlama;
 
   try {
-    quienLlama = await auth.verifyIdToken(token);
+    // Con revocacion: una sesion cerrada no reparte cargos.
+    quienLlama = await verificarTokenDeSesion(token);
   } catch {
     return jsonError('Token inválido o expirado.', 401);
+  }
+
+  if (quienLlama.debeCambiarClave === true) {
+    return jsonError('Crea tu contraseña antes de continuar.', 403);
   }
 
   // 2) Solo el Administrador Global. Se acepta el claim o su documento, igual que
   //    en `set-user-claims`: los claims se emiten al guardar el rol, asi que la
   //    primera cuenta no tendria ninguno y se quedaria fuera de su propia llave.
   const suAsignacion = await leerAsignacion(db, quienLlama.uid);
-  const suRol = normalizar(quienLlama.rol || suAsignacion?.rolId || '');
+  // EL PERFIL MANDA, NO EL CLAIM: los claims se quedan en la cuenta hasta que
+  // alguien los reescribe, y a un Administrador Global degradado le seguian
+  // dejando repartir cargos. Mismo orden que `set-user-claims` y `requireRole`.
+  const suRol = normalizar(suAsignacion?.rolId || quienLlama.rol || '');
 
   if (suRol !== ROLES.ADMINISTRADOR_GLOBAL) {
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.rolAdministracionDenegado,
+      resultado: 'denegado',
+      actor: { uid: quienLlama.uid, rol: suRol },
+      detalle: { motivo: 'no_es_administrador_global' },
+    });
+
     return jsonError('Solo el Administrador Global reparte cargos de administración.', 403);
   }
 
@@ -228,6 +245,14 @@ export async function POST(req) {
     const quedan = await otrosAdministradoresGlobales(db, documentos);
 
     if (quedan === 0) {
+      await registrarEventoDeSeguridad(req, {
+        accion: ACCIONES_DE_SEGURIDAD.rolAdministracionDenegado,
+        resultado: 'denegado',
+        actor: { uid: quienLlama.uid, rol: suRol },
+        objetivo: { uid: cuentas.uids[0] || uidUsuario, idMiembros: cuentas.idMiembros },
+        detalle: { motivo: 'ultimo_administrador_global', rolPedido: cargoNuevo },
+      });
+
       return jsonError(
         'Es el único Administrador Global: nombra a otro antes de cambiarle el cargo. Sin ninguno, nadie podría volver a repartir cargos.',
         409
@@ -320,6 +345,25 @@ export async function POST(req) {
       }
     })
   );
+
+  // Quien dio o quito que cargo a quien: de esto depende todo lo demas.
+  await registrarEventoDeSeguridad(req, {
+    accion: ACCIONES_DE_SEGURIDAD.rolAdministracionAsignado,
+    actor: { uid: quienLlama.uid, rol: suRol },
+    objetivo: {
+      uid: cuentas.uids[0] || uidUsuario,
+      idMiembros: cuentas.idMiembros,
+      codigoMiembro: cuentas.codigoMiembro,
+      correo,
+    },
+    detalle: {
+      accion: accionNormalizada || 'reemplazar',
+      rolPedido: cargoNuevo,
+      rolesAntes: rolesPrevios,
+      rolesDespues: rolesNuevos,
+      cuentas: cuentas.uids.length,
+    },
+  });
 
   // Sin cuenta de Firebase todavia (nunca ha entrado): el cargo queda en su
   // documento y se le aplica cuando cree su acceso.

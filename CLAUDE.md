@@ -68,6 +68,17 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    `respaldos_admin/ultimo`, que mira Salud. Regla en `src/utils/respaldo-diario.mjs`,
    tarea en `src/server/tareas/respaldo-diario.mjs`. Test: `tests/admin/respaldo-diario-en-la-nube.test.mjs`.
 
+8e. **Auditoría de seguridad: la escribe el servidor.** Toda ruta de `/api/auth`
+   y `/api/admin` que cambie acceso (códigos, claves, correo, cuentas, roles,
+   claims, suplantación) o lo niegue registra con `registrarEventoDeSeguridad`
+   (`src/server/auditoria-seguridad.js`): línea JSON en el log y documento en
+   `auditoria_seguridad` (solo Admin SDK; la lee solo el Administrador Global).
+   Acción nueva → al catálogo `ACCIONES_DE_SEGURIDAD`. Nunca entran claves,
+   códigos ni tokens. `auditoria_sistema` exige `registradoPorUid` y la lee quien
+   tiene `administracion.ver_auditoria`; ni el Administrador Global corrige
+   ninguna de las dos. Detalle y TTL en `docs/auditoria-de-seguridad.md`.
+   Test: `tests/admin/auditoria-de-seguridad.test.mjs`.
+
 9. **El Administrador Global reina sobre cualquier otro cargo.** Si lo ejerce por cualquier vía (principal o en `cargos`), es su rol principal en todos los módulos; la dominancia por módulo no se lo quita. Una sola pieza: `src/utils/administrador-global-reina.mjs` (la sesión y los guardas). Solo la prueba de roles lo sustituye, y aun entonces el menú lateral sigue siendo el suyo (`sesionSinPrueba`): los permisos de la pareja los aplican las pantallas. Test: `tests/acceso/administrador-global-reina.test.mjs`.
 
 10. **El estatus del miembro lo mueve la asistencia** (activo, reclutamiento,

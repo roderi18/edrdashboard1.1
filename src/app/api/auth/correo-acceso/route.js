@@ -4,6 +4,7 @@ import { limiteSuperado } from 'src/server/limite-intentos';
 import { isAdminConfigured } from 'src/server/firebase-admin';
 import { datosMinimosDeMiembro, buscarMiembroPorNumero } from 'src/server/miembros-directorio';
 import { buscarCuentaMiembro, buscarPerfilesPorNumeroMiembro } from 'src/server/claves-miembro';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 export const runtime = 'nodejs';
 
@@ -47,6 +48,23 @@ export async function POST(req) {
 
     const { numeroUsuario, idMiembros, codigoMiembro, correo } = await req.json();
 
+    // Cada respuesta deja una linea en el log del servidor (no en Firestore: pasa
+    // en cada inicio de sesion). Sin ella, recorrer numeros cosechando correos
+    // no dejaba rastro. Va el numero y si se encontro, no el correo devuelto.
+    const responder = (correoResuelto) => {
+      void registrarEventoDeSeguridad(
+        req,
+        {
+          accion: ACCIONES_DE_SEGURIDAD.correoDeAccesoConsultado,
+          resultado: correoResuelto ? 'ok' : 'fallo',
+          detalle: { numero: numeroUsuario ?? null, encontrado: Boolean(correoResuelto) },
+        },
+        { persistir: false }
+      );
+
+      return Response.json({ correo: correoResuelto || '' });
+    };
+
     // PRIMERO EN FIRESTORE, que es donde vive la cuenta.
     //
     // Esta ruta contesta una sola cosa —con que correo entra este miembro— y lo
@@ -68,7 +86,7 @@ export async function POST(req) {
         correo: desdeElPerfil.correo,
       });
 
-      if (cuentaDelPerfil?.email) return Response.json({ correo: cuentaDelPerfil.email });
+      if (cuentaDelPerfil?.email) return responder(cuentaDelPerfil.email);
     }
 
     // Por numero: es lo que teclea el miembro y lo unico que se acepta desde una
@@ -80,7 +98,7 @@ export async function POST(req) {
     // Un numero que no existe se responde IGUAL que uno que si pero cuya cuenta
     // no se pudo resolver: correo vacio y 200. Contestar 400 solo a los que no
     // existen es un buscador de miembros dados de alta.
-    if (numeroUsuario && !datos) return Response.json({ correo: '' });
+    if (numeroUsuario && !datos) return responder('');
 
     if (!datos && !idMiembros && !codigoMiembro) {
       return Response.json({ error: 'Falta identificar al miembro.' }, { status: 400 });
@@ -92,7 +110,7 @@ export async function POST(req) {
       correo: datos?.correo || correo,
     });
 
-    return Response.json({ correo: cuenta?.email || '' });
+    return responder(cuenta?.email);
   } catch (error) {
     console.error('[correo-acceso] no se pudo resolver', error);
 

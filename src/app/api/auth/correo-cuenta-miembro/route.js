@@ -9,6 +9,7 @@ import { buscarMiembroPorId } from 'src/server/miembros-directorio';
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
 import { puedeGestionarAMiembro } from 'src/server/alcance-gestion-miembros';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 import {
   esCorreoInterno,
   correoInternoDe,
@@ -126,6 +127,16 @@ export async function POST(req) {
     if (!cuenta) {
       ({ cuenta, perfil } =
         (await crearCuentaSiFalta({ solicitante, idMiembros, codigoMiembro })) ?? {});
+
+      // `crearCuentaSiFalta` solo devuelve algo si la CREO: queda constancia.
+      if (cuenta) {
+        await registrarEventoDeSeguridad(req, {
+          accion: ACCIONES_DE_SEGURIDAD.cuentaCreada,
+          actor: solicitante,
+          objetivo: { uid: cuenta.uid, idMiembros, codigoMiembro },
+          detalle: { origen: 'correo_de_acceso' },
+        });
+      }
     }
 
     if (!cuenta) {
@@ -149,9 +160,12 @@ export async function POST(req) {
       });
 
       if (!permitido) {
-        console.warn('[correo-cuenta-miembro] intento fuera de alcance', {
-          solicitante: solicitante.uid,
-          motivo,
+        await registrarEventoDeSeguridad(req, {
+          accion: ACCIONES_DE_SEGURIDAD.correoDenegado,
+          resultado: 'denegado',
+          actor: solicitante,
+          objetivo: { uid: cuenta.uid, idMiembros, codigoMiembro },
+          detalle: { motivo, correoPedido: correoNuevo },
         });
 
         return Response.json(
@@ -169,6 +183,14 @@ export async function POST(req) {
       !solicitante.debeCambiarClave &&
       Date.now() / 1000 - solicitante.authTime > 30 * 60
     ) {
+      await registrarEventoDeSeguridad(req, {
+        accion: ACCIONES_DE_SEGURIDAD.correoDenegado,
+        resultado: 'denegado',
+        actor: solicitante,
+        objetivo: { uid: cuenta.uid },
+        detalle: { motivo: 'sesion_no_reciente', correoPedido: correoNuevo },
+      });
+
       return Response.json(
         { error: 'Por seguridad, vuelve a iniciar sesión para cambiar tu correo de acceso.' },
         { status: 403 }
@@ -208,6 +230,22 @@ export async function POST(req) {
         );
       olvidarEstadoDeCuenta(cuenta.uid);
     }
+
+    // CAMBIAR EL CORREO ES ENTREGAR LA CUENTA: de cual a cual y quien lo hizo. Se
+    // registra aqui, justo despues de cambiarlo en Firebase, porque lo que sigue
+    // (perfil y ficha) puede fallar y el cambio ya esta hecho.
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.correoCambiado,
+      actor: solicitante,
+      objetivo: { uid: cuenta.uid, idMiembros, codigoMiembro },
+      detalle: {
+        anterior: normalizarCorreo(cuenta.email),
+        nuevo: correoNuevo,
+        propio: cuenta.uid === solicitante.uid,
+        primerAcceso: solicitante.debeCambiarClave === true,
+        sesionesCerradas: cuenta.uid !== solicitante.uid,
+      },
+    });
 
     const db = getAdminDb();
     // El perfil ya viene de la busqueda de la cuenta: pedirlo otra vez era otro

@@ -15,3 +15,21 @@ export const ipDeLaLista = (lista, saltos = 1) => {
 
   return partes[Math.max(0, partes.length - 1 - saltos)];
 };
+
+// CUANTOS SALTOS DE CONFIANZA HAY DETRAS DEL CLIENTE.
+//
+// En App Hosting (Cloud Run detras del balanceador de Google) la lista termina en
+// `<ip del cliente>, <ip del balanceador>`: un salto de confianza. Si el
+// despliegue cambia, se ajusta con `PROXIES_DE_CONFIANZA` sin tocar codigo.
+export const saltosDeConfianza = () => {
+  const valor = Number(process.env.PROXIES_DE_CONFIANZA ?? 1);
+
+  return Number.isInteger(valor) && valor >= 0 ? valor : 1;
+};
+
+/**
+ * De donde viene la llamada. Solo se fia de lo que añaden los proxys propios:
+ * `x-real-ip` y `x-nf-client-connection-ip` los puede poner cualquiera.
+ */
+export const ipDelCliente = (req) =>
+  ipDeLaLista(req?.headers?.get?.('x-forwarded-for'), saltosDeConfianza()) || 'desconocido';

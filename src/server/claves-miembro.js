@@ -2,6 +2,7 @@ import 'server-only';
 
 import { randomInt, pbkdf2Sync, randomBytes, timingSafeEqual } from 'crypto';
 
+import { registrarSiRevocado } from 'src/server/require-role';
 import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { getAdminDb, getAdminAuth } from 'src/server/firebase-admin';
@@ -417,7 +418,15 @@ export const identificarSolicitante = async (req, { graciaPrimerAcceso = false }
 
   // Con revocación: una sesión tirada (cambio de clave, cuenta deshabilitada) deja
   // de valer aquí en segundos, no cuando caduque el token.
-  const decodificado = await verificarTokenDeSesion(token, { graciaPrimerAcceso }).catch(() => null);
+  const decodificado = await verificarTokenDeSesion(token, { graciaPrimerAcceso }).catch(
+    async (error) => {
+      // Usar una sesion ya revocada (tras un cambio de clave, por ejemplo) queda
+      // registrado: suele ser alguien con un token robado.
+      await registrarSiRevocado(req, error);
+
+      return null;
+    }
+  );
 
   if (!decodificado?.uid) return null;
 
