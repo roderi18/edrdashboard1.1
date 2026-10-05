@@ -30,6 +30,10 @@ feature/*, fix/*, environment-migration
 - `CI` instala dependencias, ejecuta las suites estables y compila la aplicación.
 - `Promotion Gate` rechaza promociones que omitan ambientes.
 - Firebase App Hosting se conecta por rama mediante un backend independiente.
+
+## Diagrama arquitectónico
+
+![Arquitectura de ambientes y promoción de EXPEDITION](./arquitectura-expedition-ambientes.png)
 - Las reglas, índices y secretos pertenecen al ambiente correspondiente; nunca
   se comparten credenciales de Producción con Desarrollo o QA.
 
