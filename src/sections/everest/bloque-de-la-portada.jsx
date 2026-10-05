@@ -2,6 +2,7 @@
 
 import Grid from '@mui/material/Grid';
 
+import { LienzoDelBloque } from 'src/sections/principal/lienzo-del-bloque';
 import { identidadDeLaSesion } from 'src/sections/principal/identidad-de-la-sesion';
 import { PrincipalAccesos, PrincipalBienvenida } from 'src/sections/principal/principal-bienvenida';
 import {
@@ -23,8 +24,8 @@ import { useAuthContext } from 'src/auth/hooks';
 //
 // La vista previa del Designer no dibuja una imitacion: usa LOS MISMOS
 // componentes de /principal, con el contenido que se esta editando. Y los coloca
-// con el MISMO ancho de columna que tienen alli —la columna lateral es un tercio,
-// la proxima actividad comparte fila con el progreso—, porque una tarjeta que se
+// con el MISMO ancho de columna que tienen alli —la columna lateral es un tercio—,
+// porque una tarjeta que se
 // ve bien a todo lo ancho puede partir el titulo en tres lineas en su hueco real.
 //
 // Todo va sin lapices ni marca de ejemplo: en la vista previa no se sube nada.
@@ -38,8 +39,7 @@ const COLOCACION = {
   bienvenida: null,
   'accesos-rapidos': [COLUMNA_PRINCIPAL],
   historias: [COLUMNA_PRINCIPAL],
-  // Dentro de la columna principal, en la fila que comparte con "Mi progreso".
-  'proxima-actividad': [COLUMNA_PRINCIPAL, { xs: 12, md: 7 }],
+  'proxima-actividad': [COLUMNA_PRINCIPAL],
   'mi-progreso': [COLUMNA_PRINCIPAL, { xs: 12, md: 5 }],
   'proximos-eventos': [COLUMNA_LATERAL],
   'destacamento-destacado': [COLUMNA_LATERAL],
@@ -71,7 +71,7 @@ function ComponenteDelBloque({ idBloque, contenido, diseno }) {
     case 'accesos-rapidos':
       return <PrincipalAccesos accesos={contenido} diseno={diseno} />;
     case 'proxima-actividad':
-      return <PrincipalProximaActividad actividad={contenido} diseno={diseno} />;
+      return <PrincipalProximaActividad actividad={contenido} diseno={diseno} conInscripcion />;
     case 'mi-progreso':
       return <PrincipalMiProgreso progreso={contenido} diseno={diseno} />;
     case 'historias':
@@ -89,11 +89,27 @@ function ComponenteDelBloque({ idBloque, contenido, diseno }) {
   }
 }
 
-export function BloqueDeLaPortada({ idBloque, contenido, diseno }) {
+export function BloqueDeLaPortada({
+  idBloque,
+  contenido,
+  diseno,
+  editando = false,
+  seleccionado,
+  onSeleccionar,
+  onMover,
+}) {
   if (!BLOQUES_CON_VISTA_PREVIA.includes(idBloque) || contenido == null) return null;
 
   const bloque = (
-    <ComponenteDelBloque idBloque={idBloque} contenido={contenido} diseno={diseno ?? {}} />
+    <LienzoDelBloque
+      diseno={diseno}
+      editando={editando}
+      seleccionado={seleccionado}
+      onSeleccionar={onSeleccionar}
+      onMover={onMover}
+    >
+      <ComponenteDelBloque idBloque={idBloque} contenido={contenido} diseno={diseno ?? {}} />
+    </LienzoDelBloque>
   );
   const columnas = COLOCACION[idBloque];
 

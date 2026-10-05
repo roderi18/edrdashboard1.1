@@ -2,7 +2,7 @@
 // QUIEN ES, SEGUN LA SESION, PARA LA BIENVENIDA DE LA PORTADA.
 //
 // Vivia dentro de `principal-home-view.jsx`. Salio a su archivo, sin cambiar una
-// letra, porque EXPLORA Designer tambien lo necesita: la vista previa de la
+// letra, porque EXPEDITION Designer tambien lo necesita: la vista previa de la
 // bienvenida tiene que saludar con el mismo nombre, destacamento y region que la
 // portada de verdad, o lo que se ve al editar no seria lo que se publica.
 // ----------------------------------------------------------------------

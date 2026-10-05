@@ -33,11 +33,11 @@ import { FileManagerCreateFolderDialog } from '../../../file-manager/file-manage
 // ----------------------------------------------------------------------
 
 const CATEGORY_ICONS = {
-  images: `${CONFIG.assetsDir}/assets/icons/files/ic-img.svg`,
-  media: `${CONFIG.assetsDir}/assets/icons/files/ic-video.svg`,
-  documents: `${CONFIG.assetsDir}/assets/icons/files/ic-document.svg`,
-  other: `${CONFIG.assetsDir}/assets/icons/files/ic-file.svg`,
-  records: `${CONFIG.assetsDir}/assets/icons/files/ic-folder.svg`,
+  images: `${CONFIG.assetsDir}/plantilla/icons/files/ic-img.svg`,
+  media: `${CONFIG.assetsDir}/plantilla/icons/files/ic-video.svg`,
+  documents: `${CONFIG.assetsDir}/plantilla/icons/files/ic-document.svg`,
+  other: `${CONFIG.assetsDir}/plantilla/icons/files/ic-file.svg`,
+  records: `${CONFIG.assetsDir}/plantilla/icons/files/ic-folder.svg`,
 };
 
 const buildCategoryRow = (category, icon, countLabel) => ({

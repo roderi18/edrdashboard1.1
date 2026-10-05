@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // "OTRO" EN EL PASE DE LISTA: MOTIVOS, Y LA LICENCIA DE VARIOS DÍAS.
 //
@@ -12,7 +14,7 @@
 // asistencia guardada. Sin React ni Firebase, para probarlo con `node --test`.
 // ----------------------------------------------------------------------
 
-export const COLECCION_LICENCIAS_ASISTENCIA = 'licenciasAsistencia';
+export const COLECCION_LICENCIAS_ASISTENCIA = COLECCIONES.licenciasAsistencia;
 
 /** El detalle que se guarda junto a un "Otro" en el registro de asistencia. */
 export const MOTIVOS_OTRO = Object.freeze([

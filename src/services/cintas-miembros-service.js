@@ -74,7 +74,7 @@ async function guardarCintasDeMiembroDirecto({
 // ----------------------------------------------------------------------
 // EL ORDEN GLOBAL DE LAS CINTAS.
 //
-// Lo pone el Administrador Global arrastrando en EXPLORA Designer y cambia el
+// Lo pone el Administrador Global arrastrando en EXPEDITION Designer y cambia el
 // orden en TODOS los perfiles a la vez, así que pasa por la misma puerta: se
 // aplica en el acto y queda en Historial el orden de antes y el de después.
 // ----------------------------------------------------------------------
@@ -91,7 +91,8 @@ async function guardarOrdenDeCintasDirecto({ orden = [], anterior = [], usuario 
   if (antes === despues) return nuevo;
 
   await proponerCambio({
-    ambito: AMBITOS_CAMBIO.cintasMiembro,
+    // Es de EXPEDITION Designer: sale en su pestaña "Registro".
+    ambito: AMBITOS_CAMBIO.everestDesigner,
     entidad: { tipo: 'configuracion_cintas', id: 'orden', nombre: 'Orden de las cintas' },
     cambios: [{ campo: 'orden', etiqueta: 'Orden de las cintas', antes, despues }],
     usuario,

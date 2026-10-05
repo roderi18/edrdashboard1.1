@@ -1,9 +1,13 @@
+import { usePopover } from 'minimal-shared/hooks';
 import { useCallback, startTransition } from 'react';
 
 import Box from '@mui/material/Box';
 import Badge from '@mui/material/Badge';
 import Avatar from '@mui/material/Avatar';
+import MenuList from '@mui/material/MenuList';
+import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 import AvatarGroup from '@mui/material/AvatarGroup';
 import ListItemText from '@mui/material/ListItemText';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -13,9 +17,14 @@ import { useRouter } from 'src/routes/hooks';
 
 import { fToNow } from 'src/utils/format-time';
 
-import { clickConversation, precargarConversacion } from 'src/actions/chat';
+import {
+  clickConversation,
+  precargarConversacion,
+  markConversationUnread,
+} from 'src/actions/chat';
 
 import { Iconify } from 'src/components/iconify';
+import { CustomPopover } from 'src/components/custom-popover';
 
 import { irAlChat } from './utils/ruta-del-chat';
 import { getNavItem } from './utils/get-nav-item';
@@ -67,6 +76,43 @@ export function ChatNavItem({
     });
   }, [conversation.id, currentContact.idMiembros, bandeja, mdUp, onCloseMobile, router]);
 
+  // MARCAR COMO LEÍDO / NO LEÍDO desde la lista, como en WhatsApp: tres puntos al
+  // pasar por encima (siempre a la vista en el móvil) o clic derecho.
+  const menu = usePopover();
+  const sinLeer = Number(conversation.unreadCount) > 0;
+
+  const handleAbrirMenu = useCallback(
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      menu.onOpen(event);
+    },
+    [menu]
+  );
+
+  const handleCambiarLeido = useCallback(() => {
+    menu.onClose();
+
+    if (sinLeer) {
+      clickConversation(conversation.id, currentContact.idMiembros).catch((error) => {
+        console.error('[chat] no se pudo marcar la conversación como leída', error);
+      });
+      return;
+    }
+
+    // Si es la conversación abierta, se cierra: abierta y a la vista se volvería a
+    // marcar leída al momento y la marca no duraría nada.
+    if (selected) {
+      startTransition(() => {
+        irAlChat(router, { bandeja });
+      });
+    }
+
+    markConversationUnread(conversation.id, currentContact.idMiembros).catch((error) => {
+      console.error('[chat] no se pudo marcar la conversación como no leída', error);
+    });
+  }, [bandeja, conversation.id, currentContact.idMiembros, menu, router, selected, sinLeer]);
+
   const renderGroup = () => (
     <Badge variant={hasOnlineInGroup ? 'online' : 'invisible'} badgeContent=" ">
       <AvatarGroup variant="compact" sx={{ width: 48, height: 48 }}>
@@ -107,11 +153,13 @@ export function ChatNavItem({
         onPointerEnter={precargar}
         onTouchStart={precargar}
         onFocus={precargar}
+        onContextMenu={collapse ? undefined : handleAbrirMenu}
         sx={{
           py: 1.5,
           px: 2.5,
           gap: 2,
           ...(selected && { bgcolor: 'action.selected' }),
+          '&:hover .chat-nav-item-menu, & .chat-nav-item-menu:focus-visible': { opacity: 1 },
         }}
       >
         <Badge
@@ -180,9 +228,37 @@ export function ChatNavItem({
                 />
               )}
             </Box>
+
+            <IconButton
+              size="small"
+              className="chat-nav-item-menu"
+              aria-label="Opciones de la conversación"
+              onClick={handleAbrirMenu}
+              onMouseDown={(event) => event.stopPropagation()}
+              sx={{
+                position: 'absolute',
+                right: 4,
+                bottom: 6,
+                bgcolor: 'background.paper',
+                opacity: menu.open ? 1 : 0,
+                transition: (theme) => theme.transitions.create('opacity'),
+                '@media (hover: none)': { opacity: 1 },
+              }}
+            >
+              <Iconify icon="eva:more-vertical-fill" width={18} />
+            </IconButton>
           </>
         )}
       </ListItemButton>
+
+      <CustomPopover open={menu.open} anchorEl={menu.anchorEl} onClose={menu.onClose}>
+        <MenuList>
+          <MenuItem onClick={handleCambiarLeido}>
+            <Iconify icon={sinLeer ? 'eva:done-all-fill' : 'solar:letter-unread-bold'} />
+            {sinLeer ? 'Marcar como leído' : 'Marcar como no leído'}
+          </MenuItem>
+        </MenuList>
+      </CustomPopover>
     </Box>
   );
 }

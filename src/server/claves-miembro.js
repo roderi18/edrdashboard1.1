@@ -2,6 +2,9 @@ import 'server-only';
 
 import { randomInt, pbkdf2Sync, randomBytes, timingSafeEqual } from 'crypto';
 
+import { registrarSiRevocado } from 'src/server/require-role';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { getAdminDb, getAdminAuth } from 'src/server/firebase-admin';
 import { leerSecretos, guardarSecretos } from 'src/server/secretos-acceso';
 import {
@@ -21,7 +24,7 @@ import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
 // una de las que ya usaste?". De la huella no se puede volver a la clave.
 // ----------------------------------------------------------------------
 
-const COLECCION = 'usuarios_roles';
+const COLECCION = COLECCIONES.usuariosRoles;
 const DOMINIO_INTERNO = 'exploradores.app';
 
 // Copia del NUMERO del miembro, solo para poder buscar su perfil sin sesion.
@@ -56,6 +59,21 @@ export const MINUTOS_CODIGO_UN_USO = HORAS_CODIGO_UN_USO * 60;
 // alfabeto de treinta y dos no se adivinan a mano, pero el limite cierra la
 // puerta a probar en bucle.
 export const INTENTOS_CODIGO_UN_USO = 5;
+
+// Tras agotar los intentos el codigo NO se destruye: se congela un rato. Antes
+// cinco fallos de CUALQUIERA lo mataban, y como el numero de miembro es
+// correlativo, un desconocido podia tumbar los codigos de todos —incluidos los
+// ya dictados por telefono—. Congelado, adivinarlo sigue siendo inviable (cinco
+// intentos cada quince minutos sobre 40 bits) y el dueño lo usa al pasar el
+// bloqueo.
+export const BLOQUEO_CODIGO_UN_USO_MS = 15 * 60 * 1000;
+
+/** ¿Esta congelado por demasiados fallos? */
+export const codigoBloqueado = (registro, ahora = Date.now()) => {
+  const hasta = registro?.bloqueadoHasta ? new Date(registro.bloqueadoHasta).getTime() : 0;
+
+  return Number.isFinite(hasta) && hasta > ahora;
+};
 
 // El numero es la parte final del codigo: en `EDR-10011` es 10011.
 export const numeroDeCodigoMiembro = (codigo) => {
@@ -337,7 +355,7 @@ export const leerToken = (req) => {
   return coincidencia ? coincidencia[1].trim() : '';
 };
 
-const COLECCION_ASIGNACIONES = 'asignacionesDirectiva';
+const COLECCION_ASIGNACIONES = COLECCIONES.asignacionesDirectiva;
 
 /**
  * Los cargos que la persona ocupa en el organigrama.
@@ -379,7 +397,7 @@ const idMiembrosDelSolicitante = async (datos, uid) => {
   if (datos?.idMiembros) return datos.idMiembros;
 
   const documento = await getAdminDb()
-    .collection('users')
+    .collection(COLECCIONES.usuarios)
     .doc(uid)
     .get()
     .catch(() => null);
@@ -393,14 +411,22 @@ const rolDe = (datos) =>
     .toLowerCase();
 
 /** Quien llama: su uid, su id de miembro y si puede administrar a otros. */
-export const identificarSolicitante = async (req) => {
+export const identificarSolicitante = async (req, { graciaPrimerAcceso = false } = {}) => {
   const token = leerToken(req);
 
   if (!token) return null;
 
-  const decodificado = await getAdminAuth()
-    .verifyIdToken(token)
-    .catch(() => null);
+  // Con revocación: una sesión tirada (cambio de clave, cuenta deshabilitada) deja
+  // de valer aquí en segundos, no cuando caduque el token.
+  const decodificado = await verificarTokenDeSesion(token, { graciaPrimerAcceso }).catch(
+    async (error) => {
+      // Usar una sesion ya revocada (tras un cambio de clave, por ejemplo) queda
+      // registrado: suele ser alguien con un token robado.
+      await registrarSiRevocado(req, error);
+
+      return null;
+    }
+  );
 
   if (!decodificado?.uid) return null;
 
@@ -436,8 +462,13 @@ export const identificarSolicitante = async (req) => {
   ]);
 
   const esAdministradorGlobal = rol === 'administrador_global';
-  const puedeGestionarOtros = esAdministradorGlobal || permisos.has(PERMISOS.MIEMBROS_EDITAR);
-  const puedeCrearMiembros = esAdministradorGlobal || permisos.has(PERMISOS.MIEMBROS_CREAR);
+  // Quien aun no eligio contraseña (entro con un codigo de un solo uso) solo puede
+  // elegirla: ni gestionar a otros ni crear cuentas, aunque su cargo lo permita.
+  const encerrado = decodificado.debeCambiarClave === true;
+  const puedeGestionarOtros =
+    !encerrado && (esAdministradorGlobal || permisos.has(PERMISOS.MIEMBROS_EDITAR));
+  const puedeCrearMiembros =
+    !encerrado && (esAdministradorGlobal || permisos.has(PERMISOS.MIEMBROS_CREAR));
 
   if (!puedeGestionarOtros) {
     // Lo que hay que mirar cuando alguien dice "pero si soy Coordinador": casi
@@ -454,6 +485,8 @@ export const identificarSolicitante = async (req) => {
   return {
     uid: decodificado.uid,
     idMiembros,
+    // Para que la validacion de la clave nueva pueda excluirlo.
+    codigoMiembro: datos?.codigoMiembro ?? '',
     rol,
     cargos,
     puedeGestionarOtros,
@@ -461,5 +494,8 @@ export const identificarSolicitante = async (req) => {
     // La marca viaja en los claims desde que se crea la cuenta: quien todavia no
     // ha elegido contraseña no puede hacer nada mas que elegirla.
     debeCambiarClave: decodificado.debeCambiarClave === true,
+    // Cuando se escribio la contraseña por ultima vez en ESTA sesion (segundos).
+    // Sirve para exigir un inicio de sesion reciente en acciones delicadas.
+    authTime: Number(decodificado.auth_time || 0),
   };
 };

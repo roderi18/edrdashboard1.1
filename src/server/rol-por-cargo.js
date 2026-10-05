@@ -2,8 +2,14 @@ import 'server-only';
 
 import { listaDeRolesQueEjerce } from 'src/utils/lista-roles-que-ejerce.mjs';
 import { conCargosPermanentes, COLECCION_PERMANENTES } from 'src/utils/directiva-cuatrienios.mjs';
+import {
+  rolesDeAdministracionDe,
+  rolPrincipalDeAdministracion,
+} from 'src/utils/roles-de-administracion.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
+import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 
 import { ROLES } from 'src/auth/permissions/roles';
 import { deriveUserClaims } from 'src/auth/permissions/user-claims';
@@ -18,8 +24,8 @@ import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
 // la regla, para que no puedan discrepar.
 // ----------------------------------------------------------------------
 
-export const COLECCION_USUARIOS_ROLES = 'usuarios_roles';
-export const COLECCION_ASIGNACIONES = 'asignacionesDirectiva';
+export const COLECCION_USUARIOS_ROLES = COLECCIONES.usuariosRoles;
+export const COLECCION_ASIGNACIONES = COLECCIONES.asignacionesDirectiva;
 
 // El alcance sale de las propias casillas: cada cargo manda sobre SU entidad.
 const alcanceDeSusCargos = (cargos = []) => {
@@ -48,21 +54,37 @@ const alcanceDeSusCargos = (cargos = []) => {
  * cargo local. Con la lista completa en el documento, las reglas lo resuelven
  * por `tienePermisoDirecto` sin depender de cual sea el principal.
  */
-export const resolverAccesoPorCargo = (asignaciones = [], { rolFijo = '' } = {}) => {
+export const resolverAccesoPorCargo = (
+  asignaciones = [],
+  { rolFijo = '', rolesAdministracion = [] } = {}
+) => {
   const cargos = resolverRolesPorAsignaciones(asignaciones);
   // `rolFijo` es el rol puesto a mano —los administradores y la Oficina
   // Nacional—: manda sobre las casillas y no se recalcula, pero sus cargos se
   // escriben igual. Sin esto, quien fuera Oficina Nacional y ademas Coordinador
   // de su destacamento salia de aqui convertido en Coordinador a secas, y las
   // reglas y los avisos dejaban de reconocerle lo otro.
-  const rolId = rolFijo || cargos[0]?.rol || ROLES.USUARIO_COMUN;
+  // Varios roles de administracion (`roles-de-administracion.mjs`): manda el de
+  // mas rango, pero se conservan todos y sus permisos se suman. Antes solo
+  // sobrevivia uno: la sincronizacion dejaba a la Oficina Nacional sin la Tienda.
+  const susRolesDeAdministracion = rolesDeAdministracionDe({
+    rolesAdministracion,
+    rolId: rolFijo,
+  });
+  const rolId =
+    rolPrincipalDeAdministracion(susRolesDeAdministracion) ||
+    rolFijo ||
+    cargos[0]?.rol ||
+    ROLES.USUARIO_COMUN;
 
   return {
     cargos,
     rolId,
+    rolesAdministracion: susRolesDeAdministracion,
     permisos: [
       ...new Set([
         ...(rolFijo ? (PERMISOS_POR_ROL[rolFijo] ?? []) : []),
+        ...susRolesDeAdministracion.flatMap((rol) => PERMISOS_POR_ROL[rol] ?? []),
         ...cargos.flatMap((cargo) => PERMISOS_POR_ROL[cargo.rol] ?? []),
       ]),
     ].sort(),
@@ -85,6 +107,9 @@ export const escribirAccesoPorCargo = async ({ db, auth, uid, idMiembros, acceso
         idMiembros: String(idMiembros),
         rolId: acceso.rolId,
         cargos: acceso.cargos,
+        ...(Array.isArray(acceso.rolesAdministracion)
+          ? { rolesAdministracion: acceso.rolesAdministracion }
+          : {}),
         // La lista plana que leen las reglas: ver `lista-roles-que-ejerce.mjs`.
         rolesQueEjerce: listaDeRolesQueEjerce(acceso),
         permisos: acceso.permisos,
@@ -101,18 +126,18 @@ export const escribirAccesoPorCargo = async ({ db, auth, uid, idMiembros, acceso
   // Los claims viajan en el token y los leen las reglas de Firestore; sin
   // refrescarlos, el servidor seguiria viendo el rol anterior hasta el proximo
   // inicio de sesion.
-  await auth
-    .setCustomUserClaims(
-      String(uid),
-      deriveUserClaims({
-        rolId: acceso.rolId,
-        alcance: acceso.alcance,
-        idMiembros: String(idMiembros),
-      })
-    )
-    .catch((error) => {
-      console.warn('[rol-por-cargo] no se pudieron actualizar los claims', error);
-    });
+  // Sin borrar `debeCambiarClave`: ver `claims-con-marca-de-clave.js`.
+  await fijarClaimsConservandoClave(
+    auth,
+    String(uid),
+    deriveUserClaims({
+      rolId: acceso.rolId,
+      alcance: acceso.alcance,
+      idMiembros: String(idMiembros),
+    })
+  ).catch((error) => {
+    console.warn('[rol-por-cargo] no se pudieron actualizar los claims', error);
+  });
 };
 
 /**

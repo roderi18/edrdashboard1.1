@@ -1,4 +1,4 @@
-const VERSION = 'edr-pwa-v5';
+const VERSION = 'edr-pwa-v12';
 
 // EN DESARROLLO NO SE INTERCEPTA NADA. Los bundles de `/_next/static/` se guardan
 // "para siempre" porque en produccion llevan una huella en el nombre; en `next
@@ -12,11 +12,11 @@ const PAGINAS_CACHE = `${VERSION}-paginas`;
 const STATIC_ASSETS = [
   '/',
   '/offline.html',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
-  '/maskable-icon-192x192.png',
-  '/maskable-icon-512x512.png',
-  '/logo/logo-single.png',
+  '/app/icon-192x192.png',
+  '/app/icon-512x512.png',
+  '/app/maskable-icon-192x192.png',
+  '/app/maskable-icon-512x512.png',
+  '/marca/logo-single.png',
 ];
 
 const STATIC_PATHS = [
@@ -24,13 +24,19 @@ const STATIC_PATHS = [
   // cambia de contenido: guardarlos para siempre es seguro. Sin ellos, la
   // pagina abria en blanco sin conexion aunque el HTML si estuviera guardado.
   '/_next/static/',
-  '/assets/',
-  '/fonts/',
-  '/icons/',
-  '/logo/',
-  '/icon-',
-  '/maskable-icon-',
+  '/plantilla/',
+  '/fuentes/',
+  '/iconos/',
+  '/marca/',
+  '/app/',
 ];
+
+// LAS INSIGNIAS SALEN AL INSTANTE. Cada perfil, premio y organigrama pinta
+// decenas de insignias de `/insignias/` y `/sistema-ascenso/`, y se pedían a la
+// red cada vez. No llevan huella en el nombre —una insignia se puede cambiar
+// dejando el mismo archivo—, así que no van con `cacheFirst` (se quedarían
+// viejas para siempre): se muestra la guardada y se renueva por detrás.
+const IMAGENES_FIJAS = ['/insignias/', '/sistema-ascenso/'];
 
 // Las pantallas cuyo HTML se guarda para poder RECARGAR sin conexion. Solo el
 // panel: el resto no tiene sentido sin servidor.
@@ -106,6 +112,11 @@ self.addEventListener('fetch', (event) => {
 
   if (STATIC_PATHS.some((path) => url.pathname.startsWith(path))) {
     event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  if (IMAGENES_FIJAS.some((path) => url.pathname.startsWith(path))) {
+    event.respondWith(guardadaYRenovada(request, event));
   }
 });
 
@@ -127,8 +138,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || data.message || payload.body || '',
-      icon: data.icon || '/icon-192x192.png',
-      badge: data.badge || '/icon-192x192.png',
+      icon: data.icon || '/app/icon-192x192.png',
+      badge: data.badge || '/app/icon-192x192.png',
       data: {
         url: data.url || data.click_action || payload.fcmOptions?.link || '/dashboard',
       },
@@ -232,6 +243,28 @@ async function redPrimeroConMemoria(request) {
 
     throw error;
   }
+}
+
+async function guardadaYRenovada(request, event) {
+  const cache = await caches.open(STATIC_CACHE);
+  const guardada = await cache.match(request);
+  // `no-cache`: la renovación pregunta al servidor de verdad. Sin esto la
+  // contestaba la caché HTTP del navegador (que guardaba un día) y una insignia
+  // cambiada con el mismo nombre no se veía hasta el día siguiente.
+  const renovar = fetch(request, { cache: 'no-cache' })
+    .then((response) => {
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => guardada);
+
+  if (guardada) {
+    // Sin esperar a la red; `waitUntil` deja terminar la renovación.
+    event.waitUntil(renovar);
+    return guardada;
+  }
+
+  return renovar;
 }
 
 async function cacheFirst(request) {

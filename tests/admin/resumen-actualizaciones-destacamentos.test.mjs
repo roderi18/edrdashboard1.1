@@ -68,11 +68,11 @@ test('el aviso es uno por día: el id lleva la fecha y abre la bandeja', () => {
   );
 });
 
-test('la función programada corre a las 9:00 de Santo Domingo (13:00 UTC)', () => {
-  const fuente = fs.readFileSync(
-    new URL('../../netlify/functions/resumen-actualizaciones-diario.mjs', import.meta.url),
-    'utf8'
-  );
+test('la tarea corre a las 9:00 de Santo Domingo', async () => {
+  const { TAREAS_PROGRAMADAS } = await import('../../src/utils/tareas-programadas.mjs');
+  const tarea = TAREAS_PROGRAMADAS.find(({ id }) => id === 'resumen-actualizaciones-diario');
 
-  assert.match(fuente, /schedule:\s*'0 13 \* \* \*'/);
+  assert.equal(tarea.horario, '0 9 * * *');
+  assert.equal(tarea.zonaHoraria, 'America/Santo_Domingo');
+  assert.ok(fs.existsSync(new URL(`../../src/app${tarea.ruta}/route.js`, import.meta.url)));
 });

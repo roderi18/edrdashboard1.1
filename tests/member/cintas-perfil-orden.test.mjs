@@ -28,7 +28,7 @@ const {
 } = await import('src/utils/cintas-perfil.mjs');
 
 test('cada cinta del catálogo tiene su imagen en la carpeta pública', () => {
-  const carpeta = path.join(process.cwd(), 'public/parches/Cintas y medallas/cintas-perfil');
+  const carpeta = path.join(process.cwd(), 'public/insignias/cintas');
   // Solo las cintas (.webp): la carpeta tiene además `pendientes/`, con
   // imágenes que todavía no son del catálogo, y contarla hacía fallar la prueba.
   // Tampoco las copias que deja Windows ("8-cinta-a-la-excelencia copia.webp"):
@@ -177,7 +177,7 @@ test('la configuración visual elegida se guarda y los valores desconocidos se n
 });
 
 test('cada dígito tiene su imagen', () => {
-  const carpeta = path.join(process.cwd(), 'public/parches/Cintas y medallas/numeros-cintas');
+  const carpeta = path.join(process.cwd(), 'public/insignias/numeros-cintas');
   for (let digito = 0; digito <= 9; digito += 1) {
     assert.ok(fs.existsSync(path.join(carpeta, `numero-${digito}-dorado.webp`)), String(digito));
   }

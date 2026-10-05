@@ -11,12 +11,14 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { conNoLeidoMarcado } from 'src/utils/chat-no-leido.mjs';
 import { toggleChatReaction } from 'src/utils/chat-reaction-core.mjs';
 import { contactoSistema, esCuentaSistema } from 'src/utils/chat-sistema.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 import { contactoDeBuzon, esBuzonCompartido, buzonPorIdMiembros } from 'src/utils/chat-buzones.mjs';
 
 import { enviarPushAUsuarios } from 'src/server/web-push';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 import { deleteChatStorageObjects } from 'src/server/chat-storage-rest.mjs';
@@ -97,10 +99,14 @@ import {
 
 export const runtime = 'nodejs';
 
-const COLECCION_CONVERSACIONES = 'conversaciones_chat';
+const COLECCION_CONVERSACIONES = COLECCIONES.conversacionesChat;
 const SUBCOLECCION_MENSAJES = 'mensajes';
-const COLECCIONES_USUARIOS = ['users', 'usuarios_roles', 'admins'];
-const COLECCION_FOTOS = 'fotos';
+const COLECCIONES_USUARIOS = [
+  COLECCIONES.usuarios,
+  COLECCIONES.usuariosRoles,
+  COLECCIONES.administradores,
+];
+const COLECCION_FOTOS = COLECCIONES.fotos;
 const MEMBER_PHOTO_CACHE_TTL_MS = 5 * 60_000;
 const memberPhotoCache = new Map();
 
@@ -355,7 +361,10 @@ const guardarNotificacionConfigurada = async (notificacion) => {
       .doc(notificacionConfigurada.id)
       .set(notificacionConfigurada);
 
-    enviarPushAUsuarios({
+    // SE ESPERA AL PUSH ANTES DE RESPONDER. Lanzado "por detrás", la función
+    // del servidor terminaba al devolver la respuesta y el envío quedaba
+    // congelado: el aviso no salía, o salía con el siguiente mensaje.
+    await enviarPushAUsuarios({
       idsUsuarios: notificacionConfigurada.idsDestinatarios,
       titulo: notificacionConfigurada.titulo,
       mensaje: notificacionConfigurada.mensajeVisual || notificacionConfigurada.mensaje,
@@ -1880,6 +1889,7 @@ async function updateConversationAction({
   const permissionByAction = {
     typing: CHAT_PERMISSIONS.SEND,
     'toggle-mute': CHAT_PERMISSIONS.VIEW,
+    'mark-unread': CHAT_PERMISSIONS.VIEW,
     'mark-delivered': CHAT_PERMISSIONS.VIEW,
     clear: CHAT_PERMISSIONS.CLEAR,
     'clear-global': CHAT_PERMISSIONS.CLEAR,
@@ -1966,6 +1976,25 @@ async function updateConversationAction({
       viewerId,
       chatStore
     );
+  }
+
+  // Marca personal: solo el contador de quien lo pide. Se devuelve `null` como
+  // en `typing`: el cliente ya lo pintó y la escucha en vivo trae el resto.
+  if (action === 'mark-unread') {
+    if (!viewerId) {
+      throw new Error('No se pudo identificar el miembro para marcar el chat como no leído.');
+    }
+
+    const noLeidosPorIdMiembros = conNoLeidoMarcado(
+      existingConversation.noLeidosPorIdMiembros,
+      viewerId
+    );
+
+    if (noLeidosPorIdMiembros) {
+      await chatStore.setDocument(conversationPath, { noLeidosPorIdMiembros }, { merge: true });
+    }
+
+    return null;
   }
 
   if (action === 'mark-delivered') {
@@ -2619,6 +2648,7 @@ export async function PATCH(req) {
 
     const conversationActions = [
       'toggle-mute',
+      'mark-unread',
       'mark-delivered',
       'report',
       'clear',

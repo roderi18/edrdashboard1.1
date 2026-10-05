@@ -29,7 +29,7 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
 3. **Ver se suma entre cargos; editar sigue la dominancia.**
 4. **Tres listas, tres alcances**: secciones, destacamentos y miembros se acotan por separado.
 5. **Oficina Nacional es un rol a mano**: no ocupa casilla de directiva.
-6. `/member` es la lista del destacamento propio (salvo Administrador Global); a los de otro destacamento se llega por la pestaña "Miembros" de su ficha.
+6. `/member` es la lista del destacamento propio (salvo Administrador Global y **Consejo Ejecutivo**, que ven a todos con "Solo ver miembros de mi destacamento"); a los de otro destacamento se llega por la pestaña "Miembros" de su ficha. El Consejo Ejecutivo (y todo cargo nacional) pulsa además los contadores de secciones, destacamentos y miembros en todos los niveles, y cambia todos sus datos en `/user/account`. Test: `tests/acceso/consejo-ejecutivo-abre-los-contadores.test.mjs`.
 7. **Director Regional (antes "Coordinador Regional") y Sub-Director Regional proponen en las secciones de su región** (ficha y directiva): el titular propone, el asistente sugiere, y lo aprueba la Oficina Nacional. Los otros seis cargos regionales siguen siendo de consulta, y los destacamentos siguen cerrados para los ocho.
 
 8. **Buzones compartidos del chat** (Tienda Virtual 20001, Oficina Nacional 20002): un poder, no una cuenta. Cada uno es una entrada de `src/utils/chat-buzones.mjs`; lo atienden sus cargos (entre todos los de la persona) y el Administrador Global atiende todos. El servidor comprueba el cargo antes de escribir como el buzón; una persona nunca usa esos números. Test: `tests/chat/chat-buzones-compartidos.test.mjs`.
@@ -44,6 +44,40 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    "Chat Sistema" de `/admin/notificaciones`, solo Administrador Global).
    Piezas: `src/utils/chat-sistema.mjs`, `src/server/chat-sistema-*.mjs`; prueba a
    mano: `scripts/prueba-chat-sistema-cumpleanos.mjs`. Test: `tests/chat/chat-sistema.test.mjs`.
+
+8c. **La salud del sistema se revisa sola** (no hace falta abrir
+   `/dashboard/admin/health`). Cada hora, en silencio, y a las 4:00 p. m. con un
+   resumen corto que Sistema escribe en el chat "ADMINISTRADORES GLOBALES":
+   Firestore (escribe y lee), Auth, Storage (peso real), los 7 servicios de la API
+   .NET, una colección por módulo, respaldo, notificaciones, auditoría de 24 h y
+   la configuración del servidor. Un **fallo** va a la campana de cada
+   Administrador Global y al chat; una **advertencia**, solo a la campana. Cada
+   chequeo avisa una vez por día (mismo id que la pantalla, que ahora también
+   avisa por el servidor: `/api/admin/salud-sistema/avisar`). Queda en
+   `salud_sistema/ultima` y `salud_sistema_revisiones`. Piezas:
+   `src/utils/salud-sistema.mjs`, `src/server/salud-sistema/`,
+   `src/server/tareas/salud-sistema.mjs`. Test: `tests/admin/salud-sistema-en-segundo-plano.test.mjs`.
+
+8d. **Respaldo diario en la nube** (11:00 p. m.): Firestore entero (con
+   subcolecciones, tipos conservados), el padrón de los 10 servicios de la API
+   .NET y las cuentas de Auth (sin contraseñas) a `respaldos/AAAA-MM-DD/` de
+   Storage (14 días), y un espejo de los archivos en `respaldos/archivos/` que solo
+   suma (lo borrado del original se queda). Nadie lo abre desde el navegador
+   (`storage.rules`). Al terminar, Sistema manda el resumen (qué, cuánto se
+   descargó y cuánto ocupa) al chat de Administradores Globales, y deja
+   `respaldos_admin/ultimo`, que mira Salud. Regla en `src/utils/respaldo-diario.mjs`,
+   tarea en `src/server/tareas/respaldo-diario.mjs`. Test: `tests/admin/respaldo-diario-en-la-nube.test.mjs`.
+
+8e. **Auditoría de seguridad: la escribe el servidor.** Toda ruta de `/api/auth`
+   y `/api/admin` que cambie acceso (códigos, claves, correo, cuentas, roles,
+   claims, suplantación) o lo niegue registra con `registrarEventoDeSeguridad`
+   (`src/server/auditoria-seguridad.js`): línea JSON en el log y documento en
+   `auditoria_seguridad` (solo Admin SDK; la lee solo el Administrador Global).
+   Acción nueva → al catálogo `ACCIONES_DE_SEGURIDAD`. Nunca entran claves,
+   códigos ni tokens. `auditoria_sistema` exige `registradoPorUid` y la lee quien
+   tiene `administracion.ver_auditoria`; ni el Administrador Global corrige
+   ninguna de las dos. Detalle y TTL en `docs/auditoria-de-seguridad.md`.
+   Test: `tests/admin/auditoria-de-seguridad.test.mjs`.
 
 9. **El Administrador Global reina sobre cualquier otro cargo.** Si lo ejerce por cualquier vía (principal o en `cargos`), es su rol principal en todos los módulos; la dominancia por módulo no se lo quita. Una sola pieza: `src/utils/administrador-global-reina.mjs` (la sesión y los guardas). Solo la prueba de roles lo sustituye, y aun entonces el menú lateral sigue siendo el suyo (`sesionSinPrueba`): los permisos de la pareja los aplican las pantallas. Test: `tests/acceso/administrador-global-reina.test.mjs`.
 
@@ -67,12 +101,12 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    Designer → Cintas: se guarda en `configuracion_cintas/orden` y manda en todos
    los perfiles y al asignarlas; sin orden guardado, el del archivo.
    **Las medallas, igual, pero el catálogo es la carpeta**
-   `public/parches/Cintas y medallas/medallas`: cualquier imagen que se deje ahí
+   `public/insignias/medallas`: cualquier imagen que se deje ahí
    sale en la aplicación (`/api/insignias/medallas`; en producción, el manifiesto
    que `prebuild` regenera). Las `-small` son su variante pequeña, no otra medalla.
    Se guardan en `medallas_miembros`; su orden, en `configuracion_cintas/orden-medallas`.
    Reglas en `src/utils/medallas-perfil.mjs`.
-   **Los pines, igual que las medallas** (carpeta `public/parches/Cintas y medallas/pines`,
+   **Los pines, igual que las medallas** (carpeta `public/insignias/pines`,
    `/api/insignias/pines`, `pines_miembros`, orden en `configuracion_cintas/orden-pines`),
    pero en el perfil van **encima de las cintas, centrados**, en una fila de como
    mucho 3. Reglas en `src/utils/pines-perfil.mjs`.
@@ -84,6 +118,14 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    cintas se registran en el catálogo con `registrarCintasPersonalizadas`). En el
    Designer se ordenan arrastrando: la tarjeta sigue al puntero y las demás se
    apartan en vivo (`src/sections/everest/rejilla-ordenable.jsx`).
+   **Editar y eliminar todas** (también las de fábrica): lápiz y papelera en cada
+   tarjeta del Designer. Una de fábrica guarda un ajuste `f-{tipo}-{id}` (nombre,
+   descripción, imagen u `oculta`); una añadida se elimina con `activo: false`.
+   Nada se borra. Agregan y editan Administrador Global y **Oficina Nacional** (que
+   entra al Designer solo a Cintas, Medallas y Pines); eliminar, según "Accesos".
+   **Ordenar (arrastrar) va con editar**: quien puede editar una pestaña también
+   la ordena (`puedeOrdenarInsignias(user, tipo)`, y `configuracion_cintas/orden*`
+   en `firestore.rules`). Test: `tests/member/insignias-editar-y-eliminar.test.mjs`.
    Tests: `tests/member/cintas-perfil-orden.test.mjs`, `tests/member/cintas-orden-global.test.mjs`,
    `tests/member/medallas-perfil.test.mjs`, `tests/member/insignias-personalizadas.test.mjs`,
    `tests/member/pines-perfil.test.mjs`.
@@ -96,7 +138,10 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    **no da permisos**; mandan los cargos actuales. Única excepción: quien es o fue
    Director Nacional —o Comandante Nacional, su nombre antiguo— conserva los
    permisos de Director Nacional (lo suma el servidor en `leerAsignacionesDe`), y
-   el ex comandante sale siempre en el Consejo Ejecutivo. Una persona, un cargo
+   el ex comandante sale siempre como "Ex Director Nacional" en el Consejo Nacional.
+   "Ex Director Nacional" es también una opción de "Cargo Nacional" en la ficha:
+   la enseña quien lo es sin otro cargo de consejo, y elegirla (quien edita la
+   Directiva por cuatrienio) suma a la persona al grupo de ex comandantes de 2022-2026. Una persona, un cargo
    por cuatrienio. Editan Administrador Global y Oficina Nacional, avisándose;
    crear en el padrón (carga del listado) solo el Administrador Global. Los
    organigramas históricos son los de siempre con `historico`. Reglas en
@@ -107,7 +152,7 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
 13. **Premios del miembro: una sola tarjeta de insignia.** Toda carpeta de premios
    (la última de su rama, en Sistema de Ascenso y Academia) se pinta en cuadrícula
    por defecto con la tarjeta de `awards-insignia-item.jsx`: insignia por NOMBRE
-   desde `public/sistemaAscenso` (`src/utils/insignias-de-premios.mjs`), check verde
+   desde `public/sistema-ascenso` (`src/utils/insignias-de-premios.mjs`), check verde
    con certificado y amarillo sin él, `x2` de veces ganado, transparencia sin
    completar. En el Sistema de Ascenso, Ctrl + clic (o pulsación larga en el
    móvil) y "Completar"/"Quitar completado" por lotes; quitar sigue pidiendo
@@ -151,7 +196,10 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    esos): es la única excepción a "nadie sirve en dos consejos". Ni se bloquea al
    darlo ni se retira el otro (servicio, organigramas y ficha). Dentro del
    Consejo Ejecutivo sigue valiendo un cargo por persona. En la ficha, "Cargo
-   Nacional" enseña el de región o sección. Regla en `src/utils/cargos-compatibles.mjs`.
+   Nacional" enseña el de región o sección. **En la nacional hay dos grupos**: lo
+   que cuelga del Consejo Ejecutivo y el resto del Consejo Nacional; una persona
+   puede tener uno de cada (Vicepresidente + Coordinador de Adiestramiento) y se
+   suma sin "traspaso". Regla en `src/utils/cargos-compatibles.mjs`.
 
 17. **Asignar en cualquier directiva es instantáneo**: la casilla (y el título)
    se pinta en el mismo clic, el diálogo se cierra y la escritura va por detrás;
@@ -166,7 +214,14 @@ llama desde `/api/*`, y siempre a través de `fetchUpstreamText`
    en "Cargo Nacional" (nación, región, sección) o "Nivel posición en tu
    Destacamento". Se guardan en `casillas_directiva_personalizadas` y se suman a
    `DIRECTIVA_POSITIONS` con `registrarCasillasPersonalizadas`; quitar una la deja
-   inactiva (su nombre se sigue traduciendo). Piezas:
+   inactiva (su nombre se sigue traduciendo).
+   **Quitar del organigrama** (panel del lápiz, solo Administrador Global): quita
+   cualquier casilla o contenedor del nivel entero, también los de fábrica
+   (ficha `oculta` en la misma colección; lo que colgaba sube a su sitio).
+   Ocupada no se quita; "Devolver" en el mismo panel. Con un contenedor marcado,
+   **Cambiar nombre** (también los de fábrica: ficha `nombre`). También desde los tres
+   puntitos del contenedor (`menu-de-contenedor.jsx`). Pieza:
+   `quitar-casilla-del-nivel.jsx`. Test: `tests/directivas/quitar-casilla-del-organigrama.test.mjs`. Piezas:
    `src/utils/casillas-personalizadas.mjs`, `use-casillas-personalizadas.js`,
    `casillas-directiva-dialog.jsx`. Detalle en `docs/casillas-personalizadas.md`.
    Test: `tests/directivas/casillas-personalizadas.test.mjs`.
@@ -211,11 +266,25 @@ Suite que lo cubre: `npm run test:acceso`.
   nada de `@react-pdf/renderer` arriba en una pantalla) y caché
   (`conCache`/`conInvalidacion` de `src/utils/cache-de-lecturas.mjs`). Datos de
   personas, solo en memoria; cerrar sesión los borra todos.
+- **`public/` es solo lo que sirve la aplicación, y todo en él se descarga desde
+  internet.** Raíz: solo `favicon.ico`, `sw.js` y `offline.html`. Carpetas:
+  `app/` (iconos de la app instalada y el worker de PDF), `marca/` (logos y
+  divisiones), `iconos/`, `insignias/` (cintas, medallas, pines),
+  `sistema-ascenso/` (insignias de premios por división y `academia-ministerial/`),
+  `fuentes/`, `descargas/` (lo que la app ofrece para bajar) y `plantilla/` (lo
+  de la plantilla Minimal). Nada con espacios ni mayúsculas. Los documentos van a
+  `docs/` (`organizacion/`, `tienda/`, `marca/`, `auditorias/`,
+  `reportes-de-avance/`). Lo que no se usaba está solo en
+  `docs/documentosNoUsados.zip` (en `.gitignore`: lleva datos de personas); los
+  scripts de `scripts/alta-productos/` leen de `docs/tienda/imagenes/`, así que
+  para volver a usarlos hay que descomprimirlo en `docs/`. Si una ruta de
+  `public/` cambia, su vieja se suma a `src/utils/rutas-antiguas-de-imagenes.mjs`
+  (redirección permanente). Test: `tests/admin/organizacion-de-archivos.test.mjs`.
 - Código de servidor probable → `.mjs`, para importarlo desde `node --test`.
 - Tests en español, nombrados por el comportamiento, con encabezado que explica
   qué se rompía. Importan el **código real** vía `tests/soporte/resolver-alias-src.mjs`.
 
-## EXPLORA Designer — la portada no cambia hasta que se publica
+## EXPEDITION Designer — la portada no cambia hasta que se publica
 
 Herramienta del Administrador Global para editar desde la aplicación todo lo de
 `/principal` (encabezados, próxima actividad, eventos, comunicados, destacamento destacado…)
@@ -239,9 +308,18 @@ Designer.**
   guarda la misma forma que hoy recibe su componente.
 - **Solo publica el Administrador Global**, por `proponerCambio` (ámbito
   `everest_designer`): se aplica al momento y queda en Historial.
-- **Pestañas:** Portada, Cintas, Medallas, Pines y Paleta (`?seccion=`). La Paleta vivía
+- **Pestañas:** Portada, Cintas, Medallas, Pines, Paleta y Tarjeta (`?seccion=`).
+- **Accesos y Registro (solo el Administrador Global).** "Accesos" da a un usuario
+  (su cuenta) o a un rol las pestañas que ve y qué hace en ellas (crear, editar,
+  eliminar); se suman. Se guarda en `configuracion_designer/accesos` con un índice
+  plano que leen `firestore.rules` y `storage.rules` (`src/utils/accesos-designer.mjs`).
+  Pregunta siempre con `puedeEnDesigner`, nunca con `isAdminGlobal`. Ordenar y dar
+  accesos siguen siendo del Administrador Global. "Registro" lista lo guardado,
+  editado y eliminado (qué, fecha, hora, quién) desde Historial: **toda escritura del
+  Designer pasa por `proponerCambio` con `AMBITOS_CAMBIO.everestDesigner`**, o no sale.
+  Test: `tests/everest/accesos-y-registro-del-designer.test.mjs`. La Paleta vivía
   en Administración; `/dashboard/admin/paleta` solo redirige aquí.
-- **Pantalla:** `/dashboard/everest`, entrada del menú lateral debajo de
+- **Pantalla:** `/dashboard/explora-designer` (la vieja `/dashboard/everest` redirige), entrada del menú lateral debajo de
   "Administradores" (no es una pestaña de Administración), solo para el
   Administrador Global. La vista previa es un iframe a `/vista-previa/everest` porque los
   estilos dependen del ancho de la ventana; pinta con los componentes reales de
@@ -297,8 +375,13 @@ Regla nueva de negocio → test nuevo. Cambio que contradiga
 - No construir sobre los ~20 módulos de plantilla sin conectar (`/dashboard/{app,
 ecommerce, analytics, banking, booking, file, course, job, tour, user, post,
 mail, kanban}`, `src/_mock/`, `src/sections/_examples/`, `src/sections/prinicipal/`).
-- No quitar `serverExternalPackages: ['firebase-admin']` ni bajar
-  `AWS_LAMBDA_JS_RUNTIME` de `nodejs22.x`: revienta `/api/auth/*` en Netlify.
+- No quitar `serverExternalPackages: ['firebase-admin']`: el Admin SDK no
+  sobrevive al empaquetado y revienta `/api/auth/*`.
+- **El hosting es solo Firebase App Hosting** (`apphosting.yaml`); Netlify se
+  dejó. Las tareas diarias (cumpleaños 07:00, resumen 09:00) son rutas
+  `/api/tareas/*` que llama Cloud Scheduler con el secreto
+  `TAREAS_PROGRAMADAS_SECRETO`; horario en `src/utils/tareas-programadas.mjs` y
+  comandos en `scripts/crear-tareas-programadas.mjs`.
 - Colección nueva en Firestore → **añádela explícitamente a `firestore.rules`**.
   El comodín del final la haría escribible por cualquier sesión válida.
 

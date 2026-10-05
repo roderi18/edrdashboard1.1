@@ -2,7 +2,7 @@
 // PINES DEL PERFIL.
 //
 // Qué se quería: un apartado de pines como el de cintas y medallas (perfil,
-// lápiz del Administrador Global y EXPLORA Designer), con los pines ENCIMA de
+// lápiz del Administrador Global y EXPEDITION Designer), con los pines ENCIMA de
 // las cintas, centrados. Estas pruebas cuidan que:
 //  - el catálogo sea la carpeta `pines` (cualquier imagen, sin tocar código) y
 //    apunte a ESA carpeta, no a la de medallas, con la que comparte la lectura;

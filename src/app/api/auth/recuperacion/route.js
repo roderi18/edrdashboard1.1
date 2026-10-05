@@ -1,10 +1,13 @@
 import 'server-only';
 
+import { correoDelEnlace, SIN_CORREO_PROPIO } from 'src/utils/enlace-de-recuperacion.mjs';
+
 import { limiteSuperado } from 'src/server/limite-intentos';
 import { isAdminConfigured } from 'src/server/firebase-admin';
 import { pedirAyudaAlCoordinador } from 'src/server/coordinadores-recuperacion';
-import { esCorreoInterno, buscarCuentaMiembro } from 'src/server/claves-miembro';
 import { datosMinimosDeMiembro, buscarMiembroPorNumero } from 'src/server/miembros-directorio';
+import { buscarCuentaMiembro, buscarPerfilesPorNumeroMiembro } from 'src/server/claves-miembro';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 export const runtime = 'nodejs';
 
@@ -20,29 +23,29 @@ export const runtime = 'nodejs';
 // justo: si se le puede mandar el enlace y a donde, o a quien se le pidio ayuda.
 // ----------------------------------------------------------------------
 
-// El mismo mensaje para "no existe ese numero" y "existe pero no tiene correo
-// propio": distinguirlos es confirmarle a un desconocido quien esta dado de alta.
-const SIN_CORREO =
-  'No podemos enviarte un enlace: tu cuenta no tiene un correo propio verificado. Usa el botón de abajo para pedirle ayuda a tu Coordinador.';
-
-const normalizarCorreo = (correo) =>
-  String(correo ?? '')
-    .trim()
-    .toLowerCase();
-
 // ----------------------------------------------------------------------
-// ¿Le puede llegar el enlace, y a que direccion?
-//
-// El enlace de Firebase cambia la clave de LA CUENTA QUE TENGA ESE CORREO. El de
-// la ficha casi nunca es el de la cuenta —la cuenta usa
-// `<codigo>@exploradores.app`—, y mandarlo a ciegas le cambiaba la clave A OTRA
-// PERSONA. Le paso al administrador: pidio recuperar la de un miembro y termino
-// cambiando la suya.
+// ¿Le puede llegar el enlace, y a que direccion? Al correo de SU CUENTA, nunca al
+// de la ficha: la regla y lo que se rompia, en `enlace-de-recuperacion.mjs`.
 // ----------------------------------------------------------------------
 const resolverEnlace = async (numeroUsuario) => {
+  // La cuenta y su correo ya están indexados en Firestore. El padrón externo
+  // puede estar temporalmente indisponible o no traer el correo del miembro.
+  const perfiles = await buscarPerfilesPorNumeroMiembro(numeroUsuario);
+  const perfil = perfiles[0]?.data?.();
+
+  if (perfil) {
+    const cuenta = await buscarCuentaMiembro({
+      idMiembros: perfil.idMiembros ?? perfiles[0].id,
+      codigoMiembro: perfil.codigoMiembro,
+      correo: perfil.correo,
+    });
+
+    if (cuenta) return correoDelEnlace(cuenta.email);
+  }
+
   const ficha = await buscarMiembroPorNumero(numeroUsuario);
 
-  if (!ficha) return { puedeEnviar: false, error: SIN_CORREO };
+  if (!ficha) return { puedeEnviar: false, error: SIN_CORREO_PROPIO };
 
   const datos = datosMinimosDeMiembro(ficha);
   const cuenta = await buscarCuentaMiembro({
@@ -50,23 +53,8 @@ const resolverEnlace = async (numeroUsuario) => {
     codigoMiembro: datos.codigoMiembro,
     correo: datos.correo,
   });
-  const correoCuenta = normalizarCorreo(cuenta?.email);
 
-  if (!correoCuenta || esCorreoInterno(correoCuenta)) {
-    return { puedeEnviar: false, error: SIN_CORREO };
-  }
-
-  // El correo de la ficha y el de la cuenta pueden haberse separado: manda el de
-  // la cuenta, que es al que Firebase enviara el enlace de verdad.
-  if (correoCuenta !== datos.correo) {
-    return {
-      puedeEnviar: false,
-      error:
-        'El correo de tu ficha no es el de tu cuenta de acceso, así que el enlace no te llegaría. Pídele la recuperación a tu Coordinador con el botón de abajo.',
-    };
-  }
-
-  return { puedeEnviar: true, correo: correoCuenta };
+  return correoDelEnlace(cuenta?.email);
 };
 
 const AVISOS = {
@@ -110,6 +98,14 @@ export async function POST(req) {
         numeroUsuario: numero,
       });
 
+      // Llega sin sesion: no hay actor, pero si el numero, la IP y a cuantos se
+      // les aviso. Asi se ve si alguien llena el panel de los coordinadores.
+      await registrarEventoDeSeguridad(req, {
+        accion: ACCIONES_DE_SEGURIDAD.ayudaCoordinadorSolicitada,
+        resultado: enviadas ? 'ok' : 'fallo',
+        detalle: { numero, enviadas: Number(enviadas || 0), motivo: motivo ?? null },
+      });
+
       return Response.json({
         enviadas,
         coordinadores,
@@ -117,7 +113,17 @@ export async function POST(req) {
       });
     }
 
-    return Response.json(await resolverEnlace(numero));
+    const enlace = await resolverEnlace(numero);
+
+    // A quien se le iba a mandar el enlace, pedido sin sesion: si alguien recorre
+    // numeros por aqui, se ve.
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.recuperacionConsultada,
+      resultado: enlace?.puedeEnviar ? 'ok' : 'fallo',
+      detalle: { numero, puedeEnviar: Boolean(enlace?.puedeEnviar) },
+    });
+
+    return Response.json(enlace);
   } catch (error) {
     console.error('[recuperacion] no se pudo atender', error);
 

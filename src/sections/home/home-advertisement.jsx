@@ -148,7 +148,7 @@ const renderImage = () => (
       animate={{ y: [-20, 0, -20] }}
       transition={{ duration: 4, repeat: Infinity }}
       alt="Rocket"
-      src={`${CONFIG.assetsDir}/assets/illustrations/illustration-rocket-large.webp`}
+      src={`${CONFIG.assetsDir}/plantilla/illustrations/illustration-rocket-large.webp`}
       sx={{
         zIndex: 9,
         width: 360,

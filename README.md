@@ -26,9 +26,10 @@ yarn build
 npm run build
 ```
 
-## Netlify + Firebase
+## Firebase App Hosting
 
-El inicio de sesion de Firebase necesita estas variables publicas en Netlify:
+La aplicacion se publica solo en Firebase App Hosting (`apphosting.yaml`). El inicio de
+sesion de Firebase necesita estas variables publicas:
 
 ```env
 NEXT_PUBLIC_FIREBASE_API_KEY=
@@ -40,9 +41,9 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
 ```
 
-Configuralas en **Site configuration > Environment variables** y haz un nuevo deploy.
-Next.js incluye las variables `NEXT_PUBLIC_*` durante el build, asi que un deploy anterior
-seguira mostrando la configuracion vacia aunque ya existan en Netlify.
+Van en `apphosting.yaml` (las privadas, como secretos de Secret Manager). Next.js incluye
+las variables `NEXT_PUBLIC_*` durante el build, asi que hace falta un nuevo despliegue
+para que cambien.
 
 ## Mock server
 

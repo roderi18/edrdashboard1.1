@@ -7,7 +7,7 @@ import { CONFIG } from 'src/global-config';
 const createNavItem = ({ category, name, iconPrefix, packageType }) => ({
   name,
   href: `/components/${category}/${kebabCase(name)}`,
-  icon: `${CONFIG.assetsDir}/assets/icons/components/${iconPrefix}-${kebabCase(name)}.svg`,
+  icon: `${CONFIG.assetsDir}/plantilla/icons/components/${iconPrefix}-${kebabCase(name)}.svg`,
   packageType,
 });
 

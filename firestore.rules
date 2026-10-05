@@ -88,6 +88,17 @@ service cloud.firestore {
         );
     }
 
+    // La foto de perfil de un destacamento, una sección o una región la cambia
+    // también la Oficina Nacional, por cualquiera de sus cargos (es un rol a
+    // mano). Solo la de perfil y solo de esas tres: la de un miembro no.
+    function esFotoDeEntidadDeOficinaNacional(idFoto, datos) {
+      return ejerceRol('oficina_nacional')
+        && datos.tipoEntidad in ['destacamento', 'seccion', 'region']
+        && datos.tipoFoto == 'perfil'
+        && datos.idEntidad is string
+        && idFoto == datos.tipoEntidad + '_' + datos.idEntidad + '_perfil';
+    }
+
     function esFotoPerfilPropia(idFoto, datos) {
       return datos.tipoEntidad == 'miembro'
         && datos.tipoFoto == 'perfil'
@@ -485,7 +496,9 @@ service cloud.firestore {
         'estadoManual',
         'estadoManualActualizadoEn',
         'actualizadoEn',
-        'sesiones'
+        'sesiones',
+        // Los buzones compartidos que atiende quien escribe su presencia.
+        'atiende'
       ]);
     }
 
@@ -495,7 +508,9 @@ service cloud.firestore {
         && (!('estadoManual' in request.resource.data)
           || request.resource.data.estadoManual == null
           || request.resource.data.estadoManual in ['always', 'busy'])
-        && (!('sesiones' in request.resource.data) || request.resource.data.sesiones is map);
+        && (!('sesiones' in request.resource.data) || request.resource.data.sesiones is map)
+        && (!('atiende' in request.resource.data)
+          || (request.resource.data.atiende is list && request.resource.data.atiende.size() <= 5));
     }
 
     function presenciaPropiaValida() {
@@ -960,14 +975,60 @@ service cloud.firestore {
     // Quien administra la tienda. Es un rol propio, no un permiso suelto: el
     // padron y el dinero de la tienda son cosas distintas y por eso ni el
     // Administrador Global gestiona productos.
+    // Por cualquiera de sus roles (`rolesQueEjerce`): una persona puede tener
+    // varios de administracion y el de Tienda no ser el principal (la Oficina
+    // Nacional manda por rango).
     function esAdministradorDeTienda() {
       return rolDelToken() == 'administrador_tienda'
-        || rolDelDocumento() == 'administrador_tienda';
+        || rolDelDocumento() == 'administrador_tienda'
+        || ejerceRol('administrador_tienda');
     }
 
     function esOficinaNacional() {
       return rolDelToken() == 'oficina_nacional'
         || rolDelDocumento() == 'oficina_nacional';
+    }
+
+    // EXPLORA DESIGNER → ACCESOS: lo que el Administrador Global da a un usuario
+    // (su uid) o a un rol, por pestaña y acción. Se lee el índice plano que se
+    // guarda con las reglas (`permisos["cintas:crear"] = { usuarios, roles }`,
+    // ver `src/utils/accesos-designer.mjs`). Los roles se cuentan todos: el del
+    // token, el del documento y `rolesQueEjerce`.
+    function rutaAccesosDesigner() {
+      return /databases/$(database)/documents/configuracion_designer/accesos;
+    }
+
+    function permisoDesigner(pestana, accion) {
+      return request.auth != null
+        && exists(rutaAccesosDesigner())
+        && permisoDesignerEn(
+          get(rutaAccesosDesigner()).data.get('permisos', {}).get(pestana + ':' + accion, {})
+        );
+    }
+
+    function permisoDesignerEn(quienes) {
+      return quienes.get('usuarios', []).hasAny([request.auth.uid])
+        || quienes.get('roles', []).hasAny([rolDelToken(), rolDelDocumento()])
+        || (
+          exists(rutaAsignacion())
+          && get(rutaAsignacion()).data.get('rolesQueEjerce', []) is list
+          && quienes.get('roles', []).hasAny(get(rutaAsignacion()).data.get('rolesQueEjerce', []))
+        );
+    }
+
+    function pestanaDeInsignia(tipo) {
+      return tipo == 'cinta' ? 'cintas' : (tipo == 'medalla' ? 'medallas' : 'pines');
+    }
+
+    // Qué acción es escribir una insignia: eliminar si la marca eliminada; si no,
+    // crear una nueva añadida, o editar (también el primer ajuste de una de fábrica).
+    function accionSobreInsignia() {
+      return request.resource.data.get('activo', true) == false
+          || request.resource.data.get('oculta', false) == true
+        ? 'eliminar'
+        : (resource == null && request.resource.data.get('fabrica', false) != true
+          ? 'crear'
+          : 'editar');
     }
 
     function nivelDirectivaValido(nivel) {
@@ -1091,6 +1152,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // LA SALUD DEL SISTEMA EN SEGUNDO PLANO: la última revisión y su historia.
+    // Las escribe solo el servidor (la revisión de cada hora y la diaria de las
+    // 4:00 p. m.); las lee el Administrador Global.
+    match /salud_sistema/{documento} {
+      allow read: if esAdministradorGlobal();
+      allow write: if false;
+    }
+
+    match /salud_sistema_revisiones/{idRevision} {
+      allow read: if esAdministradorGlobal();
+      allow write: if false;
+    }
+
     match /buzones_chat/{claveBuzon} {
       allow read: if estaAutenticado();
       allow create, update: if esAdministradorGlobal()
@@ -1154,7 +1228,7 @@ service cloud.firestore {
       allow create, update: if esAdministradorGlobal()
         && request.resource.data.id == idCasilla
         && request.resource.data.nivel in ['nacional', 'regional', 'seccional', 'destacamento']
-        && request.resource.data.tipo in ['casilla', 'contenedor']
+        && request.resource.data.tipo in ['casilla', 'contenedor', 'oculta', 'nombre']
         && request.resource.data.nombre is string
         && request.resource.data.nombre.size() >= 2
         && request.resource.data.nombre.size() <= 60;
@@ -1209,13 +1283,101 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // La ficha `users/{uid}`. Caía en el comodín de abajo, así que cualquier
+    // sesión escribía la de CUALQUIERA y con cualquier campo: cambiarle el
+    // nombre o el correo a otra persona, ponerse `rol: 'administrador'` (con eso
+    // salía en la lista de administradores y recibía sus avisos), ponerse el
+    // `idMiembros` de otro (con eso `esSuIdMiembro` le dejaba cambiar SU foto
+    // de perfil) o ponerle `codigoMiembro` a una cuenta suelta, que con eso
+    // pasaba `tieneAltaDelServidor()` y entraba a todo el comodín.
+    //
+    // Ahora la escriben solo tres:
+    //  - la propia persona, en SU ficha, todo menos lo que da poder o
+    //    identidad (`camposProtegidosDeUsers`): vincular Google/Apple/Facebook
+    //    (`account-change-password.jsx`) y el perfil de los administradores
+    //    antiguos (`account-general.jsx`) siguen funcionando;
+    //  - quien entra a Administración (Oficina Nacional, Administrador
+    //    Funcional), y solo el espejo de dar o quitar administrador y sus
+    //    permisos (`firebase-admins.js`, `admin-permissions-service.js`);
+    //  - el Administrador Global, por su bloque de siempre.
+    // En `update` se mira lo que CAMBIA (`diff`), no el documento entero: con
+    // `merge` el documento resultante trae también los campos de siempre, y
+    // reenviar el mismo `rol` que ya tenía (lo hace `account-general.jsx`) no es
+    // cambiarlo. Crear la ficha desde el navegador al registrarse ya no pasaba
+    // antes (una cuenta nueva aún no es del sistema) y sigue sin pasar.
+    // La lectura queda como estaba; acotarla es otro paso.
+    // Test: tests/acceso/users-solo-su-ficha.test.mjs
+    function camposProtegidosDeUsers() {
+      return [
+        'rol', 'role', 'rolId', 'roleId', 'roles', 'rolesQueEjerce', 'cargos',
+        'permisos', 'permissions', 'permisosExcluidos',
+        'codigoMiembro', 'idMiembros', 'codigoUsuario', 'username', 'estatus'
+      ];
+    }
+
+    function camposDelEspejoDeAdministracion() {
+      return [
+        'uid', 'email', 'username', 'codigoMiembro', 'displayName', 'firstName', 'lastName',
+        'rol', 'role', 'permisos', 'permissions',
+        'updatedAt', 'actualizadoEn', 'actualizadoEnServidor'
+      ];
+    }
+
+    function entraAAdministracion() {
+      return ejerceRol('oficina_nacional') || ejerceRol('administrador_funcional');
+    }
+
+    // El uid de dentro, si viene, tiene que ser el de la ruta: si no, la ficha
+    // de uno diría ser de otro.
+    function uidCoincide(uid) {
+      return (!('uid' in request.resource.data) || request.resource.data.uid == uid)
+        && (!('linkedAuthUid' in request.resource.data)
+          || request.resource.data.linkedAuthUid == uid);
+    }
+
+    match /users/{uid} {
+      allow read: if esUsuarioDelSistema();
+
+      allow create: if uidCoincide(uid)
+        && (
+          (
+            esUsuarioDelSistema()
+            && request.auth.uid == uid
+            && !request.resource.data.keys().hasAny(camposProtegidosDeUsers())
+          )
+          || (
+            entraAAdministracion()
+            && request.resource.data.keys().hasOnly(camposDelEspejoDeAdministracion())
+          )
+        );
+
+      allow update: if uidCoincide(uid)
+        && (
+          (
+            esUsuarioDelSistema()
+            && request.auth.uid == uid
+            && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(camposProtegidosDeUsers())
+          )
+          || (
+            entraAAdministracion()
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(camposDelEspejoDeAdministracion())
+          )
+        );
+
+      // Borrar, solo el Administrador Global (por su bloque de abajo).
+      allow delete: if false;
+    }
+
     // Registro único de la foto principal de cada miembro. La lectura sigue
     // disponible para pintar perfiles; la escritura propia no depende de rol.
     // El Administrador Global conserva la capacidad de corregir cualquier foto.
     match /fotos/{idFoto} {
       allow read: if esUsuarioDelSistema();
       allow create, update: if esAdministradorGlobal()
-        || esFotoPerfilPropia(idFoto, request.resource.data);
+        || esFotoPerfilPropia(idFoto, request.resource.data)
+        || esFotoDeEntidadDeOficinaNacional(idFoto, request.resource.data);
       allow delete: if esAdministradorGlobal();
     }
 
@@ -1279,6 +1441,52 @@ service cloud.firestore {
     match /carpetasAscenso/{idCarpeta} {
       allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal() || esOficinaNacional();
+    }
+
+    // El gestor de archivos es una herramienta administrativa. La validación
+    // de la pantalla no protege una escritura directa desde el navegador.
+    match /gestorArchivos/{idArchivo} {
+      allow read, write: if esAdministradorGlobal();
+    }
+
+    // Storage consulta estos catálogos para decidir permisos. Si un usuario
+    // pudiera cambiar el rol, podría concederse acceso a archivos privados.
+    match /roles/{idRol} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
+    match /permisos/{idPermiso} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
+    // El calendario se sirve con el token del usuario por la API REST. Una
+    // llamada directa a Firestore conserva el mismo requisito de cargo.
+    match /actividades_calendario/{idActividad} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal()
+        || esOficinaNacional()
+        || tienePermisoDeCargo('organizacion.aprobar_cambios')
+        || tienePermisoDeCargo('asistencia.editar');
+    }
+
+    // La reserva del número de pedido se hace en una transacción del cliente.
+    // Nadie puede retroceder ni sustituir el contador desde la consola.
+    match /contadores_comercio/{idContador} {
+      allow read: if esUsuarioDelSistema();
+      allow create: if esUsuarioDelSistema()
+        && idContador == 'recibos-' + string(request.resource.data.anio)
+        && request.resource.data.keys().hasOnly(['anio', 'ultimo', 'actualizadoEn'])
+        && request.resource.data.ultimo == 1
+        && request.resource.data.actualizadoEn == request.time;
+      allow update: if esUsuarioDelSistema()
+        && idContador == 'recibos-' + string(resource.data.anio)
+        && request.resource.data.keys().hasOnly(['anio', 'ultimo', 'actualizadoEn'])
+        && request.resource.data.anio == resource.data.anio
+        && request.resource.data.ultimo == resource.data.ultimo + 1
+        && request.resource.data.actualizadoEn == request.time;
+      allow delete: if false;
     }
 
     // La bitácora es la prueba de quién cambió qué: se añade, nunca se corrige
@@ -1420,15 +1628,49 @@ service cloud.firestore {
     // todos los perfiles; solo lo cambia el Administrador Global.
     match /configuracion_cintas/{documento} {
       allow read: if esUsuarioDelSistema();
-      allow write: if esAdministradorGlobal();
+      // El orden global de cada pestaña lo cambia también quien puede editarla
+      // (EXPLORA Designer → Accesos); lo demás, solo el Administrador Global.
+      allow write: if esAdministradorGlobal()
+        || (documento == 'orden' && permisoDesigner('cintas', 'editar'))
+        || (documento == 'orden-medallas' && permisoDesigner('medallas', 'editar'))
+        || (documento == 'orden-pines' && permisoDesigner('pines', 'editar'));
     }
 
     // Las cintas y medallas añadidas desde EXPLORA Designer (imagen, nombre y
     // descripción). Salen en todos los perfiles, así que las lee cualquiera con
     // cuenta; las añade solo el Administrador Global, como todo el Designer.
+    // Cintas, medallas y pines añadidos o ajustados en EXPLORA Designer. Agregan y
+    // editan el Administrador Global y la Oficina Nacional; eliminar (marcar
+    // `activo: false` u `oculta: true`) solo el Administrador Global.
     match /insignias_personalizadas/{idInsignia} {
       allow read: if esUsuarioDelSistema();
+      // El Administrador Global, o a quien "Accesos" le dé esa acción en esa pestaña.
+      allow create, update: if esAdministradorGlobal()
+        || permisoDesigner(pestanaDeInsignia(request.resource.data.tipo), accionSobreInsignia());
+      allow delete: if esAdministradorGlobal();
+    }
+
+    // Quién entra a EXPLORA Designer (pestaña "Accesos"). Lo leen todos para saber
+    // qué ven; solo el Administrador Global lo cambia: es quien da los permisos.
+    match /configuracion_designer/{documento} {
+      allow read: if esUsuarioDelSistema();
       allow write: if esAdministradorGlobal();
+    }
+
+    // La Galería de Directores Nacionales (pestaña de Consejo Nacional): la ve
+    // cualquiera con cuenta; añade solo el Administrador Global.
+    match /galeria_directores_nacionales/{idDirector} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal();
+    }
+
+    // La tarjeta editable (EXPLORA Designer → Tarjeta). Es el diseño con que se
+    // pinta la Galería de Directores Nacionales, así que la lee cualquiera con
+    // cuenta; la cambia solo el Administrador Global (sin excluirla del
+    // comodín, cualquiera podría).
+    match /tarjetas_desarrollo/{idTarjeta} {
+      allow read: if esUsuarioDelSistema();
+      allow write: if esAdministradorGlobal() || permisoDesigner('tarjeta', 'editar');
     }
 
     // Premios añadidos desde la pestaña de premios (Sistema de Ascenso y
@@ -1484,17 +1726,17 @@ service cloud.firestore {
 
     match /everest_publicado/{pantalla} {
       allow read: if esUsuarioDelSistema();
-      allow write: if esAdministradorGlobal();
+      allow write: if esAdministradorGlobal() || permisoDesigner('portada', 'editar');
     }
 
     // Lo que se esta editando sin publicar, y la copia de cada publicacion para
     // volver atras. No lo ve nadie mas que quien edita.
     match /everest_borradores/{pantalla} {
-      allow read, write: if esAdministradorGlobal();
+      allow read, write: if esAdministradorGlobal() || permisoDesigner('portada', 'editar');
     }
 
     match /everest_versiones/{idVersion} {
-      allow read, create: if esAdministradorGlobal();
+      allow read, create: if esAdministradorGlobal() || permisoDesigner('portada', 'editar');
       // Una version es historia: no se reescribe ni se borra.
       allow update, delete: if false;
     }
@@ -1559,11 +1801,47 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // QUIEN PUEDE LEER LA AUDITORIA. Antes cualquier sesion del sistema leia la
+    // bitacora entera —quien cambio que, a quien, cuando—. Ahora, solo los cargos
+    // que tienen `administracion.ver_auditoria` en el catalogo (los mismos que
+    // ven las pantallas de Administracion que la consultan).
+    function puedeVerAuditoria() {
+      return esAdministradorGlobal()
+        || tienePermisoDeCargo('administracion.ver_auditoria')
+        || ejerceRol('oficina_nacional')
+        || ejerceRol('consejo_ejecutivo')
+        || ejerceRol('administrador_funcional')
+        || ejerceRol('administrador_tienda');
+    }
+
+    // LA ENTRADA LA FIRMA QUIEN LA ESCRIBE. `laAuditoriaVaASuNombre` deja pasar
+    // las entradas "del Sistema" (sin persona detras), y por ahi cualquiera podia
+    // escribir eventos sin autor o con el contenido que quisiera. Ahora toda
+    // entrada lleva `registradoPorUid` = la cuenta que la escribio, se presente
+    // como se presente: el autor real queda siempre.
+    function laAuditoriaLaFirmaQuienEscribe() {
+      return request.resource.data.get('registradoPorUid', '') == request.auth.uid;
+    }
+
     match /auditoria_sistema/{idEvento} {
-      allow read: if esUsuarioDelSistema();
-      allow create: if esUsuarioDelSistema() && laAuditoriaVaASuNombre();
+      allow read: if puedeVerAuditoria();
+      allow create: if esUsuarioDelSistema()
+        && laAuditoriaVaASuNombre()
+        && laAuditoriaLaFirmaQuienEscribe();
       // Se anade, nunca se corrige ni se borra: es la prueba de quien cambio que.
-      allow update, delete: if false;
+      // Unica excepcion: las entradas de PRUEBA que deja el entorno local, que
+      // el Administrador Global limpia desde Mantenimiento.
+      allow update: if false;
+      allow delete: if esAdministradorGlobal() && resource.data.origen == 'prueba_localhost';
+    }
+
+    // LA AUDITORIA DE SEGURIDAD la escribe SOLO el servidor (Admin SDK): codigos de
+    // recuperacion, cambios de clave y de correo, roles, suplantaciones,
+    // bloqueos. Ver `src/server/auditoria-seguridad.js`. Lleva IP y correos, asi
+    // que solo la lee el Administrador Global; y ni el la corrige ni la borra.
+    match /auditoria_seguridad/{idEvento} {
+      allow read: if esAdministradorGlobal();
+      allow write: if false;
     }
 
     // ------------------------------------------------------------------
@@ -1733,13 +2011,25 @@ service cloud.firestore {
     // desconfianza, sino porque leerlas no le sirve de nada —no devuelven ninguna
     // clave— y en cambio se pueden atacar SIN CONEXION si alguna vez se filtran.
     // Esa coleccion no la abre nadie; solo el Admin SDK, que no pasa por aqui.
+    //
+    // Las dos auditorias se LEEN con este pase, pero no se escriben: una bitacora
+    // que el administrador puede corregir no prueba nada de lo que hizo el
+    // administrador. Las entradas nuevas las dejan sus propios bloques.
     // ------------------------------------------------------------------
     match /{coleccion}/{documento} {
-      allow read, write: if coleccion != 'secretos_acceso' && esAdministradorGlobal();
+      allow read: if coleccion != 'secretos_acceso' && esAdministradorGlobal();
+      allow write: if coleccion != 'secretos_acceso'
+        && coleccion != 'auditoria_sistema'
+        && coleccion != 'auditoria_seguridad'
+        && esAdministradorGlobal();
     }
 
     match /{coleccion}/{documento}/{resto=**} {
-      allow read, write: if coleccion != 'secretos_acceso' && esAdministradorGlobal();
+      allow read: if coleccion != 'secretos_acceso' && esAdministradorGlobal();
+      allow write: if coleccion != 'secretos_acceso'
+        && coleccion != 'auditoria_sistema'
+        && coleccion != 'auditoria_seguridad'
+        && esAdministradorGlobal();
     }
 
     // Compatibilidad del resto de la aplicación: exige autenticación sin ampliar
@@ -1777,10 +2067,12 @@ service cloud.firestore {
         && coleccion != 'organigrama_directiva_destacamentos'
         && coleccion != 'usuarios_roles'
         && coleccion != 'admins'
+        && coleccion != 'users'
         && coleccion != 'fotos'
         && coleccion != 'secretos_acceso'
         && coleccion != 'metadatos_privados_publicaciones'
         && coleccion != 'auditoria_sistema'
+        && coleccion != 'auditoria_seguridad'
         // El encabezado de la tienda tiene su bloque arriba: sin excluirlo aqui, el
         // comodin devolveria la escritura a cualquiera con cuenta.
         && coleccion != 'configuracion_tienda'
@@ -1808,6 +2100,9 @@ service cloud.firestore {
         && coleccion != 'cintas_miembros'
         && coleccion != 'configuracion_cintas'
         && coleccion != 'insignias_personalizadas'
+        && coleccion != 'configuracion_designer'
+        && coleccion != 'tarjetas_desarrollo'
+        && coleccion != 'galeria_directores_nacionales'
         && coleccion != 'directiva_cuatrienios_integrantes'
         && coleccion != 'directiva_nacional_permanentes'
         && coleccion != 'titulos_oficiales_nacionales'
@@ -1819,6 +2114,8 @@ service cloud.firestore {
         // El registro del chat de Sistema: sin excluirlo, cualquier sesion lo
         // leeria (con nombres de todo el destacamento) o lo reescribiria.
         && coleccion != 'chat_sistema_registro'
+        && coleccion != 'salud_sistema'
+        && coleccion != 'salud_sistema_revisiones'
         // Las analiticas de la portada tienen su bloque arriba: sin excluirlas
         // aqui, el comodin dejaria leerlas a cualquiera con cuenta.
         && coleccion != 'analiticas_encabezado_tienda'
@@ -1827,6 +2124,11 @@ service cloud.firestore {
         // comodin devolveria la escritura a cualquiera con cuenta.
         && coleccion != 'itemsAscenso'
         && coleccion != 'carpetasAscenso'
+        && coleccion != 'gestorArchivos'
+        && coleccion != 'roles'
+        && coleccion != 'permisos'
+        && coleccion != 'actividades_calendario'
+        && coleccion != 'contadores_comercio'
         // La dispensa medica y la puerta de cambios tienen su propio bloque mas
         // arriba: sin excluirlas aqui, el comodin se lo devolveria a cualquiera.
         && coleccion != 'informacion_medica_basica_miembros'

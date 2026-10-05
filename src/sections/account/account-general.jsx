@@ -1,5 +1,6 @@
 'use client';
 
+
 import * as z from 'zod';
 import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -18,6 +19,7 @@ import Typography from '@mui/material/Typography';
 import { fileToDataUrl, getAdminProfileRef, buildAdminDisplayName } from 'src/utils/admin-profile';
 
 import { AUTH, FIRESTORE } from 'src/lib/firebase';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { SignOutButton } from 'src/layouts/components/sign-out-button';
 
 import { toast } from 'src/components/snackbar';
@@ -104,7 +106,7 @@ export function AccountGeneral() {
       if (adminEntry?.ref) {
         await updateDoc(adminEntry.ref, payload);
       } else {
-        await setDoc(doc(FIRESTORE, 'admins', authUser.uid), { ...payload, createdAt: new Date() }, { merge: true });
+        await setDoc(doc(FIRESTORE, COLECCIONES.administradores, authUser.uid), { ...payload, createdAt: new Date() }, { merge: true });
       }
 
       await updateProfile(authUser, {

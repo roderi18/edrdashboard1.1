@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "systexploradores"
+    "default": "systexploradores-dev",
+    "dev": "systexploradores-dev",
+    "qa": "systexploradores-qa",
+    "prod": "systexploradores"
   }
 }

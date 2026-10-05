@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // LOS CUMPLEANOS DEL DIA.
 //
@@ -17,8 +19,8 @@ export const DIAS_DE_AVISO = [0, 1];
 // EL CHAT DE SISTEMA avisa una semana antes, el dia antes y el mismo dia.
 export const DIAS_DE_AVISO_CHAT = [0, 1, 7];
 
-export const COLECCION_NOTIFICACIONES = 'notificaciones';
-export const COLECCION_PREFERENCIAS = 'preferencias_notificaciones';
+export const COLECCION_NOTIFICACIONES = COLECCIONES.notificaciones;
+export const COLECCION_PREFERENCIAS = COLECCIONES.preferenciasNotificaciones;
 
 const texto = (valor) => String(valor ?? '').trim();
 

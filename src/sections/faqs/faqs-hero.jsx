@@ -23,7 +23,7 @@ export function FaqsHero({ sx, ...other }) {
           ...theme.mixins.bgGradient({
             images: [
               `linear-gradient(0deg, ${varAlpha(theme.vars.palette.grey['900Channel'], 0.8)}, ${varAlpha(theme.vars.palette.grey['900Channel'], 0.8)})`,
-              `url(${CONFIG.assetsDir}/assets/images/faqs/hero.webp)`,
+              `url(${CONFIG.assetsDir}/plantilla/images/faqs/hero.webp)`,
             ],
           }),
           height: { md: 560 },

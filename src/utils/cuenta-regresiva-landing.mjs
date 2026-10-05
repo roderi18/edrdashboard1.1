@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // LA CUENTA ATRÁS DE LA PÁGINA DE REGISTRO (landing errd-registro).
 //
@@ -17,7 +19,7 @@
 //   (y el servidor de la landing también los rechaza).
 // ----------------------------------------------------------------------
 
-export const COLECCION_CONFIG_LANDING = 'configuracion_landing_registro';
+export const COLECCION_CONFIG_LANDING = COLECCIONES.configuracionLandingRegistro;
 export const DOC_CUENTA_REGRESIVA = 'cuenta_regresiva';
 
 // República Dominicana no cambia de hora: siempre UTC-4.

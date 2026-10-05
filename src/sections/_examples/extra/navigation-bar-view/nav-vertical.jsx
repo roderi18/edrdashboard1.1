@@ -125,7 +125,7 @@ export function NavVertical() {
           path="#"
           title="Chat"
           caption="Praesent porttitor nulla vitae posuere"
-          icon={<SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/ic-chat.svg`} />}
+          icon={<SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/ic-chat.svg`} />}
           sx={(theme) => ({ ...navSectionCssVars.vertical(theme) })}
         />
       </Paper>

@@ -95,9 +95,10 @@ test('la ruta no deja la organizacion sin Administrador Global', () => {
   const ruta = leer(RUTA);
 
   // Solo importa cuando el que cambia ES el global y deja de serlo.
+  // (Con varios roles: deja de serlo si el Global ya no esta entre los que le quedan.)
   assert.match(
     ruta,
-    /if \(eraAdministradorGlobal && cargoNuevo !== ROLES\.ADMINISTRADOR_GLOBAL\)/
+    /if \(eraAdministradorGlobal && !rolesNuevos\.includes\(ROLES\.ADMINISTRADOR_GLOBAL\)\)/
   );
   // Se descuentan TODOS los documentos de la persona (su uid y su numero).
   assert.match(ruta, /const quedan = await otrosAdministradoresGlobales\(db, documentos\)/);
@@ -118,7 +119,7 @@ test('el recuento se hace por rolId y descontando al propio afectado', () => {
 test('el cambio se escribe antes de emitir los claims, y un claim fallido no lo tumba', () => {
   const ruta = leer(RUTA);
   const posicionEscritura = ruta.indexOf('.set(datos, { merge: true })');
-  const posicionClaims = ruta.indexOf('setCustomUserClaims');
+  const posicionClaims = ruta.indexOf('await fijarClaimsConservandoClave(');
 
   assert.ok(posicionEscritura > 0, 'la ruta escribe el documento');
   assert.ok(

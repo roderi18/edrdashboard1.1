@@ -20,7 +20,7 @@ import { Text, View, Page, Image, Document, StyleSheet } from '@react-pdf/render
 // leer PNG y JPEG, y con el webp la imagen no se dibuja —sin aviso—.
 // ----------------------------------------------------------------------
 
-export const LOGO_LISTA_PRECIOS = '/logo/watermark.png';
+export const LOGO_LISTA_PRECIOS = '/marca/watermark.png';
 
 const COLORES = {
   azulTitulo: '#16365c',
@@ -100,7 +100,7 @@ export function ProductPriceListPdfDocument({
   anio = '',
   rows = [],
   // Ruta del emblema. Es prop para poder dibujar el documento fuera del
-  // navegador —donde "/logo/..." no resuelve— sin tocar el componente.
+  // navegador —donde "/marca/..." no resuelve— sin tocar el componente.
   logo = LOGO_LISTA_PRECIOS,
 }) {
   return (

@@ -20,7 +20,7 @@ export const paths = {
     root: '/pruebas',
     mapaRepublicaDominicana: '/pruebas/mapa-republica-dominicana',
   },
-  // Lo que se ve dentro del iframe de la vista previa de EXPLORA Designer. Va
+  // Lo que se ve dentro del iframe de la vista previa de EXPEDITION Designer. Va
   // fuera de /dashboard para no cargar el menu ni la cabecera dentro del recuadro.
   everestVistaPrevia: '/vista-previa/everest',
   comingSoon: '/coming-soon',
@@ -137,6 +137,7 @@ export const paths = {
       list: `${ROOTS.DASHBOARD}/level/list`,
       cards: `${ROOTS.DASHBOARD}/level/cards`,
       attendance: `${ROOTS.DASHBOARD}/level/attendance`,
+      datosDemograficos: `${ROOTS.DASHBOARD}/level/datos-demograficos`,
       profile: `${ROOTS.DASHBOARD}/level/profile`,
       account: `${ROOTS.DASHBOARD}/level/account`,
       edit: (id) => `${ROOTS.DASHBOARD}/level/${id}/edit`,
@@ -222,9 +223,11 @@ export const paths = {
       demo: { details: `${ROOTS.DASHBOARD}/order/${MOCK_ID}` },
     },
     checkout: `${ROOTS.DASHBOARD}/checkout`,
-    // EXPLORA Designer: entrada propia del menu, debajo de Administradores. No
+    // EXPEDITION Designer: entrada propia del menu, debajo de Administradores. No
     // cuelga de /admin para no heredar sus pestañas.
-    everest: `${ROOTS.DASHBOARD}/everest`,
+    everest: `${ROOTS.DASHBOARD}/explora-designer`,
+    // La tarjeta editable vive en EXPEDITION Designer; `/desarrollo/tarjeta` redirige.
+    everestTarjeta: `${ROOTS.DASHBOARD}/explora-designer?seccion=tarjeta`,
     admin: {
       root: `${ROOTS.DASHBOARD}/admin`,
       new: `${ROOTS.DASHBOARD}/admin/new`,
@@ -237,8 +240,8 @@ export const paths = {
       notifications: `${ROOTS.DASHBOARD}/admin/notifications`,
       maintenance: `${ROOTS.DASHBOARD}/admin/maintenance`,
       health: `${ROOTS.DASHBOARD}/admin/health`,
-      // Se mudo a EXPLORA Designer; la direccion vieja redirige alli.
-      paleta: `${ROOTS.DASHBOARD}/everest?seccion=paleta`,
+      // Se mudo a EXPEDITION Designer; la direccion vieja redirige alli.
+      paleta: `${ROOTS.DASHBOARD}/explora-designer?seccion=paleta`,
       sonidos: `${ROOTS.DASHBOARD}/admin/sonidos`,
       actualizacionesDestacamentos: `${ROOTS.DASHBOARD}/admin/actualizaciones-destacamentos`,
     },

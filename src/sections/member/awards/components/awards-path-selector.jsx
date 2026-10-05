@@ -219,7 +219,7 @@ export function AwardsPathSelector({ value, onChange, usedRoutes = [] }) {
             component="img"
             loading="lazy"
             decoding="async"
-            src={icon?.src || '/assets/icons/files/ic-pdf.svg'}
+            src={icon?.src || '/plantilla/icons/files/ic-pdf.svg'}
             className="award-route-icon"
             sx={{
               width: 34,
@@ -289,7 +289,7 @@ export function AwardsPathSelector({ value, onChange, usedRoutes = [] }) {
             component="img"
             loading="lazy"
             decoding="async"
-            src={icon?.src || '/assets/icons/files/ic-folder.svg'}
+            src={icon?.src || '/plantilla/icons/files/ic-folder.svg'}
             className="award-route-icon"
             sx={{
               width: 34,

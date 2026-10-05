@@ -5,7 +5,7 @@ import { puedeAprobarCambiosDeOrganizacion } from 'src/utils/org-level-access';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 
 import { updateChurchApi } from './church-service';
-import { getMembers , authHeaders } from './member-service';
+import { getMembers, authHeaders, invalidateMembersCache } from './member-service';
 import { guardarAsignacionDirectiva } from './directivas-organizacionales-service';
 import { AMBITOS_CAMBIO, ESTADOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 
@@ -64,6 +64,78 @@ const mismoNombre = (miembro, nombres, apellidos) =>
   normalizeText(`${nombres} ${apellidos}`);
 
 /**
+ * Da de alta en el padrón a una persona de la que solo se sabe el nombre (y a
+ * veces el teléfono): el Pastor que se escribe en la iglesia, o el coordinador
+ * o quien envía una actualización desde la página de registro. Lo que falta de
+ * la ficha queda con los valores de "pendiente" de arriba.
+ *
+ * Devuelve el id del miembro nuevo, o null si el alta no lo dejó encontrar.
+ */
+export async function registrarMiembroBasico({
+  nombres,
+  apellidos = '',
+  telefono = '',
+  idDestacamento,
+}) {
+  const codigoMiembro = await generateMemberId();
+
+  const res = await fetch('/api/members/post/', {
+    method: 'POST',
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({
+      idMiembros: 0,
+      codigoMiembro,
+      nombres,
+      apellidos,
+      genero: null,
+      fechaNacimiento: FECHA_NACIMIENTO_PENDIENTE,
+      sizeCamisas: null,
+      ocupacion: null,
+      fechaCreacion: new Date().toISOString(),
+      idDestacamento: Number(idDestacamento) || null,
+      telefono: telefono || TELEFONO_PENDIENTE,
+      direccion: '',
+      correo: '',
+      estatusMiembro: 'active',
+    }),
+  });
+
+  const texto = await res.text();
+  let datos = null;
+
+  try {
+    datos = texto ? JSON.parse(texto) : null;
+  } catch {
+    datos = null;
+  }
+
+  // La lista de miembros guardada ya no vale: sin esto, la siguiente búsqueda
+  // (otro envío de la misma carga que nombra a esta persona) no la veía y la
+  // creaba otra vez.
+  invalidateMembersCache();
+
+  if (!res.ok) {
+    throw new Error(
+      datos?.message || datos?.Message || `No se pudo registrar a ${nombres} ${apellidos}.`.trim()
+    );
+  }
+
+  const idMiembro =
+    datos?.idMiembros ?? datos?.data?.idMiembros ?? datos?.Data?.idMiembros ?? null;
+
+  if (idMiembro) return idMiembro;
+
+  // El alta no siempre devuelve el id: se busca por el codigo recien generado.
+  const actualizados = await getMembers().catch(() => []);
+
+  return (
+    (Array.isArray(actualizados) ? actualizados : []).find(
+      (miembro) => String(miembro?.memberId ?? miembro?.codigoMiembro) === codigoMiembro
+    )?.id ?? null
+  );
+}
+
+/**
  * Da de alta al pastor como miembro (o reutiliza el que ya exista en ese
  * destacamento con el mismo nombre) y le asigna la casilla "Pastor" del
  * organigrama.
@@ -94,53 +166,7 @@ export async function asegurarPastorDelDestacamento({
   let idMiembro = existente?.id ?? null;
 
   if (!idMiembro) {
-    const codigoMiembro = await generateMemberId();
-
-    const res = await fetch('/api/members/post/', {
-      method: 'POST',
-      headers: await authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        idMiembros: 0,
-        codigoMiembro,
-        nombres,
-        apellidos,
-        genero: null,
-        fechaNacimiento: FECHA_NACIMIENTO_PENDIENTE,
-        sizeCamisas: null,
-        ocupacion: null,
-        fechaCreacion: new Date().toISOString(),
-        idDestacamento: idDest,
-        telefono: TELEFONO_PENDIENTE,
-        direccion: '',
-        correo: '',
-        estatusMiembro: 'active',
-      }),
-    });
-
-    const texto = await res.text();
-    let datos = null;
-
-    try {
-      datos = texto ? JSON.parse(texto) : null;
-    } catch {
-      datos = null;
-    }
-
-    if (!res.ok) {
-      throw new Error(datos?.message || datos?.Message || 'No se pudo registrar al pastor.');
-    }
-
-    idMiembro =
-      datos?.idMiembros ?? datos?.data?.idMiembros ?? datos?.Data?.idMiembros ?? null;
-
-    // El alta no siempre devuelve el id: se busca por el codigo recien generado.
-    if (!idMiembro) {
-      const actualizados = await getMembers().catch(() => []);
-      idMiembro =
-        (Array.isArray(actualizados) ? actualizados : []).find(
-          (miembro) => String(miembro?.memberId ?? miembro?.codigoMiembro) === codigoMiembro
-        )?.id ?? null;
-    }
+    idMiembro = await registrarMiembroBasico({ nombres, apellidos, idDestacamento: idDest });
   }
 
   if (!idMiembro) return null;

@@ -7,7 +7,7 @@ import Box from '@mui/material/Box';
 import Portal from '@mui/material/Portal';
 
 // ----------------------------------------------------------------------
-// REJILLA QUE SE ORDENA ARRASTRANDO (cintas y medallas de EXPLORA Designer).
+// REJILLA QUE SE ORDENA ARRASTRANDO (cintas y medallas de EXPEDITION Designer).
 //
 // Con el arrastre nativo del navegador apenas se veía una sombra borrosa de la
 // tarjeta y el orden no cambiaba hasta soltar: no se sabía dónde iba a caer.

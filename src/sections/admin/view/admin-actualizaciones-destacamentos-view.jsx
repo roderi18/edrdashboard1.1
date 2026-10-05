@@ -3,7 +3,10 @@
 import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
+import Tabs from '@mui/material/Tabs';
+import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
@@ -22,9 +25,15 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import TableContainer from '@mui/material/TableContainer';
+import TablePagination from '@mui/material/TablePagination';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
+import { textoPersonasCreadas } from 'src/utils/personas-del-envio.mjs';
 import { puedeRevisarActualizacionesDeDestacamentos } from 'src/utils/org-level-access';
+import { textoRepetido, repeticionesPorEnvio } from 'src/utils/actualizaciones-repetidas.mjs';
 
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import {
@@ -43,6 +52,8 @@ import { EmptyContent } from 'src/components/empty-content';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { CargaPorCamposDialog } from '../carga-por-campos-dialog';
+import { ResolverDestacamentoNuevo } from '../resolver-destacamento-nuevo';
 import { CuentaRegresivaLandingCard } from '../cuenta-regresiva-landing-card';
 
 // ----------------------------------------------------------------------
@@ -53,7 +64,9 @@ import { CuentaRegresivaLandingCard } from '../cuenta-regresiva-landing-card';
 // si se carga o se descarta: se marcan con la casilla los que de verdad deben
 // entrar en la aplicación. Los ya cargados también se pueden marcar y volver a
 // cargar (por si la primera carga salió mal): la carga compara con lo que hay
-// en la aplicación y solo escribe lo que difiere. Los descartados, no.
+// en la aplicación y solo escribe lo que difiere. Los descartados también: un
+// descarte por error no tiene por qué ser para siempre, y antes la casilla
+// quedaba apagada sin otra salida.
 // ----------------------------------------------------------------------
 
 const COLOR_ESTADO = {
@@ -61,6 +74,15 @@ const COLOR_ESTADO = {
   [ESTADOS_ACTUALIZACION.cargada]: 'success',
   [ESTADOS_ACTUALIZACION.descartada]: 'default',
 };
+
+const POR_PAGINA = [20, 30, 50];
+
+const FILTROS_ESTADO = [
+  { valor: 'todos', texto: 'Todas' },
+  { valor: ESTADOS_ACTUALIZACION.pendiente, texto: 'Pendientes' },
+  { valor: ESTADOS_ACTUALIZACION.cargada, texto: 'Cargadas' },
+  { valor: ESTADOS_ACTUALIZACION.descartada, texto: 'Descartadas' },
+];
 
 const TEXTO_ESTADO = {
   [ESTADOS_ACTUALIZACION.pendiente]: 'Pendiente',
@@ -86,6 +108,22 @@ const destacamentoDe = (fila) =>
   ]
     .filter(Boolean)
     .join(' ') || 'Destacamento nuevo';
+
+// A qué ficha lleva cada nombre de la tabla. El destacamento nuevo aún no
+// tiene ficha; quien envía, sí en cuanto existe (o la carga lo creó o lo halló).
+const idDestacamentoDe = (fila) => (fila.esNuevo ? null : fila.destacamento?.id || null);
+const idEnviadorDe = (fila) =>
+  fila.enviadoPor?.idMiembro || fila.idsPersonas?.enviador || fila.personasCreadas?.enviador?.idMiembro || null;
+
+// Un nombre que lleva a su ficha, o solo el texto si no hay ficha a la que ir.
+function EnlaceAFicha({ href, children }) {
+  if (!href) return children;
+  return (
+    <Link component={RouterLink} href={href} color="inherit" underline="hover" sx={{ fontWeight: 600 }}>
+      {children}
+    </Link>
+  );
+}
 
 // Las mismas columnas de la tabla, para que el Excel diga lo mismo que la pantalla.
 // TODO lo que llena el directivo en la landing, una columna por campo, para
@@ -340,6 +378,44 @@ async function descargarExcel(filas) {
   URL.revokeObjectURL(enlace.href);
 }
 
+// Lo que dice la bandeja al terminar una carga (completa o por campos).
+function avisarResultado(resultado) {
+  const {
+    cargadas,
+    omitidas,
+    fallidas,
+    iglesiasCreadas = [],
+    iglesiasFallidas = [],
+    personasCreadas = [],
+    personasMovidas = [],
+    telefonosPuestos = [],
+    avisosPersonas = [],
+  } = resultado;
+  if (cargadas)
+    toast.success(`${cargadas} cargada${cargadas === 1 ? '' : 's'} en la aplicación.`);
+  if (omitidas.length)
+    toast.warning(
+      `Sin cargar (destacamento nuevo, créalo en Destacamentos): ${omitidas.join(', ')}`
+    );
+  if (fallidas.length) toast.error(`No se pudieron cargar: ${fallidas.join(', ')}`);
+  // La iglesia (nombre, pastor, dirección) va aparte del destacamento.
+  if (iglesiasCreadas.length)
+    toast.info(
+      `Iglesia nueva con los datos enviados (la API no deja editar la anterior): ${iglesiasCreadas.join(', ')}`
+    );
+  if (iglesiasFallidas.length)
+    toast.error(`El destacamento se cargó, pero no su iglesia: ${iglesiasFallidas.join(', ')}`);
+  // El coordinador y quien envía: altas nuevas y lo que no se pudo hacer.
+  if (personasCreadas.length)
+    toast.info(`Personas nuevas dadas de alta en: ${personasCreadas.join(', ')}`);
+  if (personasMovidas.length)
+    toast.info(`Pasan de Provisional a su destacamento: ${personasMovidas.join(', ')}`);
+  if (telefonosPuestos.length)
+    toast.info(`Teléfono puesto en la ficha de: ${telefonosPuestos.join(', ')}`);
+  if (avisosPersonas.length)
+    toast.warning(avisosPersonas.join(' · '), { duration: 15000 });
+}
+
 export function AdminActualizacionesDestacamentosView() {
   const { user } = useAuthContext();
   const puedeRevisar = puedeRevisarActualizacionesDeDestacamentos(user);
@@ -349,16 +425,39 @@ export function AdminActualizacionesDestacamentosView() {
   const [elegidas, setElegidas] = useState([]);
   const [trabajando, setTrabajando] = useState(false);
   const [abierta, setAbierta] = useState(null);
+  const [porCampos, setPorCampos] = useState(false);
+  const [filtroEstado, setFiltroEstado] = useState('todos');
+  const [pagina, setPagina] = useState(0);
+  const [porPagina, setPorPagina] = useState(POR_PAGINA[0]);
+  const repetidos = repeticionesPorEnvio(filas || []);
 
-  // Se marcan las pendientes y también las cargadas, para volver a cargarlas.
-  const marcables = (filas || []).filter(
-    (f) =>
-      f.estado === ESTADOS_ACTUALIZACION.pendiente || f.estado === ESTADOS_ACTUALIZACION.cargada
+  // Con cientos de envíos la tabla era una sola tira: se filtra por estado y se
+  // pagina. Las repeticiones se cuentan sobre TODAS, no solo las que se ven.
+  const filtradas = (filas || []).filter(
+    (f) => filtroEstado === 'todos' || f.estado === filtroEstado
   );
-  const pendientes = marcables;
+  const ultimaPagina = Math.max(0, Math.ceil(filtradas.length / porPagina) - 1);
+  const paginaVista = Math.min(pagina, ultimaPagina);
+  const visibles = filtradas.slice(paginaVista * porPagina, (paginaVista + 1) * porPagina);
+  const cuantasEn = (estado) => (filas || []).filter((f) => f.estado === estado).length;
+
+  // Se marcan todas: las pendientes, las cargadas (para volver a cargarlas) y
+  // las descartadas (para cargarlas si se quiere).
+  const marcables = (filas || []).filter((f) =>
+    [
+      ESTADOS_ACTUALIZACION.pendiente,
+      ESTADOS_ACTUALIZACION.cargada,
+      ESTADOS_ACTUALIZACION.descartada,
+    ].includes(f.estado)
+  );
+  // "Elegir todas" se queda en lo que deja ver el filtro.
+  const pendientes = marcables.filter((f) => filtradas.includes(f));
   // Una elegida que otro descartó mientras tanto deja de contar.
   const seleccion = marcables.filter((f) => elegidas.includes(f.id));
   const hayRecargas = seleccion.some((f) => f.estado === ESTADOS_ACTUALIZACION.cargada);
+  // Descartar solo tiene sentido con pendientes: lo cargado no se deshace y lo
+  // descartado ya lo está.
+  const soloPendientes = seleccion.every((f) => f.estado === ESTADOS_ACTUALIZACION.pendiente);
   const alternar = (id) =>
     setElegidas((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const alternarTodas = () =>
@@ -367,22 +466,7 @@ export function AdminActualizacionesDestacamentosView() {
   const handleCargar = async () => {
     setTrabajando(true);
     try {
-      const { cargadas, omitidas, fallidas, iglesiasCreadas = [], iglesiasFallidas = [] } =
-        await cargarActualizaciones(seleccion, user);
-      if (cargadas)
-        toast.success(`${cargadas} cargada${cargadas === 1 ? '' : 's'} en la aplicación.`);
-      if (omitidas.length)
-        toast.warning(
-          `Sin cargar (destacamento nuevo, créalo en Destacamentos): ${omitidas.join(', ')}`
-        );
-      if (fallidas.length) toast.error(`No se pudieron cargar: ${fallidas.join(', ')}`);
-      // La iglesia (nombre, pastor, dirección) va aparte del destacamento.
-      if (iglesiasCreadas.length)
-        toast.info(
-          `Iglesia nueva con los datos enviados (la API no deja editar la anterior): ${iglesiasCreadas.join(', ')}`
-        );
-      if (iglesiasFallidas.length)
-        toast.error(`El destacamento se cargó, pero no su iglesia: ${iglesiasFallidas.join(', ')}`);
+      avisarResultado(await cargarActualizaciones(seleccion, user));
       setElegidas([]);
     } catch (fallo) {
       console.error('[actualizaciones de destacamentos] no se pudieron cargar', fallo);
@@ -481,8 +565,16 @@ export function AdminActualizacionesDestacamentosView() {
             {seleccion.length} seleccionada{seleccion.length === 1 ? '' : 's'}
           </Typography>
           {/* Descartar algo ya cargado no deshace la carga: solo con pendientes. */}
-          <Button color="inherit" onClick={handleDescartar} disabled={trabajando || hayRecargas}>
+          <Button color="inherit" onClick={handleDescartar} disabled={trabajando || !soloPendientes}>
             Descartar
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Iconify icon="solar:list-bold" />}
+            onClick={() => setPorCampos(true)}
+            disabled={trabajando}
+          >
+            Cargar por campos
           </Button>
           <Button
             variant="contained"
@@ -496,6 +588,32 @@ export function AdminActualizacionesDestacamentosView() {
           </Button>
         </Stack>
       )}
+
+      <Tabs
+        value={filtroEstado}
+        onChange={(_, valor) => {
+          setFiltroEstado(valor);
+          setPagina(0);
+        }}
+        sx={{ px: 3, mt: 2, boxShadow: (theme) => `inset 0 -2px 0 0 ${theme.vars.palette.divider}` }}
+      >
+        {FILTROS_ESTADO.map(({ valor, texto }) => (
+          <Tab
+            key={valor}
+            value={valor}
+            iconPosition="end"
+            label={texto}
+            icon={
+              <Label
+                variant={valor === filtroEstado ? 'filled' : 'soft'}
+                color={valor === 'todos' ? 'default' : COLOR_ESTADO[valor]}
+              >
+                {valor === 'todos' ? (filas || []).length : cuantasEn(valor)}
+              </Label>
+            }
+          />
+        ))}
+      </Tabs>
 
       {error && (
         <Alert severity="error" sx={{ m: 3, mb: 0 }}>
@@ -513,7 +631,7 @@ export function AdminActualizacionesDestacamentosView() {
                   checked={!!pendientes.length && seleccion.length === pendientes.length}
                   indeterminate={seleccion.length > 0 && seleccion.length < pendientes.length}
                   onChange={alternarTodas}
-                  inputProps={{ 'aria-label': 'Elegir todas (pendientes y cargadas)' }}
+                  inputProps={{ 'aria-label': 'Elegir todas las que se ven en el filtro' }}
                 />
               </TableCell>
               <TableCell>Recibida</TableCell>
@@ -538,7 +656,7 @@ export function AdminActualizacionesDestacamentosView() {
                 </TableRow>
               ))}
 
-            {filas?.map((fila) => (
+            {visibles.map((fila) => (
               <TableRow key={fila.id} hover selected={elegidas.includes(fila.id)}>
                 <TableCell padding="checkbox">
                   <Checkbox
@@ -547,9 +665,27 @@ export function AdminActualizacionesDestacamentosView() {
                     onChange={() => alternar(fila.id)}
                   />
                 </TableCell>
-                <TableCell sx={{ whiteSpace: 'nowrap' }}>{fechaCorta(fila.fechaEnvio)}</TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  {fechaCorta(fila.fechaEnvio)}
+                  {/* El mismo destacamento mandó el formulario más de una vez. */}
+                  {repetidos[fila.id] > 0 && (
+                    <Typography variant="caption" sx={{ display: 'block', color: 'warning.main', fontWeight: 600 }}>
+                      {textoRepetido(repetidos[fila.id])}
+                    </Typography>
+                  )}
+                </TableCell>
                 <TableCell>
-                  {destacamentoDe(fila)}
+                  <EnlaceAFicha
+                    href={idDestacamentoDe(fila) && paths.dashboard.level.dest.edit(idDestacamentoDe(fila))}
+                  >
+                    {destacamentoDe(fila)}
+                  </EnlaceAFicha>
+                  {/* Quién dio de alta la carga: el coordinador, quien envía o los dos. */}
+                  {textoPersonasCreadas(fila.personasCreadas) && (
+                    <Label color="info" variant="soft" sx={{ display: 'flex', width: 'fit-content', mt: 0.5 }}>
+                      {textoPersonasCreadas(fila.personasCreadas)}
+                    </Label>
+                  )}
                   {/* Lo que dijo quien lo envió: el padrón no guarda este dato. */}
                   {fila.datos?.cantidadMiembros != null && fila.datos.cantidadMiembros !== '' && (
                     <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
@@ -560,7 +696,11 @@ export function AdminActualizacionesDestacamentosView() {
                 <TableCell>{fila.seccion?.nombre || fila.nombreSeccion || '—'}</TableCell>
                 <TableCell>{fila.region?.nombre || fila.nombreRegion || '—'}</TableCell>
                 <TableCell>
-                  {fila.enviadoPor?.nombre || fila.nombreRemitente || '—'}
+                  <EnlaceAFicha
+                    href={idEnviadorDe(fila) && paths.dashboard.level.member.edit(idEnviadorDe(fila))}
+                  >
+                    {fila.enviadoPor?.nombre || fila.nombreRemitente || '—'}
+                  </EnlaceAFicha>
                   {fila.enviadoPor?.codigoMiembro && (
                     <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
                       {fila.enviadoPor.codigoMiembro}
@@ -579,14 +719,69 @@ export function AdminActualizacionesDestacamentosView() {
                 </TableCell>
               </TableRow>
             ))}
+            {filas?.length > 0 && !filtradas.length && (
+              <TableRow>
+                <TableCell colSpan={8} sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
+                  No hay envíos con este estado.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>
 
+      {filtradas.length > 0 && (
+        <TablePagination
+          component="div"
+          count={filtradas.length}
+          page={paginaVista}
+          onPageChange={(_, nueva) => setPagina(nueva)}
+          rowsPerPage={porPagina}
+          rowsPerPageOptions={POR_PAGINA}
+          onRowsPerPageChange={(evento) => {
+            setPorPagina(Number(evento.target.value));
+            setPagina(0);
+          }}
+          labelRowsPerPage="Filas por página"
+          labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
+        />
+      )}
+
+      {/* Elegir qué datos del envío se aplican, con vista previa. */}
+      <CargaPorCamposDialog
+        open={porCampos}
+        onClose={() => setPorCampos(false)}
+        filas={seleccion}
+        user={user}
+        onTerminado={(resultado) => {
+          avisarResultado(resultado);
+          setElegidas([]);
+        }}
+      />
+
       {/* Ventana flotante con el detalle del envío elegido con el ojo. */}
       <Dialog fullWidth maxWidth="md" open={!!abierta} onClose={() => setAbierta(null)}>
         <DialogTitle>{abierta ? destacamentoDe(abierta) : ''}</DialogTitle>
-        <DialogContent dividers>{abierta && <DetalleEnvio fila={abierta} />}</DialogContent>
+        <DialogContent dividers>
+          {/* Un envío de destacamento nuevo sin cargar: decidir si es uno que ya
+              existe o si se crea. Antes solo se podía saltar. También el
+              descartado, que se puede cargar si se quiere. */}
+          {abierta?.esNuevo && (
+            <ResolverDestacamentoNuevo
+              fila={abierta}
+              user={user}
+              onTerminado={(resultado) => {
+                avisarResultado(resultado);
+                setAbierta(null);
+              }}
+            />
+          )}
+          {abierta && (
+            <Box sx={{ mt: abierta.esNuevo ? 2 : 0 }}>
+              <DetalleEnvio fila={abierta} />
+            </Box>
+          )}
+        </DialogContent>
         <DialogActions>
           <Button variant="outlined" color="inherit" onClick={() => setAbierta(null)}>
             Cerrar

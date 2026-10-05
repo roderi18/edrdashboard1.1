@@ -1,15 +1,16 @@
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
 export const COLECCIONES_NOTIFICACIONES = {
-  notificaciones: 'notificaciones',
-  tipos: 'tipos_notificaciones',
-  plantillas: 'plantillas_notificaciones',
-  preferencias: 'preferencias_notificaciones',
-  tareas: 'tareas_notificaciones',
+  notificaciones: COLECCIONES.notificaciones,
+  tipos: COLECCIONES.tiposNotificaciones,
+  plantillas: COLECCIONES.plantillasNotificaciones,
+  preferencias: COLECCIONES.preferenciasNotificaciones,
+  tareas: COLECCIONES.tareasNotificaciones,
 };
 
 export const TIPOS_NOTIFICACIONES_ADMIN = [
@@ -65,7 +66,7 @@ export const TIPOS_NOTIFICACIONES_USUARIO = [
   'cumpleanos_miembro_destacamento_hoy',
 ];
 
-const DEFINICIONES_NOTIFICACIONES = {
+export const DEFINICIONES_NOTIFICACIONES = {
   miembro_creado: {
     modulo: 'miembros',
     titulo: 'Nuevo miembro creado',
@@ -334,7 +335,7 @@ const DEFINICIONES_NOTIFICACIONES = {
     tipoAccion: 'ver',
     requiereFotoPersona: true,
   },
-  // UN COMUNICADO OFICIAL NUEVO EN LA PORTADA, publicado desde EXPLORA Designer.
+  // UN COMUNICADO OFICIAL NUEVO EN LA PORTADA, publicado desde EXPEDITION Designer.
   // Va a toda la organizacion (o a la parte que se eligio), cargos y miembros.
   comunicado_publicado: {
     modulo: 'comunicados',
@@ -482,7 +483,7 @@ const asegurarFirebaseNotificaciones = () => {
   }
 };
 
-const construirDocumentoTipo = (tipoNotificacion, definicion) => ({
+export const construirDocumentoTipo = (tipoNotificacion, definicion, fecha = serverTimestamp()) => ({
   tipoNotificacion,
   modulo: definicion.modulo,
   titulo: definicion.titulo,
@@ -491,10 +492,10 @@ const construirDocumentoTipo = (tipoNotificacion, definicion) => ({
   entidadTipo: definicion.entidadTipo,
   requiereFotoPersona: definicion.requiereFotoPersona,
   activa: true,
-  fechaActualizacion: serverTimestamp(),
+  fechaActualizacion: fecha,
 });
 
-const construirDocumentoPlantilla = (tipoNotificacion, definicion) => ({
+export const construirDocumentoPlantilla = (tipoNotificacion, definicion, fecha = serverTimestamp()) => ({
   tipoNotificacion,
   modulo: definicion.modulo,
   tituloPlantilla: definicion.titulo,
@@ -504,7 +505,7 @@ const construirDocumentoPlantilla = (tipoNotificacion, definicion) => ({
   tipoAccionPorDefecto: definicion.tipoAccion,
   requiereFotoPersona: definicion.requiereFotoPersona,
   activa: true,
-  fechaActualizacion: serverTimestamp(),
+  fechaActualizacion: fecha,
 });
 
 export const obtenerDefinicionNotificacion = (tipoNotificacion) =>

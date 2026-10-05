@@ -12,6 +12,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { vaComoPush } from 'src/utils/avisos-solo-campana.mjs';
 import { ROLES_CONSEJO_EJECUTIVO } from 'src/utils/org-level-access';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 import { ESTATUS_MIEMBRO, opcionEstatusMiembro } from 'src/utils/estatus-miembro.mjs';
@@ -27,6 +28,7 @@ import {
 } from 'src/utils/estatus-miembro-avisos.mjs';
 
 import { getMembers } from 'src/services/member-service';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { ROLES, ALCANCES } from 'src/auth/permissions/roles';
@@ -632,7 +634,7 @@ const obtenerUsuariosConProductoEnCarrito = async (producto = {}) => {
     return [];
   }
 
-  const snapshot = await getDocs(collection(FIRESTORE, 'carritos')).catch(() => null);
+  const snapshot = await getDocs(collection(FIRESTORE, COLECCIONES.carritos)).catch(() => null);
   const ids = new Set();
 
   snapshot?.docs?.forEach((item) => {
@@ -743,7 +745,10 @@ export async function crearNotificacionUsuario({
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('notificaciones:actualizar'));
-    enviarPushDeAvisoCreado(notificacionConfigurada.id);
+    // Los de inventario solo van a la campana (ver `avisos-solo-campana.mjs`).
+    if (vaComoPush(notificacionConfigurada.tipoNotificacion)) {
+      enviarPushDeAvisoCreado(notificacionConfigurada.id);
+    }
   }
 
   return notificacionConfigurada;
@@ -911,7 +916,10 @@ export async function crearNotificacionAdmin({
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('notificaciones:actualizar'));
-    enviarPushDeAvisoCreado(notificacionConfigurada.id);
+    // Los de inventario solo van a la campana (ver `avisos-solo-campana.mjs`).
+    if (vaComoPush(notificacionConfigurada.tipoNotificacion)) {
+      enviarPushDeAvisoCreado(notificacionConfigurada.id);
+    }
   }
 
   return notificacionConfigurada;
@@ -1135,7 +1143,7 @@ export async function crearNotificacionNumeroDestacamento({
 }
 
 /**
- * Comunicados nuevos en la portada, publicados desde EXPLORA Designer.
+ * Comunicados nuevos en la portada, publicados desde EXPEDITION Designer.
  *
  * Es de las pocas cosas que van a TODA la organizacion —cargos y miembros—: un
  * comunicado oficial que solo se ve si uno entra a la portada no llega a quien

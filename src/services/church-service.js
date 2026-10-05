@@ -1,3 +1,4 @@
+import { nombreDeSector } from 'src/utils/sector-fuera-de-catalogo.mjs';
 import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 
 import barriosData from 'src/data/barrios.json';
@@ -13,6 +14,12 @@ const municipios = municipiosData.map((m, index) => ({
     municipioId: index + 1,
 }));
 const sectores = barriosData;
+
+// La API del padrón no admite un correo vacío. Algunas iglesias antiguas no
+// tienen correo registrado, pero eso no debe impedir cambiar su sección u otro
+// dato de la ficha. Se genera un identificador temporal único y explícito.
+const correoTemporalIglesia = () =>
+    `nomail_iglesia_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@mail.com`;
 export const mapApiChurchesToUI = (apiChurch) => {
     const idSeccion =
         apiChurch.idSeccion ??
@@ -54,7 +61,8 @@ export const buildChurchPayload = (data) => ({
     direccion: [
         provinces?.find(p => String(p.id) === String(data?.provinceId))?.nombre,
         municipios?.find(m => String(m.id) === String(data?.municipioId))?.nombre,
-        sectores?.find(s => String(s.id) === String(data?.sectorId))?.nombre,
+        // Del catálogo o, si no estaba en él ("Los Mina"), el que se recibió.
+        nombreDeSector(data?.sectorId, sectores),
         data?.street,
     ]
         .filter(Boolean)
@@ -166,6 +174,7 @@ export const crearIglesiaConTexto = async ({ nombre, pastor, direccion, telefono
 
 export const updateChurchApi = async (data) => {
     const payload = buildChurchPayload(data);
+    const correo = String(data?.correo || '').trim() || correoTemporalIglesia();
     const res = await fetch('/api/churches/put/', {
         method: 'PUT',
         headers: await authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json, text/plain, */*' }),
@@ -173,11 +182,15 @@ export const updateChurchApi = async (data) => {
             id: data?.id || data?.churchId,
             name: data?.churchName,
             pastor: data?.pastor,
-            address: payload.direccion,
+            // La guardada, si quien llama no toco la direccion (ver el formulario
+            // del destacamento): reconstruirla perdia el sector fuera de catalogo.
+            address: data?.direccionGuardada ?? payload.direccion,
             // Correo y telefono los pone quien llama a partir del registro de la
             // iglesia. No se toman del formulario del destacamento: alli esos dos
             // campos son del destacamento, y enviarlos pisaba los de la iglesia.
-            correo: data?.correo,
+            // UpdateIglesia rechaza el correo vacío. El correo temporal permite
+            // guardar cambios de sección aunque la iglesia no tenga contacto.
+            correo,
             telefono: data?.telefono,
             sectionId: data?.sectionId || data?.idSeccion,
         }),

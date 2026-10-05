@@ -18,10 +18,13 @@ const codigo = (valor) =>
     .trim()
     .toLowerCase();
 
-export const listaDeRolesQueEjerce = ({ rolId = '', cargos = [] } = {}) => [
+// `rolesAdministracion`: todos sus roles de administracion (una persona puede
+// tener varios: `roles-de-administracion.mjs`).
+export const listaDeRolesQueEjerce = ({ rolId = '', cargos = [], rolesAdministracion = [] } = {}) => [
   ...new Set(
     [
       codigo(rolId),
+      ...(Array.isArray(rolesAdministracion) ? rolesAdministracion : []).map(codigo),
       ...(Array.isArray(cargos) ? cargos : []).map((cargo) =>
         codigo(typeof cargo === 'string' ? cargo : (cargo?.rol ?? cargo?.rolId ?? cargo?.codigo))
       ),

@@ -24,6 +24,8 @@ export const TIPOS_DE_MENSAJE = Object.freeze({
   lista: 'lista',
   contenido: 'contenido',
   alto: 'alto',
+  seleccion: 'seleccion',
+  mover: 'mover',
 });
 
 export const mensajeLista = () => ({ fuente: FUENTE_VISTA_PREVIA, tipo: TIPOS_DE_MENSAJE.lista });
@@ -34,12 +36,25 @@ export const mensajeAlto = (alto) => ({
   alto: Math.max(0, Math.ceil(Number(alto) || 0)),
 });
 
-export const mensajeContenido = (idBloque, contenido, diseno = {}) => ({
+export const mensajeContenido = (idBloque, contenido, diseno = {}, seleccionado = null) => ({
   fuente: FUENTE_DESIGNER,
   tipo: TIPOS_DE_MENSAJE.contenido,
   idBloque,
   contenido,
   diseno,
+  seleccionado,
+});
+
+export const mensajeSeleccion = (seleccionado) => ({
+  fuente: FUENTE_VISTA_PREVIA,
+  tipo: TIPOS_DE_MENSAJE.seleccion,
+  seleccionado,
+});
+
+export const mensajeMover = (movimiento) => ({
+  fuente: FUENTE_VISTA_PREVIA,
+  tipo: TIPOS_DE_MENSAJE.mover,
+  movimiento,
 });
 
 const esObjeto = (valor) => Boolean(valor) && typeof valor === 'object' && !Array.isArray(valor);

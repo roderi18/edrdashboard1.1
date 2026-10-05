@@ -68,21 +68,21 @@ export function OverviewCourseView() {
             <CourseWidgetSummary
               title="Courses in progress"
               total={6}
-              icon={`${CONFIG.assetsDir}/assets/icons/courses/ic-courses-progress.svg`}
+              icon={`${CONFIG.assetsDir}/plantilla/icons/courses/ic-courses-progress.svg`}
             />
 
             <CourseWidgetSummary
               title="Courses completed"
               total={3}
               color="success"
-              icon={`${CONFIG.assetsDir}/assets/icons/courses/ic-courses-completed.svg`}
+              icon={`${CONFIG.assetsDir}/plantilla/icons/courses/ic-courses-completed.svg`}
             />
 
             <CourseWidgetSummary
               title="Certificates"
               total={2}
               color="secondary"
-              icon={`${CONFIG.assetsDir}/assets/icons/courses/ic-courses-certificates.svg`}
+              icon={`${CONFIG.assetsDir}/plantilla/icons/courses/ic-courses-certificates.svg`}
             />
           </Box>
 

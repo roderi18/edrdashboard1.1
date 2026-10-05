@@ -17,11 +17,10 @@ import { useRouter } from 'src/routes/hooks';
 import { contarRegion } from 'src/utils/org-counts';
 import { canManageOrgLevels } from 'src/utils/admin-role-label';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
-import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
-import { subirFotoEntidad, subirFotoEntidadPropuesta } from 'src/utils/firebase-photos';
+import { subirFotoEntidadPropuesta } from 'src/utils/firebase-photos';
 import {
   canEditRegional,
-  puedeSugerirFotoDeRegion,
+  puedeCambiarFotoDeEntidad,
   puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
@@ -43,8 +42,9 @@ import {
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
-import { Form, Field } from 'src/components/hook-form';
+import { FotoDeMiembro } from 'src/components/upload/foto-de-miembro';
 import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import RegionalGeneralSection from 'src/components/form/regional-form/RegionalGeneralSection';
 
@@ -85,9 +85,7 @@ export function RegionalCreateEditForm({ currentRegional }) {
   // LA FOTO NO ES LA FICHA. La region la edita la Oficina Nacional, pero la
   // imagen la puede PROPONER el Coordinador Regional y su Asistente: sugerir no
   // es cambiar. Mismo camino que en secciones y destacamentos.
-  const puedeSugerirFoto =
-    Boolean(currentRegional) && (canEdit || puedeSugerirFotoDeRegion(user, currentRegional));
-  const soloSugiereFoto = puedeSugerirFoto && !puedeAprobarCambiosDeOrganizacion(user);
+  const puedeSugerirFoto = Boolean(currentRegional) && puedeCambiarFotoDeEntidad(user);
   const pathname = usePathname();
   const isEditView = pathname.includes('/edit');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -185,10 +183,9 @@ export function RegionalCreateEditForm({ currentRegional }) {
     try {
       setUploadingPhoto(true);
 
-      // Sugerencia: la imagen se sube a una carpeta aparte y la foto oficial se
-      // queda como esta. Devolver la url nueva pintaria un cambio que todavia no
-      // existe, asi que se conserva la de antes.
-      if (soloSugiereFoto) {
+      // La foto la cambian el Administrador Global y la Oficina Nacional. Va por
+      // `propon…`: queda en Historial y se avisa al otro. Si la cuenta de Oficina
+      // tambien es del destacamento, se escala al Administrador Global.
         const propuesta = await subirFotoEntidadPropuesta({
           file,
           tipoEntidad: 'region',
@@ -196,31 +193,23 @@ export function RegionalCreateEditForm({ currentRegional }) {
           subidoPor: AUTH.currentUser?.uid || '',
         });
 
-        await proponerFotoRegion({
+        const resultado = await proponerFotoRegion({
           region: { id: regionalId, nombre: currentRegional?.name || '' },
           foto: propuesta,
           urlAntes: values.avatarUrl || currentRegional?.avatarUrl || '',
           usuario: user,
         });
 
+        if (!resultado?.pendienteDeAprobacion) {
+          toast.success('Foto actualizada. Se avisó a la Oficina Nacional y al Administrador Global.');
+          return propuesta.urlFoto;
+        }
+
         toast.info('Foto enviada a la Oficina Nacional. Se aplicará cuando la aprueben.');
 
         await cargarPendientes();
 
         return values.avatarUrl || currentRegional?.avatarUrl || null;
-      }
-
-      const photo = await subirFotoEntidad({
-        file,
-        tipoEntidad: 'region',
-        idEntidad: regionalId,
-        tipoFoto: 'perfil',
-        subidoPor: AUTH.currentUser?.uid || '',
-      });
-
-      toast.success(getImageOptimizationMessage(file.__optimizationInfo));
-
-      return photo.urlFoto;
     } catch (error) {
       console.error('[regional form] photo upload failed', error);
       toast.error(error.message || 'No se pudo subir la foto.');
@@ -424,37 +413,15 @@ export function RegionalCreateEditForm({ currentRegional }) {
             )}
 
             <Box sx={{ mb: 5 }}>
-              <Field.UploadAvatar
-                name="avatarUrl"
-                loading={uploadingPhoto}
-                disabled={uploadingPhoto}
-                readOnly={!puedeSugerirFoto}
-                onDrop={handleUploadRegionalPhoto}
-                optimizationToast={false}
-                helperText={
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      mt: 3,
-                      mx: 'auto',
-                      display: 'block',
-                      textAlign: 'center',
-                      color: 'text.disabled',
-                    }}
-                  >
-                    {/* A quien solo puede sugerirla, decirle los formatos no le
-                        aclara lo que necesita saber: que la foto no cambia hasta
-                        que la aprueben. */}
-                    {soloSugiereFoto ? (
-                      'La foto que subas se enviará a la Oficina Nacional para su aprobación. La actual se mantiene hasta que la aprueben.'
-                    ) : (
-                      <>
-                        Permitido *.jpeg, *.jpg, *.png, *.gif
-                        <br /> la imagen se optimiza al cargar.
-                      </>
-                    )}
-                  </Typography>
-                }
+              <FotoDeMiembro
+                url={methods.watch('avatarUrl')?.preview || methods.watch('avatarUrl') || ''}
+                nombre={currentRegional?.name || ''}
+                cargando={uploadingPhoto}
+                puedeEditar={puedeSugerirFoto}
+                onFoto={async (archivo) => {
+                  const url = await handleUploadRegionalPhoto([archivo]);
+                  if (url) methods.setValue('avatarUrl', url);
+                }}
               />
             </Box>
 

@@ -30,11 +30,7 @@ export const isFreshPresenceSession = (session, now, staleAfterMs) => {
   return updatedAt > 0 && now - updatedAt <= staleAfterMs;
 };
 
-export const derivePresenceSnapshot = ({
-  presence = {},
-  now = Date.now(),
-  staleAfterMs,
-} = {}) => {
+export const derivePresenceSnapshot = ({ presence = {}, now = Date.now(), staleAfterMs } = {}) => {
   const sessions = Object.values(presence.sesiones ?? {});
   const activeSessions = sessions.filter((session) =>
     isFreshPresenceSession(session, now, staleAfterMs)
@@ -53,9 +49,12 @@ export const derivePresenceSnapshot = ({
   if (activeSessions.length) {
     const manualStatus = normalizeManualPresence(presence.estadoManual);
 
+    // CONECTADO A LA APLICACION = EN LINEA, este la pestaña delante o detras.
+    // Antes, con todas las pestañas ocultas pasaba a "Ausente" y el punto se
+    // veia gris aunque la persona siguiera ahi. Solo cambia si ella misma elige
+    // Ausente u Ocupado.
     return {
-      status:
-        manualStatus || (activeSessions.some((session) => session.visible) ? 'online' : 'always'),
+      status: manualStatus || 'online',
       lastActivity: new Date(latestSessionMs),
     };
   }
@@ -76,5 +75,31 @@ export const derivePresenceSnapshot = ({
   return {
     status: 'offline',
     lastActivity: lastActivityMs ? new Date(lastActivityMs) : null,
+  };
+};
+
+/**
+ * LA PRESENCIA DE UN BUZON COMPARTIDO (Oficina Nacional, Tienda Virtual): en
+ * linea si alguna de las personas que lo atienden tiene una sesion viva. Nadie
+ * escribe la presencia del buzon (una persona nunca usa su numero): se deduce de
+ * la de quienes lo atienden, que publican `atiende: ['oficina']` con la suya.
+ */
+export const derivePresenciaDeBuzon = ({
+  presencias = [],
+  now = Date.now(),
+  staleAfterMs,
+} = {}) => {
+  const estados = presencias.map((presence) =>
+    derivePresenceSnapshot({ presence, now, staleAfterMs })
+  );
+  const conectados = estados.filter((estado) => estado.status !== 'offline');
+  const ultima = estados.reduce(
+    (max, estado) => Math.max(max, estado.lastActivity ? estado.lastActivity.getTime() : 0),
+    0
+  );
+
+  return {
+    status: conectados.length ? 'online' : 'offline',
+    lastActivity: ultima ? new Date(ultima) : null,
   };
 };

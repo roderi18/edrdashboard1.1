@@ -232,7 +232,7 @@ export function EditorLema({ contenido, onCambiar }) {
   );
 }
 
-export function EditorDestacamentoDestacado({ contenido, onCambiar }) {
+export function EditorDestacamentoDestacado({ idBloque, contenido, onCambiar }) {
   const cambiar = cambiadorDe(contenido, onCambiar);
 
   return (
@@ -266,6 +266,13 @@ export function EditorDestacamentoDestacado({ contenido, onCambiar }) {
         max={5}
         entero={false}
         ayuda="De 0 a 5."
+      />
+      <CampoMedio
+        idBloque={idBloque}
+        etiqueta="Foto del destacamento"
+        textoSinMedio="Sin foto: la tarjeta se ve como siempre."
+        valor={contenido.foto}
+        onCambiar={(valor) => cambiar('foto', valor)}
       />
     </Stack>
   );

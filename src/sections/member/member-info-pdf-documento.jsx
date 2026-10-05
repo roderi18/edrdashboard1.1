@@ -2,6 +2,8 @@ import { pdf, Text, View, Page, Image, Document, StyleSheet } from '@react-pdf/r
 
 import { getMemberAge } from 'src/utils/member-age';
 
+import { authHeaders } from 'src/services/member-service';
+
 import { MASK_PRESETS } from 'src/components/masked-field';
 
 // ----------------------------------------------------------------------
@@ -87,7 +89,9 @@ const getAvatarForPdf = async (value) => {
   }
 
   try {
-    const proxyResponse = await fetch(`/api/image-data-url/?url=${encodeURIComponent(value)}`);
+    const proxyResponse = await fetch(`/api/image-data-url/?url=${encodeURIComponent(value)}`, {
+      headers: await authHeaders(),
+    });
 
     if (proxyResponse.ok) {
       const data = await proxyResponse.json();

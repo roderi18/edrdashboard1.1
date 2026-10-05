@@ -8,8 +8,10 @@ import {
   collection,
 } from 'firebase/firestore';
 
+import { isAdminGlobal } from 'src/utils/org-level-access';
 import { ESTADO_SOLICITADA } from 'src/utils/solicitud-producto.mjs';
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+import { MENSAJE_COMPRA_PROPIA, puedeGestionarEstaOrden } from 'src/utils/compra-propia.mjs';
 import { uploadFilesToStorage, buildStorageFileName } from 'src/utils/firebase-file-storage';
 import { ID_TIENDA_VIRTUAL, idConversacionConTienda } from 'src/utils/chat-tienda-virtual.mjs';
 import {
@@ -172,9 +174,9 @@ const actualizarItemsEvaluacion = ({ items = [], estado, razon = '', user = {} }
 const crearOrdenFirestoreDirecto = async ({ user, checkoutState, paymentData }) => {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
-  const baseTimestamp = Date.now();
-  const orderId = `orden-${baseTimestamp}`;
-  const receiptId = `recibo-${baseTimestamp}`;
+  const randomId = doc(collection(FIRESTORE, COLECCIONES_COMERCIO.ordenes)).id;
+  const orderId = `orden-${randomId}`;
+  const receiptId = `recibo-${randomId}`;
   const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, orderId);
   // PRIMERO EL NUMERO. Si el contador no responde, el pedido no llega a
   // escribirse: mejor no guardarlo que guardarlo con un numero repetido o sin
@@ -275,7 +277,7 @@ const crearOrdenFirestoreDirecto = async ({ user, checkoutState, paymentData }) 
 const crearSolicitudProductoFirestoreDirecto = async ({ user, item }) => {
   if (!isFirebaseConfigured || !FIRESTORE || !item) return null;
 
-  const orderId = `orden-${Date.now()}`;
+  const orderId = `orden-${doc(collection(FIRESTORE, COLECCIONES_COMERCIO.ordenes)).id}`;
   const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, orderId);
   const numeroOrden = await siguienteNumeroDeOrden();
   const subtotal = Number(item?.subtotal ?? Number(item?.price || 0) * Number(item?.quantity || 0));
@@ -386,6 +388,12 @@ const cambiarEstadoOrdenFirestoreDirecto = async ({ orderId, nextStatus, user })
   if (!snapshot.exists()) return null;
 
   const currentData = snapshot.data();
+
+  // Nadie gestiona su propia compra (salvo el Administrador Global).
+  if (!puedeGestionarEstaOrden(currentData, user, { esAdministradorGlobal: isAdminGlobal(user) })) {
+    throw new Error(MENSAJE_COMPRA_PROPIA);
+  }
+
   const currentStatus = currentData?.estado || 'pendiente';
   const nextStatusEs = mapearEstadoOrdenUiAFirestore(nextStatus);
   const isCancelling = currentStatus !== 'cancelada' && nextStatusEs === 'cancelada';
@@ -488,6 +496,12 @@ const evaluarOrdenRestringidaFirestoreDirecto = async ({
   if (!snapshot.exists()) return null;
 
   const currentData = snapshot.data();
+
+  // Nadie aprueba ni rechaza su propia compra (salvo el Administrador Global).
+  if (!puedeGestionarEstaOrden(currentData, user, { esAdministradorGlobal: isAdminGlobal(user) })) {
+    throw new Error(MENSAJE_COMPRA_PROPIA);
+  }
+
   const estadoEvaluacion =
     accion === 'aceptar' ? 'aprobada' : accion === 'rechazar' ? 'rechazada' : 'en_evaluacion';
   const timelineItem = {

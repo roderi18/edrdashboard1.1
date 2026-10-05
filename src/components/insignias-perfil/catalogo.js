@@ -1,5 +1,5 @@
-const RUTA_CINTAS = '/parches/Cintas%20y%20medallas/cintas-perfil';
-const RUTA_NUMEROS_CINTAS = '/parches/Cintas%20y%20medallas/numeros-cintas';
+const RUTA_CINTAS = '/insignias/cintas';
+const RUTA_NUMEROS_CINTAS = '/insignias/numeros-cintas';
 
 const cinta = (id, nombre) => ({
   id,

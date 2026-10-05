@@ -1,10 +1,15 @@
 import useSWR from 'swr';
 import { useMemo, useState, useEffect } from 'react';
 
-import { valorGuardado } from 'src/utils/cache-de-lecturas.mjs';
+import { valorGuardado, invalidarLecturas } from 'src/utils/cache-de-lecturas.mjs';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { listarProductosFirestore, resolverProductoCombinadoPorId } from 'src/services/product-service';
+import { useLecturasVivas } from 'src/lib/avisos-de-lecturas';
+import {
+  CANAL_DE_PRODUCTOS,
+  listarProductosFirestore,
+  resolverProductoCombinadoPorId,
+} from 'src/services/product-service';
 
 // ----------------------------------------------------------------------
 
@@ -27,6 +32,25 @@ export function useGetProducts() {
   );
   const [productsLoading, setProductsLoading] = useState(() => !valorGuardado(CLAVE_PRODUCTOS));
   const [productsError, setProductsError] = useState(null);
+  // UN PRECIO CAMBIADO SE VE AL MOMENTO. El precio de un combo se edita en la
+  // tienda o en el Designer, y se lee en la portada, "Inscribirme" y el carrito:
+  // sin releer, cada pantalla abierta seguía con el de antes. Otros equipos
+  // avisan por la caché; este navegador (pestañas e iframes), por su canal.
+  const cambiosEnOtrasSesiones = useLecturasVivas(['tienda-productos:']);
+  const [cambiosEnEsteNavegador, setCambiosEnEsteNavegador] = useState(0);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return undefined;
+
+    const canal = new BroadcastChannel(CANAL_DE_PRODUCTOS);
+
+    canal.onmessage = () => {
+      invalidarLecturas('tienda-productos:');
+      setCambiosEnEsteNavegador((actual) => actual + 1);
+    };
+
+    return () => canal.close();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -43,8 +67,8 @@ export function useGetProducts() {
       } catch (loadError) {
         if (!active) return;
 
+        // Al releer tras un aviso, un fallo no borra lo que ya se pintaba.
         setProductsError(loadError);
-        setResolvedProducts([]);
       } finally {
         if (active) {
           setProductsLoading(false);
@@ -57,7 +81,7 @@ export function useGetProducts() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [cambiosEnOtrasSesiones, cambiosEnEsteNavegador]);
 
   const memoizedValue = useMemo(
     () => ({

@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // ESTADO DEL DESTACAMENTO (Registrado / Activo / Inactivo / No reconocido).
 //
@@ -9,7 +11,7 @@
 // tenía sentido.
 // ----------------------------------------------------------------------
 
-export const COLECCION_ESTADO_DESTACAMENTOS = 'estado_destacamentos';
+export const COLECCION_ESTADO_DESTACAMENTOS = COLECCIONES.estadoDestacamentos;
 
 export const ESTADOS_DESTACAMENTO = {
   registrado: 'registrado',

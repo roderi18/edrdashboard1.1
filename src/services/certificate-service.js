@@ -15,6 +15,10 @@ import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { getMemberById } from 'src/services/member-service';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 import {
+  COLECCIONES,
+  DEFINICIONES_COLECCIONES,
+} from 'src/config/esquema-firestore.mjs';
+import {
   getProgressId,
   normalizeIdSegment,
   guardarProgresoAscensoMiembro,
@@ -22,15 +26,19 @@ import {
   guardarVinculoCertificadoAscenso,
 } from 'src/services/member-awards-service';
 
-export const COLECCION_PLANTILLAS_CERTIFICADOS = 'plantillasCertificados';
-export const COLECCION_LOTES_CERTIFICADOS = 'lotesCertificados';
-export const COLECCION_CERTIFICADOS = 'certificados';
-export const COLECCION_ESTADOS_CERTIFICADOS = 'estadosCertificadosMiembros';
+export const COLECCION_PLANTILLAS_CERTIFICADOS = COLECCIONES.plantillasCertificados;
+export const COLECCION_LOTES_CERTIFICADOS = COLECCIONES.lotesCertificados;
+export const COLECCION_CERTIFICADOS = COLECCIONES.certificados;
+export const COLECCION_ESTADOS_CERTIFICADOS = COLECCIONES.estadosCertificadosMiembros;
 
-const COLECCION_PLANTILLAS_CERTIFICADOS_LEGACY = 'certificateTemplates';
-const COLECCION_LOTES_CERTIFICADOS_LEGACY = 'certificateBatches';
-const COLECCION_CERTIFICADOS_LEGACY = 'certificates';
-const COLECCION_ESTADOS_CERTIFICADOS_LEGACY = 'certificateMemberStatuses';
+const COLECCION_PLANTILLAS_CERTIFICADOS_LEGACY =
+  DEFINICIONES_COLECCIONES.plantillasCertificados.heredados[1];
+const COLECCION_LOTES_CERTIFICADOS_LEGACY =
+  DEFINICIONES_COLECCIONES.lotesCertificados.heredados[1];
+const COLECCION_CERTIFICADOS_LEGACY =
+  DEFINICIONES_COLECCIONES.certificados.heredados[1];
+const COLECCION_ESTADOS_CERTIFICADOS_LEGACY =
+  DEFINICIONES_COLECCIONES.estadosCertificadosMiembros.heredados[1];
 
 const getDataUrlContentType = (dataUrl = '') => {
   const match = String(dataUrl).match(/^data:([^;]+);/);

@@ -14,6 +14,7 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { toast } from 'src/components/snackbar';
@@ -159,11 +160,11 @@ export function AccountChangePassword() {
       user?.idMiembros || user?.codigoMiembro || user?.memberId || user?.codigoUsuario || '';
 
     if (memberProfileId) {
-      writes.push(setDoc(doc(FIRESTORE, 'usuarios_roles', String(memberProfileId)), payload, { merge: true }));
+      writes.push(setDoc(doc(FIRESTORE, COLECCIONES.usuariosRoles, String(memberProfileId)), payload, { merge: true }));
     }
 
     if (uid) {
-      writes.push(setDoc(doc(FIRESTORE, 'users', String(uid)), payload, { merge: true }));
+      writes.push(setDoc(doc(FIRESTORE, COLECCIONES.usuarios, String(uid)), payload, { merge: true }));
     }
 
     await Promise.all(writes);

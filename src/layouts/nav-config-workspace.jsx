@@ -34,6 +34,6 @@ export const _workspaces = workspaceRoles.map((rol, index) => ({
   logo:
     rol.codigo === ROLES.USUARIO_COMUN
       ? ''
-      : `${CONFIG.assetsDir}/assets/icons/workspaces/logo-${(index % 3) + 1}.webp`,
+      : `${CONFIG.assetsDir}/plantilla/icons/workspaces/logo-${(index % 3) + 1}.webp`,
   role: rol,
 }));

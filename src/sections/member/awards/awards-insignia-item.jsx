@@ -64,7 +64,7 @@ export const COLUMNAS_DE_INSIGNIAS = {
 export const HUECO_DE_INSIGNIAS = { xs: 1.5, sm: 2.5 };
 
 /**
- * La imagen de un premio: su insignia de `public/sistemaAscenso` o, si no tiene,
+ * La imagen de un premio: su insignia de `public/sistema-ascenso` o, si no tiene,
  * el icono propio del premio (los de Academia Ministerial), o `null` (sale el
  * icono del PDF en el mismo hueco).
  */

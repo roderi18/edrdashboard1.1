@@ -20,23 +20,23 @@ const getMemberAvatar = (member) => member?.avatarUrl ?? member?.photoURL ?? mem
 const DIVISION_ICONS = {
   exploradores: {
     alt: 'Exploradores',
-    src: '/assets/images/divisions/member/exploradores-ico.png',
+    src: '/plantilla/images/divisions/member/exploradores-ico.png',
   },
   liderazgo: {
     alt: 'Liderazgo',
-    src: '/assets/images/divisions/member/liderazgo-ico.png',
+    src: '/plantilla/images/divisions/member/liderazgo-ico.png',
   },
   navegantes: {
     alt: 'Navegantes',
-    src: '/assets/images/divisions/member/navegantes-ico.png',
+    src: '/plantilla/images/divisions/member/navegantes-ico.png',
   },
   pioneros: {
     alt: 'Pioneros',
-    src: '/assets/images/divisions/member/pioneros-ico.png',
+    src: '/plantilla/images/divisions/member/pioneros-ico.png',
   },
   seguidores: {
     alt: 'Seguidores',
-    src: '/assets/images/divisions/member/seguidores-ico.png',
+    src: '/plantilla/images/divisions/member/seguidores-ico.png',
   },
 };
 

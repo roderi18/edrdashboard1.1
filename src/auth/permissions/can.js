@@ -1,3 +1,5 @@
+import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
+
 import { ROLES, ALCANCES } from './roles';
 import { PERMISOS_POR_ROL, RESTRICCIONES_ROL } from './role-permissions';
 
@@ -34,7 +36,16 @@ export const normalizarAccesoUsuario = (entrada) => {
     )
     .filter(Boolean)
     .flatMap((codigo) => PERMISOS_POR_ROL[codigo] || []);
-  const permisosRol = [...(PERMISOS_POR_ROL[rolId] || []), ...permisosDeSusCargos];
+  // Y los de TODOS sus roles de administracion (Oficina Nacional y Tienda a la
+  // vez, por ejemplo): `roles-de-administracion.mjs`.
+  const permisosDeSusRolesDeAdministracion = rolesDeAdministracionDe(usuario).flatMap(
+    (codigo) => PERMISOS_POR_ROL[codigo] || []
+  );
+  const permisosRol = [
+    ...(PERMISOS_POR_ROL[rolId] || []),
+    ...permisosDeSusCargos,
+    ...permisosDeSusRolesDeAdministracion,
+  ];
   const permisosDirectos = [
     ...normalizeList(usuario.permisos),
     ...normalizeList(usuario.permissions),
@@ -78,7 +89,12 @@ export const canAll = (usuario, permisos = []) => permisos.every((permiso) => ca
 // lectura: mirar unicamente el rol principal le quitaba en silencio todo lo que
 // hace en su destacamento. Si ejerce ALGUN cargo que si puede modificar, no es de
 // solo lectura; lo que acota sobre QUE puede es su alcance, no esta marca.
+// Cuentan tambien sus roles de administracion: la Oficina Nacional es de solo
+// lectura, pero con el de Tienda ademas gestiona la tienda.
 const ejerceAlgunCargoQueModifica = (usuario = {}) =>
+  rolesDeAdministracionDe(usuario).some(
+    (codigo) => RESTRICCIONES_ROL[codigo] && RESTRICCIONES_ROL[codigo].soloLectura !== true
+  ) ||
   (Array.isArray(usuario?.cargos) ? usuario.cargos : []).some((cargo) => {
     const codigo = String(cargo?.rol ?? cargo?.rolId ?? cargo?.codigo ?? '')
       .trim()

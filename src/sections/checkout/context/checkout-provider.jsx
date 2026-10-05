@@ -6,6 +6,13 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { paths } from 'src/routes/paths';
 import { useRouter, usePathname } from 'src/routes/hooks';
 
+import {
+  textoDeTallas,
+  combinarTallas,
+  carritoSinEntrega,
+} from 'src/utils/combos-de-actividad.mjs';
+
+import { useGetProducts } from 'src/actions/product';
 import { crearOrdenFirestore, crearSolicitudProductoFirestore } from 'src/services/order-service';
 import {
   guardarCarritoUsuario,
@@ -20,6 +27,12 @@ import { CheckoutContext } from './checkout-context';
 // ----------------------------------------------------------------------
 
 const CHECKOUT_STEPS = ['Carrito', 'Direccion', 'Pago'];
+
+// Un carrito solo de combos de campamento no pasa por "Direccion": se recoge
+// en la actividad. La URL sigue contando 0, 1, 2 (el paso 1 se salta) para que
+// los enlaces y "completado" (3) valgan igual; lo que cambia es lo que se ve.
+const PASOS_SIN_ENTREGA = ['Carrito', 'Pago'];
+const PASO_DIRECCION = 1;
 
 const initialState = {
   items: [],
@@ -65,7 +78,9 @@ function CheckoutContainer({ children }) {
       0
     );
     const discount = Number(nextState?.discount ?? 0);
-    const shipping = Number(nextState?.shipping ?? 0);
+    // Sin entrega no hay envio: si antes se eligio "Expreso" con otro carrito,
+    // no se cuela en el total de una inscripcion.
+    const shipping = carritoSinEntrega(items) ? 0 : Number(nextState?.shipping ?? 0);
 
     return {
       ...initialState,
@@ -104,6 +119,46 @@ function CheckoutContainer({ children }) {
     },
     [commitState]
   );
+
+  const sinEntrega = carritoSinEntrega(state.items);
+
+  // EL PRECIO DE UN COMBO ES EL DE HOY. La línea guardaba el precio del momento
+  // en que se agregó: si la tienda (o el Designer) lo cambiaba, el carrito seguía
+  // cobrando el viejo. Solo las líneas de combos: los demás productos eligen su
+  // precio (miembro registrado o no) al agregarse.
+  const { products } = useGetProducts();
+
+  useEffect(() => {
+    if (loading || !products.length) return;
+
+    const productoDe = new Map(products.map((producto) => [producto.id, producto]));
+    // Una línea de combo agregada antes de la marca `sinEntrega` se reconoce por
+    // su producto (lleva `combo`) y se marca de paso.
+    const esCombo = (item) => item.sinEntrega || Boolean(productoDe.get(item.id)?.combo);
+    const precioDe = (item) => Number(productoDe.get(item.id)?.price);
+    const viejo = (item) =>
+      esCombo(item) &&
+      (!item.sinEntrega ||
+        (Number.isFinite(precioDe(item)) && precioDe(item) !== Number(item.price)));
+
+    if (!state.items.some(viejo)) return;
+
+    commitState((previo) => ({
+      ...previo,
+      items: previo.items.map((item) => {
+        if (!viejo(item)) return item;
+
+        const price = Number.isFinite(precioDe(item)) ? precioDe(item) : Number(item.price);
+
+        return {
+          ...item,
+          sinEntrega: true,
+          price,
+          subtotal: price * Number(item.quantity || 0),
+        };
+      }),
+    }));
+  }, [commitState, loading, products, state.items]);
 
   const canReset = !isEqual(state, initialState);
   const completed = activeStep === CHECKOUT_STEPS.length;
@@ -154,25 +209,48 @@ function CheckoutContainer({ children }) {
         go: step ?? 0,
       };
 
-      const targetStep = stepNumbers[type];
+      let targetStep = stepNumbers[type];
+
+      if (sinEntrega && targetStep === PASO_DIRECCION) {
+        targetStep = type === 'back' ? 0 : PASO_DIRECCION + 1;
+      }
       const queryString = new URLSearchParams({ step: `${targetStep}` }).toString();
       const redirectPath = targetStep === 0 ? checkoutPath : `${checkoutPath}?${queryString}`;
 
       setCheckoutStep(targetStep);
       router.push(redirectPath);
     },
-    [activeStep, checkoutPath, router]
+    [activeStep, checkoutPath, router, sinEntrega]
   );
+
+  // Quien llega a "?step=1" con un carrito sin entrega (un enlace viejo, el
+  // boton Atras del navegador) pasa directo al pago.
+  useEffect(() => {
+    if (!loading && sinEntrega && activeStep === PASO_DIRECCION) {
+      const queryString = new URLSearchParams({ step: `${PASO_DIRECCION + 1}` }).toString();
+
+      setCheckoutStep(PASO_DIRECCION + 1);
+      router.replace(`${checkoutPath}?${queryString}`);
+    }
+  }, [activeStep, checkoutPath, loading, router, sinEntrega]);
 
   const onAddToCart = useCallback(
     (newItem) => {
       commitState((previousState) => {
         const updatedItems = previousState.items.map((item) => {
           if (item.id === newItem.id) {
+            // Un combo con tallas ("M×2 · L×1") suma también su reparto: sin
+            // esto, agregar el mismo combo dos veces dejaba solo las tallas de
+            // la primera vez.
+            const tallas =
+              item.tallas || newItem.tallas ? combinarTallas(item.tallas, newItem.tallas) : null;
+
             return {
               ...item,
               colors: union(item.colors, newItem.colors),
               quantity: item.quantity + newItem.quantity,
+              ...(newItem.sinEntrega && { sinEntrega: true }),
+              ...(tallas && { tallas, size: textoDeTallas(tallas) }),
             };
           }
           return item;
@@ -244,7 +322,8 @@ function CheckoutContainer({ children }) {
     async (paymentData) => {
       const purchase = await crearOrdenFirestore({
         user,
-        checkoutState: state,
+        // Sin entrega, la orden no guarda una direccion que nadie pidio.
+        checkoutState: sinEntrega ? { ...state, billing: null, shipping: 0 } : state,
         paymentData,
       });
 
@@ -265,7 +344,7 @@ function CheckoutContainer({ children }) {
 
       return purchase;
     },
-    [commitState, state, user]
+    [commitState, sinEntrega, state, user]
   );
 
   const onCreateEvaluationOrder = useCallback(
@@ -330,7 +409,10 @@ function CheckoutContainer({ children }) {
       /********/
       activeStep,
       onChangeStep,
-      steps: CHECKOUT_STEPS,
+      sinEntrega,
+      steps: sinEntrega ? PASOS_SIN_ENTREGA : CHECKOUT_STEPS,
+      // El paso que pinta el indicador: sin "Direccion", el pago es el segundo.
+      pasoVisible: sinEntrega && (activeStep ?? 0) > PASO_DIRECCION ? activeStep - 1 : activeStep,
       /********/
       canReset,
       loading,
@@ -355,6 +437,7 @@ function CheckoutContainer({ children }) {
       commitState,
       completed,
       activeStep,
+      sinEntrega,
       onResetCart,
       onCreateOrder,
       onCreateEvaluationOrder,

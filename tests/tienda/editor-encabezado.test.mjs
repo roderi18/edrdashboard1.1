@@ -308,8 +308,8 @@ test('con foto, la semilla pone un velo que la deja ver', () => {
 
 test('una imagen solo se pinta si su direccion es del sitio o https', () => {
   assert.equal(
-    sanearUrlImagen('/logo/exploradores-del-rey-logo.png'),
-    '/logo/exploradores-del-rey-logo.png'
+    sanearUrlImagen('/marca/exploradores-del-rey-logo.png'),
+    '/marca/exploradores-del-rey-logo.png'
   );
   assert.equal(
     sanearUrlImagen('https://firebasestorage.googleapis.com/v0/b/x/o/y.webp'),

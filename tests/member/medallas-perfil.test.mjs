@@ -1,9 +1,9 @@
 // ----------------------------------------------------------------------
 // LAS MEDALLAS SON LA CARPETA, Y SU ORDEN LO DECIDE EL DESIGNER.
 //
-// Qué se pidió: las medallas existen igual que las cintas —en EXPLORA Designer y
+// Qué se pidió: las medallas existen igual que las cintas —en EXPEDITION Designer y
 // en los perfiles— y cualquier imagen que se deje en
-// `public/parches/Cintas y medallas/medallas` aparece en la aplicación sin tocar
+// `public/insignias/medallas` aparece en la aplicación sin tocar
 // código. Qué no se puede romper: una imagen que se quita no deja un hueco en los
 // perfiles, una nueva nunca se pierde por no estar en el orden guardado, y la
 // subcarpeta "en proceso" no se cuela.
@@ -44,11 +44,11 @@ test('cualquier imagen de la carpeta es una medalla; lo demás no', () => {
   ]);
   assert.equal(catalogo[0].nombre, 'Medalla al valor');
   assert.equal(catalogo[3].nombre, 'Medal of excellent mejorada');
-  assert.equal(catalogo[0].src, '/parches/Cintas%20y%20medallas/medallas/1-medalla-al-valor.webp');
+  assert.equal(catalogo[0].src, '/insignias/medallas/1-medalla-al-valor.webp');
   // La `-small` no es otra medalla: es la que se pinta pequeña en el perfil.
   assert.equal(
     catalogo[4].srcPequena,
-    '/parches/Cintas%20y%20medallas/medallas/national-leadership-award-small.webp'
+    '/insignias/medallas/national-leadership-award-small.webp'
   );
   assert.equal(catalogo[0].srcPequena, catalogo[0].src);
 });
@@ -134,6 +134,8 @@ test('sin efecto guardado, la medalla se mueve con el soplo y brilla con el dest
     amplitudMovimiento: 1,
     velocidadBrillo: 1,
     intensidadBrillo: 1,
+    // Veces ganada: 1 sin decir otra cosa (el número dorado sale con 2 o más).
+    veces: 1,
   };
 
   assert.deepEqual(config.get('a'), {

@@ -1,7 +1,9 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // CINTAS DEL PERFIL: CATÁLOGO, ORDEN Y FILAS.
 //
-// Cada cinta es un WebP de `public/parches/Cintas y medallas/cintas-perfil` y el
+// Cada cinta es un WebP de `public/insignias/cintas` y el
 // prefijo del archivo ES su orden oficial. Se guarda solo ese prefijo ('3',
 // '12a'): si mañana se renombra el resto del archivo, lo ya asignado no se rompe.
 //
@@ -12,14 +14,14 @@
 //
 // Sin React ni Firebase para poder probarlo con `node --test`.
 // ----------------------------------------------------------------------
-
+import { aplicarAjustes } from './insignias-personalizadas.mjs';
 import { TEXTOS_CINTAS_PERFIL } from './cintas-perfil-textos.mjs';
 
-export const RUTA_CINTAS_PERFIL = '/parches/Cintas%20y%20medallas/cintas-perfil';
-export const COLECCION_CINTAS_MIEMBROS = 'cintas_miembros';
+export const RUTA_CINTAS_PERFIL = '/insignias/cintas';
+export const COLECCION_CINTAS_MIEMBROS = COLECCIONES.cintasMiembros;
 // El orden GLOBAL que pone el Administrador Global arrastrando en EXPLORA
 // Designer: `configuracion_cintas/orden` → `{ orden: ['3', '1', …] }`.
-export const COLECCION_CONFIGURACION_CINTAS = 'configuracion_cintas';
+export const COLECCION_CONFIGURACION_CINTAS = COLECCIONES.configuracionCintas;
 export const DOCUMENTO_ORDEN_CINTAS = 'orden';
 export const CINTAS_POR_FILA = 3;
 export const MAXIMO_CINTAS_VISIBLES = 18;
@@ -160,7 +162,7 @@ export const CATALOGO_CINTAS_PERFIL = Object.freeze(
 
 const POR_ID = new Map(CATALOGO_CINTAS_PERFIL.map((cinta) => [cinta.id, cinta]));
 
-// LAS CINTAS AÑADIDAS DESDE EXPLORA DESIGNER (`insignias-personalizadas.mjs`).
+// LAS CINTAS AÑADIDAS DESDE EXPEDITION DESIGNER (`insignias-personalizadas.mjs`).
 //
 // Viven en Firestore, así que no pueden estar en el catálogo de fábrica, que se
 // arma al cargar el módulo. Las registra la escucha compartida del navegador
@@ -169,31 +171,38 @@ const POR_ID = new Map(CATALOGO_CINTAS_PERFIL.map((cinta) => [cinta.id, cinta]))
 // servidor y en las pruebas la lista está vacía: el catálogo es el de fábrica.
 let personalizadas = [];
 let personalizadasPorId = new Map();
+// Las de fábrica con sus ajustes del Designer (nombre, descripción, imagen) y
+// sin las eliminadas (`aplicarAjustes` de `insignias-personalizadas.mjs`).
+let deFabrica = CATALOGO_CINTAS_PERFIL;
+let deFabricaPorId = POR_ID;
 
-export const registrarCintasPersonalizadas = (lista = []) => {
+export const registrarCintasPersonalizadas = (lista = [], ajustes = {}) => {
   personalizadas = (Array.isArray(lista) ? lista : []).filter(
     (cinta) => cinta?.id && !POR_ID.has(cinta.id)
   );
   personalizadasPorId = new Map(personalizadas.map((cinta) => [cinta.id, cinta]));
+  deFabrica = aplicarAjustes(CATALOGO_CINTAS_PERFIL, ajustes);
+  deFabricaPorId = new Map(deFabrica.map((cinta) => [cinta.id, cinta]));
 };
 
 /** Todo el catálogo: las de fábrica y, detrás, las añadidas en el Designer. */
 export const catalogoDeCintas = () =>
-  personalizadas.length ? [...CATALOGO_CINTAS_PERFIL, ...personalizadas] : CATALOGO_CINTAS_PERFIL;
+  personalizadas.length ? [...deFabrica, ...personalizadas] : deFabrica;
 
+/** La cinta, o null si no existe o se eliminó (deja de pintarse en los perfiles). */
 export const obtenerCintaPerfil = (id) => {
   const clave = String(id ?? '')
     .trim()
     .toLowerCase();
 
-  return POR_ID.get(clave) ?? personalizadasPorId.get(clave) ?? null;
+  return deFabricaPorId.get(clave) ?? personalizadasPorId.get(clave) ?? null;
 };
 
 // ----------------------------------------------------------------------
 // EL ORDEN GLOBAL.
 //
 // El número del archivo es el orden de fábrica. El Administrador Global puede
-// cambiarlo arrastrando las cintas en EXPLORA Designer, y ese orden manda EN
+// cambiarlo arrastrando las cintas en EXPEDITION Designer, y ese orden manda EN
 // TODAS PARTES: en los perfiles que ya tienen cintas y en el diálogo para
 // asignarlas. Se guarda la lista completa de ids; lo que falte (una cinta nueva
 // en la carpeta) va al final en su orden de fábrica, y lo que ya no exista se
@@ -285,7 +294,7 @@ export const disponerCintasEnFilas = (
 // una vez, se le pone encima el número en dorado (`numeros-cintas`). Con 1 no
 // se pone número. Es el mismo dato que usarán los awards y adiestramientos que
 // cuentan cuántas veces se completaron: sale de aquí, no de cada pantalla.
-export const RUTA_NUMEROS_CINTAS = '/parches/Cintas%20y%20medallas/numeros-cintas';
+export const RUTA_NUMEROS_CINTAS = '/insignias/numeros-cintas';
 export const MAXIMO_VECES_CINTA = 99;
 
 export const normalizarVeces = (valor) => {

@@ -64068,5 +64068,100 @@
     "id":12814,
     "nombre":"Ciudad Juan Bosch",
     "seccionId":1538
+  },
+  {
+    "id":12815,
+    "nombre":"Nueva Esperanza Calle Principal",
+    "seccionId":931
+  },
+  {
+    "id":12816,
+    "nombre":"Los Mina",
+    "seccionId":1538
+  },
+  {
+    "id":12817,
+    "nombre":"Los Peralejos",
+    "seccionId":1545
+  },
+  {
+    "id":12818,
+    "nombre":"Jardines de Norte",
+    "seccionId":1
+  },
+  {
+    "id":12819,
+    "nombre":"Los Alcarrizos",
+    "seccionId":1
+  },
+  {
+    "id":12820,
+    "nombre":"Vista Mar",
+    "seccionId":950
+  },
+  {
+    "id":12821,
+    "nombre":"San Miguel",
+    "seccionId":950
+  },
+  {
+    "id":12822,
+    "nombre":"Villa de San Luis",
+    "seccionId":1538
+  },
+  {
+    "id":12823,
+    "nombre":"Los Cantines la Altagracia",
+    "seccionId":931
+  },
+  {
+    "id":12824,
+    "nombre":"Quisqueya",
+    "seccionId":2
+  },
+  {
+    "id":12825,
+    "nombre":"Mirador del Ozama",
+    "seccionId":1538
+  },
+  {
+    "id":12826,
+    "nombre":"Antonio Guzmán Fernández",
+    "seccionId":525
+  },
+  {
+    "id":12827,
+    "nombre":"El Almirante",
+    "seccionId":1
+  },
+  {
+    "id":12828,
+    "nombre":"Centro de la Ciudad",
+    "seccionId":1004
+  },
+  {
+    "id":12829,
+    "nombre":"Los Guaricanos",
+    "seccionId":1
+  },
+  {
+    "id":12830,
+    "nombre":"San Luis",
+    "seccionId":1
+  },
+  {
+    "id":12831,
+    "nombre":"Los Americano",
+    "seccionId":931
+  },
+  {
+    "id":12832,
+    "nombre":"Madre Vieja",
+    "seccionId":931
+  },
+  {
+    "id":12833,
+    "nombre":"Ensanche Isabelita",
+    "seccionId":1
   }
 ]

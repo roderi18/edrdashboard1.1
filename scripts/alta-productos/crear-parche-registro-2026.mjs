@@ -64,7 +64,7 @@ const almacen = getStorage().bucket();
 const TODOS = [
   {
     nombre: 'Parche Registro 2026',
-    imagen: path.join(RAIZ, 'public/parches/Otros/parche-reg2026.webp'),
+    imagen: path.join(RAIZ, 'docs/tienda/imagenes/parches/actividades/parche-reg2026.webp'),
     categoria: 'parches',
     renglon: 'general',
     registrado: 200,
@@ -163,6 +163,8 @@ const subirImagen = async (rutaLocal, productoId) => {
     destination: destino,
     metadata: {
       contentType: 'image/webp',
+      // Sin esto Storage la sirve con max-age=0 y la tienda la vuelve a pedir en cada visita.
+      cacheControl: 'public, max-age=31536000, immutable',
       metadata: {
         tipoEntidad: 'producto',
         productoId: String(productoId),

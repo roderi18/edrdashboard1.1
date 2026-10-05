@@ -11,7 +11,7 @@ import { BackgroundShape } from './background-shape';
 function PageNotFoundIllustration({ hideBackground, sx, ...other }) {
   const renderCharacterImage = () => (
     <image
-      href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-question.webp`}
+      href={`${CONFIG.assetsDir}/plantilla/illustrations/characters/character-question.webp`}
       height="280"
       x="220"
       y="40"

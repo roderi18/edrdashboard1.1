@@ -240,6 +240,13 @@ export default [
       // Mismo caso: las cintas y medallas añadidas desde EXPLORA Designer.
       'src/services/insignias-personalizadas-apply.js',
       'src/services/premios-personalizados-apply.js',
+      'src/services/tarjeta-editable-apply.js',
+      'src/services/galeria-directores-apply.js',
+      // Mismo caso: las categorías de producto añadidas con "+ Nuevo" (alta,
+      // nombre y borrado de las de campamento).
+      'src/services/producto-categorias-apply.js',
+      // Mismo caso: los accesos de EXPLORA Designer (pestaña "Accesos").
+      'src/services/accesos-designer-apply.js',
       // Mismo caso: el estatus de cada miembro, que mueve la regla de asistencia
       // despues de registrarlo en Historial.
       'src/services/estatus-miembros-apply.js',

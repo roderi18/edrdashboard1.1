@@ -59,7 +59,7 @@ export function CheckoutCart() {
     <EmptyContent
       title="El carrito esta vacio!"
       description="No tienes articulos en tu carrito."
-      imgUrl={`${CONFIG.assetsDir}/assets/icons/empty/ic-cart.svg`}
+      imgUrl={`${CONFIG.assetsDir}/plantilla/icons/empty/ic-cart.svg`}
       sx={{ height: 340 }}
     />
   );

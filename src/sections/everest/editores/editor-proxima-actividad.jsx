@@ -8,8 +8,19 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 
+import { useCategoriasProductoPersonalizadas } from 'src/sections/product/use-categorias-producto-personalizadas';
+
 import { cambiadorDe } from './cambios';
-import { CampoFecha, CampoMedio, CampoTexto, CampoNumero, CampoDestino } from './campos';
+import {
+  CampoFecha,
+  CampoMedio,
+  CampoTexto,
+  CampoNumero,
+  CampoDestino,
+  CampoOpciones,
+} from './campos';
+
+const AUTOMATICO = '__por-titulo__';
 
 // ----------------------------------------------------------------------
 // PROXIMA ACTIVIDAD.
@@ -22,6 +33,9 @@ import { CampoFecha, CampoMedio, CampoTexto, CampoNumero, CampoDestino } from '.
 
 export function EditorProximaActividad({ idBloque, contenido, onCambiar }) {
   const cambiar = cambiadorDe(contenido, onCambiar);
+  // Las categorías añadidas en la tienda con "+ Nuevo": ahí viven las de cada
+  // campamento.
+  const categoriasDeTienda = useCategoriasProductoPersonalizadas();
   const conFechas = Boolean(contenido.fechaInicio);
   const conBoton = Boolean(contenido.boton);
 
@@ -141,6 +155,23 @@ export function EditorProximaActividad({ idBloque, contenido, onCambiar }) {
           Se usa el botón de siempre, que lleva al calendario.
         </Typography>
       )}
+
+      <Divider sx={{ borderStyle: 'dashed' }} />
+
+      {/* LOS COMBOS DE "INSCRIBIRME". Sin categoría elegida se buscan por el
+          título, y cambiar el título los perdía (el botón volvía al calendario). */}
+      <CampoOpciones
+        etiqueta="Combos de la tienda (categoría)"
+        valor={contenido.categoriaCombos ?? AUTOMATICO}
+        opciones={[
+          { valor: AUTOMATICO, etiqueta: 'Automático: la categoría que se llama como el título' },
+          ...categoriasDeTienda.map((categoria) => ({
+            valor: categoria.value,
+            etiqueta: categoria.label,
+          })),
+        ]}
+        onCambiar={(valor) => cambiar('categoriaCombos', valor === AUTOMATICO ? undefined : valor)}
+      />
 
       <Divider sx={{ borderStyle: 'dashed' }} />
 

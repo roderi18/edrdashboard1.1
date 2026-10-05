@@ -117,7 +117,6 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
   const [errorMessage, setErrorMessage] = useState(null);
   const [socialProviderLoading, setSocialProviderLoading] = useState(null);
-  const [rememberedValue, setRememberedValue] = useState('');
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const methods = useForm({
@@ -137,7 +136,6 @@ export function FirebaseSignInView({ mode = 'member' }) {
     const storedValue = window.localStorage.getItem(storageKey);
 
     if (!storedValue) {
-      setRememberedValue('');
       return;
     }
 
@@ -148,7 +146,6 @@ export function FirebaseSignInView({ mode = 'member' }) {
     }
 
     setValue('rememberEmail', true);
-    setRememberedValue(storedValue);
   }, [isAdminMode, setValue, storageKey]);
 
   const onSubmit = handleSubmit(async (data) => {
@@ -180,10 +177,8 @@ export function FirebaseSignInView({ mode = 'member' }) {
 
       if (data.rememberEmail) {
         window.localStorage.setItem(storageKey, loginValue);
-        setRememberedValue(loginValue);
       } else {
         window.localStorage.removeItem(storageKey);
-        setRememberedValue('');
       }
 
       // La clave se comprueba TAL CUAL se escribe: distingue mayusculas de
@@ -324,7 +319,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
       {!isAuthReady && (
         <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
           El inicio de sesión de Firebase no está disponible en este entorno. Revisa las variables
-          publicas de Firebase en Netlify
+          públicas de Firebase del despliegue
           {missingFirebaseConfigKeys.length ? `: ${missingFirebaseConfigKeys.join(', ')}.` : '.'}
         </Alert>
       )}
@@ -336,7 +331,7 @@ export function FirebaseSignInView({ mode = 'member' }) {
               autoFocus
               name="loginValue"
               label="Usuario o correo electronico"
-              placeholder="admin001 o correo@correo.com"
+              placeholder="admin001, EDR-10000 o correo@correo.com"
               slotProps={{ inputLabel: { shrink: true } }}
             />
           ) : (

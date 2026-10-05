@@ -70,7 +70,7 @@ export const NATIONAL_LEADERSHIP_DATA = {
                 createNode('sub-director-nacional', 'Sub-Director Nacional'),
                 createNode(
                   'coordinador-nacional-adiestramiento',
-                  'Director Nacional de Adiestramiento',
+                  'Coordinador Nacional de Adiestramiento',
                   [
                     createNode(
                       'oficiales-adiestramientos-especiales',
@@ -78,9 +78,9 @@ export const NATIONAL_LEADERSHIP_DATA = {
                     ),
                   ]
                 ),
-                createNode('coordinador-nacional-promocion', 'Director Nacional de Promoción'),
-                createNode('coordinador-nacional-produccion', 'Director Nacional de Producción'),
-                createNode('coordinador-nacional-programa', 'Director Nacional de Programa'),
+                createNode('coordinador-nacional-promocion', 'Coordinador Nacional de Promoción'),
+                createNode('coordinador-nacional-produccion', 'Coordinador Nacional de Producción'),
+                createNode('coordinador-nacional-programa', 'Coordinador Nacional de Programa'),
                 // Justo antes de Oficiales Especiales, en la misma fila.
                 createNode('secretario-nacional', 'Secretario Nacional'),
                 createNode('comites-especiales', 'Comités Especiales', [
@@ -88,7 +88,7 @@ export const NATIONAL_LEADERSHIP_DATA = {
                 ]),
               ]),
               name: 'Consejo Ejecutivo',
-              avatarUrl: '/watermark.webp',
+              avatarUrl: '/marca/watermark.webp',
               isDivision: true,
             },
             createNode('capellan-nacional', 'Capellán Nacional'),
@@ -99,13 +99,13 @@ export const NATIONAL_LEADERSHIP_DATA = {
         name: 'Consejo Nacional',
         // La caja de estructura lleva el sello de la casa (watermark), no la "O"
         // de EXPLORA: es la marca de agua unica de las jerarquias y los niveles.
-        avatarUrl: '/watermark.webp',
+        avatarUrl: '/marca/watermark.webp',
         isDivision: true,
       },
     ]),
   ]),
   name: 'Concilio de las Asambleas de Dios',
-  avatarUrl: '/logo/asambleas-de-dios.png',
+  avatarUrl: '/marca/asambleas-de-dios.png',
   isDivision: true,
 };
 
@@ -166,7 +166,7 @@ export const REGIONAL_LEADERSHIP_DATA = {
   ]),
   name: 'Consejo Ejecutivo',
   // Mismo sello (watermark) que el organigrama nacional, en vez de la "O".
-  avatarUrl: '/watermark.webp',
+  avatarUrl: '/marca/watermark.webp',
   isDivision: true,
 };
 

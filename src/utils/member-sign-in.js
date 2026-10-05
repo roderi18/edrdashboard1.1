@@ -28,21 +28,13 @@ export const numeroDeCodigoMiembro = (codigo) => {
  *
  * Devuelve una lista porque quien llama tiene una reserva propia —el correo
  * compuesto con el prefijo por defecto— para cuando el servidor no puede
- * responder. Cuando responde, su respuesta es la buena y va primero.
+ * responder. Se consulta siempre al servidor: un correo guardado en el navegador
+ * puede quedar obsoleto cuando el miembro cambia el de su cuenta.
  */
 export async function resolverCorreosDeMiembroPorNumero(numeroEscrito) {
   const numero = soloDigitos(numeroEscrito);
 
   if (!numero) return [];
-
-  const cacheKey = `firebase-member-email:${numero}`;
-
-  try {
-    const cachedEmail = window.localStorage.getItem(cacheKey);
-    if (cachedEmail) return [cachedEmail];
-  } catch {
-    // El almacenamiento puede estar bloqueado en modo privado.
-  }
 
   try {
     const correo = await fetch('/api/auth/correo-acceso/', {
@@ -55,14 +47,6 @@ export async function resolverCorreosDeMiembroPorNumero(numeroEscrito) {
     })
       .then((respuesta) => respuesta.json())
       .then((datos) => String(datos?.correo || '').trim());
-
-    if (correo) {
-      try {
-        window.localStorage.setItem(cacheKey, correo);
-      } catch {
-        // El almacenamiento puede estar bloqueado en modo privado.
-      }
-    }
 
     return correo ? [correo] : [];
   } catch {

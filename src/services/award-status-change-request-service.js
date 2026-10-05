@@ -17,6 +17,7 @@ import { paths } from 'src/routes/paths';
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
 import { getMemberById } from 'src/services/member-service';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { crearNotificacionAdmin } from 'src/services/notification-service';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -36,7 +37,7 @@ import {
 } from 'src/services/organigrama-directiva-destacamentos-service';
 
 export const COLECCION_SOLICITUDES_CAMBIO_ESTADO_ASCENSO =
-  'solicitudes_cambio_estado_ascenso';
+  COLECCIONES.solicitudesCambioEstadoAscenso;
 
 const STATUS_LABELS = {
   no_iniciado: 'No iniciado',
@@ -258,7 +259,7 @@ async function resolverSolicitudCambioEstadoAscensoDirecto({
     });
 
     if (certificateId) {
-      await deleteDoc(doc(FIRESTORE, 'certificados', String(certificateId))).catch(() => null);
+      await deleteDoc(doc(FIRESTORE, COLECCIONES.certificados, String(certificateId))).catch(() => null);
     }
     if (certificatePath && FIREBASE_STORAGE) {
       await deleteObject(ref(FIREBASE_STORAGE, certificatePath)).catch(() => null);

@@ -1,5 +1,6 @@
 'use client';
 
+
 import * as z from 'zod';
 import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
@@ -23,6 +24,7 @@ import DialogContent from '@mui/material/DialogContent';
 
 import { capitalizeWords } from 'src/utils/text-format';
 import { getMemberCodeLabel } from 'src/utils/member-access';
+import { isAdminGlobal, ejerceConsejoEjecutivo } from 'src/utils/org-level-access';
 import { subirFotoEntidad, obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import { nombreDeMiembro, buscarMiembroConCorreo } from 'src/utils/member-correo-duplicado';
@@ -35,6 +37,7 @@ import {
 import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { guardarCorreoDeAcceso } from 'src/services/primer-acceso-service';
 import { getMembers, authHeaders, updateMemberApi } from 'src/services/member-service';
@@ -320,8 +323,16 @@ export function UserAccountGeneral() {
   // El estatus elegido que espera motivo y confirmación. Cambiarlo a mano es una
   // excepción a la regla de asistencia, así que no sale de mover el desplegable.
   const [estatusPendiente, setEstatusPendiente] = useState('');
+  // Todos sus datos (nombres, género, nacimiento, estatus, destacamento,
+  // división): la cuenta administrativa, el Administrador Global y el Consejo
+  // Ejecutivo, por cualquiera de sus cargos. Antes solo la cuenta antigua con
+  // `role: 'admin'`; los demás veían esos campos bloqueados en su propio perfil.
   const canEditAll =
-    user?.role === 'admin' || user?.role === 'administrator' || user?.memberRole === 'admin';
+    user?.role === 'admin' ||
+    user?.role === 'administrator' ||
+    user?.memberRole === 'admin' ||
+    isAdminGlobal(user) ||
+    ejerceConsejoEjecutivo(user);
 
   const memberCode = useMemo(
     () => getMemberCodeLabel(user) || String(member?.codigoMiembro ?? '').toUpperCase(),
@@ -746,7 +757,7 @@ export function UserAccountGeneral() {
 
       if (isFirebaseConfigured && FIRESTORE) {
         await setDoc(
-          doc(FIRESTORE, 'usuarios_roles', String(memberId)),
+          doc(FIRESTORE, COLECCIONES.usuariosRoles, String(memberId)),
           {
             idMiembros: Number(memberId),
             codigoMiembro: payload.codigoMiembro,

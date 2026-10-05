@@ -40,7 +40,7 @@ export function PrincipalAnalyticsView() {
             icon={
               <img
                 alt="Weekly sales"
-                src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-bag.svg`}
+                src={`${CONFIG.assetsDir}/plantilla/icons/glass/ic-glass-bag.svg`}
               />
             }
             chart={{
@@ -59,7 +59,7 @@ export function PrincipalAnalyticsView() {
             icon={
               <img
                 alt="New users"
-                src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-users.svg`}
+                src={`${CONFIG.assetsDir}/plantilla/icons/glass/ic-glass-users.svg`}
               />
             }
             chart={{
@@ -78,7 +78,7 @@ export function PrincipalAnalyticsView() {
             icon={
               <img
                 alt="Purchase orders"
-                src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-buy.svg`}
+                src={`${CONFIG.assetsDir}/plantilla/icons/glass/ic-glass-buy.svg`}
               />
             }
             chart={{
@@ -97,7 +97,7 @@ export function PrincipalAnalyticsView() {
             icon={
               <img
                 alt="Messages"
-                src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-message.svg`}
+                src={`${CONFIG.assetsDir}/plantilla/icons/glass/ic-glass-message.svg`}
               />
             }
             chart={{

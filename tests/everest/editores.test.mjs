@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// LOS EDITORES DE EXPLORA DESIGNER (fase 4).
+// LOS EDITORES DE EXPEDITION DESIGNER (fase 4).
 //
 // Lo que se podia romper al empezar a editar, y se comprueba aqui:
 //
@@ -141,7 +141,12 @@ test('la proxima actividad usa sus fechas, fondo y boton solo si los trae', () =
   assert.match(tarjeta, /const actividad = actividadParaPintar\(recibida\);/);
   assert.match(tarjeta, /const foto = actividad\.fondo \? actividad\.fondo\.url : tarjeta\.foto;/);
   // Sin boton propio, el de siempre: mismo texto y mismo destino.
-  assert.match(tarjeta, /href=\{actividad\.boton\?\.destino \?\? paths\.dashboard\.calendar\}/);
+  // El mismo destino, como enlace o (sin combos en la tienda) desde "Inscribirme".
+  assert.match(tarjeta, /href: actividad\.boton\?\.destino \?\? paths\.dashboard\.calendar/);
+  assert.match(
+    tarjeta,
+    /destinoSinCombos=\{actividad\.boton\?\.destino \?\? paths\.dashboard\.calendar\}/
+  );
   assert.match(tarjeta, /\{actividad\.boton\?\.texto \?\? '¡Inscrbirme ahora!'\}/);
 });
 

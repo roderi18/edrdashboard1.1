@@ -1,0 +1,9 @@
+{
+  "apphosting": [
+    {
+      "backendId": "errd-registro",
+      "rootDir": "/",
+      "ignore": ["node_modules", ".git", ".next", ".firebase", "firebase-debug.log", ".env.local", ".env*.local"]
+    }
+  ]
+}

@@ -47,7 +47,7 @@ export function MailList({
       <EmptyContent
         title={`No hay correos en ${LABEL_NAMES[selectedLabelId] || selectedLabelId}`}
         description="Esta carpeta está vacía"
-        imgUrl={`${CONFIG.assetsDir}/assets/icons/empty/ic-folder-empty.svg`}
+        imgUrl={`${CONFIG.assetsDir}/plantilla/icons/empty/ic-folder-empty.svg`}
       />
     </Stack>
   );

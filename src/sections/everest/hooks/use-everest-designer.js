@@ -3,6 +3,7 @@ import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { campanasDe } from 'src/utils/everest/campanas.mjs';
+import { puedeEnDesigner } from 'src/utils/org-level-access';
 import { PANTALLAS_EXPLORA } from 'src/utils/everest/colecciones.mjs';
 import { publicacionDeVersion } from 'src/utils/everest/versiones.mjs';
 import { bloquePorId, BLOQUES_DEL_DESIGNER } from 'src/utils/everest/bloques.mjs';
@@ -117,6 +118,16 @@ export function useEverestDesigner() {
 
   const recargarVersiones = useCallback(
     async (idBloque) => {
+      // El hook corre antes de que la pantalla compruebe el cargo: mientras la
+      // sesion llega, o con la prueba de roles puesta, `user` todavia no es el
+      // Administrador Global y el servicio lanzaba "Solo el Administrador Global
+      // publica..." como error de consola. Sin el cargo no hay versiones que pedir;
+      // cuando llegue, `user` cambia y se vuelven a pedir.
+      if (!puedeEnDesigner(user, 'portada', 'editar')) {
+        setVersiones({ idBloque, lista: [], cargando: false, error: null });
+        return;
+      }
+
       setVersiones((actual) => ({
         idBloque,
         // Mientras carga se sigue viendo la lista de ese mismo bloque, no la de otro.

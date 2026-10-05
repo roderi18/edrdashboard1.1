@@ -13,7 +13,7 @@ import {
 } from '../../src/utils/producto-codigo.mjs';
 
 const RAIZ = 'C:/Users/rdpr1/OneDrive/Escritorio/next-js';
-const CARPETA = path.join(RAIZ, 'public/parches/Cintas y medallas/numerosTela');
+const CARPETA = path.join(RAIZ, 'docs/tienda/imagenes/barras-y-numeros/numeros-tela');
 const APLICAR = process.argv.includes('--aplicar');
 const CATEGORIA = 'barras-numeros';
 const PREFIJO = prefijoDeCategoriaProducto(CATEGORIA, 'Barras y Numeros');
@@ -66,6 +66,8 @@ const subirImagen = async (rutaLocal, productoId) => {
     destination: destino,
     metadata: {
       contentType: 'image/webp',
+      // Sin esto Storage la sirve con max-age=0 y la tienda la vuelve a pedir en cada visita.
+      cacheControl: 'public, max-age=31536000, immutable',
       metadata: { tipoEntidad: 'producto', productoId, indice: '0', firebaseStorageDownloadTokens: token },
     },
   });

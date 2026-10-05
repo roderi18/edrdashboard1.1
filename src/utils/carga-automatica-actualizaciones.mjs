@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // CARGA AUTOMÁTICA DE LAS ACTUALIZACIONES DE DESTACAMENTOS.
 //
@@ -16,7 +18,7 @@
 // Aquí solo está la decisión, sin Firestore, para probarla con relojes de mentira.
 // ----------------------------------------------------------------------
 
-export const COLECCION_CONFIG_ACTUALIZACIONES = 'configuracion_actualizaciones_destacamentos';
+export const COLECCION_CONFIG_ACTUALIZACIONES = COLECCIONES.configuracionActualizacionesDestacamentos;
 export const DOC_CARGA_AUTOMATICA = 'carga_automatica';
 
 // Lo que dura la reserva de un envío: si quien lo tomó cierra la pestaña a

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
@@ -6,6 +7,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Rating from '@mui/material/Rating';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
 import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
@@ -17,6 +19,49 @@ import { Image } from 'src/components/image';
 import { Iconify } from 'src/components/iconify';
 
 import { etiquetaDeCategoria } from './product-table-row';
+
+// ----------------------------------------------------------------------
+
+// LA FOTO CON ESQUELETO MIENTRAS CARGA. Al pasar a 48 o a "Todos" salían de
+// golpe decenas de tarjetas y cada foto pendiente enseñaba el dibujo de relleno
+// de la plantilla; ahora el mismo esqueleto que la rejilla, hasta que llega.
+//
+// QUE CARGUE PRIMERO LO QUE SE ESTÁ VIENDO. Con "Todos" la rejilla tiene ~140
+// fotos: cada una se pide solo cuando está en pantalla o a punto de entrar
+// (`MARGEN_DE_PRECARGA`, para que al bajar ya estén), y las de la primera fila
+// van con prioridad alta. Antes se pedían al entrar justo en la pantalla y,
+// además, sin caché (Storage las servía con `max-age=0`).
+const MARGEN_DE_PRECARGA = '600px 0px';
+
+function FotoDelProducto({ alt, src, prioritaria = false }) {
+  const [cargada, setCargada] = useState(false);
+
+  return (
+    <Box sx={{ position: 'relative' }}>
+      <Image
+        alt={alt}
+        src={src}
+        ratio="1/1"
+        disablePlaceholder
+        viewportOptions={{ margin: MARGEN_DE_PRECARGA }}
+        slotProps={{
+          img: {
+            decoding: 'async',
+            ...(prioritaria ? { fetchPriority: 'high' } : { loading: 'lazy' }),
+          },
+        }}
+        onLoad={() => setCargada(true)}
+        sx={{ borderRadius: 0 }}
+      />
+      {!cargada && (
+        <Skeleton
+          variant="rectangular"
+          sx={{ position: 'absolute', inset: 0, width: 1, height: 1, borderRadius: 0 }}
+        />
+      )}
+    </Box>
+  );
+}
 
 // ----------------------------------------------------------------------
 // LA TARJETA DE LA TIENDA.
@@ -133,6 +178,7 @@ export function ProductGridCard({
   product,
   detailsHref,
   isMemberUser = false,
+  prioritaria = false,
   canManageStore = false,
   onAddToCart,
 }) {
@@ -307,7 +353,7 @@ export function ProductGridCard({
                 En su lugar va un marcador del mismo cuadrado, para que la rejilla
                 no se descuadre cuando a un producto le falta la imagen. */}
           {foto ? (
-            <Image alt={product.name} src={foto} ratio="1/1" sx={{ borderRadius: 0 }} />
+            <FotoDelProducto alt={product.name} src={foto} prioritaria={prioritaria} />
           ) : (
             <Box
               sx={{

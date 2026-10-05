@@ -6,7 +6,6 @@ import { useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
@@ -27,7 +26,6 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -44,6 +42,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { AdminCardList } from '../admin-card-list';
 import { AdminTableRow } from '../admin-table-row';
 import { AdminTableToolbar } from '../admin-table-toolbar';
+import { AdminQuitarRolDialog } from '../admin-quitar-rol-dialog';
 import { AdminAsignarCargoDialog } from '../admin-asignar-cargo-dialog';
 import {
   useDatosDeAdministradores,
@@ -183,7 +182,8 @@ export function AdminCreateView() {
     }
   }, [isRemovingAdmin]);
 
-  const handleConfirmRemoveAdmin = useCallback(async () => {
+  // `rolId`: el rol que se quita; vacio = todos (pasa a usuario comun).
+  const handleConfirmRemoveAdmin = useCallback(async (rolId = '') => {
     if (!removeAdminRow) {
       return;
     }
@@ -191,7 +191,25 @@ export function AdminCreateView() {
     setIsRemovingAdmin(true);
 
     try {
-      await quitarAdministradorAMiembro(removeAdminRow, { usuario: user });
+      const resultado = await quitarAdministradorAMiembro(removeAdminRow, { usuario: user, rolId });
+
+      // Le quedan otros roles: sigue siendo administrador, con los que le quedan.
+      if (resultado?.rolesAdministracion?.length) {
+        setMembers((currentMembers) =>
+          currentMembers.map((member) =>
+            String(member.id) === String(removeAdminRow.id)
+              ? {
+                  ...member,
+                  rolesAdministracion: resultado.rolesAdministracion,
+                  rolId: resultado.rolesAdministracion[0],
+                }
+              : member
+          )
+        );
+        toast.success(`Se le quitó ese rol a ${removeAdminRow.name || 'el usuario'}.`);
+        setRemoveAdminRow(null);
+        return;
+      }
 
       setMembers((currentMembers) =>
         currentMembers.map((member) =>
@@ -350,22 +368,12 @@ export function AdminCreateView() {
         onConfirm={handleConfirmAssignAdmins}
       />
 
-      <ConfirmDialog
+      <AdminQuitarRolDialog
         open={Boolean(removeAdminRow)}
+        persona={removeAdminRow}
+        guardando={isRemovingAdmin}
         onClose={handleCloseRemoveAdmin}
-        title="Quitar administrador"
-        content={`¿Realmente quieres quitar administrador a ${removeAdminRow?.name || 'este usuario'
-          }? Al confirmar pasará a usuario común.`}
-        action={
-          <Button
-            color="error"
-            variant="contained"
-            loading={isRemovingAdmin}
-            onClick={handleConfirmRemoveAdmin}
-          >
-            Quitar administrador
-          </Button>
-        }
+        onConfirm={handleConfirmRemoveAdmin}
       />
     </DashboardContent>
   );

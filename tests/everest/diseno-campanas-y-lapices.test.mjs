@@ -182,7 +182,7 @@ test('un diseño publicado roto tumba el bloque a lo de fabrica, como un conteni
 test('cada tarjeta lee su diseño y la portada se lo pasa', () => {
   const vista = leer('src/sections/principal/view/principal-home-view.jsx');
 
-  // Los retirados (accesos rápidos) ya no se pintan en la portada.
+  // Los retirados (accesos rápidos, "Mi progreso") ya no se pintan en la portada.
   bloquesPublicablesDe('principal')
     .filter(({ retirado }) => !retirado)
     .forEach(({ id }) => {
@@ -336,9 +336,10 @@ test('cada tarjeta de la portada lleva el lapiz al Designer para el Administrado
   bloquesPublicablesDe('principal').forEach(({ id }) => {
     assert.match(componentes, new RegExp(`data-everest-bloque="${id}"`), id);
   });
-  // Ocho bloques en la vista, cada uno con su permiso de editar: eran nueve hasta
-  // que se quitaron los accesos rápidos de la portada (bloque `retirado`).
-  assert.equal(vista.match(/puedeEditar=\{esAdministradorGlobal\}/g)?.length, 8);
+  // Siete bloques en la vista, cada uno con su permiso de editar: eran nueve hasta
+  // que se quitaron de la portada los accesos rápidos y "Mi progreso" (bloques
+  // `retirado`).
+  assert.equal(vista.match(/puedeEditar=\{esAdministradorGlobal\}/g)?.length, 7);
   assert.match(componentes, /<LapizDelDesigner/);
 });
 

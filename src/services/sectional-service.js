@@ -1,8 +1,8 @@
 import { doc, getDoc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore';
 
 import { getOwnRegionIdsForUser } from 'src/utils/member-access';
-import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import { getStorageCollection, setStorageCollection } from 'src/utils/storage-service';
+import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 import {
     registrarFotoEntidadSubida,
     obtenerFotosPrincipalesPorEntidad,
@@ -10,6 +10,7 @@ import {
 import {
     canEditSectional,
     canDeleteOrgLevel,
+    puedeCambiarFotoDeEntidad,
     canAssignSectionalToRegion,
     canCreateSectionalInRegion,
     soloSugiereCambiosDeSeccion,
@@ -17,6 +18,7 @@ import {
     puedeAprobarCambiosDeOrganizacion,
 } from 'src/utils/org-level-access';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { getChurches } from './church-service';
@@ -406,7 +408,7 @@ export const deleteSectional = async (id, { usuario, antes = null } = {}) => {
 // poder cruzarlo sin depender del nombre del documento.
 // ----------------------------------------------------------------------
 
-export const COLECCION_NOMBRES_SECCION = 'seccionesNombres';
+export const COLECCION_NOMBRES_SECCION = COLECCIONES.seccionesNombres;
 
 const normalizarIdSeccion = (idSeccion) => String(idSeccion ?? '').trim();
 
@@ -547,7 +549,8 @@ export const proponerFotoSeccion = async ({ seccion = {}, foto = {}, urlAntes = 
             },
         ],
         usuario,
-        aplicarDirecto: puedeAprobarCambiosDeOrganizacion(usuario),
+        // La Oficina Nacional por cualquiera de sus cargos la aplica al momento.
+        aplicarDirecto: puedeCambiarFotoDeEntidad(usuario),
         payload,
         aplicar: () => aplicarFotoSeccion(payload),
     });

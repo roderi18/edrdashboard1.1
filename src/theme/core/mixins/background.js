@@ -14,7 +14,7 @@
  * ...theme.mixins.bgGradient({
  *   images: [
  *     `linear-gradient(0deg, ${varAlpha(theme.vars.palette.primary.darkerChannel, 0.8)}, ${varAlpha(theme.vars.palette.primary.darkerChannel, 0.8)})`,
- *     `url(/assets/overlay.png)`,
+ *     `url(/plantilla/overlay.png)`,
  *   ],
  *   sizes: ['cover', '80px 80px'],
  *   positions: ['center', 'top right'],
@@ -53,7 +53,7 @@ export function bgGradient({ sizes, repeats, images, positions }) {
  * // With image overlay
  * ...theme.mixins.bgBlur({
  *   color: varAlpha(theme.vars.palette.background.paperChannel, 0.8),
- *   imgUrl: '/assets/overlay.png',
+ *   imgUrl: '/plantilla/overlay.png',
  *   blur: 8,
  * })
  *

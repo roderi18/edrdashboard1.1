@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getAdminDb } from 'src/server/firebase-admin';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import {
   buscarMiembroPorId,
   nombreCortoDeMiembro,
@@ -20,9 +21,9 @@ import {
 // quien acudir— y nada mas.
 // ----------------------------------------------------------------------
 
-const COLECCION_ORGANIGRAMA = 'organigrama_directiva_destacamentos';
-const COLECCION_NOTIFICACIONES = 'notificaciones';
-const COLECCION_PREFERENCIAS = 'preferencias_notificaciones';
+const COLECCION_ORGANIGRAMA = COLECCIONES.organigramaDirectivaDestacamentos;
+const COLECCION_NOTIFICACIONES = COLECCIONES.notificaciones;
+const COLECCION_PREFERENCIAS = COLECCIONES.preferenciasNotificaciones;
 const TIPO = 'recuperacion_clave_miembro';
 const MODULO = 'miembros';
 
@@ -77,7 +78,7 @@ const destinatariosDe = async (idMiembros) => {
     }),
     (async () => {
       const directo = await db
-        .collection('usuarios_roles')
+        .collection(COLECCIONES.usuariosRoles)
         .doc(String(idMiembros))
         .get()
         .catch(() => null);

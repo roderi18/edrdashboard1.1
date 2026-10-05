@@ -524,7 +524,7 @@ export function AwardsManagerTableRow({
                     component="img"
                     loading="lazy"
                     decoding="async"
-                    src={customFolder?.src || '/assets/icons/files/ic-folder.svg'}
+                    src={customFolder?.src || '/plantilla/icons/files/ic-folder.svg'}
                     sx={{
                       width: customFolder?.size ?? 32,
                       height: customFolder?.size ?? 32,

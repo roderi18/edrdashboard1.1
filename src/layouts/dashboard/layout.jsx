@@ -12,12 +12,17 @@ import { iconButtonClasses } from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { usePathname, useSearchParams } from 'src/routes/hooks';
 
+import { useAccesosDesigner } from 'src/hooks/use-accesos-designer';
+
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 import { setModuloActivo, moduloDesdeRuta } from 'src/utils/modulo-activo';
-import { isAdminGlobal, puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
 import { canManageStoreProducts, filterDashboardNavDataByUser } from 'src/utils/member-access';
+import {
+  isAdminGlobal,
+  accesoDesignerDe,
+  puedeEditarDirectivaHistorica,
+} from 'src/utils/org-level-access';
 
-import { _notifications } from 'src/_mock';
 import { useGetLabels } from 'src/actions/mail';
 import { useCargarSonidosDeAviso } from 'src/actions/sonidos';
 import { iniciarAvisosDeLecturas } from 'src/lib/avisos-de-lecturas';
@@ -66,12 +71,19 @@ import { RoleCombinationPopover } from '../components/role-combination-popover';
 import { SesionComoUsuarioBanner } from '../components/sesion-como-usuario-banner';
 import { ProbarComoUsuarioDialog } from '../components/probar-como-usuario-dialog';
 import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
+import { AvisoPermisosIncompletos } from '../components/aviso-permisos-incompletos';
 
 // La lista de chats y los contactos, precargados en segundo plano (ver el archivo).
 const PrecargaDelChat = dynamic(() => import('src/sections/chat/precarga-del-chat'), { ssr: false });
+// El latido de presencia, en cualquier pantalla del panel (ver el archivo).
+const PresenciaEnLaAplicacion = dynamic(
+  () => import('src/sections/chat/presencia-en-la-aplicacion'),
+  { ssr: false }
+);
 import {
   navDataDesarrollo,
   conEverestDesigner,
+  entradaEverestDesignerEn,
   conTiendaDeAdministracion,
   navData as dashboardNavData,
 } from '../nav-config-dashboard';
@@ -252,7 +264,11 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     (conversationId) => conversationId !== activeChatId
   ).length;
   const mailsSinLeer = Number(mailLabels.find((label) => label.id === 'inbox')?.unreadCount || 0);
-  const [notificacionesDrawer, setNotificacionesDrawer] = useState(_notifications);
+  // SOLO LO REAL. La campana arrancaba con las notificaciones de ejemplo de la
+  // plantilla (`_notifications`: "Deja Brady te envió una solicitud de
+  // amistad", pagos, archivos…) y las sumaba a las de Firestore: todo el mundo
+  // veía avisos de personas que no existen.
+  const [notificacionesDrawer, setNotificacionesDrawer] = useState([]);
   // LO QUE SE ACABA DE MARCAR NO VUELVE ATRAS.
   //
   // Las notificaciones se recargan cada 30 segundos. Si la recarga llegaba antes
@@ -368,7 +384,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     const cargarNotificaciones = async () => {
       if (!user?.uid) {
         if (isMounted) {
-          setNotificacionesDrawer(_notifications);
+          setNotificacionesDrawer([]);
         }
         return;
       }
@@ -384,14 +400,13 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           conMarcasPendientes([
             ...notificacionesReportesLocales,
             ...notificacionesFirestore,
-            ..._notifications,
           ])
         );
       } catch (error) {
         console.error('[notifications test] no se pudo cargar la prueba', error);
 
         if (isMounted) {
-          setNotificacionesDrawer([...notificacionesReportesLocales, ..._notifications]);
+          setNotificacionesDrawer(notificacionesReportesLocales);
         }
       }
     };
@@ -432,6 +447,9 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   // perdia las pestañas para moverse. Los permisos de la pareja los siguen
   // aplicando los guardas de cada pantalla.
   const usuarioDelMenu = (pruebaDeRolesActiva && user?.sesionSinPrueba) || user;
+  // Las reglas de "Accesos" de EXPEDITION Designer: la entrada del menu sale o no
+  // segun ellas, y se pone al dia en vivo si el Administrador Global las cambia.
+  const reglasDelDesigner = useAccesosDesigner();
   const menuDeAdministradorGlobal =
     isAdminGlobal(usuarioDelMenu) ||
     String(usuarioDelMenu?.role ?? usuarioDelMenu?.rol ?? '')
@@ -474,11 +492,25 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
         ? conTiendaDeAdministracion(navDataFiltrada)
         : navDataFiltrada;
 
-    // EXPLORA DESIGNER, debajo de "Administradores", solo para el Administrador
+    // EXPEDITION DESIGNER, debajo de "Administradores", solo para el Administrador
     // Global de verdad —no la cuenta administrativa antigua—: es la misma
     // comprobacion que hace la pantalla, asi que nadie ve un enlace que le cierra.
-    return isAdminGlobal(usuarioDelMenu) ? conEverestDesigner(conTienda) : conTienda;
-  }, [chatsSinLeer, menuDeAdministradorGlobal, mailsSinLeer, slotProps?.nav?.data, usuarioDelMenu]);
+    // Los demas lo ven si "Accesos" les da alguna pestaña, y entran por la primera.
+    if (isAdminGlobal(usuarioDelMenu)) return conEverestDesigner(conTienda);
+
+    const [primera] = accesoDesignerDe(usuarioDelMenu).pestanas;
+
+    return primera ? conEverestDesigner(conTienda, entradaEverestDesignerEn(primera)) : conTienda;
+    // `reglasDelDesigner` no se lee aqui: cambia lo que responde `accesoDesignerDe`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    chatsSinLeer,
+    menuDeAdministradorGlobal,
+    mailsSinLeer,
+    slotProps?.nav?.data,
+    usuarioDelMenu,
+    reglasDelDesigner,
+  ]);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';
@@ -502,7 +534,12 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     };
 
     const headerSlots = {
-      topArea: <SesionComoUsuarioBanner />,
+      topArea: (
+        <>
+          <SesionComoUsuarioBanner />
+          <AvisoPermisosIncompletos />
+        </>
+      ),
       bottomArea: isNavHorizontal ? (
         <NavHorizontal
           data={navData}
@@ -711,6 +748,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       {children}
 
       {chatSummaryEnabled && !isChatRoute && <PrecargaDelChat idMiembros={chatMemberId} />}
+      {chatSummaryEnabled && <PresenciaEnLaAplicacion idMiembros={chatMemberId} />}
     </MainSection>
   );
 

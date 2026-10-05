@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -19,7 +20,7 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 // —es la copia pequeña de algo que ya se guardo— y llenaria Historial de ruido.
 // ----------------------------------------------------------------------
 
-const COLECCION = 'indice_buscador';
+const COLECCION = COLECCIONES.indiceBuscador;
 const DOCUMENTO_PRODUCTOS = 'productos';
 
 const referencia = () => doc(FIRESTORE, COLECCION, DOCUMENTO_PRODUCTOS);

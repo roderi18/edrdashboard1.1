@@ -1,5 +1,6 @@
 import { iconoDePremio } from 'src/utils/buscador-catalogo.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 
 export const runtime = 'nodejs';
@@ -31,9 +32,9 @@ const textoLimpio = (valor) => String(valor ?? '').trim();
 const leerCatalogo = async () => {
   const db = getAdminDb();
   const [indice, productos, premios] = await Promise.all([
-    db.collection('indice_buscador').doc('productos').get(),
-    db.collection('productos').get(),
-    db.collection('itemsAscenso').get(),
+    db.collection(COLECCIONES.indiceBuscador).doc('productos').get(),
+    db.collection(COLECCIONES.productos).get(),
+    db.collection(COLECCIONES.itemsAscenso).get(),
   ]);
 
   const fichas = indice.exists ? (indice.data()?.articulos ?? {}) : {};

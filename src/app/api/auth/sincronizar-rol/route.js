@@ -1,5 +1,9 @@
+import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
+
+import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { ROLES_QUE_NO_SALEN_DE_UNA_CASILLA } from 'src/catalogs/directiva-roles';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 import {
   leerAsignacionesDe,
   resolverAccesoPorCargo,
@@ -78,9 +82,27 @@ export async function POST(req) {
   let caller;
 
   try {
-    caller = await auth.verifyIdToken(token);
+    caller = await verificarTokenDeSesion(token);
   } catch {
     return jsonError('Token inválido o expirado.', 401);
+  }
+
+  // INICIO DE SESION. Entrar ocurre en el navegador, directo contra Firebase, y
+  // no dejaba nada en ningun registro. La sesion llama aqui al arrancar; si la
+  // contraseña (o el codigo) se escribio hace menos de cinco minutos, es un
+  // inicio de sesion de verdad y no una recarga. Una vez por sesion.
+  const segundosDesdeQueEntro = Date.now() / 1000 - Number(caller.auth_time || 0);
+
+  if (caller.auth_time && segundosDesdeQueEntro < 5 * 60) {
+    await registrarEventoDeSeguridad(
+      req,
+      {
+        accion: ACCIONES_DE_SEGURIDAD.sesionIniciada,
+        actor: { uid: caller.uid, correo: caller.email, rol: caller.rol },
+        detalle: { proveedor: caller.firebase?.sign_in_provider ?? null },
+      },
+      { unaVezCada: { clave: `sesion:${caller.uid}:${caller.auth_time}`, ms: 6 * 60 * 60 * 1000 } }
+    );
   }
 
   // Una cuenta con Administrador Global elige aquí un rol manual para probar la
@@ -125,6 +147,15 @@ export async function POST(req) {
       { merge: true }
     );
 
+    // Un Administrador Global que nace solo, sin que nadie lo asigne: tiene que
+    // quedar constancia, aunque la cuenta este en la lista autorizada.
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.administradorGlobalCreado,
+      actor: { uid: caller.uid, correo: caller.email },
+      objetivo: { uid: caller.uid, correo: caller.email },
+      detalle: { origen: 'cuenta_autorizada_sin_documento' },
+    });
+
     return Response.json({ ok: true, rolId: 'administrador_global', creado: true });
   }
 
@@ -137,7 +168,7 @@ export async function POST(req) {
   // salia de aqui sin escribir NADA, y entonces sus cargos —los permisos y el
   // alcance de su casilla en el destacamento— nunca llegaban al documento que
   // miran las reglas. Ahora se escribe igual, con su rol intacto.
-  const rolFijo = ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolActual) ? rolActual : '';
+  let rolFijo = ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolActual) ? rolActual : '';
 
   const idMiembros = await resolverIdMiembros(db, caller);
 
@@ -145,8 +176,53 @@ export async function POST(req) {
     return Response.json({ ok: true, omitido: 'sin id de miembro', rolId: rolActual });
   }
 
-  const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros), { rolFijo });
+  // EL ROL A MANO PUEDE ESTAR EN EL PERFIL POR NUMERO DE MIEMBRO. Si se le dio
+  // (p. ej. Oficina Nacional) cuando aun no tenia cuenta, solo existia
+  // `usuarios_roles/<idMiembros>`; al crearse la cuenta, el documento por uid
+  // nacio sin el y esta sincronizacion lo dejaba en su cargo de casilla
+  // (EDR-10049 entraba como Coordinador y no como Oficina Nacional). Se rescata
+  // de ahi y pasa a mandar, como cualquier rol a mano.
+  if (!rolFijo && String(idMiembros) !== String(caller.uid)) {
+    const porNumero = await db
+      .collection(COLECCION_USUARIOS_ROLES)
+      .doc(String(idMiembros))
+      .get()
+      .catch(() => null);
+    const rolDelNumero = normalizarRol(porNumero?.data()?.rolId);
+
+    if (ROLES_QUE_NO_SALEN_DE_UNA_CASILLA.includes(rolDelNumero)) rolFijo = rolDelNumero;
+  }
+
+  // Todos sus roles de administracion, de sus dos documentos (por uid y por
+  // numero de miembro): sin esto solo sobrevivia uno.
+  const porNumeroDeMiembro =
+    String(idMiembros) !== String(caller.uid)
+      ? await db
+          .collection(COLECCION_USUARIOS_ROLES)
+          .doc(String(idMiembros))
+          .get()
+          .catch(() => null)
+      : null;
+  const rolesAdministracion = [
+    ...rolesDeAdministracionDe(actual.exists ? actual.data() : {}),
+    ...rolesDeAdministracionDe(porNumeroDeMiembro?.data?.() ?? {}),
+  ];
+
+  const acceso = resolverAccesoPorCargo(await leerAsignacionesDe(db, idMiembros), {
+    rolFijo,
+    rolesAdministracion,
+  });
   await escribirAccesoPorCargo({ db, auth, uid: caller.uid, idMiembros, acceso });
+
+  // Su cargo cambio por lo que dice la directiva: de cual a cual.
+  if (rolActual !== normalizarRol(acceso.rolId)) {
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.rolSincronizado,
+      actor: { uid: caller.uid, idMiembros },
+      objetivo: { uid: caller.uid, idMiembros },
+      detalle: { de: rolActual || null, a: acceso.rolId, cargos: acceso.cargos.length },
+    });
+  }
 
   return Response.json({ ok: true, rolId: acceso.rolId, cargos: acceso.cargos.length });
 }

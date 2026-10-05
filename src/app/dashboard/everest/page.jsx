@@ -1,11 +1,17 @@
-import { CONFIG } from 'src/global-config';
+import { redirect } from 'next/navigation';
 
-import { EverestDesignerView } from 'src/sections/everest/view';
+import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
-export const metadata = { title: `EXPLORA Designer | Dashboard - ${CONFIG.appName}` };
+// EXPEDITION DESIGNER SE LLAMA /dashboard/explora-designer. La dirección vieja solo
+// redirige, con su `?seccion=`: el Historial y los enlaces guardados apuntan aquí.
+export default async function Page({ searchParams }) {
+  const parametros = new URLSearchParams();
+  Object.entries((await searchParams) || {}).forEach(([clave, valor]) => {
+    [].concat(valor).forEach((v) => parametros.append(clave, v));
+  });
+  const consulta = parametros.toString();
 
-export default function Page() {
-  return <EverestDesignerView />;
+  redirect(consulta ? `${paths.dashboard.everest}?${consulta}` : paths.dashboard.everest);
 }

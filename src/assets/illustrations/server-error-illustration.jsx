@@ -11,7 +11,7 @@ import { BackgroundShape } from './background-shape';
 function ServerErrorIllustration({ hideBackground, sx, ...other }) {
   const renderCharacterImage = () => (
     <image
-      href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-study.webp`}
+      href={`${CONFIG.assetsDir}/plantilla/illustrations/characters/character-study.webp`}
       height="240"
       x="320"
       y="60"

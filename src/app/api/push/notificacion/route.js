@@ -1,10 +1,11 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { vaComoPush } from 'src/utils/avisos-solo-campana.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
-import { enviarPushAUsuarios } from 'src/server/web-push';
 import { identificarConSesionRest } from 'src/server/sesion-rest.mjs';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
+import { webPushConfigurado, enviarPushAUsuarios } from 'src/server/web-push';
 
 export const runtime = 'nodejs';
 
@@ -13,7 +14,12 @@ const errorJson = (error, status) => Response.json({ error }, { status });
 export async function POST(request) {
   const { error, quien } = await identificarConSesionRest(request);
   if (error) return error;
-  if (!isAdminConfigured()) return errorJson('El envío push no está configurado.', 503);
+  // SIN CLAVES NO SE TOCA EL AVISO. Un servidor sin las claves VAPID (el de
+  // desarrollo, en localhost) lo marcaba como intentado y fallaba: el aviso ya no
+  // salía nunca, y los de la carga automática hecha desde local no llegaban al
+  // celular. Ahora se responde sin marcarlo.
+  if (!isAdminConfigured() || !webPushConfigurado())
+    return errorJson('El envío push no está configurado en este servidor.', 503);
 
   const { idNotificacion = '' } = await request.json().catch(() => ({}));
   const id = String(idNotificacion || '').trim();
@@ -25,6 +31,11 @@ export async function POST(request) {
   if (!snapshot.exists) return errorJson('No se encontró la notificación.', 404);
 
   const notificacion = snapshot.data() || {};
+  // Los avisos de inventario no salen como push aunque alguien lo pida: solo
+  // campana (ver `avisos-solo-campana.mjs`).
+  if (!vaComoPush(notificacion.tipoNotificacion)) {
+    return Response.json({ enviado: false, soloCampana: true });
+  }
   const idsDestinatarios = Array.isArray(notificacion.idsDestinatarios)
     ? notificacion.idsDestinatarios.map(String)
     : [];

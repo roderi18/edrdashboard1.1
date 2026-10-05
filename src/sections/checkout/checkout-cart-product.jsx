@@ -33,18 +33,40 @@ export function CheckoutCartProduct({ row, onDeleteCartItem, onChangeItemQuantit
               {row.name}
             </Typography>
 
-            <Box
-              sx={{
-                display: 'flex',
-                typography: 'body2',
-                alignItems: 'center',
-                color: 'text.secondary',
-              }}
-            >
-              talla: <Label sx={{ ml: 0.5 }}> {row.size} </Label>
-              <Divider orientation="vertical" sx={{ mx: 1, height: 16 }} />
-              <ColorPreview colors={row.colors} />
-            </Box>
+            {/* LAS TALLAS COMO EN EL RESUMEN DE "INSCRIBIRME": un combo o las
+                camisetas adicionales traen su reparto ("M×2 · L×1") y sale como
+                etiquetas sueltas. Antes salía "talla:" con una etiqueta vacía
+                en cualquier producto, tuviera talla o no. */}
+            {(!!row.size || !!row.colors?.length) && (
+              <Box
+                sx={{
+                  gap: 0.5,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  typography: 'body2',
+                  alignItems: 'center',
+                  color: 'text.secondary',
+                }}
+              >
+                {!!row.size && (
+                  <>
+                    {String(row.size).includes('×') ? 'tallas:' : 'talla:'}
+                    {String(row.size)
+                      .split(' · ')
+                      .filter(Boolean)
+                      .map((pieza) => (
+                        <Label key={pieza} variant="soft" color="primary">
+                          {pieza}
+                        </Label>
+                      ))}
+                  </>
+                )}
+                {!!row.size && !!row.colors?.length && (
+                  <Divider orientation="vertical" sx={{ mx: 1, height: 16 }} />
+                )}
+                {!!row.colors?.length && <ColorPreview colors={row.colors} />}
+              </Box>
+            )}
           </Stack>
         </Box>
       </TableCell>

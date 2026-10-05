@@ -8,7 +8,7 @@ import traverseModule from '@babel/traverse';
 
 const traverse = traverseModule.default;
 const ROOT = path.resolve(process.argv[2] || 'src');
-const OUTPUT = path.resolve(process.argv[3] || 'docs/copy-audit/user-facing-copy.json');
+const OUTPUT = path.resolve(process.argv[3] || 'docs/auditorias/textos/user-facing-copy.json');
 const EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
 const SKIP_PARTS = new Set(['node_modules', '.next', '_examples', '_mock', 'data', 'assets']);
 const USER_PROPS = new Set([

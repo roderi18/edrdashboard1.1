@@ -2,12 +2,13 @@ import 'server-only';
 
 import { createHash, timingSafeEqual } from 'crypto';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { origenDe, limiteSuperado } from 'src/server/limite-intentos';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
 export const runtime = 'nodejs';
 
-const COLECCION_PRIVADA = 'metadatos_privados_publicaciones';
+const COLECCION_PRIVADA = COLECCIONES.metadatosPrivadosPublicaciones;
 const CLAVE_HASH = '4fc3180dff286d518aa23737f7f37bc6ab1cbc213bc5710d82ff72d8faa5ed43';
 
 const tokenDe = (req) => {
@@ -30,8 +31,8 @@ const identificar = async (req) => {
 const rolDe = async (usuario) => {
   const db = getAdminDb();
   const [acceso, admin] = await Promise.all([
-    db.collection('usuarios_roles').doc(String(usuario.uid)).get().catch(() => null),
-    db.collection('admins').doc(String(usuario.uid)).get().catch(() => null),
+    db.collection(COLECCIONES.usuariosRoles).doc(String(usuario.uid)).get().catch(() => null),
+    db.collection(COLECCIONES.administradores).doc(String(usuario.uid)).get().catch(() => null),
   ]);
   const datos = acceso?.exists ? acceso.data() : admin?.exists ? admin.data() : {};
   const rolDirecto = normalizarRol(datos?.rolId ?? datos?.roleId ?? datos?.rol ?? datos?.role);
@@ -41,8 +42,8 @@ const rolDe = async (usuario) => {
   // Algunas cuentas administrativas antiguas usan `admin001` como id del
   // documento y guardan el uid real dentro del perfil.
   const [accesoPorUid, adminPorUid] = await Promise.all([
-    db.collection('usuarios_roles').where('uid', '==', usuario.uid).limit(1).get(),
-    db.collection('admins').where('uid', '==', usuario.uid).limit(1).get(),
+    db.collection(COLECCIONES.usuariosRoles).where('uid', '==', usuario.uid).limit(1).get(),
+    db.collection(COLECCIONES.administradores).where('uid', '==', usuario.uid).limit(1).get(),
   ]);
   const perfil = accesoPorUid.docs[0]?.data() || adminPorUid.docs[0]?.data() || {};
 
@@ -78,7 +79,7 @@ export async function POST(req) {
     const db = getAdminDb();
 
     if (accion === 'registrar_ip') {
-      const publicacion = await db.collection('publicaciones').doc(id).get();
+      const publicacion = await db.collection(COLECCIONES.publicaciones).doc(id).get();
       const datos = publicacion.exists ? publicacion.data() : null;
 
       if (!datos || datos.uidAutor !== usuario.uid || !datos.archivosMultimedia?.length) {

@@ -37,7 +37,7 @@ const TIPOS = 'image/jpeg,image/jpg,image/png,image/gif,image/webp';
 // El escudo, en la esquina de la foto ampliada. Viene ya redondo, con
 // transparencia y a 192px: sobrado para dibujarlo a 56 y que se lea nitido
 // incluso en pantallas densas.
-const SELLO = '/watermark.webp';
+const SELLO = '/marca/watermark.webp';
 
 export function FotoDeMiembro({
   url,

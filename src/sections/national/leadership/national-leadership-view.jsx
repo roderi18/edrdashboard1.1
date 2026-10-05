@@ -35,8 +35,10 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 import { ConfirmDialog, ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 
+import { MenuDeContenedor } from 'src/sections/common/menu-de-contenedor';
 import { OrganigramaCargando } from 'src/sections/common/organigrama-cargando';
 import { useCentrarOrganigrama } from 'src/sections/common/use-centrar-organigrama';
+import { QuitarCasillaDelNivel } from 'src/sections/common/quitar-casilla-del-nivel';
 import { LeadershipAssignDialog } from 'src/sections/common/leadership-assign-dialog';
 import { CasillasDirectivaBoton } from 'src/sections/common/casillas-directiva-dialog';
 import { useLeadershipAssignments } from 'src/sections/common/use-leadership-assignments';
@@ -119,6 +121,7 @@ function NationalDivisionNode({ id, name, depth, avatarUrl, role, layoutEditor }
       sx={getLeadershipEditableNodeSx(editProps, { applyTransform: isRootNode })}
     >
       <LeadershipNodeAnchors editor={layoutEditor} nodeId={id} />
+      <MenuDeContenedor nivel="nacional" idNodo={id} nombre={name} />
     </LeadershipStructureNode>
   );
 }
@@ -524,16 +527,15 @@ export function NationalLeadershipView({
   // en su casilla). Se gestionan desde la franja "Ver más" y "Asignar miembros".
   // Más lo añadido con "Agregar casilla" (`casillas-personalizadas.mjs`).
   const casillasAnadidas = useCasillasPersonalizadas();
-  // En la memoria de un cuatrienio no se añaden: salían como "Vacante" cargos
-  // que entonces no existían.
+  // LA MEMORIA DE UN CUATRIENIO COPIA EL ORGANIGRAMA DE HOY: las mismas
+  // casillas añadidas, quitadas y renombradas, y el mismo diseño (que ya era
+  // uno solo, `entidadesDeDisenoDe`). Antes la memoria se pintaba sin ellas, para
+  // no enseñar como "Vacante" cargos que entonces no existían, y las dos
+  // jerarquías no se parecían. Lo pidió la organización: solo cambian las personas.
   const diagramaNacional = useMemo(
     () =>
-      arbolConCasillas(
-        obtenerDiagramaNacionalConOficiales([]),
-        'nacional',
-        historico ? [] : casillasAnadidas.todas
-      ),
-    [historico, casillasAnadidas.todas]
+      arbolConCasillas(obtenerDiagramaNacionalConOficiales([]), 'nacional', casillasAnadidas.todas),
+    [casillasAnadidas.todas]
   );
   // Quienes van en la tarjeta "Oficiales Especiales": en una directiva anterior,
   // su grupo de Oficiales de la Nacional (que no tiene casillas; por eso el
@@ -1300,6 +1302,19 @@ export function NationalLeadershipView({
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
             mostrarMargenHorizontal
+            accionesDelNodo={
+              historico
+                ? null
+                : (nodo) => (
+                    <QuitarCasillaDelNivel
+                      nivel="nacional"
+                      nodo={nodo}
+                      arboles={[diagramaNacional]}
+                      todas={casillasAnadidas.todas}
+                      onCambio={casillasAnadidas.recargar}
+                    />
+                  )
+            }
             accionesExtra={
               historico ? null : (
                 <CasillasDirectivaBoton

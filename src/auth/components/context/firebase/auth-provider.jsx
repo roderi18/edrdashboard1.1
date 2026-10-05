@@ -1,13 +1,14 @@
 'use client';
 
 import { useSetState } from 'minimal-shared/hooks';
-import { useMemo, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useEffect, useCallback } from 'react';
 import { onIdTokenChanged, signOut as _signOut } from 'firebase/auth';
 
 import { ADMIN_ROLE_IDS } from 'src/utils/admin-role-label';
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 import { fijarDuenoDeLasLecturas } from 'src/utils/cache-de-lecturas.mjs';
+import { SIN_RESPUESTA, conReintentos } from 'src/utils/permisos-con-reintentos.mjs';
 import { ENTIDADES_DE_PRUEBA, leerSimulacionDeRoles } from 'src/utils/simulacion-roles';
 import {
   buildMemberSessionUser,
@@ -206,11 +207,24 @@ const loadAuthorizationAccess = async (authUser, profile, memberAccess) => {
   // lectura de un documento, no un calculo.
   const accesos = await Promise.all(
     candidateIds.map((candidateId) =>
-      withTimeout(obtenerAccesoUsuario(candidateId).catch(() => null), null, 3000)
+      withTimeout(obtenerAccesoUsuario(candidateId).catch(() => null), SIN_RESPUESTA, 3000)
     )
   );
 
-  return accesos.find((access) => access?.rolId || access?.alcance) ?? null;
+  const encontrado = accesos.find(
+    (access) => access !== SIN_RESPUESTA && (access?.rolId || access?.alcance)
+  );
+
+  if (encontrado) return encontrado;
+
+  // El primer candidato es el uid de la cuenta, el documento que de verdad
+  // importa. Si ese no contesto a tiempo, "no hay nada" seria mentira: se
+  // lanza para que quien llama reintente en vez de dar la sesion por completa.
+  if (accesos[0] === SIN_RESPUESTA) {
+    throw new Error('permisos-sin-respuesta');
+  }
+
+  return null;
 };
 
 const unirCargos = (...listas) => {
@@ -273,6 +287,22 @@ const pickAuthorizationProfile = (access = {}, memberAccess = {}) => {
     permisosExcluidos: access.permisosExcluidos || [],
     permisosMetadata: access.permisosMetadata || {},
     permisosAutorizacion: Array.isArray(access.permisos) ? access.permisos : [],
+    // TODOS SUS ROLES DE ADMINISTRACION y la lista plana que leen los guardas.
+    // Esta funcion copia solo los campos de esta lista, y estos dos no estaban:
+    // con Oficina Nacional y Tienda a la vez, la sesion solo veia el principal
+    // (Oficina Nacional) y la tienda no aparecia (Eliezer Garcia).
+    rolesAdministracion: [
+      ...new Set([
+        ...(Array.isArray(access.rolesAdministracion) ? access.rolesAdministracion : []),
+        ...(Array.isArray(memberProfile.rolesAdministracion) ? memberProfile.rolesAdministracion : []),
+      ]),
+    ],
+    rolesQueEjerce: [
+      ...new Set([
+        ...(Array.isArray(access.rolesQueEjerce) ? access.rolesQueEjerce : []),
+        ...(Array.isArray(memberProfile.rolesQueEjerce) ? memberProfile.rolesQueEjerce : []),
+      ]),
+    ],
   };
 };
 
@@ -411,7 +441,47 @@ const aplicarSimulacionDeRoles = (usuario) => {
  */
 
 export function AuthProvider({ children }) {
-  const { state, setState } = useSetState({ user: null, loading: true });
+  const { state, setState } = useSetState({
+    user: null,
+    loading: true,
+    // ¿Ya se resolvieron los cargos y permisos de esta sesion? `loading` se apaga
+    // con la primera pasada (la pantalla ya puede pintarse), pero lo que depende
+    // de un cargo no debe decidir hasta que esto sea true.
+    permisosListos: false,
+    // Se agotaron los reintentos y la sesion sigue sin sus permisos completos.
+    permisosIncompletos: false,
+  });
+
+  // La ultima sesion RESUELTA (sin prueba de roles encima) y de quien es. Sirve
+  // para que revalidar el token no la pise con la version a medias: antes, cada
+  // `onIdTokenChanged` publicaba primero la sesion minima y las opciones de
+  // administrador desaparecian hasta que llegara el refinamiento (o para siempre
+  // si este fallaba).
+  const sesionResueltaRef = useRef({ uid: null, base: null, listos: false });
+
+  const publicarSesion = useCallback(
+    (base, { listos, incompletos = false }) => {
+      sesionResueltaRef.current = {
+        uid: base?.uid ?? null,
+        base,
+        // Una sesion marcada incompleta NO cuenta como resuelta: si no, revalidar
+        // el token la conservaria tal cual en vez de volver a intentar completarla.
+        listos: listos && !incompletos,
+      };
+
+      setState({
+        user: aplicarSimulacionDeRoles(base),
+        loading: false,
+        permisosListos: listos,
+        permisosIncompletos: incompletos,
+      });
+
+      // Solo se guarda lo COMPLETO. Guardar la sesion a medias la dejaba pegada
+      // hasta 30 minutos: recargar la rehidrataba tal cual, sin las opciones.
+      if (listos && !incompletos) writeCachedSession(base);
+    },
+    [setState]
+  );
 
   const syncUserSession = useCallback(
     async (authUser) => {
@@ -430,7 +500,13 @@ export function AuthProvider({ children }) {
       // termina nunca.
       const red = setTimeout(() => {
         console.warn('[sesion] la resolucion tardó demasiado; se libera la pantalla');
-        setState({ loading: false });
+        // Los permisos tampoco pueden quedarse "resolviendo" para siempre: se
+        // liberan, pero marcados como incompletos si no estaban ya resueltos.
+        setState({
+          loading: false,
+          permisosListos: true,
+          permisosIncompletos: !sesionResueltaRef.current.listos,
+        });
       }, 8000);
 
       try {
@@ -466,22 +542,39 @@ export function AuthProvider({ children }) {
           const isMemberAuth = email.endsWith(`@${MEMBER_AUTH_DOMAIN}`);
 
           // Lookups independientes en paralelo para no apilar timeouts secuenciales.
-          const [memberAccessResult, adminProfileByUid] = await Promise.all([
-            withTimeout(loadMemberAccessProfile(authUser), null),
+          const [memberAccessCrudo, adminProfileByUid] = await Promise.all([
+            withTimeout(loadMemberAccessProfile(authUser), SIN_RESPUESTA),
             withTimeout(loadAdminProfile(authUser.uid), null),
           ]);
-          const memberAccess = memberAccessResult ?? {};
+          // Pasarse de tiempo NO es lo mismo que no ser miembro (`null`): lo
+          // primero se reintenta en el refinamiento; lo segundo es un hecho.
+          const miembroSinRespuesta = memberAccessCrudo === SIN_RESPUESTA;
+          const memberAccessResult = miembroSinRespuesta ? null : memberAccessCrudo;
+          // Lo que sabe la sesion del perfil de miembro. Puede completarse en un
+          // reintento, y por eso es `let`.
+          let memberAccess = memberAccessResult ?? {};
+          // Una sesion ya resuelta de ESTA misma cuenta (cache o entrada anterior):
+          // revalidar el token no debe rebajarla a la version minima.
+          const sesionPrevia =
+            sesionResueltaRef.current.listos && sesionResueltaRef.current.uid === authUser.uid
+              ? sesionResueltaRef.current.base
+              : null;
+          // Otra cuenta entro o se cerro la sesion mientras se reintentaba.
+          const sigueVigente = () => AUTH?.currentUser?.uid === authUser.uid;
+          // Pide de nuevo el perfil de miembro si la primera vez no contesto.
+          const completarPerfilDeMiembro = async () => {
+            if (!miembroSinRespuesta || memberAccess?.profile) return;
+
+            const reintento = await withTimeout(loadMemberAccessProfile(authUser), SIN_RESPUESTA, 8000);
+
+            if (reintento === SIN_RESPUESTA) throw new Error('perfil-de-miembro-sin-respuesta');
+
+            memberAccess = reintento ?? {};
+          };
           const adminProfile =
             adminProfileByUid ??
             (await withTimeout(findAdminProfileByLoginValue(authUser.email), null)) ??
             null;
-          const memberRole = memberAccess.profile?.rol ?? memberAccess.profile?.role;
-          const memberRoleId =
-            memberAccess.profile?.rolId ??
-            memberAccess.profile?.roleId ??
-            memberAccess.profile?.rolCodigo ??
-            memberAccess.profile?.roleCodigo;
-
           let sessionUser;
 
           if (adminProfile) {
@@ -500,63 +593,88 @@ export function AuthProvider({ children }) {
             //
             // El documento de administrador sigue mandando; esto solo rellena lo
             // que le falte, con lo que ya se leyo del padron.
-            const identidadDeMiembro = {
-              idMiembros:
-                adminProfileData.idMiembros ??
-                memberAccess?.profile?.idMiembros ??
-                memberAccess?.member?.id ??
-                memberAccess?.member?.idMiembros,
-              codigoMiembro:
-                adminProfileData.codigoMiembro ??
-                memberAccess?.profile?.codigoMiembro ??
-                memberAccess?.member?.memberId,
-            };
+            // Es una funcion porque el perfil de miembro puede completarse en un
+            // reintento, y la identidad se recalcula con lo que llegue.
+            const identidadDeMiembro = () =>
+              Object.fromEntries(
+                Object.entries({
+                  // Sus roles de administracion (el documento de `admins` no los lleva).
+                  rolesAdministracion: memberAccess?.profile?.rolesAdministracion,
+                  rolesQueEjerce: memberAccess?.profile?.rolesQueEjerce,
+                  // Pase de un solo uso: el documento de administrador no lo lleva, y
+                  // sin el la sesion de Oficina Nacional entraba al panel sin elegir
+                  // contraseña. Lo dice el perfil de miembro.
+                  debeCambiarClave:
+                    adminProfileData.debeCambiarClave === true ||
+                    memberAccess?.profile?.debeCambiarClave === true,
+                  idMiembros:
+                    adminProfileData.idMiembros ??
+                    memberAccess?.profile?.idMiembros ??
+                    memberAccess?.member?.id ??
+                    memberAccess?.member?.idMiembros,
+                  codigoMiembro:
+                    adminProfileData.codigoMiembro ??
+                    memberAccess?.profile?.codigoMiembro ??
+                    memberAccess?.member?.memberId,
+                }).filter(([, valor]) => Boolean(valor))
+              );
 
             // La identidad de Firebase y el perfil administrativo bastan para
             // entrar al panel. No se espera la foto ni la lectura de permisos
             // adicionales: el dashboard pinta su skeleton y se refina detrás.
             const sesionInicial = buildAdminSessionUser(authUser, {
               ...adminProfileData,
-              ...Object.fromEntries(
-                Object.entries(identidadDeMiembro).filter(([, valor]) => Boolean(valor))
-              ),
+              ...identidadDeMiembro(),
             });
 
-            setState({
-              user: aplicarSimulacionDeRoles({ ...sesionInicial, accessToken }),
-              loading: false,
-            });
-            writeCachedSession({ ...sesionInicial, accessToken });
+            // Con una sesion ya resuelta de esta cuenta se conserva (solo renueva
+            // el token): publicar la minima haria desaparecer las opciones hasta
+            // que el refinamiento volviera a llegar.
+            if (sesionPrevia) {
+              publicarSesion({ ...sesionPrevia, accessToken }, { listos: true });
+            } else {
+              publicarSesion({ ...sesionInicial, accessToken }, { listos: false });
+            }
 
             // El perfil completo llega después: permisos, cargos combinados y
             // foto no deben formar parte de la ruta crítica de entrada.
+            //
+            // Con reintentos: antes un tiempo agotado se tragaba en silencio y la
+            // sesion se quedaba sin cargos (y sin las opciones de administrador).
             window.setTimeout(() => {
-              Promise.all([
-                loadAuthorizationAccess(authUser, adminProfileData, memberAccess),
-                buildAdminSessionWithMemberPhoto(authUser, {
-                  ...adminProfileData,
-                  ...Object.fromEntries(
-                    Object.entries(identidadDeMiembro).filter(([, valor]) => Boolean(valor))
-                  ),
-                }),
-              ])
-                .then(([authorizationAccess, adminSessionWithPhoto]) => {
-                  const refinedSession = {
-                    ...adminSessionWithPhoto,
-                    ...pickAuthorizationProfile(authorizationAccess, memberAccess),
-                    ...Object.fromEntries(
-                      Object.entries(identidadDeMiembro).filter(([, valor]) => Boolean(valor))
-                    ),
-                    accessToken,
-                  };
+              conReintentos(async () => {
+                await completarPerfilDeMiembro();
 
-                  setState({
-                    user: aplicarSimulacionDeRoles(refinedSession),
-                    loading: false,
-                  });
-                  writeCachedSession(refinedSession);
+                const [authorizationAccess, adminSessionWithPhoto] = await Promise.all([
+                  loadAuthorizationAccess(authUser, adminProfileData, memberAccess),
+                  buildAdminSessionWithMemberPhoto(authUser, {
+                    ...adminProfileData,
+                    ...identidadDeMiembro(),
+                  }),
+                ]);
+
+                return {
+                  ...adminSessionWithPhoto,
+                  ...pickAuthorizationProfile(authorizationAccess, memberAccess),
+                  ...identidadDeMiembro(),
+                  accessToken,
+                };
+              }, { sigueVigente })
+                .then((sesionRefinada) => {
+                  if (sesionRefinada) publicarSesion(sesionRefinada, { listos: true });
                 })
-                .catch(() => {});
+                .catch((error) => {
+                  console.warn('[sesion] no se pudieron completar los permisos', error);
+
+                  // Si ya habia una sesion completa, esa sigue valiendo. Si no, se
+                  // avisa: callar era justo lo que dejaba la pantalla "a medias".
+                  if (!sesionPrevia && sigueVigente()) {
+                    publicarSesion(sesionResueltaRef.current.base ?? sesionInicial, {
+                      listos: true,
+                      incompletos: true,
+                    });
+                  }
+                });
             }, 900);
 
             window.setTimeout(() => sincronizarRolPorCargo(accessToken).catch(() => {}), 1800);
@@ -582,38 +700,83 @@ export function AuthProvider({ children }) {
                 ...memberAccess,
                 profile: { ...(memberAccess.profile ?? {}), ...perfilDeAutorizacion },
               };
+              // Se leen de `memberAccess` AHORA, no del primer intento: si el perfil
+              // llego en un reintento, el rol de administrador viene en el.
+              const rolActual = memberAccess.profile?.rol ?? memberAccess.profile?.role;
+              const rolIdActual =
+                memberAccess.profile?.rolId ??
+                memberAccess.profile?.roleId ??
+                memberAccess.profile?.rolCodigo ??
+                memberAccess.profile?.roleCodigo;
 
-              return isAdminRole(memberRole) ||
-                isAdminRoleId(memberRoleId) ||
+              return isAdminRole(rolActual) ||
+                isAdminRoleId(rolIdActual) ||
                 isAdminRoleId(perfilDeAutorizacion.rolId)
                 ? buildAdminSessionFromMemberAccess(authUser, accesoCombinado)
                 : buildMemberSessionUser(authUser, accesoCombinado);
             };
 
-            const publicar = (usuario) => {
-              const resuelto = { ...usuario, accessToken };
+            const publicar = (usuario, opciones) =>
+              publicarSesion({ ...usuario, accessToken }, opciones);
 
-              setState({ user: aplicarSimulacionDeRoles(resuelto), loading: false });
-              writeCachedSession(resuelto);
-            };
-
-            publicar(armarSesion(null));
+            if (sesionPrevia) {
+              publicar(sesionPrevia, { listos: true });
+            } else {
+              publicar(armarSesion(null), { listos: false });
+            }
 
             // Y por detras, sin que nadie espere.
-            window.setTimeout(() => sincronizarRolPorCargo(accessToken).catch(() => {}), 1800);
+            // Al terminar, se relee el perfil: la sincronizacion puede cambiar el rol
+            // (p. ej. rescatar una Oficina Nacional dada antes de tener cuenta) y,
+            // sin releerlo, la sesion seguia con el de antes hasta recargar.
+            window.setTimeout(
+              () =>
+                sincronizarRolPorCargo(accessToken)
+                  .then(() => loadAuthorizationAccess(authUser, memberAccess?.profile, memberAccess))
+                  .then((acceso) => {
+                    if (acceso?.rolId || acceso?.alcance) {
+                      publicar(armarSesion(acceso), { listos: true });
+                    }
+                  })
+                  .catch(() => {}),
+              1800
+            );
 
+            // Con reintentos, y SIEMPRE se publica al terminar (aunque no haya
+            // autorizacion extra): es lo que marca los permisos como resueltos.
             window.setTimeout(() => {
-              loadAuthorizationAccess(authUser, memberAccess?.profile, memberAccess)
+              conReintentos(async () => {
+                await completarPerfilDeMiembro();
+
+                return loadAuthorizationAccess(authUser, memberAccess?.profile, memberAccess);
+              }, { sigueVigente })
                 .then((acceso) => {
-                  if (acceso?.rolId || acceso?.alcance) publicar(armarSesion(acceso));
+                  if (acceso === undefined && !sigueVigente()) return;
+
+                  publicar(armarSesion(acceso), { listos: true });
                 })
-                .catch(() => {});
+                .catch((error) => {
+                  console.warn('[sesion] no se pudieron completar los permisos', error);
+
+                  if (!sesionPrevia && sigueVigente()) {
+                    publicarSesion(sesionResueltaRef.current.base, {
+                      listos: true,
+                      incompletos: true,
+                    });
+                  }
+                });
             }, 900);
 
             return;
           } else if (isSocialAuthUser(authUser)) {
             await _signOut(AUTH).catch(() => {});
-            setState({ user: null, loading: false });
+            sesionResueltaRef.current = { uid: null, base: null, listos: false };
+            setState({
+              user: null,
+              loading: false,
+              permisosListos: false,
+              permisosIncompletos: false,
+            });
             writeCachedSession(null);
             delete axios.defaults.headers.common.Authorization;
             return;
@@ -634,24 +797,35 @@ export function AuthProvider({ children }) {
           // prueba se aplica al leerla. Cacheandola ya simulada, apagarla no
           // devolvia el mando —la recarga rehidrataba con el rol probado— hasta
           // que Firebase revalidaba.
-          setState({ user: aplicarSimulacionDeRoles(resolvedUser), loading: false });
-          writeCachedSession(resolvedUser);
+          publicarSesion(resolvedUser, { listos: true });
 
           return;
         }
 
-        setState({ user: null, loading: false });
+        sesionResueltaRef.current = { uid: null, base: null, listos: false };
+        setState({
+          user: null,
+          loading: false,
+          permisosListos: false,
+          permisosIncompletos: false,
+        });
         writeCachedSession(null);
         delete axios.defaults.headers.common.Authorization;
       } catch (error) {
         console.error(error);
-        setState({ user: null, loading: false });
+        sesionResueltaRef.current = { uid: null, base: null, listos: false };
+        setState({
+          user: null,
+          loading: false,
+          permisosListos: false,
+          permisosIncompletos: false,
+        });
         writeCachedSession(null);
       } finally {
         clearTimeout(red);
       }
     },
-    [setState]
+    [setState, publicarSesion]
   );
 
   // Hidratación instantánea desde el caché (una sola vez, en cliente): evita el
@@ -663,7 +837,14 @@ export function AuthProvider({ children }) {
     const cachedUser = readCachedSession();
 
     if (cachedUser) {
-      setState({ user: aplicarSimulacionDeRoles(cachedUser), loading: false });
+      // Solo se cachean sesiones completas, asi que esta ya tiene sus permisos.
+      sesionResueltaRef.current = { uid: cachedUser.uid ?? null, base: cachedUser, listos: true };
+      setState({
+        user: aplicarSimulacionDeRoles(cachedUser),
+        loading: false,
+        permisosListos: true,
+        permisosIncompletos: false,
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -716,8 +897,14 @@ export function AuthProvider({ children }) {
       loading: status === 'loading',
       authenticated: status === 'authenticated',
       unauthenticated: status === 'unauthenticated',
+      // Cargos y permisos ya resueltos. `loading` solo dice que hay sesion; esto,
+      // que se puede decidir que opciones mostrar. Antes de ser true, lo que
+      // depende de un cargo espera (esqueleto) en vez de ocultarse.
+      permisosListos: state.permisosListos,
+      // Se agotaron los reintentos: la sesion funciona pero puede faltarle algo.
+      permisosIncompletos: state.permisosIncompletos,
     }),
-    [checkUserSession, state.user, status]
+    [checkUserSession, state.user, state.permisosListos, state.permisosIncompletos, status]
   );
 
   return <AuthContext value={memoizedValue}>{children}</AuthContext>;

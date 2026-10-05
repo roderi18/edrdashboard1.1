@@ -10,6 +10,7 @@ import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import { aplicarAjustes } from 'src/utils/insignias-personalizadas.mjs';
 import {
   ordenarPines,
   MAXIMO_PINES,
@@ -36,11 +37,11 @@ import { useInsigniasPersonalizadas } from './use-insignias-personalizadas';
 // PINES DEL PERFIL.
 //
 // Los hermanos de cintas y medallas: se leen de `pines_miembros/{idMiembros}`,
-// salen en el orden global que se arrastra en EXPLORA Designer y, de momento,
+// salen en el orden global que se arrastra en EXPEDITION Designer y, de momento,
 // solo los pone a mano el Administrador Global con el MISMO lápiz de las cintas,
 // en su pestaña "Pines". En el perfil van ENCIMA de las cintas, en una fila
 // centrada, cada uno del ancho de una cinta.
-// El catálogo es la carpeta `public/parches/Cintas y medallas/pines` más los
+// El catálogo es la carpeta `public/insignias/pines` más los
 // añadidos en el Designer (`/api/insignias/pines`).
 // ----------------------------------------------------------------------
 
@@ -55,9 +56,14 @@ function useLecturaDelCatalogo() {
     { revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true }
   );
 
-  // Los añadidos en EXPLORA Designer (Firestore) van detrás de los de la carpeta.
-  const { pines: personalizados } = useInsigniasPersonalizadas();
-  const deCarpeta = data?.pines ?? VACIO;
+  // Los añadidos en EXPEDITION Designer (Firestore) van detrás de los de la carpeta.
+  // Los de la carpeta llevan los cambios del Designer y no los eliminados.
+  const { pines: personalizados, ajustes } = useInsigniasPersonalizadas();
+  const datosDeCarpeta = data?.pines ?? VACIO;
+  const deCarpeta = useMemo(
+    () => aplicarAjustes(datosDeCarpeta, ajustes.pin),
+    [datosDeCarpeta, ajustes.pin]
+  );
   const pines = useMemo(
     () => (personalizados.length ? [...deCarpeta, ...personalizados] : deCarpeta),
     [deCarpeta, personalizados]
@@ -339,7 +345,7 @@ export function SelectorDePines({ catalogo = [], elegidos, onCambiar }) {
     <>
       <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
         Elegidos: {elegidos.size} de {MAXIMO_PINES}. En el perfil van encima de las cintas,
-        centrados, en el orden global de EXPLORA Designer.
+        centrados, en el orden global de EXPEDITION Designer.
       </Typography>
 
       <TextField

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // ----------------------------------------------------------------------
 // EL CATÁLOGO DE MEDALLAS ES LA CARPETA.
 //
-// Cualquier imagen que se deje en `public/parches/Cintas y medallas/medallas`
+// Cualquier imagen que se deje en `public/insignias/medallas`
 // tiene que salir en la aplicación sin tocar código. Aquí se lee la carpeta en
 // el momento; donde no se puede —la función de Netlify no lleva `public/`— se
 // usa el manifiesto que `scripts/generar-manifiesto-medallas.mjs` escribe antes

@@ -1,12 +1,12 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
 
-import { exigirSesionRest } from 'src/server/sesion-rest.mjs';
+import { exigirAdministradorGlobalRest } from 'src/server/sesion-rest.mjs';
 
 export async function POST(req) {
   try {
-    // Sin sesion no se crea una region.
-    const noAutorizado = await exigirSesionRest(req);
+    // Solo el Administrador Global puede crear un nivel regional nuevo.
+    const noAutorizado = await exigirAdministradorGlobalRest(req);
 
     if (noAutorizado) return noAutorizado;
 

@@ -1,10 +1,16 @@
 import { useMemo, useState, useEffect } from 'react';
 import { query, where, collection, onSnapshot, documentId } from 'firebase/firestore';
 
+import { buzonPorIdMiembros } from 'src/utils/chat-buzones.mjs';
+
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { STALE_AFTER_MS, COLECCION_PRESENCIA } from 'src/lib/chat-presence';
 
-import { chunkPresenceIds, derivePresenceSnapshot } from '../utils/presence-state.mjs';
+import {
+  chunkPresenceIds,
+  derivePresenceSnapshot,
+  derivePresenciaDeBuzon,
+} from '../utils/presence-state.mjs';
 
 // ----------------------------------------------------------------------
 
@@ -46,26 +52,62 @@ export function usePresenceStatuses(idMiembrosList = []) {
 
         staleTimeouts.set(
           id,
-          setTimeout(() => {
-            setStatuses((current) => ({
-              ...current,
-              [id]: derivePresenceSnapshot({
-                presence,
-                now: Date.now(),
-                staleAfterMs: STALE_AFTER_MS,
-              }),
-            }));
-          }, Math.max(remaining, 0) + 25)
+          setTimeout(
+            () => {
+              setStatuses((current) => ({
+                ...current,
+                [id]: derivePresenceSnapshot({
+                  presence,
+                  now: Date.now(),
+                  staleAfterMs: STALE_AFTER_MS,
+                }),
+              }));
+            },
+            Math.max(remaining, 0) + 25
+          )
         );
       }
     };
 
-    const unsubscribers = chunkPresenceIds(idsKey.split(',')).map((chunk) =>
-      onSnapshot(
+    const todos = idsKey.split(',');
+    // Los buzones compartidos no tienen presencia propia: se deduce de quienes
+    // los atienden (ver `derivePresenciaDeBuzon`).
+    const buzones = todos
+      .map((id) => ({ id, buzon: buzonPorIdMiembros(id) }))
+      .filter((b) => b.buzon);
+    const personas = todos.filter((id) => !buzonPorIdMiembros(id));
+
+    const deBuzones = buzones.map(({ id, buzon }) => {
+      let refresco = null;
+
+      return onSnapshot(
         query(
           collection(FIRESTORE, COLECCION_PRESENCIA),
-          where(documentId(), 'in', chunk)
+          where('atiende', 'array-contains', buzon.clave)
         ),
+        (snapshot) => {
+          const presencias = snapshot.docs.map((d) => d.data() ?? {});
+          const calcular = () =>
+            setStatuses((current) => ({
+              ...current,
+              [id]: derivePresenciaDeBuzon({ presencias, staleAfterMs: STALE_AFTER_MS }),
+            }));
+
+          calcular();
+          // Que caduque solo si nadie vuelve a latir.
+          if (refresco) clearInterval(refresco);
+          refresco = setInterval(calcular, 30000);
+          staleTimeouts.set(`buzon:${id}`, refresco);
+        },
+        (error) => {
+          console.error('[chat] error leyendo presencia del buzon', error);
+        }
+      );
+    });
+
+    const unsubscribers = chunkPresenceIds(personas).map((chunk) =>
+      onSnapshot(
+        query(collection(FIRESTORE, COLECCION_PRESENCIA), where(documentId(), 'in', chunk)),
         (snapshot) => {
           const foundIds = new Set();
 
@@ -73,9 +115,7 @@ export function usePresenceStatuses(idMiembrosList = []) {
             foundIds.add(presenceDocument.id);
             publishStatus(presenceDocument.id, presenceDocument.data() ?? {});
           });
-          chunk
-            .filter((id) => !foundIds.has(id))
-            .forEach((id) => publishStatus(id, {}));
+          chunk.filter((id) => !foundIds.has(id)).forEach((id) => publishStatus(id, {}));
         },
         (error) => {
           console.error('[chat] error leyendo presencia', error);
@@ -84,8 +124,11 @@ export function usePresenceStatuses(idMiembrosList = []) {
     );
 
     return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
-      staleTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+      [...unsubscribers, ...deBuzones].forEach((unsubscribe) => unsubscribe());
+      staleTimeouts.forEach((timeoutId) => {
+        clearTimeout(timeoutId);
+        clearInterval(timeoutId);
+      });
     };
   }, [idsKey]);
 

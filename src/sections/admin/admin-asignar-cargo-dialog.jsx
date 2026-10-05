@@ -13,6 +13,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
 import { ROLES_DE_ADMINISTRACION } from 'src/utils/admin-role-label';
+import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 
 import { ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 
@@ -41,10 +42,21 @@ const POR_DEFECTO = 'administrador_tienda';
 export function AdminAsignarCargoDialog({ open, personas = [], guardando = false, onClose, onConfirm }) {
   const [rolId, setRolId] = useState(POR_DEFECTO);
 
-  // Cada vez que se abre vuelve al de menos poder: dejar el de la ultima vez
-  // hacia que el segundo nombramiento heredara en silencio la eleccion anterior.
+  // SE SUMA A LOS QUE YA TIENE (una persona puede tener varios roles de
+  // administracion). Con una sola persona se enseñan los suyos y no se ofrece
+  // darle uno que ya tiene.
+  const suyos = useMemo(
+    () => (personas.length === 1 ? rolesDeAdministracionDe(personas[0]) : []),
+    [personas]
+  );
+  const primeroLibre =
+    [...OPCIONES].reverse().find((opcion) => !suyos.includes(opcion.codigo))?.codigo || POR_DEFECTO;
+
+  // Cada vez que se abre vuelve al de menos poder que aun no tenga: dejar el de
+  // la ultima vez hacia que el segundo nombramiento heredara la eleccion anterior.
   useEffect(() => {
-    if (open) setRolId(POR_DEFECTO);
+    if (open) setRolId(suyos.includes(POR_DEFECTO) ? primeroLibre : POR_DEFECTO);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const seleccionado = useMemo(
@@ -60,13 +72,23 @@ export function AdminAsignarCargoDialog({ open, personas = [], guardando = false
 
   return (
     <Dialog open={open} onClose={guardando ? undefined : onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Asignar cargo de administración</DialogTitle>
+      <DialogTitle>Añadir rol de administración</DialogTitle>
 
       <DialogContent>
         <Stack sx={{ gap: 2.5, pt: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Se le dará a <strong>{aQuien}</strong>. Recibirá un aviso con el cargo nuevo.
+            Se le dará a <strong>{aQuien}</strong> y se suma a los que ya tenga. Recibirá un aviso
+            con el cargo nuevo.
           </Typography>
+
+          {suyos.length > 0 && (
+            <Typography variant="body2">
+              Ya tiene:{' '}
+              <strong>
+                {suyos.map((codigo) => ROLES_POR_CODIGO[codigo]?.nombre || codigo).join(', ')}
+              </strong>
+            </Typography>
+          )}
 
           <TextField
             select
@@ -77,8 +99,13 @@ export function AdminAsignarCargoDialog({ open, personas = [], guardando = false
             disabled={guardando}
           >
             {OPCIONES.map((opcion) => (
-              <MenuItem key={opcion.codigo} value={opcion.codigo}>
+              <MenuItem
+                key={opcion.codigo}
+                value={opcion.codigo}
+                disabled={suyos.includes(opcion.codigo)}
+              >
                 {opcion.nombre}
+                {suyos.includes(opcion.codigo) ? ' · ya lo tiene' : ''}
               </MenuItem>
             ))}
           </TextField>
@@ -100,9 +127,9 @@ export function AdminAsignarCargoDialog({ open, personas = [], guardando = false
           variant="contained"
           loading={guardando}
           onClick={() => onConfirm?.(rolId)}
-          disabled={!rolId}
+          disabled={!rolId || suyos.includes(rolId)}
         >
-          Asignar
+          Añadir
         </Button>
       </DialogActions>
     </Dialog>

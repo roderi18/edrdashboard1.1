@@ -15,7 +15,7 @@ export function AppWelcome({ title, description, action, img, sx, ...other }) {
           ...theme.mixins.bgGradient({
             images: [
               `linear-gradient(to right, ${varAlpha(theme.vars.palette.grey['900Channel'], 0.88)} 0%, ${theme.vars.palette.grey[900]} 75%)`,
-              `url(${CONFIG.assetsDir}/assets/background/background-5.webp)`,
+              `url(${CONFIG.assetsDir}/plantilla/background/background-5.webp)`,
             ],
           }),
           pt: 5,

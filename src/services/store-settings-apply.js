@@ -1,6 +1,7 @@
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 import { FIRESTORE } from 'src/lib/firebase';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 
 // ----------------------------------------------------------------------
 // EL BRAZO QUE APLICA el encabezado de la tienda.
@@ -15,7 +16,7 @@ import { FIRESTORE } from 'src/lib/firebase';
 // que sea aqui y por el mismo camino.
 // ----------------------------------------------------------------------
 
-export const COLECCION_CONFIGURACION_TIENDA = 'configuracion_tienda';
+export const COLECCION_CONFIGURACION_TIENDA = COLECCIONES.configuracionTienda;
 export const DOCUMENTO_ENCABEZADO_TIENDA = 'encabezado';
 
 export const referenciaDelEncabezadoTienda = () =>

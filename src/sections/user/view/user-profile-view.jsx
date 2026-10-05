@@ -11,6 +11,10 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { usePathname, useSearchParams } from 'src/routes/hooks';
 
+import { destacamentoDelMiembro } from 'src/utils/destacamento-del-perfil.mjs';
+
+import { getDestsApi } from 'src/services/dest-service';
+import { getMembers } from 'src/services/member-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _userAbout, _userFeeds, _userFriends, _userGallery, _userFollowers } from 'src/_mock';
 
@@ -61,28 +65,6 @@ const getDisplayName = (user, fallback = '') =>
   [user?.nombres || user?.firstName, user?.apellidos || user?.lastName].filter(Boolean).join(' ') ||
   user?.email ||
   fallback;
-
-const getDestacamentoLabel = (user, fallback = '') => {
-  const destName =
-    user?.destName ||
-    user?.destacamentoName ||
-    user?.nombreDestacamento ||
-    user?.destacamento ||
-    user?.destamento;
-  const destNumber =
-    user?.destacamentoNumero || user?.numeroDestacamento || user?.idDestacamento || user?.destId;
-  const scopeDest = user?.alcance?.destacamentos?.[0];
-
-  if (destName && destNumber && !String(destName).includes(String(destNumber))) {
-    return `${destName} ${destNumber}`;
-  }
-
-  if (destName) return destName;
-  if (destNumber) return `Destacamento ${destNumber}`;
-  if (scopeDest) return `Destacamento ${scopeDest}`;
-
-  return fallback;
-};
 
 const normalizePath = (value = '') => String(value || '').replace(/\/$/, '');
 
@@ -158,42 +140,74 @@ export function UserProfileView({ hideBreadcrumb = false, useSessionProfile = fa
     };
   }, [profileMemberId]);
 
+  // Sin `?idMiembros=` el perfil es el de QUIEN TIENE LA SESIÓN. Antes solo lo
+  // era si se pasaba `useSessionProfile`, y `/dashboard/user` no lo pasaba: salía
+  // el usuario de ejemplo de la plantilla ("Roderi Pena", "CTO", avatar de
+  // dibujo) a cualquiera que entrara.
+  const perfilDeLaSesion = useSessionProfile || Boolean(sessionUser);
+  // De quién es el perfil: el miembro de la dirección o, si no, el de la sesión.
+  // Con él se filtra el muro (solo SUS publicaciones; antes salía el muro de
+  // todos) y se busca su destacamento.
+  const idMiembrosDelPerfil =
+    profileMemberId || (perfilDeLaSesion ? Number(sessionUser?.idMiembros) || null : null);
+
+  // Donde decía "CTO" va su destacamento ("Tribu de Judá 18"). Antes se adivinaba
+  // con los campos de la sesión, que no lo traen, y el "número" salía del id
+  // interno del destacamento.
+  const [destacamentoLabel, setDestacamentoLabel] = useState('');
+
+  useEffect(() => {
+    let activo = true;
+
+    setDestacamentoLabel('');
+
+    if (!idMiembrosDelPerfil) return undefined;
+
+    Promise.all([getMembers(), getDestsApi({ includePhotos: false })])
+      .then(([miembros, destacamentos]) => {
+        if (activo) {
+          setDestacamentoLabel(
+            destacamentoDelMiembro({ idMiembros: idMiembrosDelPerfil, miembros, destacamentos })
+          );
+        }
+      })
+      .catch((error) => console.error('[perfil] no se pudo leer el destacamento', error));
+
+    return () => {
+      activo = false;
+    };
+  }, [idMiembrosDelPerfil]);
+
   const currentDisplayName = getDisplayName(sessionUser, mockedUser?.displayName);
   const currentPhotoURL =
     sessionUser?.photoURL || sessionUser?.avatarUrl || sessionUser?.urlFoto || '';
-  const viewerUser =
-    sessionUser || useSessionProfile
-      ? {
-          ...mockedUser,
-          ...sessionUser,
-          displayName: currentDisplayName,
-          name: currentDisplayName,
-          photoURL: currentPhotoURL,
-        }
-      : mockedUser;
+  const viewerUser = perfilDeLaSesion
+    ? {
+        ...mockedUser,
+        ...sessionUser,
+        displayName: currentDisplayName,
+        name: currentDisplayName,
+        photoURL: currentPhotoURL,
+      }
+    : mockedUser;
   const hasTargetProfile = Boolean(profileMemberId);
   const profileSource = hasTargetProfile
     ? targetProfile || normalizeContactProfile({}, profileMemberId)
-    : useSessionProfile
+    : perfilDeLaSesion
       ? sessionUser
       : mockedUser;
   const displayName = hasTargetProfile
     ? getDisplayName(profileSource, `Miembro ${profileMemberId}`)
-    : useSessionProfile
+    : perfilDeLaSesion
       ? currentDisplayName
       : mockedUser?.displayName;
   const photoURL = hasTargetProfile
     ? profileSource?.photoURL || profileSource?.avatarUrl || profileSource?.urlFoto || ''
-    : useSessionProfile
+    : perfilDeLaSesion
       ? currentPhotoURL
       : mockedUser?.photoURL;
-  const destacamentoLabel = hasTargetProfile
-    ? getDestacamentoLabel(profileSource, _userAbout.role)
-    : useSessionProfile
-      ? getDestacamentoLabel(sessionUser, _userAbout.role)
-      : _userAbout.role;
   const profileInfo =
-    useSessionProfile || hasTargetProfile
+    perfilDeLaSesion || hasTargetProfile
       ? {
           ..._userAbout,
           email:
@@ -215,7 +229,7 @@ export function UserProfileView({ hideBreadcrumb = false, useSessionProfile = fa
         name: displayName,
         photoURL,
       }
-    : useSessionProfile
+    : perfilDeLaSesion
       ? {
           ...mockedUser,
           ...sessionUser,
@@ -310,7 +324,7 @@ export function UserProfileView({ hideBreadcrumb = false, useSessionProfile = fa
           info={profileInfo}
           posts={_userFeeds}
           user={hasTargetProfile ? viewerUser : user}
-          perfilIdMiembros={profileMemberId}
+          perfilIdMiembros={idMiembrosDelPerfil}
           sx={{ mt: 3 }}
         />
       )}

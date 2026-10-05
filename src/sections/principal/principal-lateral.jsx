@@ -36,7 +36,7 @@ import {
 // organizacion. Va en tarjetas separadas y no en una sola lista porque son tres
 // cosas distintas: lo que viene, a quien reconocen, y lo que manda la Direccion.
 //
-// `diseno` (EXPLORA Designer) cambia colores, tamaños, textos fijos y que se
+// `diseno` (EXPEDITION Designer) cambia colores, tamaños, textos fijos y que se
 // enseña. Sin diseño publicado, cada pieza usa lo que llevaba escrito.
 // ----------------------------------------------------------------------
 
@@ -187,7 +187,7 @@ export function PrincipalEventos({ eventos, diseno, esEjemplo, puedeEditar = fal
 // ----------------------------------------------------------------------
 
 export function PrincipalDestacado({ destacado, diseno, esEjemplo, puedeEditar = false }) {
-  const { NAVY, ORO, AZUL } = useTonosDeMarca();
+  const { ORO, AZUL } = useTonosDeMarca();
 
   return (
     <Card
@@ -211,15 +211,35 @@ export function PrincipalDestacado({ destacado, diseno, esEjemplo, puedeEditar =
         sx={{
           p: 2,
           borderRadius: 1.5,
-          color: '#FFFFFF',
-          backgroundImage: `linear-gradient(140deg, ${NAVY.claro} 0%, ${NAVY.fondo} 100%)`,
+          // Caja clara, del color de la tarjeta (blanca en claro): el azul marino
+          // la apagaba junto a la foto. El color propio del Designer sigue mandando.
+          bgcolor: 'background.paper',
+          border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
           ...fondoDelDiseno(diseno, { campo: 'colorCaja', campo2: 'colorCaja2' }),
         }}
       >
+        {/* La foto solo sale si se publicó una desde el Designer: sin ella la
+            tarjeta queda exactamente como siempre. */}
+        {!!destacado.foto?.url && (
+          <Box
+            component="img"
+            alt={destacado.nombre}
+            src={destacado.foto.url}
+            sx={{
+              mb: 1.5,
+              width: 1,
+              height: 150,
+              display: 'block',
+              objectFit: 'cover',
+              borderRadius: 1,
+            }}
+          />
+        )}
+
         <Typography
           variant="subtitle1"
           sx={{
-            color: '#FFFFFF',
+            color: 'text.primary',
             ...letraDelDiseno(diseno, { tamano: 'tamanoTexto' }),
           }}
         >
@@ -232,10 +252,10 @@ export function PrincipalDestacado({ destacado, diseno, esEjemplo, puedeEditar =
           alignItems="center"
           sx={{ mt: 0.75, flexWrap: 'wrap', gap: 0.75 }}
         >
-          <Typography variant="caption" sx={{ color: diseno?.colorTexto ?? NAVY.texto }}>
+          <Typography variant="caption" sx={{ color: diseno?.colorTexto ?? 'text.secondary' }}>
             {destacado.region}
           </Typography>
-          <Typography variant="caption" sx={{ color: diseno?.colorTexto ?? NAVY.texto }}>
+          <Typography variant="caption" sx={{ color: diseno?.colorTexto ?? 'text.secondary' }}>
             · {destacado.miembros} {textoDelDiseno(diseno, 'textoMiembros', 'miembros')}
           </Typography>
 
@@ -244,11 +264,11 @@ export function PrincipalDestacado({ destacado, diseno, esEjemplo, puedeEditar =
               <Iconify
                 icon="solar:cup-star-bold"
                 width={14}
-                sx={{ color: diseno?.colorAcento ?? ORO.claro }}
+                sx={{ color: diseno?.colorAcento ?? ORO.principal }}
               />
               <Typography
                 variant="caption"
-                sx={{ color: diseno?.colorAcento ?? ORO.claro, fontWeight: 600 }}
+                sx={{ color: diseno?.colorAcento ?? ORO.principal, fontWeight: 600 }}
               >
                 {destacado.valoracion}
               </Typography>
@@ -353,7 +373,7 @@ export function PrincipalComunicados({ comunicados, diseno, esEjemplo, puedeEdit
 /**
  * El cierre de la columna. Es el lema, no un anuncio: no lleva boton.
  *
- * Sus textos llegan de fuera —de lo publicado en EXPLORA Designer o, si no hay
+ * Sus textos llegan de fuera —de lo publicado en EXPEDITION Designer o, si no hay
  * nada, de `LEMA_DE_FABRICA`— en lugar de ir escritos aqui. El salto de linea del
  * titulo se guarda como `\n` y se pinta con el mismo `<br />` de siempre.
  */

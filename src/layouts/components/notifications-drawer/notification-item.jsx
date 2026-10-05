@@ -12,6 +12,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import { useRouter } from 'src/routes/hooks';
 
 import { fToNow } from 'src/utils/format-time';
+import { htmlSeguro } from 'src/utils/html-seguro.mjs';
 import {
   COLOR_ESTADO_REPORTE,
   etiquetaEstadoReporte,
@@ -35,9 +36,11 @@ import { useFotosDeAviso } from './use-fotos-de-aviso';
 
 // ----------------------------------------------------------------------
 
+// El texto lo puede haber escrito cualquier cuenta: pasa por `htmlSeguro`, que deja
+// solo etiquetas de formato sin atributos (antes se inyectaba tal cual: XSS).
 const readerContent = (data) => (
   <Box
-    dangerouslySetInnerHTML={{ __html: data }}
+    dangerouslySetInnerHTML={{ __html: htmlSeguro(data) }}
     sx={{
       '& p': { m: 0, typography: 'body2' },
       '& a': { color: 'inherit', textDecoration: 'none' },

@@ -647,7 +647,7 @@ export function ChatView() {
                 conversationError ? (
                   <EmptyContent
                     title={conversationError.message}
-                    imgUrl={`${CONFIG.assetsDir}/assets/icons/empty/ic-chat-empty.svg`}
+                    imgUrl={`${CONFIG.assetsDir}/plantilla/icons/empty/ic-chat-empty.svg`}
                   />
                 ) : (
                   <ChatMessageList
@@ -687,7 +687,7 @@ export function ChatView() {
                 <EmptyContent
                   title="Selecciona una conversación"
                   description="Busca un contacto o escribe un mensaje nuevo."
-                  imgUrl={`${CONFIG.assetsDir}/assets/icons/empty/ic-chat-active.svg`}
+                  imgUrl={`${CONFIG.assetsDir}/plantilla/icons/empty/ic-chat-active.svg`}
                 />
               )}
 

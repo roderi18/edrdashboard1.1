@@ -1,0 +1,265 @@
+export const IMAGE_UPLOAD_PRESETS = {
+  general: {
+    maxWidth: 1600,
+    maxHeight: 1600,
+    quality: 0.9,
+    mimeType: 'image/webp',
+  },
+  // La imagen del encabezado de la tienda suele ser ya una portada preparada
+  // para web. Por debajo de 150 KiB se conserva tal cual para no recodificarla
+  // innecesariamente ni introducir una perdida de calidad.
+  tienda: {
+    maxWidth: 1600,
+    maxHeight: 1600,
+    quality: 0.9,
+    mimeType: 'image/webp',
+    skipOptimizationBelowBytes: 150 * 1024,
+  },
+  // La cara en una LISTA: el buscador de chat, los contactos, las menciones. Se
+  // dibuja a unos 40px, asi que 128 sobra para pantallas densas. Una foto de
+  // perfil normal ronda los 300 kB; esta se queda en unos 10.
+  miniatura: {
+    maxWidth: 128,
+    maxHeight: 128,
+    quality: 0.78,
+    mimeType: 'image/webp',
+    maxSizeBytes: 20000,
+  },
+  avatar: {
+    maxWidth: 900,
+    maxHeight: 900,
+    quality: 0.82,
+    mimeType: 'image/webp',
+    maxSizeBytes: 320000,
+  },
+  // Las imagenes de fondo de las tarjetas de la pantalla Principal. Se subian con
+  // `avatar`: una franja de 1525x120 bajaba a 900x71 y el `cover` la volvia a
+  // estirar a todo el ancho de la tarjeta, que es lo que se veia pixelado.
+  // 2560 de ancho cubre un monitor grande; el alto no limita, que en una franja
+  // apaisada nunca es el lado que manda.
+  portada: {
+    maxWidth: 2560,
+    maxHeight: 2560,
+    quality: 0.9,
+    mimeType: 'image/webp',
+    maxSizeBytes: 900000,
+  },
+  // La cara de un resultado del buscador. Se dibuja a 32px y viaja DENTRO del
+  // indice, como texto: por eso el tope es de 6 kB. Con las fotos de producto de
+  // verdad —de 16 a 250 kB— el desplegable tenia que bajarse una imagen por
+  // resultado mientras se escribe, y las primeras busquedas salian en gris.
+  miniaturaBuscador: {
+    maxWidth: 64,
+    maxHeight: 64,
+    quality: 0.72,
+    mimeType: 'image/webp',
+    maxSizeBytes: 6000,
+  },
+  producto: {
+    maxWidth: 1800,
+    maxHeight: 1800,
+    quality: 0.92,
+    mimeType: 'image/webp',
+    maxSizeBytes: 1050000,
+  },
+  // Las fotos del muro. Se subian TAL CUAL salen de la camara: se han medido
+  // publicaciones de 11,6 MB, 5,6 MB y 5,4 MB —cuatro fotos eran 25 de los 27 MB
+  // que pesaba abrir el panel—, y se muestran en una tarjeta de unos 600px.
+  //
+  // 1600px de lado cubre de sobra una pantalla grande y el zoom del visor; el
+  // tope de 900 kB es la red de seguridad para las fotos con mucho detalle.
+  publicacion: {
+    maxWidth: 1600,
+    maxHeight: 1600,
+    quality: 0.85,
+    mimeType: 'image/webp',
+    maxSizeBytes: 900000,
+  },
+  // Versiones responsivas de una publicación. El muro nunca necesita bajar
+  // los mismos píxeles que el visor de pantalla completa.
+  publicacionMiniatura: {
+    maxWidth: 480,
+    maxHeight: 480,
+    quality: 0.72,
+    mimeType: 'image/webp',
+    maxSizeBytes: 100000,
+  },
+  publicacionMuro: {
+    maxWidth: 1080,
+    maxHeight: 1080,
+    quality: 0.8,
+    mimeType: 'image/webp',
+    maxSizeBytes: 360000,
+  },
+};
+
+const PRESERVE_MIME_TYPES = new Set(['image/svg+xml']);
+const MIN_QUALITY = 0.52;
+const QUALITY_STEP = 0.08;
+const DIMENSION_STEP = 0.86;
+const MIN_DIMENSION = 420;
+
+const getPresetOptions = (presetOrOptions = 'general') =>
+  typeof presetOrOptions === 'string'
+    ? IMAGE_UPLOAD_PRESETS[presetOrOptions] || IMAGE_UPLOAD_PRESETS.general
+    : { ...IMAGE_UPLOAD_PRESETS.general, ...(presetOrOptions || {}) };
+
+const loadImageElement = (file) =>
+  new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+
+    image.onerror = (error) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(error);
+    };
+
+    image.src = objectUrl;
+  });
+
+const getTargetDimensions = ({ width, height, maxWidth, maxHeight }) => {
+  if (!width || !height) {
+    return { width: maxWidth, height: maxHeight };
+  }
+
+  const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+
+  return {
+    width: Math.max(1, Math.round(width * ratio)),
+    height: Math.max(1, Math.round(height * ratio)),
+  };
+};
+
+const blobToFile = (blob, originalFile, mimeType) => {
+  const targetExtension = mimeType === 'image/png' ? 'png' : 'webp';
+  const safeName = String(originalFile?.name || 'imagen')
+    .replace(/\.[^.]+$/, '')
+    .replace(/[^\w.-]+/g, '-');
+
+  return new File([blob], `${safeName}.${targetExtension}`, {
+    type: mimeType,
+    lastModified: Date.now(),
+  });
+};
+
+const canvasToBlob = (canvas, mimeType, quality) =>
+  new Promise((resolve) => {
+    canvas.toBlob(resolve, mimeType, quality);
+  });
+
+const drawImageToCanvas = ({ image, width, height }) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext('2d', { alpha: true });
+  if (!context) return null;
+
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(image, 0, 0, width, height);
+
+  return canvas;
+};
+
+/**
+ * Las medidas reales de una imagen, o `null` si no se pueden leer.
+ *
+ * Se guardan al subir para que el muro pueda reservar EXACTAMENTE el hueco que
+ * la foto va a ocupar, antes de que la foto llegue. Sin esto el navegador le da
+ * cero de alto, las publicaciones se amontonan, y al llegar cada imagen todo da
+ * un salto que rompe el pintado de las de al lado.
+ */
+export async function leerDimensionesDeImagen(file) {
+  if (!(file instanceof File)) return null;
+  if (!String(file.type || '').startsWith('image/')) return null;
+
+  try {
+    const image = await loadImageElement(file);
+    const ancho = image.naturalWidth || image.width || 0;
+    const alto = image.naturalHeight || image.height || 0;
+
+    return ancho > 0 && alto > 0 ? { ancho, alto } : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function optimizeImageFile(file, presetOrOptions = 'general') {
+  if (!(file instanceof File)) return file;
+  if (!String(file.type || '').startsWith('image/')) return file;
+  if (PRESERVE_MIME_TYPES.has(file.type)) return file;
+
+  const { maxWidth, maxHeight, quality, mimeType, maxSizeBytes, skipOptimizationBelowBytes } =
+    getPresetOptions(presetOrOptions);
+
+  if (skipOptimizationBelowBytes && file.size < skipOptimizationBelowBytes) return file;
+
+  const image = await loadImageElement(file);
+  const { width, height } = getTargetDimensions({
+    width: image.naturalWidth || image.width,
+    height: image.naturalHeight || image.height,
+    maxWidth,
+    maxHeight,
+  });
+  let targetWidth = width;
+  let targetHeight = height;
+  let bestBlob = null;
+
+  while (targetWidth >= 1 && targetHeight >= 1) {
+    const canvas = drawImageToCanvas({ image, width: targetWidth, height: targetHeight });
+    if (!canvas) return file;
+
+    for (
+      let currentQuality = quality;
+      currentQuality >= MIN_QUALITY;
+      currentQuality -= QUALITY_STEP
+    ) {
+      const blob = await canvasToBlob(canvas, mimeType, currentQuality);
+      if (!blob) continue;
+
+      if (!bestBlob || blob.size < bestBlob.size) {
+        bestBlob = blob;
+      }
+
+      if (!maxSizeBytes || blob.size <= maxSizeBytes) {
+        if (blob.size >= file.size && targetWidth === (image.naturalWidth || image.width)) {
+          return file;
+        }
+
+        return blobToFile(blob, file, mimeType);
+      }
+    }
+
+    const dimensionMayor = Math.max(targetWidth, targetHeight);
+    if (dimensionMayor <= MIN_DIMENSION) break;
+
+    // Reducir conservando la proporción. El código anterior forzaba cada lado
+    // por separado a 420px: una foto panorámica podía quedar sin optimizar o
+    // terminar deformada.
+    const siguienteDimensionMayor = Math.max(
+      MIN_DIMENSION,
+      Math.round(dimensionMayor * DIMENSION_STEP)
+    );
+    const escala = siguienteDimensionMayor / dimensionMayor;
+
+    targetWidth = Math.max(1, Math.round(targetWidth * escala));
+    targetHeight = Math.max(1, Math.round(targetHeight * escala));
+  }
+
+  if (!bestBlob) return file;
+  if (!maxSizeBytes && bestBlob.size >= file.size && width === (image.naturalWidth || image.width)) {
+    return file;
+  }
+
+  return blobToFile(bestBlob, file, mimeType);
+}
+
+export async function optimizeImageFiles(files = [], presetOrOptions = 'general') {
+  return Promise.all((files || []).map((file) => optimizeImageFile(file, presetOrOptions)));
+}

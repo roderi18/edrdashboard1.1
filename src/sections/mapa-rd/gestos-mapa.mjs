@@ -1,5 +1,7 @@
 export const MIN_ZOOM = 0.7;
 export const MAX_ZOOM = 8;
+// Zoom 1 y sin desplazar: la proyección ya centra el país en el lienzo. Se coló un
+// `zoom: 10` (por encima de MAX_ZOOM) anclado en la esquina y el mapa solo enseñaba mar.
 export const VISTA_INICIAL = { zoom: 1, x: 0, y: 0 };
 
 // Mantiene el punto bajo el cursor o entre los dedos mientras cambia la escala.

@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // FAVORITO Y COMPARTIR EN LA FICHA DEL PRODUCTO.
 //
@@ -10,7 +12,7 @@
  * Un documento por persona, con el uid de la sesion como id: asi la regla de
  * Firestore solo tiene que comparar el id con `request.auth.uid`.
  */
-export const COLECCION_FAVORITOS_PRODUCTOS = 'favoritos_productos';
+export const COLECCION_FAVORITOS_PRODUCTOS = COLECCIONES.favoritosProductos;
 
 /** Los ids de los productos marcados, desde el mapa `productos` del documento. */
 export const leerProductosFavoritos = (documento = {}) =>

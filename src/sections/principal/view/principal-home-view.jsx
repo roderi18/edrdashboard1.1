@@ -9,20 +9,16 @@ import { isAdminGlobal } from 'src/utils/org-level-access';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
-
 import { useAuthContext } from 'src/auth/hooks';
 
 import { ProfileHome } from '../../user/profile-home';
+import { LienzoDelBloque } from '../lienzo-del-bloque';
 import { HAY_DATOS_DE_EJEMPLO } from '../datos-de-ejemplo';
+import { PrincipalBienvenida } from '../principal-bienvenida';
 import { useContenidoDePortada } from '../use-contenido-de-portada';
 import { useAnaliticasDePortada } from '../use-analiticas-de-portada';
-import { PrincipalBienvenida } from '../principal-bienvenida';
 import { alcanceDeLaSesion, identidadDeLaSesion } from '../identidad-de-la-sesion';
-import {
-  PrincipalHistorias,
-  PrincipalMiProgreso,
-  PrincipalProximaActividad,
-} from '../principal-actividad';
+import { PrincipalHistorias, PrincipalProximaActividad } from '../principal-actividad';
 import {
   PrincipalLema,
   PrincipalEventos,
@@ -47,7 +43,7 @@ import {
 // y el muro entero. Lo demas son datos de EJEMPLO y cada panel lo dice encima
 // (ver `datos-de-ejemplo.js`).
 //
-// Cada uno de esos bloques se puede publicar desde EXPLORA Designer —contenido y
+// Cada uno de esos bloques se puede publicar desde EXPEDITION Designer —contenido y
 // diseño—. Hasta que alguien lo publique, sale exactamente lo de siempre: la
 // pantalla ya no importa los datos a mano, se los pide a `useContenidoDePortada`.
 //
@@ -56,13 +52,13 @@ import {
 // ----------------------------------------------------------------------
 
 // La marca "Ejemplo" solo tiene sentido sobre lo inventado: un bloque publicado
-// desde EXPLORA Designer ya no es un ejemplo, aunque la bandera vuelva a encenderse.
+// desde EXPEDITION Designer ya no es un ejemplo, aunque la bandera vuelva a encenderse.
 const esDeEjemplo = (bloque) => HAY_DATOS_DE_EJEMPLO && bloque.origen === 'codigo';
 
 export function PrincipalHomeView() {
   const { user } = useAuthContext();
   // CADA BLOQUE, DE LO PUBLICADO O DE LO DE SIEMPRE. Mientras nadie publique nada
-  // desde EXPLORA Designer, esto devuelve exactamente los mismos datos que antes
+  // desde EXPEDITION Designer, esto devuelve exactamente los mismos datos que antes
   // se importaban a mano de `datos-de-ejemplo.js` (ver `useContenidoDePortada`).
   const quien = useMemo(() => alcanceDeLaSesion(user), [user]);
   const portada = useContenidoDePortada({ quien });
@@ -77,52 +73,45 @@ export function PrincipalHomeView() {
   return (
     <DashboardContent maxWidth="xl">
       <Stack ref={raizRef} spacing={3} onClickCapture={alPulsar}>
-        <PrincipalBienvenida
-          nombre={identidad.nombre}
-          destacamento={identidad.destacamento}
-          region={identidad.region}
-          foto={identidad.foto}
-          resumen={portada.bienvenida.contenido}
-          diseno={portada.bienvenida.diseno}
-          esEjemplo={esDeEjemplo(portada.bienvenida)}
-          puedeEditar={esAdministradorGlobal}
-        />
+        <LienzoDelBloque diseno={portada.bienvenida.diseno}>
+          <PrincipalBienvenida
+            nombre={identidad.nombre}
+            destacamento={identidad.destacamento}
+            region={identidad.region}
+            foto={identidad.foto}
+            resumen={portada.bienvenida.contenido}
+            diseno={portada.bienvenida.diseno}
+            esEjemplo={esDeEjemplo(portada.bienvenida)}
+            puedeEditar={esAdministradorGlobal}
+          />
+        </LienzoDelBloque>
 
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, lg: 8 }}>
             <Stack spacing={3}>
-              {/* LA ACTIVIDAD Y EL PROGRESO, EN LA MISMA FILA. Las dos responden
-                  a "¿que tengo por delante?" desde dos lados: la fecha que viene
-                  y lo que falta para el siguiente nivel.
+              {/* LA PRÓXIMA ACTIVIDAD, SOLA EN SU FILA Y EN 21:9, con sus combos a la
+                  derecha dentro del mismo contenedor. "Mi progreso" salió de la
+                  portada: sus cifras eran las mismas para todos; el bloque sigue
+                  en el Designer. */}
+              <LienzoDelBloque diseno={portada['proxima-actividad'].diseno}>
+                <PrincipalProximaActividad
+                  actividad={portada['proxima-actividad'].contenido}
+                  diseno={portada['proxima-actividad'].diseno}
+                  puedeEditar={esAdministradorGlobal}
+                  // "Inscribirme" ofrece los combos de la tienda (solo aquí, no en
+                  // la vista previa del Designer).
+                  conInscripcion
+                />
+              </LienzoDelBloque>
 
-                  El hueco entre las dos es el MISMO que separa "Mi progreso" de la
-                  columna de eventos (`spacing={3}`, 24px): se probo con mas aire y
-                  la fila se leia descuadrada respecto al resto de la pantalla. */}
-              <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 7 }}>
-                  <PrincipalProximaActividad
-                    actividad={portada['proxima-actividad'].contenido}
-                    diseno={portada['proxima-actividad'].diseno}
-                    puedeEditar={esAdministradorGlobal}
-                  />
-                </Grid>
-
-                <Grid size={{ xs: 12, md: 5 }}>
-                  <PrincipalMiProgreso
-                    progreso={portada['mi-progreso'].contenido}
-                    diseno={portada['mi-progreso'].diseno}
-                    esEjemplo={esDeEjemplo(portada['mi-progreso'])}
-                    puedeEditar={esAdministradorGlobal}
-                  />
-                </Grid>
-              </Grid>
-
-              <PrincipalHistorias
-                historias={portada.historias.contenido}
-                diseno={portada.historias.diseno}
-                esEjemplo={esDeEjemplo(portada.historias)}
-                puedeEditar={esAdministradorGlobal}
-              />
+              <LienzoDelBloque diseno={portada.historias.diseno}>
+                <PrincipalHistorias
+                  historias={portada.historias.contenido}
+                  diseno={portada.historias.diseno}
+                  esEjemplo={esDeEjemplo(portada.historias)}
+                  puedeEditar={esAdministradorGlobal}
+                />
+              </LienzoDelBloque>
 
               {/* EL MURO, TAL CUAL. `posts` vacio: las publicaciones las trae el
                   propio componente de Firestore al montarse. */}
@@ -160,32 +149,40 @@ export function PrincipalHomeView() {
                 '&::-webkit-scrollbar': { display: 'none' },
               }}
             >
-              <PrincipalEventos
-                eventos={portada['proximos-eventos'].contenido}
-                diseno={portada['proximos-eventos'].diseno}
-                esEjemplo={esDeEjemplo(portada['proximos-eventos'])}
-                puedeEditar={esAdministradorGlobal}
-              />
+              <LienzoDelBloque diseno={portada['proximos-eventos'].diseno}>
+                <PrincipalEventos
+                  eventos={portada['proximos-eventos'].contenido}
+                  diseno={portada['proximos-eventos'].diseno}
+                  esEjemplo={esDeEjemplo(portada['proximos-eventos'])}
+                  puedeEditar={esAdministradorGlobal}
+                />
+              </LienzoDelBloque>
 
-              <PrincipalDestacado
-                destacado={portada['destacamento-destacado'].contenido}
-                diseno={portada['destacamento-destacado'].diseno}
-                esEjemplo={esDeEjemplo(portada['destacamento-destacado'])}
-                puedeEditar={esAdministradorGlobal}
-              />
+              <LienzoDelBloque diseno={portada['destacamento-destacado'].diseno}>
+                <PrincipalDestacado
+                  destacado={portada['destacamento-destacado'].contenido}
+                  diseno={portada['destacamento-destacado'].diseno}
+                  esEjemplo={esDeEjemplo(portada['destacamento-destacado'])}
+                  puedeEditar={esAdministradorGlobal}
+                />
+              </LienzoDelBloque>
 
-              <PrincipalComunicados
-                comunicados={portada.comunicados.contenido}
-                diseno={portada.comunicados.diseno}
-                esEjemplo={esDeEjemplo(portada.comunicados)}
-                puedeEditar={esAdministradorGlobal}
-              />
+              <LienzoDelBloque diseno={portada.comunicados.diseno}>
+                <PrincipalComunicados
+                  comunicados={portada.comunicados.contenido}
+                  diseno={portada.comunicados.diseno}
+                  esEjemplo={esDeEjemplo(portada.comunicados)}
+                  puedeEditar={esAdministradorGlobal}
+                />
+              </LienzoDelBloque>
 
-              <PrincipalLema
-                lema={portada.lema.contenido}
-                diseno={portada.lema.diseno}
-                puedeEditar={esAdministradorGlobal}
-              />
+              <LienzoDelBloque diseno={portada.lema.diseno}>
+                <PrincipalLema
+                  lema={portada.lema.contenido}
+                  diseno={portada.lema.diseno}
+                  puedeEditar={esAdministradorGlobal}
+                />
+              </LienzoDelBloque>
             </Stack>
           </Grid>
         </Grid>

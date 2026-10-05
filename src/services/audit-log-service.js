@@ -13,11 +13,12 @@ import {
 
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
-import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
-export const COLECCION_AUDITORIA_SISTEMA = 'auditoria_sistema';
+export const COLECCION_AUDITORIA_SISTEMA = COLECCIONES.auditoriaSistema;
 
 const normalizarValor = (value) => {
   if (value === undefined) return null;
@@ -119,6 +120,10 @@ export async function registrarAuditoriaSistema({
     antes: normalizarValor(antes),
     despues: normalizarValor(despues),
     realizadoPor: normalizarValor(normalizarUsuario(realizadoPor)),
+    // La cuenta que de verdad escribe la entrada, aunque se presente "a nombre
+    // del Sistema". Lo exigen las reglas (`laAuditoriaLaFirmaQuienEscribe`): antes
+    // se podian dejar entradas sin autor o con el contenido que se quisiera.
+    registradoPorUid: AUTH?.currentUser?.uid ?? null,
     origen,
     metadatos: normalizarValor(metadatos),
     fecha,
@@ -190,6 +195,43 @@ async function eliminarAuditoriaTemporalPruebaDirecto() {
 // visita a la pantalla volvía a pedirlo todo. Vive solo en memoria: se pierde
 // al cerrar la aplicación, también lo sensible (salud, tutores).
 // ----------------------------------------------------------------------
+
+// EL REGISTRO DE EXPEDITION DESIGNER (pestaña "Registro"): lo de su módulo, de lo
+// más reciente a lo más antiguo. Con el índice `modulo` + `fecha`; si aún no está
+// creado, se lee todo el módulo y se ordena aquí.
+async function listarRegistroDelDesignerSinCache({ modulo, maxRegistros = 300 } = {}) {
+  if (!isFirebaseConfigured || !FIRESTORE || !modulo) return [];
+
+  const auditCollection = collection(FIRESTORE, COLECCION_AUDITORIA_SISTEMA);
+
+  try {
+    const snapshot = await getDocs(
+      query(
+        auditCollection,
+        where('modulo', '==', modulo),
+        orderBy('fecha', 'desc'),
+        limit(maxRegistros)
+      )
+    );
+
+    return snapshot.docs.map(mapearAuditoriaFirestoreAUi);
+  } catch (error) {
+    console.warn('[auditoria] registro del Designer sin índice, se ordena aquí', error);
+
+    const snapshot = await getDocs(query(auditCollection, where('modulo', '==', modulo)));
+
+    return snapshot.docs
+      .map(mapearAuditoriaFirestoreAUi)
+      .sort((a, b) => new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime())
+      .slice(0, maxRegistros);
+  }
+}
+
+export const listarRegistroDelDesigner = conCache(
+  'auditoria:listarRegistroDelDesigner',
+  listarRegistroDelDesignerSinCache,
+  { frescuraMs: 5_000 }
+);
 
 export const listarAuditoriaSistema = conCache('auditoria:listarAuditoriaSistema', listarAuditoriaSistemaSinCache);
 export const eliminarAuditoriaTemporalPrueba = conInvalidacion(eliminarAuditoriaTemporalPruebaDirecto, ['auditoria:']);

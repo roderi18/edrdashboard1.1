@@ -9,6 +9,7 @@ import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { fDopCurrency } from 'src/utils/format-number';
+import { carritoSinEntrega } from 'src/utils/combos-de-actividad.mjs';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -18,6 +19,8 @@ export function CheckoutSummary({ onEdit, checkoutState, onApplyDiscount }) {
   const { shipping, subtotal, discount, total } = checkoutState;
 
   const displayShipping = shipping !== null ? 'Gratis' : '-';
+  // Un carrito solo de combos no se envía: la fila "Envio" sobra.
+  const sinEntrega = carritoSinEntrega(checkoutState.items);
 
   const rowStyles = {
     display: 'flex',
@@ -62,18 +65,20 @@ export function CheckoutSummary({ onEdit, checkoutState, onApplyDiscount }) {
           </Typography>
         </Box>
 
-        <Box sx={{ ...rowStyles }}>
-          <Typography
-            component="span"
-            variant="body2"
-            sx={{ flexGrow: 1, color: 'text.secondary' }}
-          >
-            Envio
-          </Typography>
-          <Typography component="span" variant="subtitle2">
-            {shipping ? fDopCurrency(shipping) : displayShipping}
-          </Typography>
-        </Box>
+        {!sinEntrega && (
+          <Box sx={{ ...rowStyles }}>
+            <Typography
+              component="span"
+              variant="body2"
+              sx={{ flexGrow: 1, color: 'text.secondary' }}
+            >
+              Envio
+            </Typography>
+            <Typography component="span" variant="subtitle2">
+              {shipping ? fDopCurrency(shipping) : displayShipping}
+            </Typography>
+          </Box>
+        )}
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 

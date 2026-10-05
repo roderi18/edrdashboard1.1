@@ -66,7 +66,7 @@ const almacen = getStorage().bucket();
 // AGOTADOS: cantidad 0 —el carrito se apaga solo— y la cinta con "Agotado", que
 // la tarjeta pinta en gris. Cuando lleguen ejemplares se sube la cantidad y se
 // apaga la cinta desde la ficha del producto.
-const OTROS = path.join(RAIZ, 'public/parches/Otros');
+const OTROS = path.join(RAIZ, 'docs/tienda/imagenes/materiales-y-manuales');
 const manual = (nombre, archivo) => ({
   nombre,
   imagen: path.join(OTROS, archivo),
@@ -175,6 +175,8 @@ const subirImagen = async (rutaLocal, productoId) => {
     destination: destino,
     metadata: {
       contentType: 'image/webp',
+      // Sin esto Storage la sirve con max-age=0 y la tienda la vuelve a pedir en cada visita.
+      cacheControl: 'public, max-age=31536000, immutable',
       metadata: {
         tipoEntidad: 'producto',
         productoId: String(productoId),

@@ -64,27 +64,27 @@ export function PrincipalFileView() {
           name: 'Images',
           usedStorage: GB / 2,
           filesCount: 223,
-          icon: <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-img.svg`} />,
+          icon: <Box component="img" src={`${CONFIG.assetsDir}/plantilla/icons/files/ic-img.svg`} />,
         },
         {
           name: 'Media',
           usedStorage: GB / 5,
           filesCount: 223,
-          icon: <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-video.svg`} />,
+          icon: <Box component="img" src={`${CONFIG.assetsDir}/plantilla/icons/files/ic-video.svg`} />,
         },
         {
           name: 'Documents',
           usedStorage: GB / 5,
           filesCount: 223,
           icon: (
-            <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-document.svg`} />
+            <Box component="img" src={`${CONFIG.assetsDir}/plantilla/icons/files/ic-document.svg`} />
           ),
         },
         {
           name: 'Other',
           usedStorage: GB / 10,
           filesCount: 223,
-          icon: <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-file.svg`} />,
+          icon: <Box component="img" src={`${CONFIG.assetsDir}/plantilla/icons/files/ic-file.svg`} />,
         },
       ]}
     />
@@ -124,7 +124,7 @@ export function PrincipalFileView() {
                   loading="lazy"
                   decoding="async"
                   alt="Dropbox"
-                  src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-dropbox.svg`}
+                  src={`${CONFIG.assetsDir}/plantilla/icons/apps/ic-app-dropbox.svg`}
                   sx={{ width: 48, height: 48 }}
                 />
               }
@@ -142,7 +142,7 @@ export function PrincipalFileView() {
                   loading="lazy"
                   decoding="async"
                   alt="Google Drive"
-                  src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-drive.svg`}
+                  src={`${CONFIG.assetsDir}/plantilla/icons/apps/ic-app-drive.svg`}
                   sx={{ width: 48, height: 48 }}
                 />
               }
@@ -160,7 +160,7 @@ export function PrincipalFileView() {
                   loading="lazy"
                   decoding="async"
                   alt="OneDrive"
-                  src={`${CONFIG.assetsDir}/assets/icons/apps/ic-app-onedrive.svg`}
+                  src={`${CONFIG.assetsDir}/plantilla/icons/apps/ic-app-onedrive.svg`}
                   sx={{ width: 48, height: 48 }}
                 />
               }

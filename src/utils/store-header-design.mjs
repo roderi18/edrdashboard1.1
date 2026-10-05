@@ -70,7 +70,7 @@ export const EFECTOS_DE_COLOR = ['colores-derecha', 'colores-izquierda', 'colore
 
 export const esEfectoDeColor = (efecto) => EFECTOS_DE_COLOR.includes(String(efecto || ''));
 
-export const LOGO_POR_DEFECTO = '/logo/exploradores-del-rey-logo.png';
+export const LOGO_POR_DEFECTO = '/marca/exploradores-del-rey-logo.png';
 
 export const FONDOS = ['plano', 'degradado', 'sombra'];
 
@@ -127,7 +127,7 @@ export const esSinColor = (valor) => String(valor ?? '').toUpperCase() === SIN_C
 
 const COLOR_VALIDO = /^#(?:[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
-// Una direccion de imagen solo puede ser del propio sitio (`/logo/...`) o de
+// Una direccion de imagen solo puede ser del propio sitio (`/marca/...`) o de
 // `https`. Ni `javascript:`, ni `data:` —que se puede usar para colar un SVG con
 // script—, ni `http` a secas, que rompe la pagina segura.
 const URL_IMAGEN_VALIDA = /^(?:\/[\w\-./%]*|https:\/\/[\w\-.]+(?::\d+)?\/[\w\-./%?&=+~:@]*)$/i;

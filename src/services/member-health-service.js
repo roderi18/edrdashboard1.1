@@ -11,13 +11,14 @@ import {
 
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 
-export const COLECCION_INFORMACION_MEDICA_BASICA = 'informacion_medica_basica_miembros';
-export const COLECCION_MEDICAMENTOS_MIEMBROS = 'medicamentos_miembros';
-export const COLECCION_ALERGIAS_MIEMBROS = 'alergias_miembros';
-export const COLECCION_CONDICIONES_MEDICAS_MIEMBROS = 'condiciones_medicas_miembros';
+export const COLECCION_INFORMACION_MEDICA_BASICA = COLECCIONES.informacionMedicaBasicaMiembros;
+export const COLECCION_MEDICAMENTOS_MIEMBROS = COLECCIONES.medicamentosMiembros;
+export const COLECCION_ALERGIAS_MIEMBROS = COLECCIONES.alergiasMiembros;
+export const COLECCION_CONDICIONES_MEDICAS_MIEMBROS = COLECCIONES.condicionesMedicasMiembros;
 
 const normalizeIdMiembros = (idMiembros) => {
   const numericId = Number(idMiembros);

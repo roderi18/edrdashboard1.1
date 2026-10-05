@@ -28,6 +28,7 @@ import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
 // third-party
 import { esOficialEspecial } from 'src/utils/cargos-compatibles.mjs';
 import { normalizeMemberUsername } from 'src/utils/member-auth-credentials';
+import { OPCION_EX_DIRECTOR_NACIONAL } from 'src/utils/directiva-cuatrienios.mjs';
 import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
 import { buildOrgIndex, getMemberOrgPath } from 'src/utils/leadership-member-options';
 import { nombreDeMiembro, buscarMiembroConCorreo } from 'src/utils/member-correo-duplicado';
@@ -74,15 +75,21 @@ import { getChurches } from 'src/services/church-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import { getDivisions } from 'src/services/division-service';
 import { getRegionals } from 'src/services/regional-service';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { getSectionals } from 'src/services/sectional-service';
 // models
 import { MemberValidationSchema } from 'src/models/member-schema';
 // mock data
 import { CHURCHES, REGIONALS, SECTIONALS } from 'src/_mock/assets';
+import { ID_CUATRIENIO_LISTADO } from 'src/catalogs/directiva-2022-2026.mjs';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { createFirebaseAuthForMember } from 'src/services/member-auth-provisioning-service';
 import { MEMBER_SHIRT_SIZES, MEMBER_OCUPATIONS_SORTED } from 'src/catalogs/member-catalogs';
+import {
+  obtenerPermanentes,
+  marcarExDirectorNacional,
+} from 'src/services/directiva-cuatrienios-service';
 import { notificarCoordinadoresActualizacionDirecta } from 'src/services/solicitudes-cambio-notificaciones-service';
 import {
   getMembers,
@@ -255,7 +262,7 @@ const getDirectivaDivisionByMemberDivisionId = (idDivision) => {
   return '';
 };
 
-const mapMemberToForm = (member) => {
+const mapMemberToForm = (member, correoDeCuenta = '') => {
   // Los cargos NO salen de aqui: los rellena el efecto que lee las asignaciones
   // de directiva en Firestore. Antes se buscaban en "leadershipAssignments"
   // (datos de ejemplo, con ids como 'member-01'), que ademas de no acertar nunca
@@ -292,7 +299,10 @@ const mapMemberToForm = (member) => {
         : member.dateOfBirth
           ? dayjs(member.dateOfBirth)
           : null,
-    email: member.email ?? '',
+    // El padrón usa `correo`, mientras que algunos documentos de sesión usan
+    // `email`. Si la ficha está vacía, el formulario de la propia persona puede
+    // mostrar el correo que ya está atado a su cuenta de acceso.
+    email: member.email || member.correo || correoDeCuenta || '',
     phoneNumber: member.phoneNumber ?? '',
     // country: member.country ?? '',
     provinceId: province?.id ? String(province.id) : '',
@@ -360,6 +370,7 @@ export function MemberCreateEditForm({
   destIdInicial = '',
 }) {
   const { user } = useAuthContext();
+  const [correoVinculado, setCorreoVinculado] = useState('');
   // Cargos del destacamento que no son coordinadores (líder de grupo/asistente,
   // pastor, consejo, capellán): no pueden editar destacamento, posición en el
   // destacamento, sexo ni Instructor CI (se muestran deshabilitados) y sus cambios
@@ -470,7 +481,7 @@ export function MemberCreateEditForm({
       // Los docs de usuarios_roles suelen llavearse por el idMiembros: lectura
       // directa como respaldo si el campo se guardo como texto.
       (async () => {
-        const directo = await getDoc(doc(FIRESTORE, 'usuarios_roles', String(idMiembros))).catch(
+        const directo = await getDoc(doc(FIRESTORE, COLECCIONES.usuariosRoles, String(idMiembros))).catch(
           () => null
         );
 
@@ -800,6 +811,11 @@ export function MemberCreateEditForm({
   const nextStep = () => setStep(2);
   const prevStep = () => setStep(1);
 
+  const idFicha = String(currentMember?.id ?? currentMember?.idMiembros ?? '');
+  const idUsuario = String(user?.idMiembros ?? user?.id ?? '');
+  const correoDeCuentaParaFicha =
+    correoVinculado || (idFicha && idFicha === idUsuario ? String(user?.email ?? '').trim() : '');
+
   const defaultValues = {
     status: 'active',
     avatarUrl: null,
@@ -838,11 +854,48 @@ export function MemberCreateEditForm({
   const methods = useForm({
     resolver: zodResolver(MemberValidationSchema),
     mode: 'onSubmit',
-    defaultValues: currentMember ? mapMemberToForm(currentMember) : defaultValues,
+    defaultValues: currentMember
+      ? mapMemberToForm(currentMember, correoDeCuentaParaFicha)
+      : defaultValues,
     // Deshabilita SOLO los campos del formulario (no los desplegables ni el botón
     // de descarga) para los usuarios en solo lectura / con datos enmascarados.
     disabled: readOnlyEffective,
   });
+
+  // La ficha puede venir sin correo aunque la cuenta de Firebase ya tenga uno.
+  // Se resuelve por el número del miembro para que también funcione cuando un
+  // Administrador Global edita la ficha de otra persona.
+  useEffect(() => {
+    let cancelado = false;
+
+    setCorreoVinculado('');
+
+    const correoEnFicha = String(currentMember?.email || currentMember?.correo || '').trim();
+    const codigo = getCodigoMiembro(currentMember);
+    const numero = String(codigo).replace(/\D/g, '');
+
+    if (!currentMember || correoEnFicha || !numero) return undefined;
+
+    fetch('/api/auth/correo-acceso/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numeroUsuario: numero }),
+    })
+      .then((respuesta) => respuesta.json())
+      .then((datos) => {
+        const correo = String(datos?.correo || '').trim().toLowerCase();
+
+        if (!cancelado && correo) {
+          setCorreoVinculado(correo);
+          methods.setValue('email', correo, { shouldDirty: false });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelado = true;
+    };
+  }, [currentMember?.id, currentMember?.idMiembros, currentMember?.email, currentMember?.correo]);
 
   // LO QUE DICE LA DIRECTIVA SOBREVIVE A LOS RESETS DE LA FICHA.
   //
@@ -866,10 +919,10 @@ export function MemberCreateEditForm({
 
   useEffect(() => {
     if (currentMember) {
-      methods.reset(mapMemberToForm(currentMember));
+      methods.reset(mapMemberToForm(currentMember, correoDeCuentaParaFicha));
       reaplicarCargosDeDirectiva();
     }
-  }, [currentMember]);
+  }, [currentMember, correoDeCuentaParaFicha]);
 
   // Al crear, la pantalla empieza SIEMPRE por el paso 1.
   //
@@ -897,9 +950,10 @@ export function MemberCreateEditForm({
       }
 
       try {
-        const [cargosDirectiva, asignacionesDirectiva] = await Promise.all([
+        const [cargosDirectiva, asignacionesDirectiva, permanentes] = await Promise.all([
           obtenerCargosDirectivaCached({ incluirNoAsignables: false }),
           obtenerAsignacionesDirectivaPorMiembro({ idMiembro: memberId }),
+          obtenerPermanentes().catch(() => []),
         ]);
 
         if (!isMounted) {
@@ -932,6 +986,11 @@ export function MemberCreateEditForm({
           cargosDeConsejo.find((cargo) => !esOficialEspecial(cargo.idPosicionDirectiva || cargo.id)) ||
           cargosDeConsejo[0];
         const destCargo = posiciones.find((cargo) => cargo.nivel === 'destacamento');
+        // Un ex director sin cargo de consejo hoy enseña "Ex Director Nacional"
+        // (antes "Ninguno"). Con un cargo, manda el cargo, como en la lista.
+        const esExDirector = permanentes.some(
+          (fila) => String(fila.idMiembros) === String(memberId) && fila.exComandante
+        );
 
         // El aviso de ficha incompleta es SOLO para el pastor: es la unica persona
         // que el sistema da de alta por su cuenta, con el nombre como unico dato.
@@ -960,9 +1019,12 @@ export function MemberCreateEditForm({
                   nationalCargo.idPosicionDirectiva || nationalCargo.id || nationalCargo.idCargo,
               }
             : null,
+          esExDirector,
           nationalLeadershipRole: nationalCargo
             ? nationalCargo.idPosicionDirectiva || nationalCargo.id || nationalCargo.idCargo
-            : '',
+            : esExDirector
+              ? OPCION_EX_DIRECTOR_NACIONAL
+              : '',
           memberPosition: destCargo
             ? destCargo.idPosicionDirectiva || destCargo.id || destCargo.idCargo
             : '',
@@ -1499,6 +1561,22 @@ export function MemberCreateEditForm({
       ? dayjs().diff(dayjs(formData.birthdate), 'year')
       : null;
     const esMenorDeEdad = edadAlGuardar !== null && edadAlGuardar < EDAD_MAYORIA;
+
+    // "Ex Director Nacional" no es una casilla: deja la persona sin cargo de
+    // consejo (lo de abajo, con un valor que no es cargo, lo retira) y, si aún
+    // no lo era, la suma al grupo de ex directores. Elegir otro cargo después
+    // no le quita la condición: eso se hace en la memoria del cuatrienio.
+    if (
+      !esMenorDeEdad &&
+      formData.nationalLeadershipRole === OPCION_EX_DIRECTOR_NACIONAL &&
+      !cargosDeDirectivaRef.current?.esExDirector
+    ) {
+      await marcarExDirectorNacional({
+        miembro: { ...currentMember, ...formData, idMiembros: idMiembro },
+        cuatrienio: ID_CUATRIENIO_LISTADO,
+        usuario: user,
+      });
+    }
 
     await Promise.all([
       saveSelectedCargo({

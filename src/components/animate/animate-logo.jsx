@@ -1,7 +1,6 @@
 'use client';
 
 import { m } from 'framer-motion';
-import { varAlpha } from 'minimal-shared/utils';
 
 import { styled } from '@mui/material/styles';
 
@@ -9,90 +8,47 @@ import { Logo } from '../logo';
 
 // ----------------------------------------------------------------------
 
+// LA PANTALLA DE CARGA: EL LOGOTIPO DE EXPEDITION, QUIETO.
+//
+// Antes era el isotipo de EXPLORA girando dentro de dos marcos que también
+// giraban. Ahora es el logotipo completo y no gira: solo respira (opacidad),
+// para que se note que la aplicación sigue cargando. El logotipo se lee
+// igual sobre fondo claro y oscuro: una sola imagen.
 export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
   return (
     <LogoZoomRoot sx={sx} {...other}>
       <m.span
-        animate={{
-          scale: [1, 0.9, 0.9, 1, 1],
-          rotate: [0, 180, 360],
-          opacity: [1, 0.48, 0.48, 1, 1],
-        }}
-        transition={{
-          duration: 2.4,
-          repeatDelay: 1,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
+        animate={{ opacity: [1, 0.55, 1] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
         style={{ display: 'inline-flex' }}
       >
         {logo ?? (
-          <LoadingIsotipo
-            src="/logo/explora-o-isotipo.webp?v=1"
-            alt=""
-            aria-hidden="true"
-            width={64}
-            height={64}
+          <LoadingLogotipo
+            src="/marca/expedition-logotipo.webp?v=3"
+            alt="EXPEDITION"
+            width={200}
+            height={126}
             {...slotProps?.logo}
-            sx={[
-              { width: 64, height: 64, objectFit: 'contain' },
-              ...(Array.isArray(slotProps?.logo?.sx) ? slotProps.logo.sx : [slotProps?.logo?.sx]),
-            ]}
           />
         )}
       </m.span>
-
-      <LogoZoomPrimaryOutline
-        animate={{
-          scale: [1.6, 1, 1, 1.6, 1.6],
-          rotate: [270, 0, 0, 270, 270],
-          opacity: [0.25, 1, 1, 1, 0.25],
-          borderRadius: ['25%', '25%', '50%', '50%', '25%'],
-        }}
-        transition={{ ease: 'linear', duration: 3.2, repeat: Infinity }}
-      />
-
-      <LogoZoomSecondaryOutline
-        animate={{
-          scale: [1, 1.2, 1.2, 1, 1],
-          rotate: [0, 270, 270, 0, 0],
-          opacity: [1, 0.25, 0.25, 0.25, 1],
-          borderRadius: ['25%', '25%', '50%', '50%', '25%'],
-        }}
-        transition={{ ease: 'linear', duration: 3.2, repeat: Infinity }}
-      />
     </LogoZoomRoot>
   );
 }
 
 const LogoZoomRoot = styled('div')(() => ({
-  width: 120,
-  height: 120,
+  width: 200,
+  height: 126,
   alignItems: 'center',
   position: 'relative',
   display: 'inline-flex',
   justifyContent: 'center',
 }));
 
-const LoadingIsotipo = styled('img')(({ theme }) => ({
-  display: 'block',
-  ...theme.applyStyles('dark', {
-    filter: 'brightness(0) invert(1)',
-  }),
-}));
-
-const LogoZoomPrimaryOutline = styled(m.span)(({ theme }) => ({
-  position: 'absolute',
-  width: 'calc(100% - 20px)',
-  height: 'calc(100% - 20px)',
-  border: `solid 3px ${varAlpha(theme.vars.palette.primary.darkChannel, 0.24)}`,
-}));
-
-const LogoZoomSecondaryOutline = styled(m.span)(({ theme }) => ({
-  width: '100%',
-  height: '100%',
-  position: 'absolute',
-  border: `solid 8px ${varAlpha(theme.vars.palette.primary.darkChannel, 0.24)}`,
+const LoadingLogotipo = styled('img')(() => ({
+  width: 200,
+  height: 126,
+  objectFit: 'contain',
 }));
 
 // ----------------------------------------------------------------------

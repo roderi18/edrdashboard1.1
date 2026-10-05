@@ -14,27 +14,27 @@
 // grupo, division y ruta—, asi que esta es la unica cara honesta que se les puede
 // poner.
 const ICONO_POR_GRUPO = {
-  instructor: '/sistemaAscenso/Academia Ministerial/academia-ministerial.webp',
-  'lider-juvenil': '/sistemaAscenso/Academia Ministerial/ilj.webp',
-  'lider-de-destacamento': '/sistemaAscenso/Academia Ministerial/cuadro-avanzado.webp',
-  'lider-organizacional': '/sistemaAscenso/Academia Ministerial/lider-organizacional.webp',
-  fundamentos: '/sistemaAscenso/Academia Ministerial/fundamentos.webp',
-  mentores: '/sistemaAscenso/Academia Ministerial/mentores.webp',
-  'seguridad-y-primeros-auxilios': '/sistemaAscenso/Academia Ministerial/seguridad.webp',
-  'destacamento-de-clase-mundial': '/sistemaAscenso/Academia Ministerial/dcm.webp',
-  'campamento-nacional-ministerial': '/sistemaAscenso/Academia Ministerial/cnm.webp',
-  'campamento-de-barras-doradas': '/sistemaAscenso/Academia Ministerial/cbd.webp',
-  'cuadro-avanzado': '/sistemaAscenso/Academia Ministerial/cuadro-avanzado.webp',
+  instructor: '/sistema-ascenso/academia-ministerial/academia-ministerial.webp',
+  'lider-juvenil': '/sistema-ascenso/academia-ministerial/ilj.webp',
+  'lider-de-destacamento': '/sistema-ascenso/academia-ministerial/cuadro-avanzado.webp',
+  'lider-organizacional': '/sistema-ascenso/academia-ministerial/lider-organizacional.webp',
+  fundamentos: '/sistema-ascenso/academia-ministerial/fundamentos.webp',
+  mentores: '/sistema-ascenso/academia-ministerial/mentores.webp',
+  'seguridad-y-primeros-auxilios': '/sistema-ascenso/academia-ministerial/seguridad.webp',
+  'destacamento-de-clase-mundial': '/sistema-ascenso/academia-ministerial/dcm.webp',
+  'campamento-nacional-ministerial': '/sistema-ascenso/academia-ministerial/cnm.webp',
+  'campamento-de-barras-doradas': '/sistema-ascenso/academia-ministerial/cbd.webp',
+  'cuadro-avanzado': '/sistema-ascenso/academia-ministerial/cuadro-avanzado.webp',
 };
 
 const ICONO_POR_DIVISION = {
-  exploradores: '/sistemaAscenso/Academia Ministerial/exploradores.webp',
-  pioneros: '/sistemaAscenso/Academia Ministerial/pioneros.webp',
-  navegantes: '/sistemaAscenso/Academia Ministerial/navegantes.webp',
-  seguidores: '/sistemaAscenso/Academia Ministerial/seguidores.webp',
+  exploradores: '/sistema-ascenso/academia-ministerial/exploradores.webp',
+  pioneros: '/sistema-ascenso/academia-ministerial/pioneros.webp',
+  navegantes: '/sistema-ascenso/academia-ministerial/navegantes.webp',
+  seguidores: '/sistema-ascenso/academia-ministerial/seguidores.webp',
 };
 
-const ICONO_POR_DEFECTO = '/sistemaAscenso/Academia Ministerial/exploradores-del-rey.webp';
+const ICONO_POR_DEFECTO = '/sistema-ascenso/academia-ministerial/exploradores-del-rey.webp';
 
 const clave = (valor) =>
   String(valor ?? '')

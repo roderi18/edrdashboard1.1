@@ -9,7 +9,7 @@ import { CheckoutCartNavInfo } from './components/checkout-cart-nav-info';
 
 // ----------------------------------------------------------------------
 
-const icon = (name) => <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/${name}.svg`} />;
+const icon = (name) => <SvgColor src={`${CONFIG.assetsDir}/plantilla/icons/navbar/${name}.svg`} />;
 
 const ICONS = {
   job: icon('ic-job'),
@@ -41,6 +41,8 @@ const ICONS = {
   analytics: icon('ic-analytics'),
   dashboard: icon('ic-dashboard'),
   designer: <Iconify width={24} icon="solar:paint-brush-bold-duotone" />,
+  // Un grupo de personas: la Comunidad ERRD es la gente, no un panel de cifras.
+  comunidad: <Iconify width={24} icon="solar:users-group-rounded-bold-duotone" />,
   pruebas: <Iconify width={24} icon="custom:constructor-duotone" />,
 };
 
@@ -102,7 +104,7 @@ export const navData = [
    */
   {
     subheader: 'Principal',
-    items: [{ title: 'Inicio', path: paths.dashboard.principal, icon: ICONS.dashboard }],
+    items: [{ title: 'Comunidad ERRD', path: paths.dashboard.principal, icon: ICONS.comunidad }],
   },
   {
     subheader: 'Organización',
@@ -141,6 +143,12 @@ export const navData = [
         path: paths.dashboard.level.attendance,
         icon: ICONS.calendar,
         deepMatch: true,
+      },
+      // El mapa de destacamentos por provincia y región (antes en Pruebas).
+      {
+        title: 'Datos demográficos',
+        path: paths.dashboard.level.datosDemograficos,
+        icon: ICONS.analytics,
       },
     ],
   },
@@ -262,7 +270,7 @@ export const tiendaDeAdministracion = [
 // Pone la tienda de administracion en lugar de "Tienda Virtual", dentro del
 // grupo "Tienda". Lo demas del grupo —"Mi carrito"— se queda donde esta.
 // ----------------------------------------------------------------------
-// EXPLORA DESIGNER, DEBAJO DE "ADMINISTRADORES".
+// EXPEDITION DESIGNER, DEBAJO DE "ADMINISTRADORES".
 //
 // Cambia la portada de toda la organizacion, asi que en su primera version es
 // solo del Administrador Global. No va dentro de las pestañas de Administracion
@@ -275,22 +283,50 @@ export const tiendaDeAdministracion = [
 // ----------------------------------------------------------------------
 
 export const entradaEverestDesigner = {
-  title: 'EXPLORA Designer',
+  title: 'EXPEDITION Designer',
   path: paths.dashboard.everest,
   icon: ICONS.designer,
 };
 
-export const conEverestDesigner = (secciones = []) =>
-  secciones.map((seccion) =>
+// Quien no es Administrador Global entra solo a las pestañas que le dé
+// "Accesos" (`accesos-designer.mjs`): su entrada abre la primera.
+export const entradaEverestDesignerEn = (pestana) => ({
+  ...entradaEverestDesigner,
+  path:
+    pestana === 'portada'
+      ? paths.dashboard.everest
+      : `${paths.dashboard.everest}?seccion=${pestana}`,
+});
+
+export const conEverestDesigner = (secciones = [], entrada = entradaEverestDesigner) => {
+  let puesta = false;
+  const conEntrada = secciones.map((seccion) =>
     seccion.subheader === 'Administración'
       ? {
         ...seccion,
-        items: (seccion.items ?? []).flatMap((item) =>
-          item.path === paths.dashboard.admin.root ? [item, entradaEverestDesigner] : [item]
-        ),
+        items: (seccion.items ?? []).flatMap((item) => {
+          if (item.path !== paths.dashboard.admin.root) return [item];
+          puesta = true;
+          return [item, entrada];
+        }),
       }
       : seccion
   );
+
+  if (puesta) return conEntrada;
+
+  // Sin "Administradores" en su menú (la Oficina Nacional), al final de su
+  // grupo de Administración, o en uno propio si no lo tiene.
+  const conGrupo = conEntrada.some((seccion) => seccion.subheader === 'Administración');
+
+  return conGrupo
+    ? conEntrada.map((seccion) =>
+      seccion.subheader === 'Administración'
+        ? { ...seccion, items: [...(seccion.items ?? []), entrada] }
+        : seccion
+    )
+    : [...conEntrada, { subheader: 'Administración', items: [entrada] }];
+};
 
 export const conTiendaDeAdministracion = (secciones = []) =>
   secciones.map((seccion) =>
@@ -323,14 +359,6 @@ export const navDataDesarrollo = [
   {
     subheader: 'Desarrollo · plantilla',
     items: [
-      {
-        title: 'Pruebas',
-        path: paths.pruebas.root,
-        icon: ICONS.pruebas,
-        children: [
-          { title: 'Mapa Rep. Dom.', path: paths.pruebas.mapaRepublicaDominicana },
-        ],
-      },
       { title: 'Aplicación', path: paths.dashboard.root, icon: ICONS.dashboard },
       { title: 'Ecommerce', path: paths.dashboard.general.ecommerce, icon: ICONS.ecommerce },
       { title: 'Analytics', path: paths.dashboard.general.analytics, icon: ICONS.analytics },

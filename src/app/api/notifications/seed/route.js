@@ -1,80 +1,113 @@
-import { getDocs, collection } from 'firebase/firestore';
-
 import {
-  sembrarCatalogoNotificacionesIniciales,
-  sembrarPreferenciasNotificacionesUsuario,
+  DEFINICIONES_NOTIFICACIONES,
+  COLECCIONES_NOTIFICACIONES,
+  construirDocumentoTipo,
+  construirDocumentoPlantilla,
+  construirPreferenciasNotificacionesBase,
 } from 'src/utils/firebase-notificaciones';
 
-import { exigirSesionRest } from 'src/server/sesion-rest.mjs';
-import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
+import { exigirAdministradorGlobalRest } from 'src/server/sesion-rest.mjs';
+import { createChatFirestoreRestClient } from 'src/server/chat-firestore-rest.mjs';
 
-// ----------------------------------------------------------------------
+export const runtime = 'nodejs';
 
-const isAdminRole = (value = '') => {
-  const role = String(value || '').toLowerCase();
-  return role === 'admin' || role === 'administrador' || role === 'administrator';
-};
+const isAdminRole = (value = '') =>
+  ['admin', 'administrador', 'administrator'].includes(String(value || '').toLowerCase());
 
 const addRecipient = (recipients, idUsuario, rol = 'usuario') => {
   if (!idUsuario) return;
-
   const normalizedRole = isAdminRole(rol) ? 'admin' : 'usuario';
   const currentRole = recipients.get(String(idUsuario));
-
-  if (currentRole === 'admin' && normalizedRole !== 'admin') {
-    return;
-  }
-
+  if (currentRole === 'admin' && normalizedRole !== 'admin') return;
   recipients.set(String(idUsuario), normalizedRole);
 };
 
-const obtenerUsuariosConPreferencias = async () => {
-  const recipients = new Map();
-
-  const readCollection = async (collectionName) => {
-    const snapshot = await getDocs(collection(FIRESTORE, collectionName)).catch(() => null);
-
-    snapshot?.docs?.forEach((item) => {
-      const data = item.data() || {};
-      const rol = collectionName === 'admins' ? 'admin' : data.rol || data.role || 'usuario';
-      const idUsuario = data.uid || data.idUsuario || data.idMiembros || item.id;
-
-      addRecipient(recipients, idUsuario, rol);
-    });
-  };
-
-  await Promise.all([
-    readCollection('admins'),
-    readCollection('users'),
-    readCollection('usuarios_roles'),
-  ]);
-
-  return Array.from(recipients.entries()).map(([idUsuario, rol]) => ({ idUsuario, rol }));
+const crearCliente = (request) => {
+  const token = (request.headers.get('authorization') || '').match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  const projectId = String(
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || ''
+  ).trim();
+  if (!token || !projectId) return null;
+  return createChatFirestoreRestClient({ projectId, token });
 };
 
+const confirmarEnLotes = async (client, writes) => {
+  for (let index = 0; index < writes.length; index += 300) {
+    await client.commitWrites(writes.slice(index, index + 300));
+  }
+};
+
+const rutasDeCampos = (data, prefix = '') =>
+  Object.entries(data).flatMap(([key, value]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    return value && typeof value === 'object' && !(value instanceof Date) && !Array.isArray(value)
+      ? rutasDeCampos(value, path)
+      : [path];
+  });
+
 export async function POST(req) {
-  // Sembrar el catalogo de notificaciones y las preferencias escribe para todos
-  // los usuarios: sin sesion, no.
-  const sinSesion = await exigirSesionRest(req);
+  const sinPermiso = await exigirAdministradorGlobalRest(req);
+  if (sinPermiso) return sinPermiso;
 
-  if (sinSesion) return sinSesion;
-
-  if (!isFirebaseConfigured || !FIRESTORE) {
-    return Response.json({ ok: false, message: 'Firebase no esta configurado.' }, { status: 500 });
+  const client = crearCliente(req);
+  if (!client) {
+    return Response.json({ ok: false, message: 'Firebase no está configurado.' }, { status: 503 });
   }
 
-  await sembrarCatalogoNotificacionesIniciales();
+  try {
+    const recipients = new Map();
+    const collections = ['admins', 'users', 'usuarios_roles'];
+    const results = await Promise.all(collections.map((name) => client.listCollection(name)));
 
-  const recipients = await obtenerUsuariosConPreferencias();
+    results.forEach((documents, index) => {
+      documents.forEach((data) => {
+        const rol = collections[index] === 'admins' ? 'admin' : data.rol || data.role || 'usuario';
+        const idUsuario = data.uid || data.idUsuario || data.idMiembros || data.id;
+        addRecipient(recipients, idUsuario, rol);
+      });
+    });
 
-  await Promise.all(
-    recipients.map((recipient) => sembrarPreferenciasNotificacionesUsuario(recipient))
-  );
+    const now = new Date();
+    const writes = Object.entries(DEFINICIONES_NOTIFICACIONES).flatMap(([tipo, definicion]) => [
+      {
+        type: 'set',
+        path: `${COLECCIONES_NOTIFICACIONES.tipos}/${tipo}`,
+        data: { ...construirDocumentoTipo(tipo, definicion, now), fechaCreacion: now },
+        merge: true,
+      },
+      {
+        type: 'set',
+        path: `${COLECCIONES_NOTIFICACIONES.plantillas}/${tipo}`,
+        data: { ...construirDocumentoPlantilla(tipo, definicion, now), fechaCreacion: now },
+        merge: true,
+      },
+    ]);
 
-  return Response.json({
-    ok: true,
-    tipos: 'sincronizados',
-    plantillas: 'sincronizadas',
-    preferencias: recipients.length,
-  });
+    recipients.forEach((rol, idUsuario) => {
+      const data = {
+        ...construirPreferenciasNotificacionesBase({ idUsuario, rol }),
+        fechaCreacion: now,
+        fechaActualizacion: now,
+      };
+      writes.push({
+        type: 'set',
+        path: `${COLECCIONES_NOTIFICACIONES.preferencias}/${idUsuario}`,
+        data,
+        merge: true,
+        fieldPaths: rutasDeCampos(data),
+      });
+    });
+
+    await confirmarEnLotes(client, writes);
+
+    return Response.json({
+      ok: true,
+      tipos: 'sincronizados',
+      plantillas: 'sincronizadas',
+      preferencias: recipients.size,
+    });
+  } catch (error) {
+    console.error('[notifications/seed] no se pudo sembrar el catálogo', error);
+    return Response.json({ ok: false, message: 'No se pudieron sembrar las notificaciones.' }, { status: 502 });
+  }
 }

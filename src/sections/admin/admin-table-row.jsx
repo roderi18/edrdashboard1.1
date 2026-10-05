@@ -14,6 +14,7 @@ import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
 
+import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 import { getAdminRoleLabel, ROLES_DE_ADMINISTRACION } from 'src/utils/admin-role-label';
 import {
   describirRolesOrganizacionales,
@@ -22,6 +23,8 @@ import {
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
+
+import { ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 
 import { AdminPermissionsDialog } from './admin-permissions-dialog';
 import { AdminRoleAssignmentDialog } from './admin-role-assignment-dialog';
@@ -53,7 +56,12 @@ export function AdminTableRow({
     Boolean(row.adminId || row.esAdministrador) ||
     ['admin', 'administrador'].includes(String(row.rol || row.role || '').toLowerCase()) ||
     ROLES_DE_ADMINISTRACION.includes(row.rolId || row.roleId || row.role);
-  const roleLabel = getAdminRoleLabel(row, { dests });
+  // Con varios roles de administracion, se enseñan todos (no solo el principal).
+  const susRolesDeAdministracion = rolesDeAdministracionDe(row);
+  const roleLabel =
+    susRolesDeAdministracion.length > 1
+      ? susRolesDeAdministracion.map((codigo) => ROLES_POR_CODIGO[codigo]?.nombre || codigo).join(' · ')
+      : getAdminRoleLabel(row, { dests });
   const ubicacion = describirUbicacionOrganizacional(row, { dests, ...catalogos });
   const rolesOrganizacionales = describirRolesOrganizacionales(row);
   const codigoDeUsuario = row.memberCode || row.codigoMiembro || row.codigoUsuario || '';

@@ -1,0 +1,15 @@
+# Firebase App Hosting: la landing de registro de destacamentos.
+# Sin cuenta de servicio: en App Hosting el Admin SDK usa las credenciales del
+# propio servidor (ver src/server/firebase.mjs).
+runConfig:
+  # Uno siempre encendido: con 0, el primero que entraba tras un rato sin
+  # visitas esperaba a que arrancara el servidor.
+  minInstances: 1
+  maxInstances: 2
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: systexploradores.firebasestorage.app
+  - variable: API_NET_URL
+    value: https://systexploradores.somee.com/api
+  - variable: RESEND_API_KEY
+    secret: resend-api-key

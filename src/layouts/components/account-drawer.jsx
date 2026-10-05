@@ -36,6 +36,7 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { AnimateBorder } from 'src/components/animate';
+import { useSettingsContext } from 'src/components/settings';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
@@ -43,11 +44,13 @@ import { ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 import { UpgradeBlock } from './nav-upgrade';
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';
+import { fondoDelPanelDeMarca, propsDelPanelDeMarca } from './panel-de-marca';
 
 // ----------------------------------------------------------------------
 
 export function AccountDrawer({ data = [], sx, onProbarComoUsuario, ...other }) {
   const pathname = usePathname();
+  const settings = useSettingsContext();
 
   const { user } = useAuthContext();
   const memberCode = getMemberCodeForDisplay(user);
@@ -190,7 +193,11 @@ export function AccountDrawer({ data = [], sx, onProbarComoUsuario, ...other }) 
         anchor="right"
         slotProps={{
           backdrop: { invisible: true },
-          paper: { sx: { width: 320 } },
+          // Del color de la barra lateral, con el mismo "En blanco" (ver panel-de-marca).
+          paper: {
+            ...propsDelPanelDeMarca(settings.state.navBlanco),
+            sx: (theme) => ({ width: 320, ...fondoDelPanelDeMarca(theme, settings.state.navBlanco) }),
+          },
         }}
       >
         <IconButton

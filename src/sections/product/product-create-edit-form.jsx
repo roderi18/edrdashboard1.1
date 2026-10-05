@@ -11,10 +11,13 @@ import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
+import MenuItem from '@mui/material/MenuItem';
 import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
 import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
+import ListSubheader from '@mui/material/ListSubheader';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
@@ -25,13 +28,16 @@ import { fPercent } from 'src/utils/format-number';
 import { isAdminGlobal } from 'src/utils/org-level-access';
 import { canManageStoreProducts } from 'src/utils/member-access';
 import { generarSiguienteCodigoProducto } from 'src/utils/producto-codigo.mjs';
+import { esCategoriaDeCampamento } from 'src/utils/producto-categorias-personalizadas.mjs';
 
 import { PRODUCT_SIZE_OPTIONS, PRODUCT_COLOR_NAME_OPTIONS } from 'src/_mock';
+import { eliminarCategoriaProducto } from 'src/services/producto-categorias-service';
 import { guardarProductoFirestore, listarProductosFirestore } from 'src/services/product-service';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -234,6 +240,12 @@ export function ProductCreateEditForm({ currentProduct }) {
     return categoriasPersonalizadas.filter((categoria) => !idsDeFabrica.has(categoria.value));
   }, [categoriasPersonalizadas]);
   const [agregandoCategoria, setAgregandoCategoria] = useState(false);
+  // Las de campamento se renombran y se borran desde el propio desplegable,
+  // solo por el Administrador Global y quien administra la tienda.
+  const puedeGestionarCategorias = isAdminGlobal(user) || canManageStoreProducts(user);
+  const [renombrandoCategoria, setRenombrandoCategoria] = useState(null);
+  const [borrandoCategoria, setBorrandoCategoria] = useState(null);
+  const [borrandoEnCurso, setBorrandoEnCurso] = useState(false);
   const gruposDeCategoria = useMemo(
     () =>
       categoriasPersonalizadasSinRepetir.length
@@ -404,6 +416,8 @@ export function ProductCreateEditForm({ currentProduct }) {
         ...data,
         id: currentProduct?.id || data.id,
         variantes: currentProduct?.variantes || [],
+        // El formulario no edita el combo: se conserva el que ya tenía.
+        combo: currentProduct?.combo ?? null,
         price: data.price || data.precioRegistrado || data.precioNoRegistrado || 0,
         sizes: data.category === 'uniformes' ? data.sizes : [],
         colors: data.category === 'accesorios' ? data.colors : [],
@@ -636,27 +650,67 @@ export function ProductCreateEditForm({ currentProduct }) {
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' },
             }}
           >
+            {/* Desplegable de MUI y no el nativo: el nativo no admite botones, y las
+                categorías de campamento llevan lápiz y papelera a la derecha. */}
             <Field.Select
               name="category"
               label="Categoria"
               onChange={handleChangeCategory}
               slotProps={{
-                select: { native: true },
+                select: {
+                  renderValue: (valor) =>
+                    todasLasCategorias.find((opcion) => opcion.value === valor)?.label ?? valor,
+                  MenuProps: { slotProps: { paper: { sx: { maxHeight: 360 } } } },
+                },
                 inputLabel: { shrink: true },
               }}
             >
-              {gruposDeCategoria.map((category) => (
-                <optgroup key={category.group} label={category.group}>
-                  {category.classify.map((classify) => (
-                    <option key={classify.value} value={classify.value}>
+              {gruposDeCategoria.flatMap((category) => [
+                <ListSubheader key={`grupo-${category.group}`}>{category.group}</ListSubheader>,
+                ...category.classify.map((classify) => (
+                  <MenuItem
+                    key={classify.value}
+                    value={classify.value}
+                    sx={{ textTransform: 'none', gap: 1 }}
+                  >
+                    <Box component="span" sx={{ flexGrow: 1 }}>
                       {classify.label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-              <option value={AGREGAR_CATEGORIA_VALUE} style={{ fontWeight: 700 }}>
+                    </Box>
+                    {puedeGestionarCategorias && esCategoriaDeCampamento(classify) && (
+                      <>
+                        <Tooltip title="Cambiar nombre">
+                          <IconButton
+                            size="small"
+                            onMouseDown={(evento) => evento.stopPropagation()}
+                            onClick={(evento) => {
+                              evento.stopPropagation();
+                              setRenombrandoCategoria(classify);
+                            }}
+                          >
+                            <Iconify icon="solar:pen-bold" width={16} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Borrar">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onMouseDown={(evento) => evento.stopPropagation()}
+                            onClick={(evento) => {
+                              evento.stopPropagation();
+                              setBorrandoCategoria(classify);
+                            }}
+                          >
+                            <Iconify icon="solar:trash-bin-trash-bold" width={16} />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    )}
+                  </MenuItem>
+                )),
+              ])}
+              <MenuItem value={AGREGAR_CATEGORIA_VALUE} sx={{ fontWeight: 700 }}>
                 + Nuevo
-              </option>
+              </MenuItem>
             </Field.Select>
 
             {/* Se arma solo a partir de la categoria (`regenerarCodigoDeProducto`):
@@ -983,6 +1037,42 @@ export function ProductCreateEditForm({ currentProduct }) {
           setValue('category', categoria.value, { shouldValidate: true, shouldDirty: true });
           regenerarCodigoDeProducto(categoria.value, categoria.label);
         }}
+      />
+
+      <AgregarCategoriaDialog
+        open={Boolean(renombrandoCategoria)}
+        categoria={renombrandoCategoria}
+        onClose={() => setRenombrandoCategoria(null)}
+        onCreada={() => setRenombrandoCategoria(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(borrandoCategoria)}
+        onClose={() => !borrandoEnCurso && setBorrandoCategoria(null)}
+        title="Borrar categoría"
+        content={`¿Borrar "${borrandoCategoria?.label ?? ''}"? Solo se puede si ningún producto la usa.`}
+        action={
+          <Button
+            variant="contained"
+            color="error"
+            loading={borrandoEnCurso}
+            onClick={async () => {
+              setBorrandoEnCurso(true);
+
+              try {
+                await eliminarCategoriaProducto({ categoria: borrandoCategoria, usuario: user });
+                toast.success('Categoría borrada.');
+                setBorrandoCategoria(null);
+              } catch (fallo) {
+                toast.error(fallo?.message || 'No se pudo borrar.');
+              } finally {
+                setBorrandoEnCurso(false);
+              }
+            }}
+          >
+            Borrar
+          </Button>
+        }
       />
     </>
   );

@@ -4,6 +4,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 import { CUENTA_SISTEMA, participanteSistema } from 'src/utils/chat-sistema.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { createChatMessageDocument } from 'src/server/chat-message-model.mjs';
 import { getChatMemberDirectory } from 'src/server/chat-identity-directory.mjs';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
@@ -13,7 +14,7 @@ export const runtime = 'nodejs';
 const MAX_REPORTE = 4000;
 const ID_GRUPO = 'grupo_administradores_globales';
 const NOMBRE_GRUPO = 'ADMINISTRADORES GLOBALES';
-const COLECCION_CONVERSACIONES = 'conversaciones_chat';
+const COLECCION_CONVERSACIONES = COLECCIONES.conversacionesChat;
 const limpiar = (valor, max = 240) => String(valor ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const bearer = (request) => (request.headers.get('authorization') || '').match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || '';
 
@@ -21,8 +22,8 @@ const errorJson = (error, status) => Response.json({ error }, { status });
 
 const getMiembro = async (db, uid, token) => {
   const [perfilUid, perfilPorUid] = await Promise.all([
-    db.collection('usuarios_roles').doc(uid).get(),
-    db.collection('usuarios_roles').where('uid', '==', uid).limit(1).get(),
+    db.collection(COLECCIONES.usuariosRoles).doc(uid).get(),
+    db.collection(COLECCIONES.usuariosRoles).where('uid', '==', uid).limit(1).get(),
   ]);
   const profile = perfilUid.exists ? perfilUid.data() : perfilPorUid.docs[0]?.data() || {};
   const idMiembros = Number(token.idMiembros || profile.idMiembros || profile.memberId);
@@ -30,7 +31,7 @@ const getMiembro = async (db, uid, token) => {
 
   const miembros = await getChatMemberDirectory().catch(() => []);
   const row = miembros.find((item) => Number(item.idMiembros ?? item.id) === idMiembros) || {};
-  const fotos = await db.collection('fotos').where('tipoEntidad', '==', 'miembro').get().catch(() => null);
+  const fotos = await db.collection(COLECCIONES.fotos).where('tipoEntidad', '==', 'miembro').get().catch(() => null);
   const foto = fotos?.docs.map((doc) => doc.data()).find((data) => String(data.idEntidad || '') === String(idMiembros) && data.tipoFoto === 'perfil' && data.estado === 'activo');
   const nombre = limpiar(row.nombre || row.name || [row.nombres || row.firstName, row.apellidos || row.lastName].filter(Boolean).join(' ') || profile.displayName || token.name || token.email || `Miembro ${idMiembros}`);
 
@@ -45,7 +46,7 @@ const getMiembro = async (db, uid, token) => {
 };
 
 const obtenerAdministradores = async (db) => {
-  const snapshot = await db.collection('usuarios_roles').where('rolId', '==', 'administrador_global').get();
+  const snapshot = await db.collection(COLECCIONES.usuariosRoles).where('rolId', '==', 'administrador_global').get();
   const vistos = new Set();
   const admins = [];
   for (const doc of snapshot.docs) {
@@ -65,7 +66,7 @@ const obtenerAdministradores = async (db) => {
 
   const idsFaltantes = admins.filter((admin) => !admin.avatarUrl).map((admin) => String(admin.idMiembros));
   if (idsFaltantes.length) {
-    const fotos = await db.collection('fotos').where('tipoEntidad', '==', 'miembro').where('estado', '==', 'activo').get().catch(() => null);
+    const fotos = await db.collection(COLECCIONES.fotos).where('tipoEntidad', '==', 'miembro').where('estado', '==', 'activo').get().catch(() => null);
     const mapa = new Map((fotos?.docs || []).map((doc) => [String(doc.data()?.idEntidad || ''), doc.data()]));
     admins.forEach((admin) => {
       const foto = mapa.get(String(admin.idMiembros));
@@ -88,7 +89,7 @@ const publicarMensaje = async ({ db, conversationRef, participantes, destinatari
     fallbackSender: participanteSistema(),
     conversationId: conversationRef.id,
   });
-  const messageRef = conversationRef.collection('mensajes').doc(idMensaje);
+  const messageRef = conversationRef.collection(COLECCIONES.mensajes).doc(idMensaje);
   const conversation = await conversationRef.get();
   const anterioresNoLeidos = conversation.data()?.noLeidosPorIdMiembros || {};
   const noLeidosPorIdMiembros = Object.fromEntries(participantesIds.map((id) => [
@@ -148,7 +149,7 @@ export async function POST(request) {
   if (!admins.length) return errorJson('No hay Administradores Globales configurados para recibir el reporte.', 503);
 
   const ahora = new Date().toISOString();
-  const reportId = db.collection('reportes_problemas').doc().id;
+  const reportId = db.collection(COLECCIONES.reportesProblemas).doc().id;
   const reporte = {
     id: reportId,
     miembroId: reporter.idMiembros,
@@ -187,7 +188,7 @@ export async function POST(request) {
       ahora,
     });
 
-    const notificationRef = db.collection('notificaciones').doc(`reporte_problema_${reportId}`);
+    const notificationRef = db.collection(COLECCIONES.notificaciones).doc(`reporte_problema_${reportId}`);
     await notificationRef.set({
       id: notificationRef.id,
       tipoNotificacion: 'reporte_problema',
@@ -216,7 +217,7 @@ export async function POST(request) {
       creadoEnServidor: FieldValue.serverTimestamp(),
       actualizadoEnServidor: FieldValue.serverTimestamp(),
     });
-    await db.collection('reportes_problemas').doc(reportId).set({ ...reporte, uidReportante: caller.uid, idConversacion: grupoRef.id, estado: 'nuevo', creadoEnServidor: FieldValue.serverTimestamp() });
+    await db.collection(COLECCIONES.reportesProblemas).doc(reportId).set({ ...reporte, uidReportante: caller.uid, idConversacion: grupoRef.id, estado: 'nuevo', creadoEnServidor: FieldValue.serverTimestamp() });
     return Response.json({ ok: true, reportId });
   } catch (error) {
     console.error('[reportar-problema] no se pudo distribuir', error);

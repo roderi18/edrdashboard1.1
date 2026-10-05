@@ -18,7 +18,7 @@ import {
 } from '../../src/utils/producto-codigo.mjs';
 
 const RAIZ = 'C:/Users/rdpr1/OneDrive/Escritorio/next-js';
-const CARPETA = path.join(RAIZ, 'public/parches/Cintas y medallas/cintas-perfil/tienda');
+const CARPETA = path.join(RAIZ, 'docs/tienda/imagenes/cintas/tienda');
 const APLICAR = process.argv.includes('--aplicar');
 const EXISTENCIAS = 10;
 const VALOR = 200;
@@ -110,6 +110,8 @@ const subirImagen = async (rutaLocal, productoId) => {
     destination: destino,
     metadata: {
       contentType: 'image/webp',
+      // Sin esto Storage la sirve con max-age=0 y la tienda la vuelve a pedir en cada visita.
+      cacheControl: 'public, max-age=31536000, immutable',
       metadata: { tipoEntidad: 'producto', productoId, indice: '0', firebaseStorageDownloadTokens: token },
     },
   });

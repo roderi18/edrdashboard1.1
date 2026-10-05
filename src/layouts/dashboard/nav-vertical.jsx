@@ -14,6 +14,7 @@ import { BugReportFab } from 'src/sections/bug-report/bug-report-fab';
 
 import { layoutClasses } from '../core';
 import { NavUpgrade } from '../components/nav-upgrade';
+import { PalabraExpedition } from './palabra-expedition';
 import { NavToggleButton } from '../components/nav-toggle-button';
 
 // ----------------------------------------------------------------------
@@ -38,29 +39,9 @@ export function NavVertical({
           component={RouterLink}
           href={paths.dashboard.principal}
           aria-label="Ir a Principal"
-          sx={{ pl: 3.5, pt: 2.5, pb: 1, display: 'block', width: 'fit-content' }}
+          sx={{ display: 'block', width: 1 }}
         >
-          <Box
-            component="img"
-            src={
-              isNavLight
-                ? '/logo/explora-wordmark.webp?v=2'
-                : '/logo/explora-wordmark-light.webp?v=2'
-            }
-            alt="EXPLORA"
-            width={190}
-            height={40}
-            loading="eager"
-            decoding="sync"
-            fetchPriority="high"
-            sx={{
-              width: 190,
-              height: 40,
-              display: 'block',
-              objectFit: 'contain',
-              objectPosition: 'left center',
-            }}
-          />
+          <PalabraExpedition />
         </Box>
       )}
 

@@ -16,7 +16,7 @@ export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...
     <LogoRoot
       component={RouterLink}
       href={href}
-      aria-label="EXPLORA ™"
+      aria-label="EXPEDITION ™"
       underline="none"
       className={mergeClasses([logoClasses.root, className])}
       sx={[
@@ -31,8 +31,9 @@ export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...
       {...other}
     >
       <img
-        src="/logo/exploradores-del-rey-logo.webp"
-        alt="EXPLORA ™"
+        // El isotipo de EXPEDITION: menú cerrado, inicio de sesión y demás.
+        src="/marca/expedition-isotipo.webp?v=2"
+        alt="EXPEDITION ™"
         width="100%"
         height="100%"
         draggable={false}

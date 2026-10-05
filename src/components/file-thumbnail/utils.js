@@ -35,7 +35,7 @@ export const FILE_FORMATS = {
   illustrator: ['ai', 'eps'],
 };
 export const CUSTOM_FOLDER_ICONS = {
-  exploradores: '/sistemaAscenso/Academia Ministerial/exploradores.webp',
+  exploradores: '/sistema-ascenso/academia-ministerial/exploradores.webp',
 };
 
 export const EXTRA_EXTENSIONS = ['folder'];
@@ -135,8 +135,8 @@ export function detectFileFormat(input) {
 /**
  * Returns the corresponding icon URL based on the file format.
  *
- * @example getFileIcon('file.pdf') => '/assets/icons/files/ic-pdf.svg'
- * @example getFileIcon('image.png') => '/assets/icons/files/ic-img.svg'
+ * @example getFileIcon('file.pdf') => '/plantilla/icons/files/ic-pdf.svg'
+ * @example getFileIcon('image.png') => '/plantilla/icons/files/ic-img.svg'
  */
 export function getFileIcon(input) {
   const format = detectFileFormat(input);
@@ -148,12 +148,12 @@ export function getFileIcon(input) {
       return CUSTOM_FOLDER_ICONS[key];
     }
 
-    return `${CONFIG.assetsDir}/assets/icons/files/ic-folder.svg`;
+    return `${CONFIG.assetsDir}/plantilla/icons/files/ic-folder.svg`;
   }
 
   const iconName = FILE_ICONS[format] || FILE_ICONS.unknown;
 
-  return `${CONFIG.assetsDir}/assets/icons/files/${iconName}.svg`;
+  return `${CONFIG.assetsDir}/plantilla/icons/files/${iconName}.svg`;
 }
 
 

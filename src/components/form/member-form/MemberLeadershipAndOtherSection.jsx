@@ -7,6 +7,7 @@ import MenuItem from '@mui/material/MenuItem';
 
 import { EDAD_MAYORIA } from 'src/utils/member-age';
 import { tituloDe } from 'src/utils/titulos-oficiales-nacionales.mjs';
+import { puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
 
 import { useTitulosOficiales } from 'src/services/titulos-oficiales-service';
 import { NIVELES_DIRECTIVA } from 'src/services/directivas-organizacionales-service';
@@ -178,6 +179,9 @@ export default function MemberLeadershipAndOtherSection({
                 disabled={disabledCore || esMenorDeEdad}
                 etiquetas={etiquetasCargoNacional}
                 unaOpcionDeOficial
+                // Lo eligen quienes editan la Directiva por cuatrienio: da los
+                // permisos de Director Nacional.
+                exDirector={puedeEditarDirectivaHistorica(user) ? 'elegible' : 'mostrar'}
                 helperText={
                     puedeAsignarTitulo ? (
                         <Link

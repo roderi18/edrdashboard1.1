@@ -2,14 +2,21 @@ import { doc, query, where, getDoc, getDocs, deleteDoc, collection, writeBatch }
 
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
 import { puedeEditarDirectivaHistorica } from 'src/utils/org-level-access';
-import { leerConCache, valorGuardado, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
+import {
+  leerConCache,
+  valorGuardado,
+  invalidarLecturas,
+  avisarAOtrasSesiones,
+} from 'src/utils/cache-de-lecturas.mjs';
 import {
   cargoPorId,
   permanenciaDe,
   nombreCompleto,
+  GRUPOS_CUATRIENIO,
   compararIntegrantes,
   COLECCION_PERMANENTES,
   COLECCION_INTEGRANTES,
+  idIntegrante as idDeIntegrante,
 } from 'src/utils/directiva-cuatrienios.mjs';
 
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -85,6 +92,9 @@ const aDocumento = (integrante = {}, usuario = {}) => {
     desde: integrante.desde || null,
     hasta: integrante.hasta || null,
     nota: integrante.nota || '',
+    // Los años en que dirigió, de un ex director que no está en la Galería de
+    // Directores Nacionales (sale debajo de "Ex Director Nacional").
+    periodoDirector: String(integrante.periodoDirector || '').trim(),
     actualizadoPorUid: actor.uid,
     actualizadoPorNombre: actor.nombre,
     actualizadoEn: new Date().toISOString(),
@@ -181,6 +191,7 @@ const recalcularPermanentes = async (idsMiembros = []) => {
         apellidos: fila?.apellidos || '',
         fotoUrl: fila?.fotoUrl || '',
         codigoMiembro: fila?.codigoMiembro || '',
+        periodoDirector: filas.find((f) => f.periodoDirector)?.periodoDirector || '',
         cuatrienios: [...new Set(filas.map((f) => f.cuatrienio).filter(Boolean))].sort(),
         actualizadoEn: new Date().toISOString(),
       });
@@ -276,6 +287,58 @@ export async function guardarIntegrantes({
   });
 
   return { guardados: filas.length };
+}
+
+// "EX DIRECTOR NACIONAL" DESDE LA FICHA ("Cargo Nacional"). Suma a la persona al
+// grupo de ex comandantes del último cuatrienio cerrado, donde están los demás:
+// sale en la lista de la Directiva y conserva los permisos de Director Nacional
+// (`permanenciaDe`). Ya siéndolo, no hace nada. Mismos permisos y mismo
+// Historial que editar la memoria del cuatrienio.
+export async function marcarExDirectorNacional({ miembro = {}, cuatrienio, usuario }) {
+  asegurar();
+  asegurarPermiso(usuario);
+
+  const idMiembros = String(miembro.idMiembros || miembro.id || '').trim();
+
+  if (!idMiembros || !cuatrienio) throw new Error('Falta el miembro o el cuatrienio.');
+
+  const permanentes = await leerPermanentes();
+
+  if (permanentes.some((fila) => String(fila.idMiembros) === idMiembros && fila.exComandante)) {
+    return { guardados: 0 };
+  }
+
+  const nombres = String(miembro.firstName || miembro.nombres || '').trim();
+  const apellidos = String(miembro.lastName || miembro.apellidos || '').trim();
+  const grupo = GRUPOS_CUATRIENIO.exComandantes;
+
+  const resultado = await guardarIntegrantes({
+    cuatrienio,
+    usuario,
+    integrantes: [
+      {
+        id: idDeIntegrante({
+          cuatrienio,
+          nivel: 'nacional',
+          grupo,
+          persona: `${nombres} ${apellidos}`.trim() || idMiembros,
+        }),
+        nivel: 'nacional',
+        grupo,
+        cargo: 'ex_comandante',
+        cargoNombre: cargoPorId('ex_comandante')?.nombres?.nacional || 'Ex Director Nacional',
+        idMiembros,
+        codigoMiembro: miembro.memberId || miembro.codigoMiembro || '',
+        nombres,
+        apellidos,
+      },
+    ],
+  });
+
+  // La propia sesión también: la lista y la ficha leen los permanentes de la caché.
+  invalidarLecturas('cuatrienio:');
+
+  return resultado;
 }
 
 // Quitar una fila de la historia. Se pide confirmacion en la pantalla: la

@@ -16,12 +16,12 @@ import Stack from '@mui/material/Stack';
 // ----------------------------------------------------------------------
 
 export const DIVISION_ICON_PATHS = {
-  all: '/watermark.webp',
-  Liderazgo: '/assets/images/divisions/member/liderazgo-ico.png',
-  Exploradores: '/assets/images/divisions/member/exploradores-ico.png',
-  Seguidores: '/assets/images/divisions/member/seguidores-ico.png',
-  Pioneros: '/assets/images/divisions/member/pioneros-ico.png',
-  Navegantes: '/assets/images/divisions/member/navegantes-ico.png',
+  all: '/marca/watermark.webp',
+  Liderazgo: '/plantilla/images/divisions/member/liderazgo-ico.png',
+  Exploradores: '/plantilla/images/divisions/member/exploradores-ico.png',
+  Seguidores: '/plantilla/images/divisions/member/seguidores-ico.png',
+  Pioneros: '/plantilla/images/divisions/member/pioneros-ico.png',
+  Navegantes: '/plantilla/images/divisions/member/navegantes-ico.png',
 };
 
 export const getDivisionIconSrc = (division) => DIVISION_ICON_PATHS[division] || '';

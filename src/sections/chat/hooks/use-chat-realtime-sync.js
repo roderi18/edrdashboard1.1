@@ -4,6 +4,7 @@ import { doc, query, where, limit, orderBy, collection, onSnapshot } from 'fireb
 
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import {
   isConversationKey,
@@ -18,7 +19,7 @@ import { getActiveTypingState, getConversationDeliveryMarker } from '../utils/re
 
 // ----------------------------------------------------------------------
 
-const COLECCION_CONVERSACIONES = 'conversaciones_chat';
+const COLECCION_CONVERSACIONES = COLECCIONES.conversacionesChat;
 const SUBCOLECCION_MENSAJES = 'mensajes';
 
 const DEBOUNCE_MS = 80;
@@ -205,7 +206,7 @@ export function useChatRealtimeSync({
       orderBy('enviadoEn', 'desc'),
       limit(RECENT_MESSAGES_WINDOW)
     );
-    const receiptsQuery = query(collection(conversationRef, 'recibos'));
+    const receiptsQuery = query(collection(conversationRef, COLECCIONES.recibos));
 
     messagesInitializedRef.current = false;
     conversationRevisionRef.current = '';

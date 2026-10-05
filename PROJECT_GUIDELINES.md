@@ -93,7 +93,7 @@ de 17 s** porque su plan gratuito serializa la concurrencia. Por eso:
 
 - Caché en memoria por proceso, TTL 60 s, con _stale_ servible hasta 10 min.
 - Deduplicación de peticiones en vuelo y refresco en segundo plano.
-- Timeout: **9 s en producción** (las funciones de Netlify se cortan a los 10) y
+- Timeout: **9 s en producción** (se puso por el corte de 10 s de Netlify; en App Hosting no existe, pero se mantiene para no dejar colgada la pantalla) y
   **25 s en desarrollo**.
 - `Promise.allSettled` donde una petición secundaria no debe tumbar la principal
   (ver `src/app/api/sectional/route.js`).
@@ -201,7 +201,7 @@ Lo de arriba se extendió a toda la aplicación:
   siguen paginadas: el DOM nunca pinta el padrón entero.
 - **Respuesta inmediata al escribir** (optimista): chat, muro (publicar,
   reaccionar, comentar), asignar/quitar en organigramas, estatus del miembro,
-  favoritos, documentos de salud, selector de cuatrienio y EXPLORA Designer. Los
+  favoritos, documentos de salud, selector de cuatrienio y EXPEDITION Designer. Los
   formularios con validación del servidor esperan la respuesta a propósito.
 - **Servidor**: `/api/members`, `/api/dest`, `/api/sectional`, `/api/regional` y
   `/api/churches` responden con `ETag` (`src/utils/respuesta-con-etag.mjs`):
@@ -476,7 +476,7 @@ combinar dos cargos.
 | **Documentos ministeriales**    | `/dashboard/file-manager`                               | Firestore + Storage.                                                                                                                                                                                                                                                                           |
 | **Calendario**                  | `/dashboard/calendar`                                   | Firestore.                                                                                                                                                                                                                                                                                     |
 | **Administración**              | `/dashboard/admin/*`                                    | Administradores, logs, aprobaciones, permisos, roles, combinaciones, mantenimiento, salud del sistema.                                                                                                                                                                                         |
-| **Cintas del perfil**           | Perfil y ficha del miembro                              | Las cintas del uniforme (40 imágenes de `public/parches/Cintas y medallas/cintas-perfil`) en el orden oficial del manual: 3 por fila, hasta 18, la fila incompleta arriba, y el número dorado encima cuando el premio se ganó más de una vez. Firestore `cintas_miembros`. Encima de ellas, centrados, los pines (carpeta `pines`, como mucho 3, `pines_miembros`), y debajo las medallas. Detalle: `docs/cintas-perfil.md`. |
+| **Cintas del perfil**           | Perfil y ficha del miembro                              | Las cintas del uniforme (40 imágenes de `public/insignias/cintas`) en el orden oficial del manual: 3 por fila, hasta 18, la fila incompleta arriba, y el número dorado encima cuando el premio se ganó más de una vez. Firestore `cintas_miembros`. Encima de ellas, centrados, los pines (carpeta `pines`, como mucho 3, `pines_miembros`), y debajo las medallas. Detalle: `docs/cintas-perfil.md`. |
 | **Estatus del miembro**         | Perfil, ficha y `/dashboard/level/attendance`           | Cuatro estatus (activo, reclutamiento, inactivo, fallecido) que **mueve la asistencia sola**. Avisos por cargo, cambio a mano con motivo y `Fallecido` restringido. Firestore `estatus_miembros`. Detalle: `docs/estatus-miembro.md`. |
 | **Cuenta propia**               | `/dashboard/user/account`                               |                                                                                                                                                                                                                                                                                                |
 
@@ -490,9 +490,9 @@ combinar dos cargos.
 | **Numeración de órdenes**                          | Conviven tres formatos: `ORD-26-0001` (nuevo), `REC-26-0001` (transitorio) y `ORD-1777776824429` (antiguo). El chat reconoce los tres.                                                              |
 | **Buscar por número de recibo**                    | La búsqueda de `/order` consulta `numeroOrden`; pegar el número del recibo no encuentra la orden.                                                                                                   |
 | **Directiva Nacional por cuatrienio** | Hecho: selector de cuatrienio en el título de `/level/national` (misma tabla que la directiva actual), organigramas históricos, edición (Administrador Global y Oficina Nacional), Director Nacional permanente y ex comandantes en el Consejo Ejecutivo. La carga del listado 2022-2026 ya se corrió: `src/catalogs/directiva-perfil-2022-2026.mjs` guarda el resultado persona por persona. Falta solo trasladar a su destacamento a quienes queden en el "Provisional", que se hace a mano desde la ficha de cada uno (la carga los crea ahí porque no se sabe el suyo; ver `src/services/directiva-importacion-service.js`). Ver `docs/directiva-por-cuatrienio.md`. |
-| **EXPLORA Designer** | Fases 0 a 8 hechas: lector de la portada, pantalla con vista previa, editores de contenido y de diseño (colores, tamaños, textos, iconos, qué se muestra), versiones, lápices, campañas con audiencia, analíticas, biblioteca de medios y aviso de comunicados. Ver abajo. |
+| **EXPEDITION Designer** | Fases 0 a 8 hechas: lector de la portada, pantalla con vista previa, editores de contenido y de diseño (colores, tamaños, textos, iconos, qué se muestra), versiones, lápices, campañas con audiencia, analíticas, biblioteca de medios y aviso de comunicados. Ver abajo. |
 
-#### EXPLORA Designer ✅ — editar la portada desde la aplicación
+#### EXPEDITION Designer ✅ — editar la portada desde la aplicación
 
 Entrada propia del menú lateral (grupo Administración, debajo de "Administradores") para cambiar todo lo de
 `/principal` —encabezados, próxima actividad, historias, eventos, comunicados,
@@ -539,7 +539,7 @@ componente.
 - `PrincipalLema` recibe el lema por props: el salto de línea del título es un
   `\n` que se pinta como el `<br />` de antes.
 
-**La pantalla (fase 3):** `/dashboard/everest`, **entrada propia del menú
+**La pantalla (fase 3):** `/dashboard/explora-designer` (la vieja `/dashboard/everest` redirige), **entrada propia del menú
 lateral**, en el grupo Administración, justo debajo de "Administradores". Nació
 como pestaña de Administración y se sacó a petición: colgando de
 `/dashboard/admin` heredaba sus pestañas y su encabezado, y allí entran también la
@@ -558,7 +558,9 @@ lo vuelve a comprobar por si alguien escribe la dirección a mano.
   escritorio. El Designer le manda el contenido por `postMessage` en cuanto cambia;
   los dos lados comprueban el `origin` y quién manda el mensaje
   (`mensajes-vista-previa.mjs`). Pinta con **los mismos componentes** de
-  `/principal` y con su ancho de columna real (`bloque-de-la-portada.jsx`).
+  `/principal` y con su ancho de columna real (`bloque-de-la-portada.jsx`). La
+  próxima actividad ocupa toda la columna principal y muestra sus combos reales
+  de la tienda en la franja inferior, igual que en la portada.
 - **Derecha:** el bloque abierto: qué hay en vivo (y quién lo publicó), el
   borrador, el hueco del editor (fase 4) y las acciones. **Publicar** solo con un
   borrador válido; al publicar, el borrador se tira. **Descartar borrador** no
@@ -619,7 +621,7 @@ pintando igual—:
   código sigue siendo "Volver al original".
 - **Historial con antes y después, campo a campo** (`diferenciasDelBloque`): solo
   los campos que cambiaron, resumidos en texto corto. Un bloque que es una lista se
-  compara entero ("3 elementos: …"). La ruta de la entidad es `/dashboard/everest`.
+  compara entero ("3 elementos: …"). La ruta de la entidad es `/dashboard/explora-designer` (la vieja `/dashboard/everest` redirige).
 - Lo publicado **antes** de la fase 5 no tiene versión: la primera aparece en la
   siguiente publicación de ese bloque.
 - Lógica pura en `src/utils/everest/versiones.mjs`; test
@@ -850,7 +852,7 @@ el estado es "otro"), `ultimasAsistenciasMiembros`, `actividadesAsistencia`,
 `plantillas_notificaciones`, `preferencias_notificaciones`,
 `tareas_notificaciones`
 
-**EXPLORA Designer** — `everest_publicado` (un documento por pantalla con el
+**EXPEDITION Designer** — `everest_publicado` (un documento por pantalla con el
 mapa `bloques`; lo lee cualquier sesión y lo escribe el Administrador Global),
 `everest_borradores` y `everest_versiones` (solo el Administrador Global; una
 versión no se reescribe ni se borra) y `everest_analiticas` (suma cualquier sesión,
@@ -863,7 +865,7 @@ solo los contadores; la lee el Administrador Global). Las cuatro, fuera del como
 
 `miembros/`, `destacamentos/`, `documentos/`, `certificados/`, `chat/`,
 `principal/`, `propuestas/`, `principal-tarjetas/` (fondos de la portada de hoy),
-`everest/` (medios subidos desde EXPLORA Designer; mismas condiciones que
+`everest/` (medios subidos desde EXPEDITION Designer; mismas condiciones que
 `principal-tarjetas/`, sin borrado), `directiva-historica/` (fotos copiadas de la
 Directiva por cuatrienio; Administrador Global y Oficina Nacional, sin borrado)
 
@@ -1018,12 +1020,12 @@ NEXT_PUBLIC_FIREBASE_APP_ID
 
 **Servidor** ❓: `firebase-admin` necesita credenciales de cuenta de servicio
 (`src/server/firebase-admin.js`). Confirmar los nombres exactos con quien
-administra Netlify.
+administra App Hosting (Secret Manager).
 
 ⛔ Las de AWS Amplify, Auth0 y Supabase están en `.env.example` por la plantilla.
 No se usan.
 
-⚠️ **`NEXT_PUBLIC_*` se incrusta en el build.** Cambiarlas en Netlify no basta:
+⚠️ **`NEXT_PUBLIC_*` se incrusta en el build.** Cambiarlas en `apphosting.yaml` no basta:
 hay que volver a desplegar.
 
 ---
@@ -1040,13 +1042,19 @@ Variables públicas en el yaml; `FIREBASE_SERVICE_ACCOUNT` y
 node_modules is invalid") y con webpack el build tardaba ~12 min y agotaba la
 memoria. No vuelvas a subir un `yarn.lock`.
 
-**Netlify** ✅ (`netlify.toml`): build `yarn build`, publish `.next`,
-`NODE_VERSION=22.13.0`, `AWS_LAMBDA_JS_RUNTIME=nodejs22.x`.
+**Netlify** ⛔ se dejó: App Hosting es el único hosting. `netlify.toml` y
+`netlify/functions/` ya no existen.
 
-⚠️ **No bajes el runtime de las funciones.** `firebase-admin@14` exige Node ≥ 22;
-con una versión anterior, toda ruta que lo importe revienta al **cargar el
-módulo** —500 seco, antes del handler— y se caen `/api/auth/*`, `/api/cargos` y
-`/api/chat`.
+**Tareas diarias** ✅: eran funciones programadas de Netlify; ahora son rutas
+`/api/tareas/cumpleanos-diarios` (07:00) y `/api/tareas/resumen-actualizaciones-diario`
+(09:00, hora de Santo Domingo) que lanza **Cloud Scheduler**. Solo responden con
+la cabecera `x-tarea-secreto` igual al secreto `TAREAS_PROGRAMADAS_SECRETO`.
+Horario en `src/utils/tareas-programadas.mjs`; los comandos `gcloud` para
+crearlas salen de `node scripts/crear-tareas-programadas.mjs`.
+
+⚠️ **Node ≥ 22.** `firebase-admin@14` lo exige; con una versión anterior, toda
+ruta que lo importe revienta al **cargar el módulo** y se caen `/api/auth/*`,
+`/api/cargos` y `/api/chat`.
 
 ⚠️ **`serverExternalPackages: ['firebase-admin']`** en `next.config.mjs`: el Admin
 SDK usa `require` dinámicos que no sobreviven al empaquetado. No lo quites.
@@ -1170,7 +1178,7 @@ que cambian solas, pero **no hay auditoría de accesibilidad**. ❓
 8. **Cada destacamento enseña los suyos.** `/member` es la lista del destacamento
    propio (salvo Administrador Global); a los de otro se llega por la pestaña
    "Miembros" de su ficha.
-9. **La portada tiene su valor de fábrica en el código.** EXPLORA Designer no
+9. **La portada tiene su valor de fábrica en el código.** EXPEDITION Designer no
    siembra Firestore con lo que hay: publica por bloque, y lo no publicado —o lo
    publicado roto— se pinta desde el código. Así la portada no cambia hasta que
    alguien decide publicarla, y una publicación mala nunca deja un hueco.
@@ -1248,3 +1256,11 @@ el código — y corrige el documento._
 - El cambio usa tokens personalizados de Firebase y no modifica la contraseña, el rol ni los permisos del miembro.
 - La barra amarilla debe permanecer visible durante la prueba y ofrecer **Volver a mi cuenta**. La identidad original se conserva únicamente en una cookie firmada y `HttpOnly`.
 - Esta capacidad está disponible en producción. La API debe comprobar siempre el correo firmado por Firebase Auth y el registro activo de Administrador Global; ocultar el botón en el cliente no sustituye esa comprobación.
+
+# Datos demográficos
+
+- `/dashboard/level/datos-demograficos` usa el mismo GeoJSON, colores provinciales, emblemas regionales y controles del mapa de `src/sections/mapa-rd`.
+- Las cifras se calculan con los catálogos de destacamentos, iglesias, secciones y regiones, y con los miembros que devuelve `/api/members/` para la sesión actual. No se guardan cifras de la maqueta como datos reales.
+- Región corresponde a la cadena organizacional destacamento → iglesia → sección → región; provincia se obtiene de la dirección del destacamento o iglesia. Las categorías se derivan de edad vigente y, cuando falta nacimiento, de la división registrada. “Provisional” se excluye.
+- El selector de período afecta únicamente a la serie de altas mensuales porque el padrón no ofrece fotografías históricas de membresía. Los indicadores restantes describen el padrón actual. Si una fuente falla, se muestra el error en vez de cifras parciales.
+- Las reglas de cálculo están en `estadisticas-demograficas.mjs`; los filtros, tarjetas y gráficos son componentes separados. Pruebas: `tests/mapa-rd/estadisticas-demograficas.test.mjs`.

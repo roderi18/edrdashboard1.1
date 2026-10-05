@@ -11,7 +11,7 @@ import { BackgroundShape } from './background-shape';
 function ForbiddenIllustration({ hideBackground, sx, ...other }) {
   const renderCharacterImage = () => (
     <image
-      href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-reject.webp`}
+      href={`${CONFIG.assetsDir}/plantilla/illustrations/characters/character-reject.webp`}
       height="280"
       x="220"
       y="40"

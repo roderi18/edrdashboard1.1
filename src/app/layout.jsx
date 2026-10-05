@@ -60,15 +60,16 @@ export const metadata = {
     default: CONFIG.appName,
     template: '%s',
   },
-  description: 'Sistema de gestión de EXPLORA ™.',
+  description: 'Sistema de gestión de EXPEDITION ™.',
   icons: [
     {
       rel: 'icon',
-      url: `${CONFIG.assetsDir}/exploradores-del-rey-icono.ico`,
+      // `?v=`: el navegador guarda el favicon aparte y no lo renueva solo.
+      url: `${CONFIG.assetsDir}/app/exploradores-del-rey-icono.ico?v=4`,
     },
     {
       rel: 'apple-touch-icon',
-      url: `${CONFIG.assetsDir}/icon-192x192.png`,
+      url: `${CONFIG.assetsDir}/app/icon-192x192.png`,
     },
   ],
   appleWebApp: {
@@ -99,19 +100,20 @@ export default function RootLayout({ children }) {
       <head>
         <link
           rel="preload"
-          href="/logo/explora-wordmark.webp?v=2"
+          href="/marca/expedition-logotipo.webp?v=3"
+          as="image"
+          type="image/webp"
+        />
+        {/* La palabra EXPEDITION del menú lateral, en sus dos tonos. */}
+        <link
+          rel="preload"
+          href="/marca/expedition-wordmark.webp?v=1"
           as="image"
           type="image/webp"
         />
         <link
           rel="preload"
-          href="/logo/explora-wordmark-light.webp?v=2"
-          as="image"
-          type="image/webp"
-        />
-        <link
-          rel="preload"
-          href="/logo/explora-o-isotipo.webp?v=1"
+          href="/marca/expedition-wordmark-light.webp?v=1"
           as="image"
           type="image/webp"
         />

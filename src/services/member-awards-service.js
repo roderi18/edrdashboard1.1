@@ -21,6 +21,7 @@ import {
 } from 'src/utils/cache-de-lecturas.mjs';
 
 import { getMemberById } from 'src/services/member-service';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarCambiosHistorialMiembro } from 'src/services/member-history-service';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
@@ -34,10 +35,10 @@ import {
   notificarCambioEstadoSistemaAscenso,
 } from 'src/services/solicitudes-cambio-notificaciones-service';
 
-export const COLECCION_ITEMS_ASCENSO = 'itemsAscenso';
-export const COLECCION_PROGRESO_ASCENSO_MIEMBROS = 'progresoAscensoMiembros';
-export const COLECCION_VINCULOS_CERTIFICADOS_ASCENSO = 'vinculosCertificadosAscenso';
-export const COLECCION_FAVORITOS_ASCENSO_MIEMBROS = 'favoritosAscensoMiembros';
+export const COLECCION_ITEMS_ASCENSO = COLECCIONES.itemsAscenso;
+export const COLECCION_PROGRESO_ASCENSO_MIEMBROS = COLECCIONES.progresoAscensoMiembros;
+export const COLECCION_VINCULOS_CERTIFICADOS_ASCENSO = COLECCIONES.vinculosCertificadosAscenso;
+export const COLECCION_FAVORITOS_ASCENSO_MIEMBROS = COLECCIONES.favoritosAscensoMiembros;
 
 const AWARD_PROGRESS_HISTORY_FIELDS = {
   estado: 'Estado',
@@ -429,7 +430,7 @@ const guardarProgresoEnFirestore = async ({
   if (borrarCertificado && previous.idCertificadoActual) {
     const rutaArchivo =
       previous.certificadoActual?.rutaPdf || previous.certificadoActual?.pdfPath || '';
-    deleteDoc(doc(FIRESTORE, 'certificados', String(previous.idCertificadoActual))).catch(
+    deleteDoc(doc(FIRESTORE, COLECCIONES.certificados, String(previous.idCertificadoActual))).catch(
       () => null
     );
     if (rutaArchivo && FIREBASE_STORAGE) {

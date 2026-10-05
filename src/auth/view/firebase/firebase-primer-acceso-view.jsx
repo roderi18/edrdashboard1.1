@@ -1,5 +1,6 @@
 'use client';
 
+
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
@@ -33,6 +34,7 @@ import { MEMBER_AUTH_DOMAIN } from 'src/utils/member-auth-credentials';
 
 import { CONFIG } from 'src/global-config';
 import { AUTH, FIRESTORE } from 'src/lib/firebase';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 import {
   cabecerasConToken,
@@ -65,7 +67,9 @@ import {
 // entonces sigue entrando con su numero, que nunca deja de servir.
 // ----------------------------------------------------------------------
 
-const MINIMO_CLAVE = 6;
+// Igual que en el servidor (`validar-clave-nueva.mjs`): si difieren, la pantalla
+// deja pasar claves que el servidor luego rechaza.
+const MINIMO_CLAVE = 8;
 
 const PrimerAccesoSchema = zod
   .object({
@@ -145,8 +149,14 @@ export function FirebasePrimerAccesoView() {
     };
   }, [loading, authenticated]);
 
-  /** Lo que dice el token; y si aun no se sabe, lo que diga el perfil. */
-  const debeCambiarla = marcaDelToken ?? user?.debeCambiarClave === true;
+  // Basta con que la marca este en UNO de los dos. Antes mandaba el token, y
+  // cuando algo le quitaba la marca (la sincronizacion del cargo la borraba) se
+  // pasaba al panel sin elegir contraseña aunque el perfil siguiera pidiendola.
+  // Las dos las retira a la vez `/api/auth/clave-miembro` al guardarla.
+  const debeCambiarla =
+    marcaDelToken === null && !user
+      ? null
+      : marcaDelToken === true || user?.debeCambiarClave === true;
 
   // Esta pantalla no cuelga de AuthGuard, asi que se vigila sola. Sin sesion no
   // hay nada que cambiar —se va al inicio de sesion— y quien ya eligio su clave
@@ -268,7 +278,7 @@ export function FirebasePrimerAccesoView() {
 
       if (!cuenta || !FIRESTORE) return;
 
-      const ficha = await getDoc(doc(FIRESTORE, 'users', cuenta.uid)).catch(() => null);
+      const ficha = await getDoc(doc(FIRESTORE, COLECCIONES.usuarios, cuenta.uid)).catch(() => null);
       const datos = ficha?.exists() ? (ficha.data() ?? {}) : {};
 
       // El numero de miembro no vive en `users`, sino en la ficha de rol —que en
@@ -278,7 +288,7 @@ export function FirebasePrimerAccesoView() {
 
       if (!idMiembros) {
         const porUid = await getDocs(
-          query(collection(FIRESTORE, 'usuarios_roles'), where('uid', '==', cuenta.uid), limit(1))
+          query(collection(FIRESTORE, COLECCIONES.usuariosRoles), where('uid', '==', cuenta.uid), limit(1))
         ).catch(() => null);
         const fichaDeRol = porUid?.docs?.[0];
 
@@ -289,7 +299,7 @@ export function FirebasePrimerAccesoView() {
 
       if (Number.isFinite(Number(idMiembros)) && Number(idMiembros)) {
         const guardada = await getDoc(
-          doc(FIRESTORE, 'fotos', `miembro_${Number(idMiembros)}_perfil`)
+          doc(FIRESTORE, COLECCIONES.fotos, `miembro_${Number(idMiembros)}_perfil`)
         ).catch(() => null);
         const datosFoto = guardada?.exists() ? guardada.data() : null;
 

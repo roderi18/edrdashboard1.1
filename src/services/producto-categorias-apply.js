@@ -1,5 +1,16 @@
-import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
+import {
+  doc,
+  where,
+  query,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  updateDoc,
+  collection,
+  getCountFromServer,
+} from 'firebase/firestore';
 
+import { COLECCIONES_COMERCIO } from 'src/utils/firestore-commerce';
 import { COLECCION_CATEGORIAS_PRODUCTO } from 'src/utils/producto-categorias-personalizadas.mjs';
 
 import { FIRESTORE } from 'src/lib/firebase';
@@ -26,3 +37,17 @@ export const existeCategoriaProducto = async (id) => {
 
 export const escribirCategoriaProducto = (documento) =>
   setDoc(referenciaDeCategoriaProducto(documento.id), documento);
+
+export const renombrarCategoriaProductoDoc = (id, nombre) =>
+  updateDoc(referenciaDeCategoriaProducto(id), { nombre });
+
+export const borrarCategoriaProductoDoc = (id) => deleteDoc(referenciaDeCategoriaProducto(id));
+
+/** Cuántos productos usan la categoría: con alguno, no se borra. */
+export const productosConCategoria = async (id) => {
+  const conteo = await getCountFromServer(
+    query(collection(FIRESTORE, COLECCIONES_COMERCIO.productos), where('categoria', '==', id))
+  );
+
+  return conteo.data().count;
+};

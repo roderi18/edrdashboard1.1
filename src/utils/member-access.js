@@ -3,6 +3,7 @@ import { doc, limit, query, where, getDoc, setDoc, getDocs, collection } from 'f
 import { paths } from 'src/routes/paths';
 
 import { alcanceQueMandaAhora } from 'src/utils/modulo-activo';
+import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 import { ejerceAdministradorGlobal } from 'src/utils/administrador-global-reina.mjs';
 import { buildDefaultMemberPermissions } from 'src/utils/member-default-permissions';
 import {
@@ -18,6 +19,7 @@ import {
 } from 'src/utils/org-level-access';
 
 import { getMembers } from 'src/services/member-service';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 export { buildDefaultMemberPermissions };
@@ -104,7 +106,7 @@ const getActiveMemberPhotoUrl = async (idMiembros) => {
     return '';
   }
 
-  const snapshot = await getDoc(doc(FIRESTORE, 'fotos', `miembro_${memberId}_perfil`)).catch(
+  const snapshot = await getDoc(doc(FIRESTORE, COLECCIONES.fotos, `miembro_${memberId}_perfil`)).catch(
     () => null
   );
 
@@ -278,7 +280,8 @@ const codigosCrudosDeSusCargos = (user = {}) => {
     )
     .filter(Boolean);
 
-  return [...new Set([principal, ...deCargos].filter(Boolean))];
+  // Todos sus roles de administracion (`roles-de-administracion.mjs`).
+  return [...new Set([principal, ...deCargos, ...rolesDeAdministracionDe(user)].filter(Boolean))];
 };
 
 /**
@@ -364,8 +367,19 @@ const codigosDeSusCargos = (user = {}) =>
 
 /** El rol principal mas todos sus cargos, sin repetidos. */
 const rolesQueEjerce = (user = {}) => [
-  ...new Set([getScopeUserRoleId(user), ...codigosDeSusCargos(user)].filter(Boolean)),
+  ...new Set(
+    [getScopeUserRoleId(user), ...codigosDeSusCargos(user), ...rolesDeAdministracionDe(user)].filter(
+      Boolean
+    )
+  ),
 ];
+
+// EL ADMINISTRADOR DE GESTION DE TIENDA, POR CUALQUIERA DE SUS ROLES. Se
+// preguntaba por el principal, y quien lo tenia junto a la Oficina Nacional (que
+// manda por rango) se quedaba sin la tienda.
+const ejerceAdministracionDeTienda = (user = {}) =>
+  getUserRoleId(user) === ROLES.ADMINISTRADOR_TIENDA ||
+  rolesDeAdministracionDe(user).includes(ROLES.ADMINISTRADOR_TIENDA);
 
 // Ven la lista de destacamentos de TODA su seccion, no solo el suyo. Hoy quien
 // llega aqui es el Usuario Comun —es lo que su propia ficha de rol viene
@@ -755,7 +769,7 @@ const syncRoleProfileByAuthUid = async ({
   );
 
   await setDoc(
-    doc(FIRESTORE, 'usuarios_roles', authUid),
+    doc(FIRESTORE, COLECCIONES.usuariosRoles, authUid),
     {
       ...perfilSinClaves,
       uid: authUid,
@@ -1027,7 +1041,13 @@ export const filtrarMiembrosDentroDelAlcance = (members = [], user, context = {}
  * trabajo es el padron entero.
  */
 export const filterMembersByMemberScope = (members = [], user, context = {}) => {
-  if (isAdminGlobal(user)) {
+  // El Administrador Global y el Consejo Ejecutivo (por cualquiera de sus
+  // cargos) ven a todos los miembros de todas las regiones, secciones y
+  // destacamentos; los dos tienen el boton "Solo ver miembros de mi
+  // destacamento", que sale solo cuando la lista abarca varios. Antes el
+  // Consejo Ejecutivo se quedaba con su destacamento, y el contador de miembros
+  // de una region lo llevaba a una lista sin esa gente.
+  if (isAdminGlobal(user) || ejerceConsejoEjecutivo(user)) {
     return members;
   }
 
@@ -1604,8 +1624,7 @@ export const canViewAdultMemberContactData = (user = {}) =>
 // con dos excepciones: el telefono —que ya se muestra a todo el que abre la
 // ficha— y la direccion completa, que es a donde va el pedido. Sin ella habria
 // que pedirsela al destacamento envio por envio.
-export const canViewMemberAddressWhenMasked = (user = {}) =>
-  getUserRoleId(user) === ROLES.ADMINISTRADOR_TIENDA;
+export const canViewMemberAddressWhenMasked = (user = {}) => ejerceAdministracionDeTienda(user);
 
 // ¿Al usuario se le deben mostrar en texto plano la fecha de nacimiento, el
 // telefono y el correo de ESTE miembro por ser mayor de edad?
@@ -1711,13 +1730,22 @@ export const getOwnRegionIdsForUser = (
  * por alto que sea su nivel, trabaja con la gente de SU destacamento: lo demas
  * se consulta por otras pantallas.
  */
+// La Oficina Nacional es un rol a mano: cuenta aunque no sea el principal ni el
+// que manda en el modulo. Preguntar solo por el principal dejaba a quien la
+// ejercia ademas de coordinar su destacamento con "Este destacamento no es el
+// tuyo" en las fichas ajenas.
+const ejerceOficinaNacional = (user = {}) =>
+  isOficinaNacional(user) ||
+  codigosCrudosDeSusCargos(user).includes(ROLES.OFICINA_NACIONAL) ||
+  (Array.isArray(user?.rolesQueEjerce) && user.rolesQueEjerce.includes(ROLES.OFICINA_NACIONAL));
+
 export const puedeVerMiembrosDeTodaLaOrganizacion = (user = {}) =>
   isAdminGlobal(user) ||
-  isOficinaNacional(user) ||
+  ejerceOficinaNacional(user) ||
   // El Administrador de Gestion de Tienda despacha pedidos de todo el pais: la
   // lista de miembros no se le acota a un destacamento. VER, nada mas: su ficha
   // sigue enmascarada (salvo telefono y direccion) y en solo lectura.
-  getUserRoleId(user) === ROLES.ADMINISTRADOR_TIENDA ||
+  ejerceAdministracionDeTienda(user) ||
   ['admin', 'administrador_global'].includes(
     String(user?.role ?? user?.rol ?? '')
       .trim()
@@ -1849,6 +1877,12 @@ export const filterSectionalsByMemberScope = (
   // tener un alcance regional heredado de su perfil de miembro; ese alcance no
   // debe reducir la lista organizacional completa.
   if (isAdminGlobal(user)) {
+    return sectionals;
+  }
+
+  // La Oficina Nacional ve todas las secciones del pais, por cualquiera de sus
+  // cargos (aunque ademas coordine un destacamento).
+  if (ejerceOficinaNacional(user)) {
     return sectionals;
   }
 
@@ -2513,6 +2547,15 @@ export const filterDashboardNavDataForMember = (navData = [], user) =>
               title.includes('flujo') ||
               title.includes('kanban');
 
+            // LA TIENDA DEL MIEMBRO: "Lista de productos", "Mis ordenes" y "Mis
+            // recibos". Se arma aunque "Tienda Virtual" llegue SIN hijos: desde que
+            // es un enlace directo, esta rama (que exigia `children`) no se
+            // cumplia y ningun miembro con cargo —el Consejo Ejecutivo incluido—
+            // veia sus ordenes ni sus recibos en el menu.
+            if (isMemberSessionUser(user) && isCustomerShopParentItem(item)) {
+              return itemAllowed ? buildCustomerShopNavItem(item, user) : null;
+            }
+
             if (item.children) {
               if (isMemberSessionUser(user) && isShopItem) {
                 return itemAllowed ? buildCustomerShopNavItem(item, user) : null;
@@ -2742,7 +2785,7 @@ export const loadMemberAccessProfile = async (authUser) => {
         }
 
         const profileQuery = query(
-          collection(FIRESTORE, 'usuarios_roles'),
+          collection(FIRESTORE, COLECCIONES.usuariosRoles),
           where('idMiembros', '==', memberId),
           limit(1)
         );

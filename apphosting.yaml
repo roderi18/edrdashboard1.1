@@ -1,7 +1,5 @@
-# Firebase App Hosting (backend de la rama main).
-#
-# Convive con Netlify mientras se comprueba que todo funciona aqui: los .env no
-# estan en el repositorio, asi que lo que la app lee de process.env tiene que
+# Firebase App Hosting (backend de la rama main): el UNICO hosting de la
+# aplicacion desde que se dejo Netlify. Los .env no estan en el repositorio, asi que lo que la app lee de process.env tiene que
 # venir de este archivo. Lo NEXT_PUBLIC_* es la configuracion publica del cliente
 # (ya viaja en el JS del navegador) y necesita BUILD porque Next lo incrusta al
 # compilar. Lo privado va como secreto de Cloud Secret Manager, nunca en claro.
@@ -30,7 +28,9 @@ env:
   - variable: NEXT_PUBLIC_FIREBASE_APPID
     value: 1:385574507135:web:62234046f5c0d63a32254a
   - variable: WEB_PUSH_VAPID_SUBJECT
-    value: https://lively-palmier-a1d83c.netlify.app
+    # Solo identifica al remitente ante los servicios push; no tiene que ser el
+    # dominio de la app, pero ya no es la direccion de Netlify.
+    value: https://explora--systexploradores.us-central1.hosted.app
     availability:
       - RUNTIME
 
@@ -40,5 +40,11 @@ env:
       - RUNTIME
   - variable: WEB_PUSH_VAPID_PRIVATE_KEY
     secret: WEB_PUSH_VAPID_PRIVATE_KEY
+    availability:
+      - RUNTIME
+  # Lo traen en la cabecera las llamadas de Cloud Scheduler a /api/tareas/*
+  # (ver src/utils/tareas-programadas.mjs). Sin el, las tareas responden 401.
+  - variable: TAREAS_PROGRAMADAS_SECRETO
+    secret: TAREAS_PROGRAMADAS_SECRETO
     availability:
       - RUNTIME

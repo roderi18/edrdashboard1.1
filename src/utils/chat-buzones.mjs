@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // BUZONES COMPARTIDOS DEL CHAT.
 //
@@ -26,7 +28,6 @@
 // `storage.rules` (`idMiembroNoUsurpaUnBuzon`, `atiendeBuzonDe...`) y su
 // coleccion de respuestas. El test `chat-buzones-compartidos` avisa si falta algo.
 // ----------------------------------------------------------------------
-
 import { esCuentaSistema } from './chat-sistema.mjs';
 
 export const BUZON_TIENDA = Object.freeze({
@@ -39,7 +40,7 @@ export const BUZON_TIENDA = Object.freeze({
   nombre: 'Tienda Virtual',
   nombres: 'Tienda',
   apellidos: 'Virtual',
-  avatarPorDefecto: '/logo/logo-single.png',
+  avatarPorDefecto: '/marca/logo-single.png',
   // Codigos del catalogo de `roles.js`.
   cargos: Object.freeze(['administrador_tienda', 'administrador_global']),
   // Quien contesto de verdad, aparte del mensaje y solo para el servidor.
@@ -58,7 +59,7 @@ export const BUZON_OFICINA_NACIONAL = Object.freeze({
   nombre: 'Oficina Nacional',
   nombres: 'Oficina',
   apellidos: 'Nacional',
-  avatarPorDefecto: '/logo/logo-single.png',
+  avatarPorDefecto: '/marca/logo-single.png',
   // El Administrador Global atiende todos los buzones, igual que en la Tienda.
   cargos: Object.freeze(['oficina_nacional', 'administrador_global']),
   coleccionRespuestas: 'respuestas_oficina',
@@ -201,7 +202,7 @@ export const ejerceAdministracionGlobal = (datos = {}) =>
 // `buzones_chat/<clave>`; sin documento, la de siempre.
 // ----------------------------------------------------------------------
 
-export const COLECCION_BUZONES_CHAT = 'buzones_chat';
+export const COLECCION_BUZONES_CHAT = COLECCIONES.buzonesChat;
 
 /** Solo una URL https o una ruta de la propia aplicacion; lo demas no se pinta. */
 export const avatarDeBuzonValido = (valor) => {

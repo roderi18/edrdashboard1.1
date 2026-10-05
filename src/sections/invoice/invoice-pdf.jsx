@@ -62,7 +62,7 @@ export function InvoicePDFViewer({ invoice, currentStatus }) {
 Font.register({
   family: 'Roboto',
   // fonts from public folder
-  fonts: [{ src: '/fonts/Roboto-Regular.ttf' }, { src: '/fonts/Roboto-Bold.ttf' }],
+  fonts: [{ src: '/fuentes/Roboto-Regular.ttf' }, { src: '/fuentes/Roboto-Bold.ttf' }],
 });
 
 const useStyles = () =>
@@ -138,7 +138,7 @@ export function InvoicePdfDocument({ invoice, currentStatus }) {
 
   const renderHeader = () => (
     <View style={[styles.container, styles.mb40]}>
-      <Image source="/logo/logo-single.png" style={{ width: 48, height: 48 }} />
+      <Image source="/marca/logo-single.png" style={{ width: 48, height: 48 }} />
 
       <View style={{ alignItems: 'flex-end', flexDirection: 'column' }}>
         <Text style={[styles.h3, styles.mb8, { textTransform: 'capitalize' }]}>

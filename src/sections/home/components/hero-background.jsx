@@ -63,7 +63,7 @@ export function HeroBackground({ sx, ...other }) {
           ...theme.mixins.bgGradient({
             images: [
               `linear-gradient(180deg, ${theme.vars.palette.background.default} 12%, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.92)} 50%, ${theme.vars.palette.background.default} 88%)`,
-              `url(${CONFIG.assetsDir}/assets/background/background-3.webp)`,
+              `url(${CONFIG.assetsDir}/plantilla/background/background-3.webp)`,
             ],
           }),
           top: 0,
@@ -75,9 +75,9 @@ export function HeroBackground({ sx, ...other }) {
           ...theme.applyStyles('dark', {
             ...theme.mixins.bgGradient({
               images: [
-                `url(${CONFIG.assetsDir}/assets/images/home/hero-blur.webp)`,
+                `url(${CONFIG.assetsDir}/plantilla/images/home/hero-blur.webp)`,
                 `linear-gradient(180deg, ${theme.vars.palette.background.default} 12%, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.96)} 50%, ${theme.vars.palette.background.default} 88%)`,
-                `url(${CONFIG.assetsDir}/assets/background/background-3.webp)`,
+                `url(${CONFIG.assetsDir}/plantilla/background/background-3.webp)`,
               ],
             }),
           }),

@@ -818,6 +818,37 @@ function CajaDeEscribir({
     });
   }, []);
 
+  // PEGAR UNA IMAGEN (una captura de pantalla, una foto copiada): entra como si
+  // se hubiera adjuntado con el boton de imagenes, con sus mismos limites. Solo
+  // se intercepta el pegado si trae imagenes; el texto se pega como siempre.
+  const handlePaste = useCallback(
+    (event) => {
+      const imagenes = Array.from(event.clipboardData?.items || [])
+        .filter((item) => item.kind === 'file' && String(item.type).startsWith('image/'))
+        .map((item, index) => {
+          const archivo = item.getAsFile();
+
+          if (!archivo) return null;
+
+          // Una captura llega como "image.png": se le da un nombre con la hora
+          // para que no se repita al pegar varias.
+          const extension = (archivo.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+
+          return new File([archivo], `captura-${Date.now()}-${index}.${extension}`, {
+            type: archivo.type,
+            lastModified: Date.now(),
+          });
+        })
+        .filter(Boolean);
+
+      if (!imagenes.length) return;
+
+      event.preventDefault();
+      handleUploadImages({ target: { files: imagenes, value: '' } });
+    },
+    [handleUploadImages]
+  );
+
   const handleUploadFiles = useCallback(async (event) => {
     const files = Array.from(event.target.files || []);
     event.target.value = '';
@@ -1152,6 +1183,7 @@ function CajaDeEscribir({
         value={message}
         onKeyDown={handleSendMessage}
         onChange={handleChangeMessage}
+        onPaste={handlePaste}
         onBlur={stopTyping}
         placeholder="Escribe un mensaje"
         inputComponent={EntradaConMenciones}

@@ -1,30 +1,30 @@
 export const FILE_ICON_CONFIG = {
     fundamentos: {
-        src: '/sistemaAscenso/Academia Ministerial/fundamentos.webp',
+        src: '/sistema-ascenso/academia-ministerial/fundamentos.webp',
         size: 40,
     },
     mentores: {
-        src: '/sistemaAscenso/Academia Ministerial/mentores.webp',
+        src: '/sistema-ascenso/academia-ministerial/mentores.webp',
         size: 40,
     },
     'seguridad-y-primeros-auxilios': {
-        src: '/sistemaAscenso/Academia Ministerial/seguridad.webp',
+        src: '/sistema-ascenso/academia-ministerial/seguridad.webp',
         size: 40,
     },
     'destacamento-de-clase-mundial': {
-        src: '/sistemaAscenso/Academia Ministerial/dcm.webp',
+        src: '/sistema-ascenso/academia-ministerial/dcm.webp',
         size: 40,
     },
     'campamento-nacional-ministerial': {
-        src: '/sistemaAscenso/Academia Ministerial/cnm.webp',
+        src: '/sistema-ascenso/academia-ministerial/cnm.webp',
         size: 40,
     },
     'campamento-de-barras-doradas': {
-        src: '/sistemaAscenso/Academia Ministerial/cbd.webp',
+        src: '/sistema-ascenso/academia-ministerial/cbd.webp',
         size: 40,
     },
     'cuadro-avanzado': {
-        src: '/sistemaAscenso/Academia Ministerial/cuadro-avanzado.webp',
+        src: '/sistema-ascenso/academia-ministerial/cuadro-avanzado.webp',
         size: 34,
     },
 };

@@ -5,14 +5,18 @@ import { onSnapshot } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
 import Slider from '@mui/material/Slider';
 import Tooltip from '@mui/material/Tooltip';
 import Skeleton from '@mui/material/Skeleton';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { keyframes } from '@mui/material/styles';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
+import { aplicarAjustes, llevaNumeroDorado } from 'src/utils/insignias-personalizadas.mjs';
+import { digitosDeVeces, normalizarVeces, MAXIMO_VECES_CINTA } from 'src/utils/cintas-perfil.mjs';
 import {
   recordarImagenDelPerfil,
   imagenDelPerfilYaResuelta,
@@ -48,9 +52,9 @@ import { useInsigniasPersonalizadas } from './use-insignias-personalizadas';
 //
 // Las hermanas de las cintas (`cintas-de-miembro.jsx`): se leen de
 // `medallas_miembros/{idMiembros}`, salen en el orden global que se arrastra en
-// EXPLORA Designer y, de momento, solo las pone a mano el Administrador Global
+// EXPEDITION Designer y, de momento, solo las pone a mano el Administrador Global
 // con el MISMO lápiz de las cintas, en su pestaña "Medallas".
-// El catálogo es la carpeta `public/parches/Cintas y medallas/medallas`: una
+// El catálogo es la carpeta `public/insignias/medallas`: una
 // imagen nueva ahí aparece aquí sin tocar código (`/api/insignias/medallas`).
 // ----------------------------------------------------------------------
 
@@ -65,9 +69,15 @@ function useLecturaDelCatalogo() {
     { revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true }
   );
 
-  // Las añadidas en EXPLORA Designer (Firestore) van detrás de las de la carpeta.
-  const { medallas: personalizadas } = useInsigniasPersonalizadas();
-  const deCarpeta = data?.medallas ?? VACIO;
+  // Las añadidas en EXPEDITION Designer (Firestore) van detrás de las de la carpeta.
+  // Las de la carpeta llevan los cambios del Designer (nombre, descripción,
+  // imagen) y no las eliminadas.
+  const { medallas: personalizadas, ajustes } = useInsigniasPersonalizadas();
+  const datosDeCarpeta = data?.medallas ?? VACIO;
+  const deCarpeta = useMemo(
+    () => aplicarAjustes(datosDeCarpeta, ajustes.medalla),
+    [datosDeCarpeta, ajustes.medalla]
+  );
   const medallas = useMemo(
     () => (personalizadas.length ? [...deCarpeta, ...personalizadas] : deCarpeta),
     [deCarpeta, personalizadas]
@@ -315,9 +325,13 @@ export function ImagenDeMedalla({
   amplitudMovimiento = 1,
   velocidadBrillo = 1,
   intensidadBrillo = 1,
+  // Cuántas veces se ganó: con más de una, el número dorado sobre la cinta de
+  // la medalla, si su ficha del Designer dice que lo lleva.
+  veces = 1,
   sx,
 }) {
   const src = pequena ? medalla.srcPequena || medalla.src : medalla.src;
+  const digitos = llevaNumeroDorado(medalla, 'medalla') ? digitosDeVeces(veces) : [];
   const [cargada, setCargada] = useState(() => imagenDelPerfilYaResuelta(src));
   const marcarCargada = () => {
     recordarImagenDelPerfil(src);
@@ -380,6 +394,40 @@ export function ImagenDeMedalla({
           variant="rounded"
           sx={{ position: 'absolute', inset: 0, height: 1, width: 1, borderRadius: 1 }}
         />
+      )}
+
+      {/* El número dorado, centrado sobre la cinta (la parte de arriba del corte),
+          como en las cintas del perfil. */}
+      {cargada && !!digitos.length && (
+        <Box
+          aria-label={`Ganada ${normalizarVeces(veces)} veces`}
+          sx={{
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 2,
+            display: 'flex',
+            position: 'absolute',
+            height: `${CORTE}%`,
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          {digitos.map((digito, indice) => (
+            <Box
+              key={`${digito}-${indice}`}
+              component="img"
+              src={digito}
+              alt=""
+              sx={{
+                height: '34%',
+                width: 'auto',
+                filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45))',
+              }}
+            />
+          ))}
+        </Box>
       )}
 
       {/* La cinta (y la que da el tamaño a todo). */}
@@ -586,7 +634,7 @@ const normalizarBusqueda = (texto) =>
 /**
  * Las cuatro perillas de los efectos (velocidad y fuerza del movimiento,
  * velocidad e intensidad del brillo). Sirve igual en el diálogo del miembro y en
- * EXPLORA Designer. `valores` trae las cuatro claves de `AJUSTES_MEDALLA`.
+ * EXPEDITION Designer. `valores` trae las cuatro claves de `AJUSTES_MEDALLA`.
  */
 export function AjustesDeEfectosDeMedalla({ valores = {}, onCambiar, sx }) {
   return (
@@ -634,6 +682,9 @@ export function SelectorDeMedallas({
   onCambiar,
   efectos = {},
   onCambiarEfectos,
+  // id → veces ganada (solo cuenta en las medallas que llevan número).
+  veces = new Map(),
+  onCambiarVeces,
 }) {
   const { efectoMovimiento, efectoBrillo } = efectos;
 
@@ -664,7 +715,7 @@ export function SelectorDeMedallas({
     <>
       <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
         Elegidas: {elegidas.size} de {MAXIMO_MEDALLAS}. En el perfil van debajo de las cintas, en el
-        orden global de EXPLORA Designer.
+        orden global de EXPEDITION Designer.
       </Typography>
 
       {/* Globales para el miembro, como el brillo de las cintas: valen para todas
@@ -769,13 +820,60 @@ export function SelectorDeMedallas({
                 }),
               })}
             >
-              <ImagenDeMedalla medalla={medalla} pequena {...efectos} />
+              <ImagenDeMedalla
+                medalla={medalla}
+                pequena
+                {...efectos}
+                veces={activa ? (veces.get(medalla.id) ?? 1) : 1}
+              />
               <Typography
                 variant="caption"
                 sx={{ mt: 0.5, display: 'block', lineHeight: 1.25, overflowWrap: 'anywhere' }}
               >
                 {medalla.nombre}
               </Typography>
+              {/* Cuántas veces se ganó, en las que llevan número. No propaga el
+                  clic: cambiar el número no desmarca la medalla. */}
+              {activa && llevaNumeroDorado(medalla, 'medalla') && onCambiarVeces && (
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="center"
+                  spacing={0.25}
+                  sx={{ mt: 0.5 }}
+                  onClick={(evento) => evento.stopPropagation()}
+                  onKeyDown={(evento) => evento.stopPropagation()}
+                >
+                  <IconButton
+                    size="small"
+                    aria-label={`Una vez menos ${medalla.nombre}`}
+                    disabled={(veces.get(medalla.id) ?? 1) <= 1}
+                    onClick={() =>
+                      onCambiarVeces(medalla.id, normalizarVeces((veces.get(medalla.id) ?? 1) - 1))
+                    }
+                    sx={{ p: 0.25 }}
+                  >
+                    <Iconify icon="eva:minus-fill" width={14} />
+                  </IconButton>
+                  <Typography
+                    variant="caption"
+                    sx={{ fontWeight: 700, minWidth: 24, textAlign: 'center' }}
+                  >
+                    ×{veces.get(medalla.id) ?? 1}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    aria-label={`Una vez más ${medalla.nombre}`}
+                    disabled={(veces.get(medalla.id) ?? 1) >= MAXIMO_VECES_CINTA}
+                    onClick={() =>
+                      onCambiarVeces(medalla.id, normalizarVeces((veces.get(medalla.id) ?? 1) + 1))
+                    }
+                    sx={{ p: 0.25 }}
+                  >
+                    <Iconify icon="mingcute:add-line" width={14} />
+                  </IconButton>
+                </Stack>
+              )}
             </Box>
           );
         })}

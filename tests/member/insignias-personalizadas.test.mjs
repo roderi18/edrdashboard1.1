@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// CINTAS Y MEDALLAS AÑADIDAS DESDE EXPLORA DESIGNER.
+// CINTAS Y MEDALLAS AÑADIDAS DESDE EXPEDITION DESIGNER.
 //
 // Qué se quería evitar: para sumar una cinta había que dejar la imagen en la
 // carpeta pública y además tocar código, y en producción nadie puede escribir en

@@ -21,13 +21,14 @@ import {
   COLECCION_LICENCIAS_ASISTENCIA,
 } from 'src/utils/licencias-asistencia.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { registrarAuditoriaSilenciosa } from './audit-log-service';
 
-export const COLECCION_ASISTENCIAS = 'asistencias';
-export const COLECCION_REGISTROS_ASISTENCIA = 'registrosAsistencia';
-export const COLECCION_ULTIMAS_ASISTENCIAS_MIEMBROS = 'ultimasAsistenciasMiembros';
+export const COLECCION_ASISTENCIAS = COLECCIONES.asistencias;
+export const COLECCION_REGISTROS_ASISTENCIA = COLECCIONES.registrosAsistencia;
+export const COLECCION_ULTIMAS_ASISTENCIAS_MIEMBROS = COLECCIONES.ultimasAsistenciasMiembros;
 
 // Las marcas que se pueden pasar. "Enfermo" y "Otro" se suman a las tres de
 // siempre: una enfermedad ya no se cuenta como una excusa cualquiera —interesa
@@ -361,7 +362,7 @@ export const guardarAsistenciaDestacamento = async ({
 // duplica. Ver `src/utils/actividades-asistencia.mjs`.
 // ----------------------------------------------------------------------
 
-export const COLECCION_ACTIVIDADES_ASISTENCIA = 'actividadesAsistencia';
+export const COLECCION_ACTIVIDADES_ASISTENCIA = COLECCIONES.actividadesAsistencia;
 
 export const listarActividadesAsistencia = async ({ idDestacamento } = {}) => {
   if (!isFirebaseConfigured || !FIRESTORE || !idDestacamento) return [];

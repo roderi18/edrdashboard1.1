@@ -54,8 +54,8 @@ export async function buildMailAttachments(files = []) {
         preview:
           preview ||
           (preparedFile.type === 'application/pdf'
-            ? '/assets/icons/files/ic-pdf.svg'
-            : '/assets/icons/files/ic-file.svg'),
+            ? '/plantilla/icons/files/ic-pdf.svg'
+            : '/plantilla/icons/files/ic-file.svg'),
       };
     })
   );

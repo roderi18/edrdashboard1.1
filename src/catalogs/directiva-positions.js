@@ -2,9 +2,9 @@
 // el resolvedor de ESM no la deduce.
 import { tieneCasillaEnOrganigrama } from './directiva-diagrams.js';
 import {
-  casillasValidas,
   posicionDeCasilla,
   cargoDeCasillaDest,
+  casillasDelCatalogo,
 } from '../utils/casillas-personalizadas.mjs';
 
 export const DIRECTIVA_LEVELS = {
@@ -375,7 +375,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idCargo: 'nacional-coordinador-adiestramiento',
     idCargoApi: API_CARGO_IDS.coordinadorNacionalAdiestramiento,
     nivel: DIRECTIVA_LEVELS.nacional,
-    nombreCargo: 'Director Nacional de Adiestramiento',
+    nombreCargo: 'Coordinador Nacional de Adiestramiento',
     idNodoDiagrama: 'coordinador-nacional-adiestramiento',
     idCargoPadre: 'nacional-consejo-ejecutivo',
     idNodoPadre: 'consejo-ejecutivo',
@@ -390,7 +390,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idNodoDiagrama: 'oficiales-adiestramientos-especiales',
     idCargoPadre: 'nacional-coordinador-adiestramiento',
     idNodoPadre: 'coordinador-nacional-adiestramiento',
-    nombreCargoPadre: 'Director Nacional de Adiestramiento',
+    nombreCargoPadre: 'Coordinador Nacional de Adiestramiento',
     orden: 8,
   }),
   createPosition({
@@ -419,7 +419,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idCargo: 'nacional-coordinador-promocion',
     idCargoApi: API_CARGO_IDS.coordinadorNacionalPromocion,
     nivel: DIRECTIVA_LEVELS.nacional,
-    nombreCargo: 'Director Nacional de Promoción',
+    nombreCargo: 'Coordinador Nacional de Promoción',
     idNodoDiagrama: 'coordinador-nacional-promocion',
     idCargoPadre: 'nacional-consejo-ejecutivo',
     idNodoPadre: 'consejo-ejecutivo',
@@ -430,7 +430,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idCargo: 'nacional-coordinador-produccion',
     idCargoApi: API_CARGO_IDS.coordinadorNacionalProduccion,
     nivel: DIRECTIVA_LEVELS.nacional,
-    nombreCargo: 'Director Nacional de Producción',
+    nombreCargo: 'Coordinador Nacional de Producción',
     idNodoDiagrama: 'coordinador-nacional-produccion',
     idCargoPadre: 'nacional-consejo-ejecutivo',
     idNodoPadre: 'consejo-ejecutivo',
@@ -441,7 +441,7 @@ const DIRECTIVA_POSITIONS_DECLARADAS = [
     idCargo: 'nacional-coordinador-programa',
     idCargoApi: API_CARGO_IDS.coordinadorNacionalPrograma,
     nivel: DIRECTIVA_LEVELS.nacional,
-    nombreCargo: 'Director Nacional de Programa',
+    nombreCargo: 'Coordinador Nacional de Programa',
     idNodoDiagrama: 'coordinador-nacional-programa',
     idCargoPadre: 'nacional-consejo-ejecutivo',
     idNodoPadre: 'consejo-ejecutivo',
@@ -896,7 +896,7 @@ let firmaCasillas = '';
 export const versionDeCasillasPersonalizadas = () => versionCasillas;
 
 export const registrarCasillasPersonalizadas = (lista = []) => {
-  const nuevas = casillasValidas(lista).map(posicionDeCasilla);
+  const nuevas = casillasDelCatalogo(lista).map(posicionDeCasilla);
   // Se registra en cada lectura; solo cambia algo (y la versión) si la lista
   // es otra. Si no, la caché de cargos se vaciaría a cada paso.
   const firma = JSON.stringify(nuevas);

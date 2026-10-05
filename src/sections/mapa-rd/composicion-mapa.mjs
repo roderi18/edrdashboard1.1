@@ -55,7 +55,7 @@ export function crearElemento(tipo, indice = 0) {
       nivelEntidad: 'nacional',
       entidadId: 'consejo-nacional',
       nombreEntidad: 'Consejo Nacional',
-      imagenEntidad: '/parches/Generales/consejo-nacional-cuadrado.webp',
+      imagenEntidad: '/insignias/consejo-nacional.webp',
       usarImagen: true,
       mostrarNombre: true,
     };

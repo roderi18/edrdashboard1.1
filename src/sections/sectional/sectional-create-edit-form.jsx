@@ -15,15 +15,13 @@ import { useRouter } from 'src/routes/hooks';
 
 import { contarSeccion } from 'src/utils/org-counts';
 import { esperar, RETARDO_GUARDADO_MS } from 'src/utils/ui-delays';
-import { getImageOptimizationMessage } from 'src/utils/upload-optimization-message';
-import { subirFotoEntidad, subirFotoEntidadPropuesta } from 'src/utils/firebase-photos';
+import { subirFotoEntidadPropuesta } from 'src/utils/firebase-photos';
 import {
   canEditSectional,
   getRegionScopeIds,
-  getSectionScopeIds,
   isRegionScopedCreator,
   isRegionScopedManager,
-  isSectionScopedManager,
+  puedeCambiarFotoDeEntidad,
   canAssignSectionalToRegion,
   canCreateSectionalInRegion,
   puedeAsignarLaRegionDeUnaSeccion,
@@ -52,8 +50,9 @@ import {
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
-import { Form, Field } from 'src/components/hook-form';
+import { FotoDeMiembro } from 'src/components/upload/foto-de-miembro';
 import { EntityInfoPdfMenu } from 'src/components/info/entity-info-pdf-menu';
 import SectionalGeneralSection from 'src/components/form/sectional-form/SectionalGeneralSection';
 
@@ -82,10 +81,7 @@ export function SectionalCreateEditForm({ currentSectional }) {
   // Nacional o el Administrador Global— la manda a la bandeja de aprobaciones,
   // con la foto de antes y la de despues.
   const idSeccionActual = String(currentSectional?.id ?? currentSectional?.idSeccion ?? '');
-  const esSuSeccion = Boolean(idSeccionActual) && getSectionScopeIds(user).has(idSeccionActual);
-  const puedeSugerirFoto =
-    Boolean(currentSectional) && (canEdit || (isSectionScopedManager(user) && esSuSeccion));
-  const soloSugiereFoto = puedeSugerirFoto && !puedeAprobarCambiosDeOrganizacion(user);
+  const puedeSugerirFoto = Boolean(currentSectional) && puedeCambiarFotoDeEntidad(user);
   // Editar una seccion lo aprueba la Oficina Nacional. Quien no puede aprobar no
   // esta guardando nada: esta enviando una propuesta, y el boton tiene que
   // decirlo con las mismas palabras que en destacamentos y en miembros.
@@ -366,10 +362,9 @@ export function SectionalCreateEditForm({ currentSectional }) {
     try {
       setUploadingPhoto(true);
 
-      // Sugerencia: la imagen se sube a una carpeta aparte y la foto oficial se
-      // queda como esta. Devolver la url nueva pintaria un cambio que todavia no
-      // existe, asi que se conserva la de antes.
-      if (soloSugiereFoto) {
+      // La foto la cambian el Administrador Global y la Oficina Nacional. Va por
+      // `propon…`: queda en Historial y se avisa al otro. Si la cuenta de Oficina
+      // tambien es del destacamento, se escala al Administrador Global.
         const propuesta = await subirFotoEntidadPropuesta({
           file,
           tipoEntidad: 'seccion',
@@ -377,31 +372,23 @@ export function SectionalCreateEditForm({ currentSectional }) {
           subidoPor: AUTH.currentUser?.uid || '',
         });
 
-        await proponerFotoSeccion({
+        const resultado = await proponerFotoSeccion({
           seccion: { id: sectionalId, nombre: currentSectional?.sectionalName || '' },
           foto: propuesta,
           urlAntes: values.avatarUrl || currentSectional?.avatarUrl || '',
           usuario: user,
         });
 
+        if (!resultado?.pendienteDeAprobacion) {
+          toast.success('Foto actualizada. Se avisó a la Oficina Nacional y al Administrador Global.');
+          return propuesta.urlFoto;
+        }
+
         toast.info('Foto enviada a la Oficina Nacional. Se aplicará cuando la aprueben.');
 
         await cargarPendientes();
 
         return values.avatarUrl || currentSectional?.avatarUrl || null;
-      }
-
-      const photo = await subirFotoEntidad({
-        file,
-        tipoEntidad: 'seccion',
-        idEntidad: sectionalId,
-        tipoFoto: 'perfil',
-        subidoPor: AUTH.currentUser?.uid || '',
-      });
-
-      toast.success(getImageOptimizationMessage(file.__optimizationInfo));
-
-      return photo.urlFoto;
     } catch (error) {
       console.error('[sectional form] photo upload failed', error);
       toast.error(error.message || 'No se pudo subir la foto.');
@@ -525,37 +512,15 @@ export function SectionalCreateEditForm({ currentSectional }) {
             )}
 
             <Box sx={{ mb: 5 }}>
-              <Field.UploadAvatar
-                name="avatarUrl"
-                loading={uploadingPhoto}
-                disabled={uploadingPhoto}
-                readOnly={!puedeSugerirFoto}
-                onDrop={handleUploadSectionalPhoto}
-                optimizationToast={false}
-                helperText={
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      mt: 3,
-                      mx: 'auto',
-                      display: 'block',
-                      textAlign: 'center',
-                      color: 'text.disabled',
-                    }}
-                  >
-                    {/* A quien solo puede sugerirla, decirle los formatos no le
-                        aclara lo que necesita saber: que la foto no cambia hasta
-                        que la aprueben. */}
-                    {soloSugiereFoto ? (
-                      'La foto que subas se enviará a la Oficina Nacional para su aprobación. La actual se mantiene hasta que la aprueben.'
-                    ) : (
-                      <>
-                        Permitido *.jpeg, *.jpg, *.png, *.gif
-                        <br /> la imagen se optimiza al cargar.
-                      </>
-                    )}
-                  </Typography>
-                }
+              <FotoDeMiembro
+                url={methods.watch('avatarUrl')?.preview || methods.watch('avatarUrl') || ''}
+                nombre={currentSectional?.sectionalName || ''}
+                cargando={uploadingPhoto}
+                puedeEditar={puedeSugerirFoto}
+                onFoto={async (archivo) => {
+                  const url = await handleUploadSectionalPhoto([archivo]);
+                  if (url) methods.setValue('avatarUrl', url);
+                }}
               />
             </Box>
 

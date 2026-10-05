@@ -105,13 +105,15 @@ test('la ruta escribe en cada cuenta, conserva sus cargos y emite los claims de 
   assert.ok(
     ruta.includes('const susCargos = Array.isArray(cargos) ? cargos : (actual.cargos ?? []);')
   );
-  assert.ok(
-    ruta.includes(
-      'rolesQueEjerce: listaDeRolesQueEjerce({ rolId: rolQueQueda, cargos: susCargos })'
-    )
+  // La lista que leen las reglas lleva sus cargos y TODOS sus roles de
+  // administracion (puede tener varios: `roles-de-administracion.mjs`).
+  assert.match(
+    ruta,
+    /rolesQueEjerce: listaDeRolesQueEjerce\(\{\s*rolId: rolQueQueda,\s*cargos: susCargos,\s*rolesAdministracion: rolesNuevos,\s*\}\)/
   );
   assert.ok(ruta.includes('cuentas.uids.map(async (uid) =>'));
-  assert.ok(ruta.includes('await auth.setCustomUserClaims(uid, suyos);'));
+  // Los claims se emiten por la pieza que conserva `debeCambiarClave`.
+  assert.ok(ruta.includes('await fijarClaimsConservandoClave(auth, uid, suyos);'));
   // Una cuenta de miembro sigue siendo de miembro.
   assert.ok(ruta.includes("const esCuentaDeMiembro = normalizar(actual.rol) === 'miembro';"));
 });

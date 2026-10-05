@@ -58,7 +58,6 @@ service firebase.storage {
 
     function esAdminRegistrado() {
       return tieneDocumento('admins')
-        || documentoTieneRolAdministrativo('users')
         || documentoTieneRolAdministrativo('usuarios_roles');
     }
 
@@ -103,7 +102,6 @@ service firebase.storage {
             && esRolAdministradorGlobal(request.auth.token.rol)
           )
           || documentoTieneRolAdministradorGlobal('usuarios_roles')
-          || documentoTieneRolAdministradorGlobal('users')
           || documentoTieneRolAdministradorGlobal('admins')
         );
     }
@@ -121,6 +119,13 @@ service firebase.storage {
             tieneDocumento('usuarios_roles')
             && 'rolId' in documentoUsuario('usuarios_roles').data
             && documentoUsuario('usuarios_roles').data.rolId == 'administrador_tienda'
+          )
+          // Por cualquiera de sus roles: el de Tienda puede no ser el principal.
+          || (
+            tieneDocumento('usuarios_roles')
+            && 'rolesQueEjerce' in documentoUsuario('usuarios_roles').data
+            && documentoUsuario('usuarios_roles').data.rolesQueEjerce is list
+            && documentoUsuario('usuarios_roles').data.rolesQueEjerce.hasAny(['administrador_tienda'])
           )
         );
     }
@@ -214,6 +219,13 @@ service firebase.storage {
         );
     }
 
+    // Salud no hereda el pase genérico de cualquier rol administrativo: solo
+    // el Administrador Global o un cargo con permiso explícito puede verla.
+    function tienePermisoSalud(codigoPermiso) {
+      return !permisoExcluido(codigoPermiso)
+        && (tienePermisoDirecto(codigoPermiso) || tienePermisoPorRol(codigoPermiso));
+    }
+
     function esImagenPermitida() {
       return request.resource != null
         && request.resource.size < 5 * 1024 * 1024
@@ -234,11 +246,6 @@ service firebase.storage {
           (
             'idMiembros' in request.auth.token
             && string(request.auth.token.idMiembros) == string(idMiembro)
-          )
-          || (
-            tieneDocumento('users')
-            && 'idMiembros' in documentoUsuario('users').data
-            && string(documentoUsuario('users').data.idMiembros) == string(idMiembro)
           )
           || (
             tieneDocumento('usuarios_roles')
@@ -296,6 +303,7 @@ service firebase.storage {
     // vigila una prueba (`chat-storage-regression`).
     function puedeResolverPropuestaDeFoto() {
       return esAdministradorGlobal()
+        || esOficinaNacional()
         || (tieneRolId() && rolDeUsuario() == 'oficina_nacional');
     }
 
@@ -306,6 +314,9 @@ service firebase.storage {
     // Administrador Global la aprueben.
     function puedeSugerirFoto() {
       return esAdministradorGlobal()
+        // La Oficina Nacional aunque no sea su cargo principal: sube aqui la
+        // foto que aplica al momento.
+        || esOficinaNacional()
         || (
           tieneRolId()
           && rolDeUsuario() in [
@@ -563,6 +574,53 @@ service firebase.storage {
       allow delete: if false;
     }
 
+    // EXPLORA DESIGNER → ACCESOS: quien no es Administrador Global sube a la
+    // carpeta de la pestaña que tenga dada (crear o editar): insignias, Tarjeta y
+    // Portada. Va aparte para no tocar la regla de arriba (igual a la de las
+    // tarjetas). Lee el índice de `configuracion_designer/accesos` (ver
+    // `src/utils/accesos-designer.mjs`) con UNA sola lectura: el rol que cuenta
+    // aquí es el del token, no los cargos a mano.
+    match /everest/{carpetaDesigner}/{archivo} {
+      allow create, update: if estaAutenticado()
+        && request.resource != null
+        && (
+          esImagenPermitida()
+          || (
+            !carpetaDesigner.matches('(insignias-|tarjeta-).*')
+            && request.resource.size < 25 * 1024 * 1024
+            && request.resource.contentType in ['video/mp4', 'video/webm']
+            && archivo.matches('.*-video\\.(mp4|webm)')
+          )
+        )
+        && subeConAccesoDesigner(pestanaDeCarpetaDesigner(carpetaDesigner));
+    }
+
+    function pestanaDeCarpetaDesigner(carpeta) {
+      return carpeta == 'insignias-cinta' ? 'cintas'
+        : carpeta == 'insignias-medalla' ? 'medallas'
+        : carpeta == 'insignias-pin' ? 'pines'
+        : carpeta == 'tarjeta-desarrollo' ? 'tarjeta'
+        : 'portada';
+    }
+
+    function subeConAccesoDesigner(pestana) {
+      return permisoDesignerEn(
+          firestore.get(/databases/(default)/documents/configuracion_designer/accesos)
+            .data.get('permisos', {}),
+          pestana
+        );
+    }
+
+    function permisoDesignerEn(permisos, pestana) {
+      return quienesTienenPermiso(permisos.get(pestana + ':crear', {}))
+        || quienesTienenPermiso(permisos.get(pestana + ':editar', {}));
+    }
+
+    function quienesTienenPermiso(quienes) {
+      return quienes.get('usuarios', []).hasAny([request.auth.uid])
+        || ('rol' in request.auth.token && quienes.get('roles', []).hasAny([request.auth.token.rol]));
+    }
+
     // LAS CARAS DE LA DIRECTIVA POR CUATRIENIO. Copias, no enlaces: la foto de
     // perfil se reemplaza al cambiarla y la historia tiene que quedarse con la de
     // entonces. Las guardan el Administrador Global y la Oficina Nacional (la
@@ -670,14 +728,18 @@ service firebase.storage {
     }
 
     match /documentos-salud-miembros/{idMiembro}/{archivo} {
-      allow read: if estaAutenticado();
+      // La URL del archivo no es autorización: la lectura sigue la misma
+      // distinción que la ficha médica (cargo de salud o ficha propia).
+      allow read: if esAdministradorGlobal()
+        || tienePermisoSalud('salud.ver')
+        || esSuIdMiembro(idMiembro);
       allow create, update: if estaAutenticado()
         && esArchivoSaludPermitido()
         && !esCargoDestacamentoSoloLectura()
-        && (esAdminRegistrado() || tienePermiso('salud.subir_documentos'));
+        && (esAdministradorGlobal() || tienePermisoSalud('salud.subir_documentos'));
       allow delete: if estaAutenticado()
         && !esCargoDestacamentoSoloLectura()
-        && (esAdminRegistrado() || tienePermiso('salud.eliminar_documentos'));
+        && (esAdministradorGlobal() || tienePermisoSalud('salud.eliminar_documentos'));
     }
 
     match /miembros/{idMiembro}/{archivo} {
@@ -737,15 +799,54 @@ service firebase.storage {
       allow delete: if false;
     }
 
+    // LAS FOTOS DE LOS PRODUCTOS DE LA TIENDA (`productos/<id>/imagen-….webp`).
+    // No tenían regla propia: entraban por el comodín de imágenes, que es solo
+    // del Administrador Global, así que el Administrador de Gestión de Tienda
+    // —quien lleva el catálogo— no podía subirlas. Las ve cualquiera con sesión
+    // (el catálogo es para todos); nadie las borra desde el navegador.
+    match /productos/{allPaths=**} {
+      allow read: if estaAutenticado();
+      allow create, update: if (esAdministradorGlobal() || esAdministradorDeTienda())
+        && esImagenPermitida();
+      allow delete: if false;
+    }
+
+    // El gestor acepta también PDF, por lo que no entra en el comodín final
+    // reservado a imágenes. Solo el Administrador Global lo administra.
+    match /gestor-archivos/{allPaths=**} {
+      allow read: if esAdministradorGlobal();
+      allow create, update: if esAdministradorGlobal()
+        && request.resource != null
+        && request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf');
+      allow delete: if resource != null && esAdministradorGlobal();
+    }
+
+    // EL RESPALDO DIARIO (`src/utils/respaldo-diario.mjs`): la base de datos, el
+    // padrón y las cuentas de toda la organización, y el espejo de los archivos.
+    // Solo lo escribe y lo lee el servidor (Admin SDK, que no pasa por aquí).
+    // Las reglas son aditivas: el comodín de imágenes de abajo excluye esta carpeta.
+    match /respaldos/{allPaths=**} {
+      allow read, write: if false;
+    }
+
     // Superposicion deliberada: las reglas de Storage son aditivas. Este bloque
     // permite al Administrador Global agregar o reemplazar cualquier imagen,
     // incluidas las fotos de secciones y regiones que no tienen un match propio.
     // No concede borrado ni permite subir archivos que no sean imagenes.
     match /{rutaImagen=**} {
+      // Nunca dentro del respaldo: nadie lo toca desde el navegador. Se mira el
+      // NOMBRE del archivo (texto), no `rutaImagen`: con `=**` esa variable es
+      // una ruta, `.matches` sobre ella da error y un error deniega. Así se
+      // cayeron TODAS las subidas que dependían de esta regla (las fotos de los
+      // productos de la tienda, por ejemplo).
       allow read: if esAdministradorGlobal()
-        && resource.contentType.matches('image/.*');
+        && resource.contentType.matches('image/.*')
+        && !resource.name.matches('respaldos/.*');
       allow create, update: if esAdministradorGlobal()
-        && esImagenPermitida();
+        && esImagenPermitida()
+        && !request.resource.name.matches('respaldos/.*');
     }
   }
 }

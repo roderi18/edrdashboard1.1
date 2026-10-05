@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 import { buscarPosicionPorNodo } from './leadership-assignments.js';
 // Con extension explicita: este modulo se carga tambien desde `node --test`.
 import { DIRECTIVA_POSITIONS } from '../catalogs/directiva-positions.js';
@@ -24,9 +26,9 @@ import { DIRECTIVA_POSITIONS } from '../catalogs/directiva-positions.js';
 // directiva (leadership-member-options.js).
 export const NOMBRE_PROVISIONAL = 'Provisional';
 
-export const COLECCION_CUATRIENIOS = 'directiva_cuatrienios';
-export const COLECCION_INTEGRANTES = 'directiva_cuatrienios_integrantes';
-export const COLECCION_PERMANENTES = 'directiva_nacional_permanentes';
+export const COLECCION_CUATRIENIOS = COLECCIONES.directivasCuatrienios;
+export const COLECCION_INTEGRANTES = COLECCIONES.integrantesDirectivasCuatrienios;
+export const COLECCION_PERMANENTES = COLECCIONES.miembrosPermanentesDirectivaNacional;
 
 // Un cuatrienio termina el mismo dia que empieza el siguiente: el 22/08/2026 ya
 // es 2026-2030. Por eso `fin` es exclusivo. El fin de 2026-2030 no esta fijado
@@ -123,7 +125,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'produccion',
     orden: 5,
     nombres: {
-      nacional: 'Director Nacional de Producción',
+      nacional: 'Coordinador Nacional de Producción',
       regional: 'Coordinador de Producción',
       seccional: 'Coordinador de Producción',
     },
@@ -137,7 +139,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'programa',
     orden: 6,
     nombres: {
-      nacional: 'Director Nacional de Programa',
+      nacional: 'Coordinador Nacional de Programa',
       regional: 'Coordinador de Programa',
       seccional: 'Coordinador de Programa',
     },
@@ -151,7 +153,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'promocion',
     orden: 7,
     nombres: {
-      nacional: 'Director Nacional de Promoción',
+      nacional: 'Coordinador Nacional de Promoción',
       regional: 'Coordinador de Promoción',
       seccional: 'Coordinador de Promoción',
     },
@@ -165,7 +167,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     id: 'adiestramiento',
     orden: 8,
     nombres: {
-      nacional: 'Director Nacional de Adiestramiento',
+      nacional: 'Coordinador Nacional de Adiestramiento',
       regional: 'Coordinador de Adiestramiento',
       seccional: 'Coordinador de Adiestramiento',
     },
@@ -190,7 +192,7 @@ export const CARGOS_DIRECTIVA = Object.freeze([
   {
     id: 'ex_comandante',
     orden: 30,
-    nombres: { nacional: 'Ex Comandante Nacional' },
+    nombres: { nacional: 'Ex Director Nacional' },
     nodos: {},
   },
   {
@@ -204,6 +206,12 @@ export const CARGOS_DIRECTIVA = Object.freeze([
     nodos: {},
   },
 ]);
+
+// "Ex Director Nacional" en "Cargo Nacional" de la ficha. No es una casilla:
+// elegirlo suma a la persona al grupo de ex comandantes del cuatrienio cerrado
+// (sale en la lista y conserva permisos de Director Nacional, punto 12).
+export const OPCION_EX_DIRECTOR_NACIONAL = 'nacional-ex-director';
+export const NOMBRE_EX_DIRECTOR_NACIONAL = 'Ex Director Nacional';
 
 const CARGO_POR_ID = new Map(CARGOS_DIRECTIVA.map((cargo) => [cargo.id, cargo]));
 

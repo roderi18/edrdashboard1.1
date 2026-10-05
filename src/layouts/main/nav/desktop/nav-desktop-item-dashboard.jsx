@@ -44,7 +44,7 @@ export function NavItemDashboard({ path, sx, ...other }) {
           whileHover={varHover(1.02)}
           transition={transitionTap()}
           alt="Dashboard illustration"
-          src={`${CONFIG.assetsDir}/assets/illustrations/illustration-dashboard.webp`}
+          src={`${CONFIG.assetsDir}/plantilla/illustrations/illustration-dashboard.webp`}
           sx={{ width: 640, objectFit: 'cover', aspectRatio: '4/3' }}
         />
       </Box>

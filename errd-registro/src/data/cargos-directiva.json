@@ -1,0 +1,930 @@
+[
+ {
+  "value": "nacional-ministerios-infantiles",
+  "label": "Ministerios Infantiles",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 2
+ },
+ {
+  "value": "nacional-director-nacional",
+  "label": "Director Nacional",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 4
+ },
+ {
+  "value": "nacional-capellan-nacional",
+  "label": "Capellán Nacional",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 5
+ },
+ {
+  "value": "nacional-coordinador-adiestramiento",
+  "label": "Director Nacional de Adiestramiento",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 7
+ },
+ {
+  "value": "nacional-oficiales-adiestramientos-especiales",
+  "label": "Oficiales de Adiestramientos Especiales",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 8
+ },
+ {
+  "value": "nacional-sub-director-nacional",
+  "label": "Sub-Director Nacional",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 9
+ },
+ {
+  "value": "nacional-coordinador-promocion",
+  "label": "Director Nacional de Promoción",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 11
+ },
+ {
+  "value": "nacional-coordinador-produccion",
+  "label": "Director Nacional de Producción",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 12
+ },
+ {
+  "value": "nacional-coordinador-programa",
+  "label": "Director Nacional de Programa",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 13
+ },
+ {
+  "value": "nacional-comites-especiales",
+  "label": "Comités Especiales",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 14
+ },
+ {
+  "value": "nacional-oficial-especial-1",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 16
+ },
+ {
+  "value": "nacional-oficial-especial-2",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 17
+ },
+ {
+  "value": "nacional-oficial-especial-3",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 18
+ },
+ {
+  "value": "nacional-oficial-especial-4",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 19
+ },
+ {
+  "value": "nacional-oficial-especial-5",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 20
+ },
+ {
+  "value": "nacional-oficial-especial-6",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 21
+ },
+ {
+  "value": "nacional-oficial-especial-7",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 22
+ },
+ {
+  "value": "nacional-oficial-especial-8",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 23
+ },
+ {
+  "value": "nacional-oficial-especial-9",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 24
+ },
+ {
+  "value": "nacional-oficial-especial-10",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 25
+ },
+ {
+  "value": "nacional-oficial-especial-11",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 26
+ },
+ {
+  "value": "nacional-oficial-especial-12",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 27
+ },
+ {
+  "value": "nacional-oficial-especial-13",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 28
+ },
+ {
+  "value": "nacional-oficial-especial-14",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 29
+ },
+ {
+  "value": "nacional-oficial-especial-15",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 30
+ },
+ {
+  "value": "nacional-oficial-especial-16",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 31
+ },
+ {
+  "value": "nacional-oficial-especial-17",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 32
+ },
+ {
+  "value": "nacional-oficial-especial-18",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 33
+ },
+ {
+  "value": "nacional-oficial-especial-19",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 34
+ },
+ {
+  "value": "nacional-oficial-especial-20",
+  "label": "Oficial Especial",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 35
+ },
+ {
+  "value": "nacional-secretario-nacional",
+  "label": "Secretario Nacional",
+  "nivel": "nacional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 36
+ },
+ {
+  "value": "regional-director-regional",
+  "label": "Director Regional",
+  "nivel": "regional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 3
+ },
+ {
+  "value": "regional-capellan-regional",
+  "label": "Capellán Regional",
+  "nivel": "regional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 4
+ },
+ {
+  "value": "regional-subdirector-regional",
+  "label": "Sub-Director Regional",
+  "nivel": "regional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 5
+ },
+ {
+  "value": "regional-coordinador-adiestramiento",
+  "label": "Coordinador de Adiestramiento",
+  "nivel": "regional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 6
+ },
+ {
+  "value": "regional-coordinador-promocion",
+  "label": "Coordinador de Promoción",
+  "nivel": "regional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 7
+ },
+ {
+  "value": "regional-coordinador-produccion",
+  "label": "Coordinador de Producción",
+  "nivel": "regional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 8
+ },
+ {
+  "value": "regional-coordinador-programa",
+  "label": "Coordinador de Programa",
+  "nivel": "regional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 9
+ },
+ {
+  "value": "regional-secretario-regional",
+  "label": "Secretario Regional",
+  "nivel": "regional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 10
+ },
+ {
+  "value": "seccional-coordinador-seccional",
+  "label": "Director Seccional",
+  "nivel": "seccional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 3
+ },
+ {
+  "value": "seccional-capellan-seccional",
+  "label": "Capellán Seccional",
+  "nivel": "seccional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 4
+ },
+ {
+  "value": "seccional-sub-coordinador-seccional",
+  "label": "Sub-Director Seccional",
+  "nivel": "seccional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 6
+ },
+ {
+  "value": "seccional-coordinador-adiestramiento",
+  "label": "Coordinador de Adiestramiento",
+  "nivel": "seccional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 7
+ },
+ {
+  "value": "seccional-coordinador-promocion",
+  "label": "Coordinador de Promoción",
+  "nivel": "seccional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 8
+ },
+ {
+  "value": "seccional-coordinador-produccion",
+  "label": "Coordinador de Producción",
+  "nivel": "seccional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 9
+ },
+ {
+  "value": "seccional-coordinador-programa",
+  "label": "Coordinador de Programa",
+  "nivel": "seccional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 10
+ },
+ {
+  "value": "seccional-secretario-regional",
+  "label": "Secretario Regional",
+  "nivel": "seccional",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 13
+ },
+ {
+  "value": "destacamento-exploradores-lider-grupo",
+  "label": "Líder de Grupo",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 51
+ },
+ {
+  "value": "destacamento-exploradores-lider-asistente-grupo",
+  "label": "Líder Asistente de Grupo",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 52
+ },
+ {
+  "value": "destacamento-exploradores-lider-asistente-grupo-2",
+  "label": "Líder Asistente de Grupo",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 190
+ },
+ {
+  "value": "destacamento-exploradores-lider-juvenil-grupo",
+  "label": "Líder Juvenil de Grupo",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 191
+ },
+ {
+  "value": "destacamento-exploradores-guia-mayor",
+  "label": "Guía Mayor",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 192
+ },
+ {
+  "value": "destacamento-exploradores-guia-mayor-auxiliar",
+  "label": "Guía Mayor Auxiliar",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 193
+ },
+ {
+  "value": "destacamento-exploradores-especialista-comunicaciones",
+  "label": "Especialista de Comunicaciones",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 194
+ },
+ {
+  "value": "destacamento-exploradores-supervisor-equipo",
+  "label": "Supervisor de Equipo",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 195
+ },
+ {
+  "value": "destacamento-exploradores-historiador",
+  "label": "Historiador",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 196
+ },
+ {
+  "value": "destacamento-exploradores-capellan-auxiliar",
+  "label": "Capellán Auxiliar",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 197
+ },
+ {
+  "value": "destacamento-exploradores-guia-patrulla-1",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 200
+ },
+ {
+  "value": "destacamento-exploradores-guia-auxiliar-patrulla-1",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 201
+ },
+ {
+  "value": "destacamento-exploradores-guia-patrulla-2",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 202
+ },
+ {
+  "value": "destacamento-exploradores-guia-auxiliar-patrulla-2",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 203
+ },
+ {
+  "value": "destacamento-exploradores-guia-patrulla-3",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 204
+ },
+ {
+  "value": "destacamento-exploradores-guia-auxiliar-patrulla-3",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "exploradores",
+  "nombreDivision": "Exploradores",
+  "orden": 205
+ },
+ {
+  "value": "destacamento-seguidores-lider-grupo",
+  "label": "Líder de Grupo",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 41
+ },
+ {
+  "value": "destacamento-seguidores-lider-asistente-grupo",
+  "label": "Líder Asistente de Grupo",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 42
+ },
+ {
+  "value": "destacamento-seguidores-lider-asistente-grupo-2",
+  "label": "Líder Asistente de Grupo",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 160
+ },
+ {
+  "value": "destacamento-seguidores-lider-juvenil-grupo",
+  "label": "Líder Juvenil de Grupo",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 161
+ },
+ {
+  "value": "destacamento-seguidores-guia-mayor",
+  "label": "Guía Mayor",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 162
+ },
+ {
+  "value": "destacamento-seguidores-guia-mayor-auxiliar",
+  "label": "Guía Mayor Auxiliar",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 163
+ },
+ {
+  "value": "destacamento-seguidores-especialista-comunicaciones",
+  "label": "Especialista de Comunicaciones",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 164
+ },
+ {
+  "value": "destacamento-seguidores-supervisor-equipo",
+  "label": "Supervisor de Equipo",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 165
+ },
+ {
+  "value": "destacamento-seguidores-historiador",
+  "label": "Historiador",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 166
+ },
+ {
+  "value": "destacamento-seguidores-capellan-auxiliar",
+  "label": "Capellán Auxiliar",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 167
+ },
+ {
+  "value": "destacamento-seguidores-guia-patrulla-1",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 170
+ },
+ {
+  "value": "destacamento-seguidores-guia-auxiliar-patrulla-1",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 171
+ },
+ {
+  "value": "destacamento-seguidores-guia-patrulla-2",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 172
+ },
+ {
+  "value": "destacamento-seguidores-guia-auxiliar-patrulla-2",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 173
+ },
+ {
+  "value": "destacamento-seguidores-guia-patrulla-3",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 174
+ },
+ {
+  "value": "destacamento-seguidores-guia-auxiliar-patrulla-3",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "seguidores",
+  "nombreDivision": "Seguidores",
+  "orden": 175
+ },
+ {
+  "value": "destacamento-pioneros-lider-grupo",
+  "label": "Líder de Grupo",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 31
+ },
+ {
+  "value": "destacamento-pioneros-lider-asistente-grupo",
+  "label": "Líder Asistente de Grupo",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 32
+ },
+ {
+  "value": "destacamento-pioneros-lider-asistente-grupo-2",
+  "label": "Líder Asistente de Grupo",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 130
+ },
+ {
+  "value": "destacamento-pioneros-lider-juvenil-grupo",
+  "label": "Líder Juvenil de Grupo",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 131
+ },
+ {
+  "value": "destacamento-pioneros-guia-mayor",
+  "label": "Guía Mayor",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 132
+ },
+ {
+  "value": "destacamento-pioneros-guia-mayor-auxiliar",
+  "label": "Guía Mayor Auxiliar",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 133
+ },
+ {
+  "value": "destacamento-pioneros-especialista-comunicaciones",
+  "label": "Especialista de Comunicaciones",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 134
+ },
+ {
+  "value": "destacamento-pioneros-supervisor-equipo",
+  "label": "Supervisor de Equipo",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 135
+ },
+ {
+  "value": "destacamento-pioneros-historiador",
+  "label": "Historiador",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 136
+ },
+ {
+  "value": "destacamento-pioneros-capellan-auxiliar",
+  "label": "Capellán Auxiliar",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 137
+ },
+ {
+  "value": "destacamento-pioneros-guia-patrulla-1",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 140
+ },
+ {
+  "value": "destacamento-pioneros-guia-auxiliar-patrulla-1",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 141
+ },
+ {
+  "value": "destacamento-pioneros-guia-patrulla-2",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 142
+ },
+ {
+  "value": "destacamento-pioneros-guia-auxiliar-patrulla-2",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 143
+ },
+ {
+  "value": "destacamento-pioneros-guia-patrulla-3",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 144
+ },
+ {
+  "value": "destacamento-pioneros-guia-auxiliar-patrulla-3",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "pioneros",
+  "nombreDivision": "Pioneros",
+  "orden": 145
+ },
+ {
+  "value": "destacamento-navegantes-lider-grupo",
+  "label": "Líder de Grupo",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 21
+ },
+ {
+  "value": "destacamento-navegantes-lider-asistente-grupo",
+  "label": "Líder Asistente de Grupo",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 22
+ },
+ {
+  "value": "destacamento-navegantes-lider-asistente-grupo-2",
+  "label": "Líder Asistente de Grupo",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 100
+ },
+ {
+  "value": "destacamento-navegantes-lider-juvenil-grupo",
+  "label": "Líder Juvenil de Grupo",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 101
+ },
+ {
+  "value": "destacamento-navegantes-guia-mayor",
+  "label": "Guía Mayor",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 102
+ },
+ {
+  "value": "destacamento-navegantes-guia-mayor-auxiliar",
+  "label": "Guía Mayor Auxiliar",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 103
+ },
+ {
+  "value": "destacamento-navegantes-especialista-comunicaciones",
+  "label": "Especialista de Comunicaciones",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 104
+ },
+ {
+  "value": "destacamento-navegantes-supervisor-equipo",
+  "label": "Supervisor de Equipo",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 105
+ },
+ {
+  "value": "destacamento-navegantes-historiador",
+  "label": "Historiador",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 106
+ },
+ {
+  "value": "destacamento-navegantes-capellan-auxiliar",
+  "label": "Capellán Auxiliar",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 107
+ },
+ {
+  "value": "destacamento-navegantes-guia-patrulla-1",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 110
+ },
+ {
+  "value": "destacamento-navegantes-guia-auxiliar-patrulla-1",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 111
+ },
+ {
+  "value": "destacamento-navegantes-guia-patrulla-2",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 112
+ },
+ {
+  "value": "destacamento-navegantes-guia-auxiliar-patrulla-2",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 113
+ },
+ {
+  "value": "destacamento-navegantes-guia-patrulla-3",
+  "label": "Guía de Patrulla",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 114
+ },
+ {
+  "value": "destacamento-navegantes-guia-auxiliar-patrulla-3",
+  "label": "Guía Auxiliar de Patrulla",
+  "nivel": "destacamento",
+  "division": "navegantes",
+  "nombreDivision": "Navegantes",
+  "orden": 115
+ },
+ {
+  "value": "destacamento-pastor",
+  "label": "Pastor",
+  "nivel": "destacamento",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 1
+ },
+ {
+  "value": "destacamento-coordinador-destacamento",
+  "label": "Coordinador de Destacamento",
+  "nivel": "destacamento",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 2
+ },
+ {
+  "value": "destacamento-coordinador-asistente-destacamento",
+  "label": "Coordinador Asistente de Destacamento",
+  "nivel": "destacamento",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 3
+ },
+ {
+  "value": "destacamento-consejo-destacamento",
+  "label": "Consejo Destacamento",
+  "nivel": "destacamento",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 4
+ },
+ {
+  "value": "destacamento-capellan",
+  "label": "Capellán",
+  "nivel": "destacamento",
+  "division": "",
+  "nombreDivision": "",
+  "orden": 5
+ }
+]

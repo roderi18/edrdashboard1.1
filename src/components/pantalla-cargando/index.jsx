@@ -175,7 +175,7 @@ export function PantallaDeCalendarioCargando() {
   );
 }
 
-/** EXPLORA Designer: bloques a un lado, vista previa al otro (sin marco). */
+/** EXPEDITION Designer: bloques a un lado, vista previa al otro (sin marco). */
 export function EditorCargando() {
   return (
     <Box sx={{ gap: 3, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '5fr 7fr' } }}>

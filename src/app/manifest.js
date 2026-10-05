@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 
-const APP_INSTALL_NAME = 'EXPLORA ERRD';
+const APP_INSTALL_NAME = 'EXPEDITION ERRD';
 const START_URL = '/auth/firebase/sign-in';
 const THEME_COLOR = '#00A76F';
 
@@ -19,25 +19,25 @@ export default function manifest() {
     categories: ['productivity', 'education'],
     icons: [
       {
-        src: '/icon-192x192.png',
+        src: '/app/icon-192x192.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/icon-512x512.png',
+        src: '/app/icon-512x512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/maskable-icon-192x192.png',
+        src: '/app/maskable-icon-192x192.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'maskable',
       },
       {
-        src: '/maskable-icon-512x512.png',
+        src: '/app/maskable-icon-512x512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',

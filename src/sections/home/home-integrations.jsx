@@ -70,7 +70,7 @@ export function HomeIntegrations({ sx, ...other }) {
       component={m.img}
       variants={{ ...varScale('in'), initial: { scale: 0.8, opacity: 0 } }}
       alt="Integration"
-      src={`${CONFIG.assetsDir}/assets/illustrations/illustration-integration.webp`}
+      src={`${CONFIG.assetsDir}/plantilla/illustrations/illustration-integration.webp`}
       sx={{ width: 720, objectFit: 'cover', aspectRatio: '1/1' }}
     />
   );

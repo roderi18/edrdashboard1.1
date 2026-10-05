@@ -77,7 +77,7 @@ const renderBackground = () => (
           ...theme.mixins.bgGradient({
             images: [
               `linear-gradient(135deg, ${varAlpha(theme.vars.palette.warning.lighterChannel, 0.8)}, ${varAlpha(theme.vars.palette.primary.mainChannel, 0.8)})`,
-              `url(${CONFIG.assetsDir}/assets/background/background-3.webp)`,
+              `url(${CONFIG.assetsDir}/plantilla/background/background-3.webp)`,
             ],
           }),
           height: 160,
@@ -91,7 +91,7 @@ const renderBackground = () => (
         (theme) => ({
           ...theme.mixins.bgBlur({
             color: `${varAlpha(theme.vars.palette.primary.mainChannel, 0.24)}`,
-            imgUrl: `${CONFIG.assetsDir}/assets/background/background-3.webp`,
+            imgUrl: `${CONFIG.assetsDir}/plantilla/background/background-3.webp`,
             blur: 8,
           }),
           height: 160,
@@ -122,9 +122,9 @@ const renderBackground = () => (
           ...theme.mixins.bgGradient({
             images: [
               `linear-gradient(135deg, ${varAlpha('0 0 0', 0.48)}, ${varAlpha('255 255 255', 0.48)})`,
-              `url(${CONFIG.assetsDir}/assets/background/background-7.webp)`,
+              `url(${CONFIG.assetsDir}/plantilla/background/background-7.webp)`,
               `radial-gradient(farthest-side at bottom right, blue, transparent)`,
-              `url(${CONFIG.assetsDir}/assets/background/background-3.webp)`,
+              `url(${CONFIG.assetsDir}/plantilla/background/background-3.webp)`,
             ],
             sizes: ['64px 64px', '80px auto', '64px 64px', 'cover'],
             positions: ['top right', 'top left', 'bottom right', 'center'],

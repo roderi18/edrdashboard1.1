@@ -14,7 +14,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
-import { findAdminProfileByLoginValue } from 'src/utils/admin-profile';
+import { resolveAdminSignInEmail } from 'src/utils/admin-profile';
 
 import { PasswordIcon } from 'src/assets/icons';
 
@@ -105,20 +105,17 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
       const loginValue = getLoginValue(data);
 
       if (isAdminMode) {
-        const admin = await findAdminProfileByLoginValue(loginValue);
+        // La pantalla aún no tiene sesión: `admins` no admite lecturas directas.
+        // La misma ruta pública del acceso resuelve los nombres de usuario.
+        const correo = await resolveAdminSignInEmail(loginValue);
 
-        if (!admin) {
+        if (!correo) {
           setErrorMessage('No encontramos un administrador con ese usuario o correo.');
           return;
         }
 
-        if (!admin.data?.correo) {
-          setErrorMessage('No existe ningun correo asignado para este administrador.');
-          return;
-        }
-
-        await sendPasswordResetEmail({ email: admin.data.correo });
-        setCorreoEnviado(admin.data.correo);
+        await sendPasswordResetEmail({ email: correo });
+        setCorreoEnviado(correo);
         return;
       }
 
@@ -231,11 +228,11 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
             }}
           >
             <Stack spacing={1.25}>
-              <Typography variant="subtitle2">Que puedes hacer desde aqui</Typography>
+              <Typography variant="subtitle2">Qué puedes hacer desde aquí</Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Puedes pedir el enlace de recuperacion por correo o, si eres miembro, solicitar
-                ayuda a tu coordinador cuando no tengas acceso al email registrado. El te dara un
-                codigo que se escribe en el campo de contraseña del inicio de sesion.
+                Puedes pedir el enlace de recuperación por correo o, si eres miembro, solicitar
+                ayuda a tu coordinador cuando no tengas acceso al email registrado. Él te dará un
+                código que se escribe en el campo de contraseña del inicio de sesión.
               </Typography>
             </Stack>
           </Box>
@@ -245,7 +242,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
               autoFocus
               name="loginValue"
               label="Usuario o correo electronico"
-              placeholder="admin001 o correo@correo.com"
+              placeholder="admin001, EDR-10000 o correo@correo.com"
               slotProps={{ inputLabel: { shrink: true } }}
             />
           ) : (
@@ -301,7 +298,7 @@ export function FirebaseResetPasswordView({ mode = 'member' }) {
           )}
 
           <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-            Si envias el enlace por correo, revisa tambien spam y promociones antes de intentar de
+            Si envías el enlace por correo, revisa también spam y promociones antes de intentar de
             nuevo.
           </Typography>
         </Box>

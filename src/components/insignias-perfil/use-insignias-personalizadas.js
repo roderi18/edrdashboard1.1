@@ -12,7 +12,7 @@ import {
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
-// LAS CINTAS Y MEDALLAS AÑADIDAS EN EXPLORA DESIGNER, UNA SOLA ESCUCHA POR PÁGINA.
+// LAS CINTAS Y MEDALLAS AÑADIDAS EN EXPEDITION DESIGNER, UNA SOLA ESCUCHA POR PÁGINA.
 //
 // Como el orden global (`use-orden-de-cintas.js`): una lista de miembros pinta
 // muchas tarjetas y cada una abriría su escucha. Aquí hay una sola, que se abre
@@ -23,7 +23,13 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 // cuando el componente se vuelve a pintar, `obtenerCintaPerfil` ya las conoce.
 // ----------------------------------------------------------------------
 
-const VACIO = Object.freeze({ cintas: [], medallas: [], pines: [] });
+const VACIO = Object.freeze({
+  cintas: [],
+  medallas: [],
+  pines: [],
+  // Los cambios a las de fábrica (nombre, descripción, imagen, eliminadas).
+  ajustes: Object.freeze({ cinta: {}, medalla: {}, pin: {} }),
+});
 
 let estado = VACIO;
 let cancelar = null;
@@ -39,7 +45,7 @@ const suscribir = (oyente) => {
         estado = separarInsignias(
           instantanea.docs.map((fila) => ({ id: fila.id, ...fila.data() }))
         );
-        registrarCintasPersonalizadas(estado.cintas);
+        registrarCintasPersonalizadas(estado.cintas, estado.ajustes.cinta);
         oyentes.forEach((avisar) => avisar());
       },
       (error) => {
@@ -62,6 +68,6 @@ const suscribir = (oyente) => {
 const leer = () => estado;
 const leerEnServidor = () => VACIO;
 
-/** `{ cintas, medallas, pines }` añadidos en el Designer, en vivo. */
+/** `{ cintas, medallas, pines, ajustes }` del Designer, en vivo. */
 export const useInsigniasPersonalizadas = () =>
   useSyncExternalStore(suscribir, leer, leerEnServidor);

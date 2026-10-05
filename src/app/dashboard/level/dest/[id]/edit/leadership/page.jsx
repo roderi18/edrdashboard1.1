@@ -60,6 +60,8 @@ import { CustomPopover } from 'src/components/custom-popover';
 import { ConfirmEscribiendoDialog } from 'src/components/custom-dialog';
 import { OrganizationalChart } from 'src/components/organizational-chart';
 
+import { MenuDeContenedor } from 'src/sections/common/menu-de-contenedor';
+import { QuitarCasillaDelNivel } from 'src/sections/common/quitar-casilla-del-nivel';
 import { CasillasDirectivaBoton } from 'src/sections/common/casillas-directiva-dialog';
 import { useCasillasPersonalizadas } from 'src/sections/common/use-casillas-personalizadas';
 import { useLeadershipLayoutStorage } from 'src/sections/common/use-leadership-layout-storage';
@@ -183,6 +185,7 @@ function DivisionNode({ id, name, depth, avatarUrl, role, sx, layoutEditor }) {
         </Typography>
       </Box>
       <LeadershipNodeAnchors editor={layoutEditor} nodeId={nodeId} />
+      <MenuDeContenedor nivel="destacamento" idNodo={nodeId} nombre={name} />
     </Card>
   );
 }
@@ -1576,6 +1579,15 @@ export default function Page() {
             onSaveLayout={layoutStorage.guardar}
             savingLayout={layoutStorage.guardando}
             mostrarMargenHorizontal
+            accionesDelNodo={(nodo) => (
+              <QuitarCasillaDelNivel
+                nivel="destacamento"
+                nodo={nodo}
+                arboles={[arbolDireccion, ...gruposDivision]}
+                todas={casillasAnadidas.todas}
+                onCambio={casillasAnadidas.recargar}
+              />
+            )}
             accionesExtra={
               <CasillasDirectivaBoton
                 nivel="destacamento"

@@ -2,7 +2,7 @@
 // PRUEBA A MANO DEL CHAT DE SISTEMA: EL CUMPLEAÑOS DE UNA PERSONA.
 //
 // Lanza, para UN miembro, lo mismo que la funcion programada de cada mañana
-// (`netlify/functions/cumpleanos-diarios.mjs`): el mensaje de Sistema a todas las
+// (`src/server/tareas/cumpleanos-diarios.mjs`): el mensaje de Sistema a todas las
 // personas con cuenta de su destacamento, con los dias que de verdad le faltan.
 // Lee y escribe con las MISMAS piezas que la funcion (`cumpleanos-lecturas.mjs`,
 // `chat-sistema-envio.mjs`), asi que lo que pasa aqui es lo que pasara alli.

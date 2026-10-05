@@ -207,3 +207,21 @@ test('los Oficiales Especiales se acumulan en su tarjeta, sin casillas debajo', 
   // Quitar a uno se hace desde la franja "Ver más".
   assert.match(vista, /onQuitarOficial=\{quitarOficial\}/);
 });
+
+// En la lista y las tarjetas del Consejo Nacional el título largo no cabía: se
+// pinta en su forma corta; el guardado y el catálogo siguen con el completo.
+test('el título de la Senda ALO se pinta corto en la lista', async () => {
+  const { tituloCorto, TITULOS_OFICIALES_DE_FABRICA } = await import(
+    '../../src/utils/titulos-oficiales-nacionales.mjs'
+  );
+  assert.equal(
+    tituloCorto('Encargado Senda adiestramiento Lideres Organizacionales (ALO)'),
+    'Encargado Senda ALO'
+  );
+  assert.equal(tituloCorto('Protocolo'), 'Protocolo');
+  assert.ok(
+    TITULOS_OFICIALES_DE_FABRICA.includes(
+      'Encargado Senda adiestramiento Lideres Organizacionales (ALO)'
+    )
+  );
+});

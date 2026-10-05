@@ -3,10 +3,12 @@ import 'server-only';
 import webpush from 'web-push';
 
 import { WEB_PUSH_VAPID_PUBLIC_KEY } from 'src/utils/web-push-key';
+import { OPCIONES_ENVIO_PUSH } from 'src/utils/web-push-opciones.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 
-const COLECCION = 'web_push_subscriptions';
+const COLECCION = COLECCIONES.suscripcionesWebPush;
 const maximoPorConsulta = 30;
 const dividir = (valores, tamano) => {
   const grupos = [];
@@ -29,6 +31,11 @@ const prepararWebPush = () => {
   return true;
 };
 
+/** ¿Puede este servidor enviar push? Sin las claves VAPID (p. ej. en local), no. */
+export const webPushConfigurado = () =>
+  isAdminConfigured() &&
+  Boolean(process.env.WEB_PUSH_VAPID_PRIVATE_KEY && process.env.WEB_PUSH_VAPID_SUBJECT);
+
 export async function enviarPushAUsuarios({
   idsUsuarios = [],
   titulo,
@@ -39,7 +46,9 @@ export async function enviarPushAUsuarios({
     throw new Error('FIREBASE_SERVICE_ACCOUNT no está configurado para consultar suscripciones.');
   }
   if (!prepararWebPush()) {
-    throw new Error('Configura WEB_PUSH_VAPID_PRIVATE_KEY y WEB_PUSH_VAPID_SUBJECT para enviar Web Push.');
+    throw new Error(
+      'Configura WEB_PUSH_VAPID_PRIVATE_KEY y WEB_PUSH_VAPID_SUBJECT para enviar Web Push.'
+    );
   }
 
   const usuarios = [...new Set(idsUsuarios.map((id) => String(id || '').trim()).filter(Boolean))];
@@ -49,7 +58,9 @@ export async function enviarPushAUsuarios({
   const registros = [];
   for (const grupo of dividir(usuarios, maximoPorConsulta)) {
     const snapshot = await db.collection(COLECCION).where('uid', 'in', grupo).get();
-    registros.push(...snapshot.docs.map((documento) => ({ id: documento.id, ...documento.data() })));
+    registros.push(
+      ...snapshot.docs.map((documento) => ({ id: documento.id, ...documento.data() }))
+    );
   }
 
   const destino = String(ruta || '/dashboard');
@@ -60,7 +71,9 @@ export async function enviarPushAUsuarios({
     url: rutaSegura,
   });
   const respuesta = await Promise.allSettled(
-    registros.map((registro) => webpush.sendNotification(registro.subscription, payload, { TTL: 60 * 60 }))
+    registros.map((registro) =>
+      webpush.sendNotification(registro.subscription, payload, OPCIONES_ENVIO_PUSH)
+    )
   );
 
   const paraEliminar = [];

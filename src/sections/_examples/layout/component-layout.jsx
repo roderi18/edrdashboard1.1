@@ -179,7 +179,7 @@ const LayoutHero = styled('section')(({ theme }) => {
     ...theme.mixins.bgGradient({
       images: [
         `linear-gradient(0deg, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.9)}, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.9)})`,
-        `url(${CONFIG.assetsDir}/assets/background/background-3-blur.webp)`,
+        `url(${CONFIG.assetsDir}/plantilla/background/background-3-blur.webp)`,
       ],
     }),
     top: 0,

@@ -1,5 +1,11 @@
 import { alcanceQueMandaAhora } from 'src/utils/modulo-activo';
+import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 import { ejerceAdministradorGlobal } from 'src/utils/administrador-global-reina.mjs';
+import {
+  accesoDesigner,
+  PESTANA_DE_INSIGNIA,
+  reglasDesignerVigentes,
+} from 'src/utils/accesos-designer.mjs';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { ROLES, ALCANCES, ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
@@ -96,7 +102,10 @@ export const rolesQueEjerce = (user = {}) => {
       .toLowerCase()
   );
 
-  return [...new Set([getOrgRoleId(user), ...deSusCargos].filter(Boolean))];
+  // Y todos sus roles de administracion, no solo el principal.
+  return [
+    ...new Set([getOrgRoleId(user), ...deSusCargos, ...rolesDeAdministracionDe(user)].filter(Boolean)),
+  ];
 };
 
 // Un miembro sin cargo es un Usuario Comun: su sesion guarda `rol: 'miembro'`,
@@ -766,7 +775,17 @@ const SECTION_OR_REGION_LEVEL_ROLES = new Set(
 // CUALQUIER entidad, no solo la propia. Es consulta de estructura, no de personas:
 // el contador de MIEMBROS sigue acotado por `isForeign*ForMembers`.
 export const canBrowseOrgStructureCounts = (user = {}) =>
-  isUnrestrictedOrgViewer(user) || SECTION_OR_REGION_LEVEL_ROLES.has(getOrgRoleId(user));
+  isUnrestrictedOrgViewer(user) ||
+  SECTION_OR_REGION_LEVEL_ROLES.has(getOrgRoleId(user)) ||
+  ejerceCargoNacional(user);
+
+// Consejo Ejecutivo y Nacional: con un cargo nacional (entre TODOS los suyos)
+// no hay region, seccion ni destacamento ajeno para los contadores. La lista de
+// miembros y el contador de destacamentos ya lo daban por hecho
+// (`getMemberAllowedDestIds`, `isForeignDestForMembers`); los de regiones y
+// secciones les quedaban atenuados y sin enlace.
+const ejerceCargoNacional = (user = {}) =>
+  nivelDeSusCargosSobreElDestacamento(user) === ALCANCES.NACIONAL;
 
 // Cargo de nivel seccion o region (sin incluir los nacionales). Se usa para los
 // textos de la ficha del miembro, donde el motivo de la restriccion es distinto
@@ -838,7 +857,7 @@ export const puedeEntrarALaRegion = (user = {}, regionId = null, { ownRegionIds 
 };
 
 export const isForeignRegionForMembers = (user = {}, { regionId, ownRegionIds } = {}) => {
-  if (isUnrestrictedOrgViewer(user)) return false;
+  if (isUnrestrictedOrgViewer(user) || ejerceCargoNacional(user)) return false;
   const own = ownRegionIds instanceof Set ? ownRegionIds : getRegionScopeIds(user);
   return !own.has(normalizeId(regionId));
 };
@@ -847,7 +866,7 @@ export const isForeignSectionForMembers = (
   user = {},
   { sectionId, regionId, ownRegionIds, ownSectionIds } = {}
 ) => {
-  if (isUnrestrictedOrgViewer(user)) return false;
+  if (isUnrestrictedOrgViewer(user) || ejerceCargoNacional(user)) return false;
   // Que la region coincida solo abre el contador a quien ve los miembros de la
   // region entera. Un cargo SECCIONAL ve las secciones de su region, pero su
   // gente llega hasta la suya: en las demas el contador lleva a una lista vacia.
@@ -989,6 +1008,33 @@ export const requiereRevisionDeAdministradorGlobal = (user = {}, ambito = '') =>
 export const puedeEditarDirectivaHistorica = (user = {}) =>
   ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
 
+// EXPEDITION DESIGNER: quién entra, a qué pestañas y para qué lo decide el
+// Administrador Global en su pestaña "Accesos" (`accesos-designer.mjs`), por
+// usuario o por rol; él lo puede todo siempre. Los roles se cuentan TODOS
+// (`rolesQueEjerce`): la Oficina Nacional es un rol a mano.
+export const accesoDesignerDe = (user = {}) =>
+  accesoDesigner({
+    esAdministradorGlobal: ejerceAdministradorGlobal(user),
+    uid: String(user?.uid || ''),
+    roles: rolesQueEjerce(user),
+    reglas: reglasDesignerVigentes(),
+  });
+
+export const puedeEnDesigner = (user, pestana, accion = 'ver') =>
+  accesoDesignerDe(user).puede(pestana, accion);
+
+// Cintas, medallas y pines: crear, editar y eliminar según "Accesos". Ordenar
+// (arrastrar) es editar: quien edita una pestaña también la ordena. Antes era
+// solo del Administrador Global y a quien se le daba "editar" en Medallas o
+// Pines no podía moverlas.
+export const puedeCrearInsignia = (user, tipo) =>
+  puedeEnDesigner(user, PESTANA_DE_INSIGNIA[tipo], 'crear');
+export const puedeEditarInsignia = (user, tipo) =>
+  puedeEnDesigner(user, PESTANA_DE_INSIGNIA[tipo], 'editar');
+export const puedeEliminarInsignia = (user, tipo) =>
+  puedeEnDesigner(user, PESTANA_DE_INSIGNIA[tipo], 'eliminar');
+export const puedeOrdenarInsignias = (user, tipo) => puedeEditarInsignia(user, tipo);
+
 // EL ESTADO DEL DESTACAMENTO (Activo / Inactivo) es del registro nacional, como
 // el numero: lo mueven el Administrador Global y la Oficina Nacional, por
 // cualquiera de sus cargos (la Oficina Nacional es un rol a mano). Ver
@@ -1028,6 +1074,13 @@ export const ejerceConsejoEjecutivo = (user = {}) =>
 // Ejecutivo. Solo en la directiva actual; eso lo decide la pantalla.
 export const puedeVerHistoriaNacional = (user = {}) =>
   puedeEditarDirectivaHistorica(user) || ejerceConsejoEjecutivo(user);
+
+// LA FOTO DE UN DESTACAMENTO, SECCIÓN O REGIÓN la cambian solo el Administrador
+// Global y la Oficina Nacional (por cualquiera de sus cargos: la Oficina es un
+// rol a mano). Antes la sugerían los coordinadores de cada nivel; ahora a ellos
+// ni se les enseña el botón, y lo que cambia uno se lo avisa al otro.
+export const puedeCambiarFotoDeEntidad = (user = {}) =>
+  ejerceAdministradorGlobal(user) || rolesQueEjerce(user).includes(ROLES.OFICINA_NACIONAL);
 
 export const puedeAplicarDirectamenteCambioDeOrganizacion = (user = {}, ambito = '') =>
   puedeAprobarCambiosDeOrganizacion(user) && !requiereRevisionDeAdministradorGlobal(user, ambito);

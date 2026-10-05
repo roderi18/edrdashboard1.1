@@ -1,11 +1,9 @@
-import { CONFIG } from 'src/global-config';
+import { redirect } from 'next/navigation';
 
-import { DominicanRepublicMapDemo } from 'src/sections/mapa-rd/dominican-republic-map-demo';
+import { paths } from 'src/routes/paths';
 
-export const metadata = {
-  title: `Mapa interactivo de República Dominicana | ${CONFIG.appName}`,
-};
-
+// El mapa se mudó a "Datos demográficos" (debajo de Asistencias). Los enlaces
+// viejos a /pruebas siguen funcionando: llevan allí.
 export default function Page() {
-  return <DominicanRepublicMapDemo />;
+  redirect(paths.dashboard.level.datosDemograficos);
 }

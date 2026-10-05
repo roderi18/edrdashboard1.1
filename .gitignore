@@ -27,6 +27,7 @@ build
 .env.development.local
 .env.test.local
 .env.production.local
+.env.qa.local
 
 # misc
 .DS_Store
@@ -48,3 +49,11 @@ yarn.lock
 
 # Copias que dejan los scripts de limpieza antes de borrar (datos reales).
 scripts/respaldo-*.json
+
+# Respaldos con datos de personas: nunca en el repositorio.
+docs/backups/
+# Copia local de lo que se quitó por no usarse: nunca se publica.
+docs/documentosNoUsados.zip
+
+# La copia descomprimida de documentosNoUsados.zip: lleva datos de personas.
+docs/documentosNoUsados/

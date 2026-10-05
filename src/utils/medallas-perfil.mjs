@@ -1,10 +1,12 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // MEDALLAS DEL PERFIL: CATÁLOGO, ORDEN Y ASIGNACIÓN.
 //
 // Hermanas de las cintas (`cintas-perfil.mjs`), con una diferencia de fondo: el
 // catálogo NO está escrito en el código. Es la carpeta
-// `public/parches/Cintas y medallas/medallas` tal cual: cualquier imagen que se
-// deje ahí aparece en la aplicación (en EXPLORA Designer, en el diálogo para
+// `public/insignias/medallas` tal cual: cualquier imagen que se
+// deje ahí aparece en la aplicación (en EXPEDITION Designer, en el diálogo para
 // asignarlas y en los perfiles). Las subcarpetas ("en proceso") no cuentan.
 //
 // El id de una medalla es el nombre de su archivo sin extensión. El número del
@@ -14,10 +16,11 @@
 //
 // Sin React ni Firebase, para probarlo con `node --test`.
 // ----------------------------------------------------------------------
+import { normalizarVeces } from './cintas-perfil.mjs';
 
-export const RUTA_MEDALLAS = '/parches/Cintas%20y%20medallas/medallas';
-export const CARPETA_MEDALLAS = ['public', 'parches', 'Cintas y medallas', 'medallas'];
-export const COLECCION_MEDALLAS_MIEMBROS = 'medallas_miembros';
+export const RUTA_MEDALLAS = '/insignias/medallas';
+export const CARPETA_MEDALLAS = ['public', 'insignias', 'medallas'];
+export const COLECCION_MEDALLAS_MIEMBROS = COLECCIONES.medallasMiembros;
 // Mismo sitio que el orden de las cintas, otro documento: la regla ya existe.
 export const DOCUMENTO_ORDEN_MEDALLAS = 'orden-medallas';
 // Como mucho TRES en el perfil, en una sola fila justo debajo de las cintas y
@@ -33,7 +36,7 @@ const EXTENSIONES = /\.(webp|png|jpe?g|gif|avif)$/i;
 // Dos ajustes que se combinan, como el brillo de bordes y el de números de las
 // cintas: cómo SE MUEVE y cómo BRILLA. Se eligen para cada miembro en el mismo
 // diálogo de las cintas (pestaña Medallas) y valen para todas sus medallas; en
-// EXPLORA Designer se prueban sobre el catálogo entero.
+// EXPEDITION Designer se prueban sobre el catálogo entero.
 //
 // La imagen se pinta en dos capas —la cinta arriba y el medallón abajo—, así que
 // puede moverse la pieza entera, solo el medallón, o la cinta con el medallón
@@ -106,6 +109,7 @@ export const configuracionDeMedallas = (entradas = []) =>
           efectoMovimiento: normalizarMovimientoMedalla(entrada.efectoMovimiento),
           efectoBrillo: normalizarBrilloMedalla(entrada.efectoBrillo),
           ...ajustesDe(entrada),
+          veces: normalizarVeces(entrada.veces),
         },
       ])
   );
@@ -290,6 +294,8 @@ export const construirMedallasAsignadas = (anteriores = [], elegidas = [], ahora
       if (entrada.efectoMovimiento !== undefined) {
         resultado.efectoMovimiento = normalizarMovimientoMedalla(entrada.efectoMovimiento);
       }
+      // Cuántas veces se ganó (el número dorado, en las medallas que lo llevan).
+      if (entrada.veces !== undefined) resultado.veces = normalizarVeces(entrada.veces);
       if (entrada.efectoBrillo !== undefined) {
         resultado.efectoBrillo = normalizarBrilloMedalla(entrada.efectoBrillo);
       }

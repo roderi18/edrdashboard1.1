@@ -1,4 +1,4 @@
-﻿import {
+import {
   doc,
   setDoc,
   getDocs,
@@ -8,11 +8,12 @@
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
-export const COLECCION_CALENDARIO = 'actividades_calendario';
+export const COLECCION_CALENDARIO = COLECCIONES.actividadesCalendario;
 export const ZONA_HORARIA_CALENDARIO = 'America/Caracas';
 
 const MESES_DOCUMENTO = [
