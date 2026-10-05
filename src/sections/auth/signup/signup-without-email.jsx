@@ -1,5 +1,6 @@
 'use client';
 
+
 import * as z from 'zod';
 import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
@@ -24,6 +25,7 @@ import { generateMemberId } from 'src/utils/generate-member-id';
 
 import { CONFIG } from 'src/global-config';
 import { FIRESTORE } from 'src/lib/firebase';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
@@ -220,7 +222,7 @@ export function SignUpWithoutEmail() {
         );
 
         await withTimeout(
-          setDoc(doc(collection(FIRESTORE, 'users'), credential.user.uid), {
+          setDoc(doc(collection(FIRESTORE, COLECCIONES.usuarios), credential.user.uid), {
             uid: credential.user.uid,
             email,
             codigoMiembro: userCode,

@@ -58,7 +58,6 @@ service firebase.storage {
 
     function esAdminRegistrado() {
       return tieneDocumento('admins')
-        || documentoTieneRolAdministrativo('users')
         || documentoTieneRolAdministrativo('usuarios_roles');
     }
 
@@ -103,7 +102,6 @@ service firebase.storage {
             && esRolAdministradorGlobal(request.auth.token.rol)
           )
           || documentoTieneRolAdministradorGlobal('usuarios_roles')
-          || documentoTieneRolAdministradorGlobal('users')
           || documentoTieneRolAdministradorGlobal('admins')
         );
     }
@@ -221,6 +219,13 @@ service firebase.storage {
         );
     }
 
+    // Salud no hereda el pase genérico de cualquier rol administrativo: solo
+    // el Administrador Global o un cargo con permiso explícito puede verla.
+    function tienePermisoSalud(codigoPermiso) {
+      return !permisoExcluido(codigoPermiso)
+        && (tienePermisoDirecto(codigoPermiso) || tienePermisoPorRol(codigoPermiso));
+    }
+
     function esImagenPermitida() {
       return request.resource != null
         && request.resource.size < 5 * 1024 * 1024
@@ -241,11 +246,6 @@ service firebase.storage {
           (
             'idMiembros' in request.auth.token
             && string(request.auth.token.idMiembros) == string(idMiembro)
-          )
-          || (
-            tieneDocumento('users')
-            && 'idMiembros' in documentoUsuario('users').data
-            && string(documentoUsuario('users').data.idMiembros) == string(idMiembro)
           )
           || (
             tieneDocumento('usuarios_roles')
@@ -728,14 +728,18 @@ service firebase.storage {
     }
 
     match /documentos-salud-miembros/{idMiembro}/{archivo} {
-      allow read: if estaAutenticado();
+      // La URL del archivo no es autorización: la lectura sigue la misma
+      // distinción que la ficha médica (cargo de salud o ficha propia).
+      allow read: if esAdministradorGlobal()
+        || tienePermisoSalud('salud.ver')
+        || esSuIdMiembro(idMiembro);
       allow create, update: if estaAutenticado()
         && esArchivoSaludPermitido()
         && !esCargoDestacamentoSoloLectura()
-        && (esAdminRegistrado() || tienePermiso('salud.subir_documentos'));
+        && (esAdministradorGlobal() || tienePermisoSalud('salud.subir_documentos'));
       allow delete: if estaAutenticado()
         && !esCargoDestacamentoSoloLectura()
-        && (esAdminRegistrado() || tienePermiso('salud.eliminar_documentos'));
+        && (esAdministradorGlobal() || tienePermisoSalud('salud.eliminar_documentos'));
     }
 
     match /miembros/{idMiembro}/{archivo} {
@@ -805,6 +809,18 @@ service firebase.storage {
       allow create, update: if (esAdministradorGlobal() || esAdministradorDeTienda())
         && esImagenPermitida();
       allow delete: if false;
+    }
+
+    // El gestor acepta también PDF, por lo que no entra en el comodín final
+    // reservado a imágenes. Solo el Administrador Global lo administra.
+    match /gestor-archivos/{allPaths=**} {
+      allow read: if esAdministradorGlobal();
+      allow create, update: if esAdministradorGlobal()
+        && request.resource != null
+        && request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf');
+      allow delete: if resource != null && esAdministradorGlobal();
     }
 
     // EL RESPALDO DIARIO (`src/utils/respaldo-diario.mjs`): la base de datos, el

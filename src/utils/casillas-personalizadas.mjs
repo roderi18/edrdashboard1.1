@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // Casillas y contenedores añadidos a mano en los organigramas de Directiva.
 //
@@ -32,7 +34,7 @@
 // Relativo y con extensión: lo importan también las pruebas de `node --test`.
 // ----------------------------------------------------------------------
 
-export const COLECCION_CASILLAS_PERSONALIZADAS = 'casillas_directiva_personalizadas';
+export const COLECCION_CASILLAS_PERSONALIZADAS = COLECCIONES.casillasDirectivaPersonalizadas;
 
 export const NIVELES_CON_CASILLAS = ['nacional', 'regional', 'seccional', 'destacamento'];
 

@@ -22,6 +22,7 @@ import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 import { optimizeImageFile, leerDimensionesDeImagen } from 'src/utils/image-optimizer';
 import { validatePrincipalImages, validatePrincipalMessage } from 'src/utils/principal-content';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
@@ -29,21 +30,25 @@ import { resolverNotificacionConConfiguracion } from 'src/services/notification-
 // ----------------------------------------------------------------------
 
 export const COLECCIONES_PRINCIPAL = {
-  publicaciones: 'publicaciones',
-  comentarios: 'comentarios_publicaciones',
-  reacciones: 'reacciones_publicaciones',
-  reportes: 'reportes_publicaciones',
-  ocultas: 'publicaciones_ocultas',
-  compartidos: 'compartidos_publicaciones',
-  seguidores: 'seguidores',
-  amistades: 'amistades',
-  galeria: 'galeria_usuarios',
-  anuncios: 'anuncios_principal',
+  publicaciones: COLECCIONES.publicaciones,
+  comentarios: COLECCIONES.comentariosPublicaciones,
+  reacciones: COLECCIONES.reaccionesPublicaciones,
+  reportes: COLECCIONES.reportesPublicaciones,
+  ocultas: COLECCIONES.publicacionesOcultas,
+  compartidos: COLECCIONES.compartidosPublicaciones,
+  seguidores: COLECCIONES.seguidores,
+  amistades: COLECCIONES.amistades,
+  galeria: COLECCIONES.galeriaUsuarios,
+  anuncios: COLECCIONES.anunciosPrincipal,
 };
 
 const ESTADO_ACTIVO = 'activo';
 const VISIBILIDAD_PUBLICA = 'publico';
-const COLECCIONES_USUARIOS_NOTIFICACIONES = ['users', 'usuarios_roles', 'admins'];
+const COLECCIONES_USUARIOS_NOTIFICACIONES = [
+  COLECCIONES.usuarios,
+  COLECCIONES.usuariosRoles,
+  COLECCIONES.administradores,
+];
 const PRINCIPAL_PAGE_SIZE = 10;
 
 const getUserAccessToken = async (usuario = {}) =>

@@ -2,7 +2,9 @@ import 'server-only';
 
 import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { crearCuentaSiFalta } from 'src/server/cuenta-de-miembro';
+import { olvidarEstadoDeCuenta } from 'src/server/verificar-token';
 import { buscarMiembroPorId } from 'src/server/miembros-directorio';
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
 import { puedeGestionarAMiembro } from 'src/server/alcance-gestion-miembros';
@@ -107,7 +109,9 @@ export async function POST(req) {
     // en serie era el doble de espera. No se escribe nada hasta comprobar el
     // permiso, unas lineas mas abajo.
     const [solicitante, encontrado] = await Promise.all([
-      identificarSolicitante(req),
+      // Con gracia de primer acceso: el miembro que acaba de elegir contraseña
+      // guarda aqui su correo con el mismo token (ver `verificar-token-core.mjs`).
+      identificarSolicitante(req, { graciaPrimerAcceso: true }),
       buscarAccesoMiembro({ idMiembros, codigoMiembro }),
     ]);
 
@@ -157,6 +161,20 @@ export async function POST(req) {
       }
     }
 
+    // CAMBIAR EL CORREO ES ENTREGAR LA CUENTA: con el se recupera la clave. Para la
+    // propia hace falta una sesion reciente —una robada hace dias no basta— salvo
+    // en el primer acceso, que es justo cuando se registra por primera vez.
+    if (
+      cuenta.uid === solicitante.uid &&
+      !solicitante.debeCambiarClave &&
+      Date.now() / 1000 - solicitante.authTime > 30 * 60
+    ) {
+      return Response.json(
+        { error: 'Por seguridad, vuelve a iniciar sesión para cambiar tu correo de acceso.' },
+        { status: 403 }
+      );
+    }
+
     if (normalizarCorreo(cuenta.email) === correoNuevo) {
       await sincronizarCorreoEnFicha({
         idMiembros: idMiembros ?? perfil?.data()?.idMiembros,
@@ -179,11 +197,23 @@ export async function POST(req) {
       throw error;
     }
 
+    // El correo de OTRA persona cambio por decision de su cadena de mando: las
+    // sesiones abiertas de esa cuenta se cierran (quien las tuviera robadas se
+    // queda fuera). La propia sesion de quien lo cambia no se toca.
+    if (cuenta.uid !== solicitante.uid) {
+      await getAdminAuth()
+        .revokeRefreshTokens(cuenta.uid)
+        .catch((error) =>
+          console.error('[correo-cuenta-miembro] no se pudieron cerrar las sesiones', error)
+        );
+      olvidarEstadoDeCuenta(cuenta.uid);
+    }
+
     const db = getAdminDb();
     // El perfil ya viene de la busqueda de la cuenta: pedirlo otra vez era otro
     // viaje a Firestore para traer lo mismo.
     const referencia =
-      perfil?.ref ?? db.collection('usuarios_roles').doc(String(idMiembros || cuenta.uid));
+      perfil?.ref ?? db.collection(COLECCIONES.usuariosRoles).doc(String(idMiembros || cuenta.uid));
 
     const datosPerfil = perfil?.data() ?? {};
 
@@ -194,12 +224,12 @@ export async function POST(req) {
         { correo: correoNuevo, correoPersonal: correoNuevo, uid: cuenta.uid },
         { merge: true }
       ),
-      db.collection('users').doc(cuenta.uid).set({ email: correoNuevo }, { merge: true }),
+      db.collection(COLECCIONES.usuarios).doc(cuenta.uid).set({ email: correoNuevo }, { merge: true }),
       // Tambien bajo el uid: al dejar de ser un correo `@exploradores.app`, la
       // sesion ya no puede reconocerlo como miembro por el correo y lo busca por
       // el uid. Sin este documento entraria sin su perfil.
       db
-        .collection('usuarios_roles')
+        .collection(COLECCIONES.usuariosRoles)
         .doc(cuenta.uid)
         .set(
           {

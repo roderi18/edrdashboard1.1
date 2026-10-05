@@ -86,11 +86,18 @@ export async function POST(req) {
   try {
     if (!isAdminConfigured()) return Response.json({ correo: '' });
 
-    const frenado = limiteSuperado(req, {
-      grupo: 'correo-acceso-administrador',
-      maximo: 15,
-      ventanaMs: 60 * 1000,
-    });
+    const frenado =
+      limiteSuperado(req, {
+        grupo: 'correo-acceso-administrador',
+        maximo: 8,
+        ventanaMs: 60 * 1000,
+      }) ??
+      limiteSuperado(req, {
+        grupo: 'correo-acceso-administrador-global',
+        porOrigen: false,
+        maximo: 300,
+        ventanaMs: 60 * 60 * 1000,
+      });
 
     if (frenado) return frenado;
 

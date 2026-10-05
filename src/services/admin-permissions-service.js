@@ -2,6 +2,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 import { conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 
@@ -92,13 +93,13 @@ async function guardarPermisosAdministradorDirecto({
 
   await Promise.all([
     adminDocId
-      ? setDoc(doc(FIRESTORE, 'admins', adminDocId), payload, { merge: true })
+      ? setDoc(doc(FIRESTORE, COLECCIONES.administradores, adminDocId), payload, { merge: true })
       : Promise.resolve(),
     roleDocId
-      ? setDoc(doc(FIRESTORE, 'usuarios_roles', roleDocId), payload, { merge: true })
+      ? setDoc(doc(FIRESTORE, COLECCIONES.usuariosRoles, roleDocId), payload, { merge: true })
       : Promise.resolve(),
     administrador?.uid
-      ? setDoc(doc(FIRESTORE, 'users', String(administrador.uid)), payload, { merge: true })
+      ? setDoc(doc(FIRESTORE, COLECCIONES.usuarios, String(administrador.uid)), payload, { merge: true })
       : Promise.resolve(),
   ]);
 

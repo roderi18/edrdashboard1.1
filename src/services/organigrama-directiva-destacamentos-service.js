@@ -14,12 +14,13 @@ import {
 
 import { esCargoDeCasillaDest } from 'src/utils/casillas-personalizadas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
 export const COLECCION_ORGANIGRAMA_DIRECTIVA_DESTACAMENTOS =
-  'organigrama_directiva_destacamentos';
+  COLECCIONES.organigramaDirectivaDestacamentos;
 
 export const CARGOS_ORGANIGRAMA_DIRECTIVA_DESTACAMENTO = {
   pastor: 'pastor',

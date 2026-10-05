@@ -30,7 +30,18 @@ export async function POST(req) {
     // Va sin sesion por necesidad —quien entra todavia no la tiene—, asi que es
     // una puerta abierta a recorrer numeros cosechando correos. El limite es lo
     // unico que la separa de eso.
-    const frenado = limiteSuperado(req, { grupo: 'correo-acceso', maximo: 15, ventanaMs: 60 * 1000 });
+    //
+    // Dos topes: por IP, y uno global que no depende de la IP —que se puede
+    // intentar falsificar— para que recorrer el padron entero siga siendo
+    // inviable aunque el origen cambie en cada peticion.
+    const frenado =
+      limiteSuperado(req, { grupo: 'correo-acceso', maximo: 8, ventanaMs: 60 * 1000 }) ??
+      limiteSuperado(req, {
+        grupo: 'correo-acceso-global',
+        porOrigen: false,
+        maximo: 600,
+        ventanaMs: 60 * 60 * 1000,
+      });
 
     if (frenado) return frenado;
 

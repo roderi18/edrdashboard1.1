@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // BUZONES COMPARTIDOS DEL CHAT.
 //
@@ -26,7 +28,6 @@
 // `storage.rules` (`idMiembroNoUsurpaUnBuzon`, `atiendeBuzonDe...`) y su
 // coleccion de respuestas. El test `chat-buzones-compartidos` avisa si falta algo.
 // ----------------------------------------------------------------------
-
 import { esCuentaSistema } from './chat-sistema.mjs';
 
 export const BUZON_TIENDA = Object.freeze({
@@ -201,7 +202,7 @@ export const ejerceAdministracionGlobal = (datos = {}) =>
 // `buzones_chat/<clave>`; sin documento, la de siempre.
 // ----------------------------------------------------------------------
 
-export const COLECCION_BUZONES_CHAT = 'buzones_chat';
+export const COLECCION_BUZONES_CHAT = COLECCIONES.buzonesChat;
 
 /** Solo una URL https o una ruta de la propia aplicacion; lo demas no se pinta. */
 export const avatarDeBuzonValido = (valor) => {

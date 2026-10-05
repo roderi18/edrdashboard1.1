@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { identificarSolicitante } from 'src/server/claves-miembro';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 
@@ -19,13 +20,13 @@ export const runtime = 'nodejs';
 // miembro`, cuando el miembro guarda su contraseña.
 // ----------------------------------------------------------------------
 
-const COLECCION = 'usuarios_roles';
+const COLECCION = COLECCIONES.usuariosRoles;
 
 export async function POST(req) {
   try {
     if (!isAdminConfigured()) return Response.json({ debeCambiarClave: null });
 
-    const solicitante = await identificarSolicitante(req);
+    const solicitante = await identificarSolicitante(req, { graciaPrimerAcceso: true });
 
     if (!solicitante) {
       return Response.json({ error: 'Vuelve a entrar e inténtalo de nuevo.' }, { status: 401 });

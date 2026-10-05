@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // SALUD DEL SISTEMA EN SEGUNDO PLANO.
 //
@@ -46,8 +48,8 @@ export const NOMBRE_GRUPO_ADMINISTRADORES = 'ADMINISTRADORES GLOBALES';
 
 // Constancia de cada revisión del servidor: `salud_sistema/ultima` (la última,
 // la que lee la pantalla) y `salud_sistema_revisiones/<fecha-hora>` (historia).
-export const COLECCION_SALUD = 'salud_sistema';
-export const COLECCION_REVISIONES_SALUD = 'salud_sistema_revisiones';
+export const COLECCION_SALUD = COLECCIONES.saludSistema;
+export const COLECCION_REVISIONES_SALUD = COLECCIONES.revisionesSaludSistema;
 
 const ZONA = 'America/Santo_Domingo';
 

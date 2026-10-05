@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // HISTORIAL DE OCUPANTES DE UN CARGO DE DIRECTIVA (nacional, regional,
 // seccional o destacamento).
@@ -8,10 +10,9 @@
 // calendario minimo, para no ensuciar el historial con correcciones rapidas) y
 // arma la fila que se guarda. Puro: sin Firestore ni fechas "de hoy" ocultas.
 // ----------------------------------------------------------------------
-
 import { DIRECTIVA_POSITIONS } from '../catalogs/directiva-positions.js';
 
-export const COLECCION_HISTORIAL_DIRECTIVA = 'directiva_historial_ocupantes';
+export const COLECCION_HISTORIAL_DIRECTIVA = COLECCIONES.historialOcupantesDirectiva;
 
 // Los niveles que entran en la vista GLOBAL de Historia del Consejo Nacional.
 // Destacamento se ve solo, uno por uno, en su propia pestaña.

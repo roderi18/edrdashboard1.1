@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { ipDeLaLista } from 'src/server/ip-del-cliente.mjs';
+
 // ----------------------------------------------------------------------
 // Limite de intentos para las rutas de acceso.
 //
@@ -9,11 +11,13 @@ import 'server-only';
 // Sin limite, esas tres se recorren enteras en minutos —el padron completo de
 // correos, o los cinco intentos que agotan el codigo de cada miembro—.
 //
-// La cuenta vive en memoria del proceso. En Netlify cada instancia lleva la
+// La cuenta vive en memoria del proceso. En App Hosting cada instancia lleva la
 // suya, asi que el limite real es el de aqui multiplicado por el numero de
 // instancias vivas: frena el barrido automatico, que es de lo que se trata, pero
-// NO sustituye a un limite de verdad en el borde (Netlify Rate Limiting, o
-// Firebase App Check, que ademas exige que la llamada venga de la aplicacion).
+// NO sustituye a un limite de verdad en el borde (Cloud Armor, o Firebase App
+// Check, que ademas exige que la llamada venga de la aplicacion). Lo que no
+// puede depender de una sola instancia —los intentos contra el codigo de un
+// miembro— se cuenta en Firestore (`registrarFalloDeCodigo`).
 // ----------------------------------------------------------------------
 
 // globalThis para no perder la cuenta con el hot-reload del servidor de
@@ -46,22 +50,29 @@ const limpiar = (registro, ahora) => {
   }
 };
 
-/**
- * De donde viene la llamada.
- *
- * Detras de Netlify la direccion real es la primera de `x-forwarded-for`; el
- * resto de la lista son los proxys por los que paso y el cliente puede
- * inventarselos, asi que solo se mira la primera.
- */
-export const origenDe = (req) => {
-  const cabecera =
-    req.headers.get('x-nf-client-connection-ip') ||
-    req.headers.get('x-forwarded-for') ||
-    req.headers.get('x-real-ip') ||
-    '';
+// CUANTOS SALTOS DE CONFIANZA HAY DETRAS DEL CLIENTE.
+//
+// `x-forwarded-for` es una lista: lo que mando el propio cliente, y despues una
+// direccion por cada proxy que la toco. Solo la parte DERECHA la escriben los
+// proxys de la infraestructura; lo de la izquierda lo inventa quien llama. Antes
+// se tomaba la primera entrada —la mas facil de falsificar— y bastaba cambiarla
+// en cada peticion para saltarse todo limite por IP.
+//
+// En App Hosting (Cloud Run detras del balanceador de Google) la lista termina en
+// `<ip del cliente>, <ip del balanceador>`: un salto de confianza. Si el
+// despliegue cambia, se ajusta con `PROXIES_DE_CONFIANZA` sin tocar codigo.
+const saltosDeConfianza = () => {
+  const valor = Number(process.env.PROXIES_DE_CONFIANZA ?? 1);
 
-  return String(cabecera).split(',')[0].trim() || 'desconocido';
+  return Number.isInteger(valor) && valor >= 0 ? valor : 1;
 };
+
+/**
+ * De donde viene la llamada. Solo se fia de lo que añaden los proxys propios:
+ * `x-real-ip` y `x-nf-client-connection-ip` los puede poner cualquiera.
+ */
+export const origenDe = (req) =>
+  ipDeLaLista(req.headers.get('x-forwarded-for'), saltosDeConfianza()) || 'desconocido';
 
 /**
  * ¿Se pasó de intentos?

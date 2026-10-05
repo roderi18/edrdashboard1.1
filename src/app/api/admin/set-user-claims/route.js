@@ -1,3 +1,5 @@
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
@@ -7,7 +9,7 @@ import { isKnownRole, deriveUserClaims } from 'src/auth/permissions/user-claims'
 
 export const runtime = 'nodejs';
 
-const COLECCION_USUARIOS_ROLES = 'usuarios_roles';
+const COLECCION_USUARIOS_ROLES = COLECCIONES.usuariosRoles;
 
 const jsonError = (message, status) => Response.json({ error: message }, { status });
 
@@ -69,15 +71,24 @@ export async function POST(req) {
 
   let caller;
   try {
-    caller = await auth.verifyIdToken(token);
+    caller = await verificarTokenDeSesion(token);
   } catch {
     return jsonError('Token inválido o expirado.', 401);
   }
 
   // 2) Autorizar al llamante: debe poder gestionar roles (por claims o por su
   //    asignación en Firestore, para no bloquear el bootstrap del primer admin).
+  // Quien aun no eligio su contraseña solo puede elegirla.
+  if (caller.debeCambiarClave === true) {
+    return jsonError('Crea tu contraseña antes de continuar.', 403);
+  }
+
   const callerAssignment = await leerAsignacion(db, caller.uid);
-  const callerRol = caller.rol || callerAssignment?.rolId || '';
+  // EL PERFIL MANDA, NO EL CLAIM. Los claims se quedan en la cuenta hasta que
+  // alguien los reescribe: a un administrador degradado en Firestore le seguia
+  // figurando `administrador_global` en el token y podia seguir gestionando
+  // roles. Es el mismo orden que `requireRole` y `identificarSolicitante`.
+  const callerRol = callerAssignment?.rolId || caller.rol || '';
   if (!puedeGestionarRoles(callerRol)) {
     return jsonError('No tienes permiso para gestionar roles.', 403);
   }

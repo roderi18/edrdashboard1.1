@@ -13,11 +13,12 @@ import {
 import { uploadOptimizedImage } from 'src/utils/firebase-image-storage';
 import { leerConCache, invalidarLecturas, avisarAOtrasSesiones } from 'src/utils/cache-de-lecturas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
-const COLLECTION_NAME = 'fotos';
+const COLLECTION_NAME = COLECCIONES.fotos;
 
 const PHOTO_FOLDERS = {
   miembro: 'miembros',

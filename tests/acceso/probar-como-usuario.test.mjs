@@ -44,7 +44,10 @@ test('la interfaz conserva una salida visible hacia la cuenta original', async (
 test('el Administrador Global se reconoce por usuarios_roles, no solo por admins', async () => {
   const ruta = await leer('src/app/api/admin/probar-como-usuario/route.js');
 
-  assert.match(ruta, /db\.collection\('usuarios_roles'\)\.doc\(uid\)\.get\(\)/);
+  assert.match(
+    ruta,
+    /db\.collection\((?:'usuarios_roles'|COLECCIONES\.usuariosRoles)\)\.doc\(uid\)\.get\(\)/
+  );
   assert.match(ruta, /\['administrador_global', 'admin', 'administrador'\]/);
   // Sigue haciendo falta estar en la lista de correos autorizados.
   assert.match(ruta, /puedeUsarSelectorDeRol\(cuenta\.email\)/);

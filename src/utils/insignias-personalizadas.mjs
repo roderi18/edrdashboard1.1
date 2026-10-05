@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // CINTAS, MEDALLAS Y PINES AÑADIDOS DESDE EXPEDITION DESIGNER.
 //
@@ -32,7 +34,7 @@ export const llevaNumeroDorado = (insignia = {}, tipo = 'cinta') =>
 const conLlevaNumero = (documento) =>
   typeof documento?.llevaNumero === 'boolean' ? { llevaNumero: documento.llevaNumero } : {};
 
-export const COLECCION_INSIGNIAS_PERSONALIZADAS = 'insignias_personalizadas';
+export const COLECCION_INSIGNIAS_PERSONALIZADAS = COLECCIONES.insigniasPersonalizadas;
 
 export const TIPOS_INSIGNIA = Object.freeze({ CINTA: 'cinta', MEDALLA: 'medalla', PIN: 'pin' });
 

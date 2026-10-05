@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { crearCuentaSiFalta } from 'src/server/cuenta-de-miembro';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 import { leerSecretos, guardarSecretos } from 'src/server/secretos-acceso';
@@ -35,7 +36,7 @@ export const runtime = 'nodejs';
 // codigo. Vence en un dia y muere al usarse.
 // ----------------------------------------------------------------------
 
-const COLECCION = 'usuarios_roles';
+const COLECCION = COLECCIONES.usuariosRoles;
 
 export async function POST(req) {
   try {

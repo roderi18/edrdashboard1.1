@@ -14,6 +14,7 @@ import { paths } from 'src/routes/paths';
 
 import { conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { crearNotificacionAdmin } from 'src/services/notification-service';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
@@ -23,7 +24,7 @@ import {
   obtenerAsignacionesOrganigramaPorDestacamento,
 } from 'src/services/organigrama-directiva-destacamentos-service';
 
-export const COLECCION_SOLICITUDES_ACCESO_SALUD = 'solicitudes_acceso_dispensa_medica';
+export const COLECCION_SOLICITUDES_ACCESO_SALUD = COLECCIONES.solicitudesAccesoDispensaMedica;
 
 export const SECCIONES_ACCESO_SALUD = {
   general: 'general',

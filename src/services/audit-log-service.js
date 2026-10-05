@@ -13,11 +13,12 @@ import {
 
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
-export const COLECCION_AUDITORIA_SISTEMA = 'auditoria_sistema';
+export const COLECCION_AUDITORIA_SISTEMA = COLECCIONES.auditoriaSistema;
 
 const normalizarValor = (value) => {
   if (value === undefined) return null;

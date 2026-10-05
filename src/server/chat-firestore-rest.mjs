@@ -266,7 +266,16 @@ export const createChatFirestoreRestClient = ({ projectId, token, fetchImpl = fe
           name: `${documentNamePrefix}/${path}`,
           fields: jsToFirestoreFields(data),
         },
-        ...(operation.merge ? { updateMask: { fieldPaths: Object.keys(data) } } : {}),
+        ...(operation.merge
+          ? {
+              updateMask: {
+                fieldPaths:
+                  Array.isArray(operation.fieldPaths) && operation.fieldPaths.length
+                    ? operation.fieldPaths
+                    : Object.keys(data),
+              },
+            }
+          : {}),
       };
     });
     const payload = await authorizedFetch(`${baseUrl}:commit`, {

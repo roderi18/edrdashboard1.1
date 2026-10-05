@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // EL ESTATUS DEL MIEMBRO SE MUEVE CON LA ASISTENCIA.
 //
@@ -18,10 +20,9 @@
 //   - Un cambio a mano se respeta 30 días: si no, el pase de lista del sábado
 //     deshacía lo que el coordinador puso el martes.
 // ----------------------------------------------------------------------
-
 import { ESTATUS_MIEMBRO, normalizarEstatusMiembro } from './estatus-miembro.mjs';
 
-export const COLECCION_ESTATUS_MIEMBROS = 'estatus_miembros';
+export const COLECCION_ESTATUS_MIEMBROS = COLECCIONES.estatusMiembros;
 
 export const FALTAS_PARA_RECLUTAMIENTO = 3;
 export const MESES_PARA_INACTIVO = 3;

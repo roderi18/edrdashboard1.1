@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
 import { ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
@@ -7,7 +8,7 @@ import { deriveUserClaims } from 'src/auth/permissions/user-claims';
 
 export const runtime = 'nodejs';
 
-const COLECCION_USUARIOS_ROLES = 'usuarios_roles';
+const COLECCION_USUARIOS_ROLES = COLECCIONES.usuariosRoles;
 
 const jsonError = (message, status) => Response.json({ error: message }, { status });
 

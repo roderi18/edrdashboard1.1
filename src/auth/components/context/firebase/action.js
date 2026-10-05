@@ -1,5 +1,6 @@
 'use client';
 
+
 import { doc, setDoc, collection } from 'firebase/firestore';
 import {
   updateProfile,
@@ -19,6 +20,7 @@ import {
 
 import { paths } from 'src/routes/paths';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { borrarBorradoresDeFormulario } from 'src/components/hook-form/use-form-draft';
@@ -161,7 +163,7 @@ export const signUp = async ({ email, password, firstName, lastName }) => {
       'Send email verification'
     );
 
-    const userProfile = doc(collection(FIRESTORE, 'users'), newUser.user?.uid);
+    const userProfile = doc(collection(FIRESTORE, COLECCIONES.usuarios), newUser.user?.uid);
 
     withTimeout(
       setDoc(userProfile, {

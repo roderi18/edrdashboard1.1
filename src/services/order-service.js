@@ -174,9 +174,9 @@ const actualizarItemsEvaluacion = ({ items = [], estado, razon = '', user = {} }
 const crearOrdenFirestoreDirecto = async ({ user, checkoutState, paymentData }) => {
   if (!isFirebaseConfigured || !FIRESTORE) return null;
 
-  const baseTimestamp = Date.now();
-  const orderId = `orden-${baseTimestamp}`;
-  const receiptId = `recibo-${baseTimestamp}`;
+  const randomId = doc(collection(FIRESTORE, COLECCIONES_COMERCIO.ordenes)).id;
+  const orderId = `orden-${randomId}`;
+  const receiptId = `recibo-${randomId}`;
   const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, orderId);
   // PRIMERO EL NUMERO. Si el contador no responde, el pedido no llega a
   // escribirse: mejor no guardarlo que guardarlo con un numero repetido o sin
@@ -277,7 +277,7 @@ const crearOrdenFirestoreDirecto = async ({ user, checkoutState, paymentData }) 
 const crearSolicitudProductoFirestoreDirecto = async ({ user, item }) => {
   if (!isFirebaseConfigured || !FIRESTORE || !item) return null;
 
-  const orderId = `orden-${Date.now()}`;
+  const orderId = `orden-${doc(collection(FIRESTORE, COLECCIONES_COMERCIO.ordenes)).id}`;
   const orderRef = doc(FIRESTORE, COLECCIONES_COMERCIO.ordenes, orderId);
   const numeroOrden = await siguienteNumeroDeOrden();
   const subtotal = Number(item?.subtotal ?? Number(item?.price || 0) * Number(item?.quantity || 0));

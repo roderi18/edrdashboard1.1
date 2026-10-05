@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // LO QUE LEE EL BARRIDO DE CUMPLEAÑOS: el padron, las cuentas y las fotos.
 //
@@ -7,8 +9,8 @@
 // fallar. Recibe `db` (Admin SDK) desde fuera; no importa `firebase-admin`.
 // ----------------------------------------------------------------------
 
-const COLECCION_ACCESOS = 'usuarios_roles';
-const COLECCION_FOTOS = 'fotos';
+const COLECCION_ACCESOS = COLECCIONES.usuariosRoles;
+const COLECCION_FOTOS = COLECCIONES.fotos;
 const MIEMBROS_UPSTREAM = 'https://systexploradores.somee.com/api/Miembros/GetAllMiembros';
 const DESTACAMENTOS_UPSTREAM =
   'https://systexploradores.somee.com/api/Destacamentos/GetAllDestacamentos';

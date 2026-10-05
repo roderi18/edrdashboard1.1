@@ -75,6 +75,7 @@ import { getChurches } from 'src/services/church-service';
 import { _allLeadershipRoles } from 'src/_mock/_leadership';
 import { getDivisions } from 'src/services/division-service';
 import { getRegionals } from 'src/services/regional-service';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { getSectionals } from 'src/services/sectional-service';
 // models
 import { MemberValidationSchema } from 'src/models/member-schema';
@@ -480,7 +481,7 @@ export function MemberCreateEditForm({
       // Los docs de usuarios_roles suelen llavearse por el idMiembros: lectura
       // directa como respaldo si el campo se guardo como texto.
       (async () => {
-        const directo = await getDoc(doc(FIRESTORE, 'usuarios_roles', String(idMiembros))).catch(
+        const directo = await getDoc(doc(FIRESTORE, COLECCIONES.usuariosRoles, String(idMiembros))).catch(
           () => null
         );
 

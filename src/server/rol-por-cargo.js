@@ -7,6 +7,7 @@ import {
   rolPrincipalDeAdministracion,
 } from 'src/utils/roles-de-administracion.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
 import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 
@@ -23,8 +24,8 @@ import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
 // la regla, para que no puedan discrepar.
 // ----------------------------------------------------------------------
 
-export const COLECCION_USUARIOS_ROLES = 'usuarios_roles';
-export const COLECCION_ASIGNACIONES = 'asignacionesDirectiva';
+export const COLECCION_USUARIOS_ROLES = COLECCIONES.usuariosRoles;
+export const COLECCION_ASIGNACIONES = COLECCIONES.asignacionesDirectiva;
 
 // El alcance sale de las propias casillas: cada cargo manda sobre SU entidad.
 const alcanceDeSusCargos = (cargos = []) => {

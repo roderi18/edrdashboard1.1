@@ -5,9 +5,10 @@ import webpush from 'web-push';
 import { WEB_PUSH_VAPID_PUBLIC_KEY } from 'src/utils/web-push-key';
 import { OPCIONES_ENVIO_PUSH } from 'src/utils/web-push-opciones.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 
-const COLECCION = 'web_push_subscriptions';
+const COLECCION = COLECCIONES.suscripcionesWebPush;
 const maximoPorConsulta = 30;
 const dividir = (valores, tamano) => {
   const grupos = [];

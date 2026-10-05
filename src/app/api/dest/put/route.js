@@ -1,13 +1,11 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
 
-import { exigirSesionRest } from 'src/server/sesion-rest.mjs';
+import { exigirPermisoDeCargoRest } from 'src/server/sesion-rest.mjs';
 
 export async function PUT(req) {
   try {
-    // Sin sesion no se toca un destacamento. El alcance —cual puede tocar— sigue
-    // decidiendose en el navegador.
-    const noAutorizado = await exigirSesionRest(req);
+    const noAutorizado = await exigirPermisoDeCargoRest(req, ['organizacion.aprobar_cambios']);
 
     if (noAutorizado) return noAutorizado;
 

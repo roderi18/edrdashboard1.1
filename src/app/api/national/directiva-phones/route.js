@@ -1,5 +1,5 @@
+import { exigirPermisoDeCargoRest } from 'src/server/sesion-rest.mjs';
 import { buscarTelefonosPorIds } from 'src/server/miembros-directorio';
-import { identificarConSesionRest } from 'src/server/sesion-rest.mjs';
 import { createChatFirestoreRestClient } from 'src/server/chat-firestore-rest.mjs';
 
 export const runtime = 'nodejs';
@@ -10,8 +10,8 @@ const tokenDe = (request) =>
   (request.headers.get('authorization') || '').match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || '';
 
 export async function GET(request) {
-  const { error } = await identificarConSesionRest(request);
-  if (error) return error;
+  const noAutorizado = await exigirPermisoDeCargoRest(request, ['miembros.ver_datos_sensibles']);
+  if (noAutorizado) return noAutorizado;
 
   const token = tokenDe(request);
   const projectId = String(

@@ -2,6 +2,8 @@ import 'server-only';
 
 import { createHmac, timingSafeEqual } from 'crypto';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 import { buscarAccesoMiembro, buscarPerfilesPorNumeroMiembro } from 'src/server/claves-miembro';
 
@@ -10,7 +12,11 @@ import { puedeUsarSelectorDeRol } from 'src/auth/permissions/admin-role-switch-p
 export const runtime = 'nodejs';
 
 const COOKIE = 'edr_admin_original';
-const UN_ANO = 60 * 60 * 24 * 365;
+// La llave de regreso caducaba al AÑO y no llevaba fecha dentro: quien se hiciera
+// con la cookie podia pedir tokens de administrador durante todo ese tiempo. Una
+// jornada de trabajo basta para probar una cuenta; pasado eso, hay que volver a
+// entrar con la contraseña.
+const VIGENCIA_LLAVE = 60 * 60 * 12;
 
 const jsonError = (error, status) => Response.json({ error }, { status });
 
@@ -47,9 +53,9 @@ const perfilGlobalActivo = (perfil = {}) => {
 const perfilAdmin = async (uid) => {
   const db = getAdminDb();
   const [rol, porUid, porCampo] = await Promise.all([
-    db.collection('usuarios_roles').doc(uid).get(),
-    db.collection('admins').doc(uid).get(),
-    db.collection('admins').where('uid', '==', uid).limit(1).get(),
+    db.collection(COLECCIONES.usuariosRoles).doc(uid).get(),
+    db.collection(COLECCIONES.administradores).doc(uid).get(),
+    db.collection(COLECCIONES.administradores).where('uid', '==', uid).limit(1).get(),
   ]);
 
   if (rol.exists && perfilGlobalActivo(rol.data())) return rol.data();
@@ -61,7 +67,7 @@ const verificarAdminGlobal = async (token) => {
   if (!token) return null;
 
   const auth = getAdminAuth();
-  const decodificado = await auth.verifyIdToken(token).catch(() => null);
+  const decodificado = await verificarTokenDeSesion(token).catch(() => null);
   if (!decodificado?.uid || !puedeUsarSelectorDeRol(decodificado.email)) return null;
 
   const cuenta = await auth.getUser(decodificado.uid).catch(() => null);
@@ -75,7 +81,10 @@ const secreto = () => process.env.FIREBASE_SERVICE_ACCOUNT || '';
 const firma = (payload) => createHmac('sha256', secreto()).update(payload).digest('base64url');
 
 const crearValorCookie = (uid) => {
-  const payload = Buffer.from(JSON.stringify({ uid }), 'utf8').toString('base64url');
+  const payload = Buffer.from(
+    JSON.stringify({ uid, exp: Date.now() + VIGENCIA_LLAVE * 1000 }),
+    'utf8'
+  ).toString('base64url');
   return `${payload}.${firma(payload)}`;
 };
 
@@ -95,7 +104,12 @@ const leerCookie = (req) => {
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
 
   try {
-    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    const contenido = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+
+    // Sin fecha (llaves antiguas) o vencida: no vale, aunque la firma sea buena.
+    if (!Number.isFinite(contenido?.exp) || contenido.exp < Date.now()) return null;
+
+    return contenido;
   } catch {
     return null;
   }
@@ -155,6 +169,8 @@ export async function POST(req) {
       return jsonError('La cuenta ya no es el Administrador Global activo.', 403);
     }
 
+    console.info('[probar-como-usuario] regreso', { administrador: cuenta.uid });
+
     const token = await auth.createCustomToken(cuenta.uid);
     const response = Response.json({ token });
     response.headers.append('Set-Cookie', atributoCookie(req, 0));
@@ -175,6 +191,13 @@ export async function POST(req) {
     return jsonError('Ya estás usando esa cuenta.', 422);
   }
 
+  // Queda constancia en el registro del servidor de quien entro como quien.
+  console.info('[probar-como-usuario] entrada', {
+    administrador: administrador.uid,
+    objetivo: objetivo.cuenta.uid,
+    codigo,
+  });
+
   const token = await auth.createCustomToken(objetivo.cuenta.uid);
   const nombre =
     objetivo.cuenta.displayName ||
@@ -183,7 +206,7 @@ export async function POST(req) {
   const response = Response.json({ token, miembro: { codigo, nombre } });
   response.headers.append(
     'Set-Cookie',
-    atributoCookie(req, UN_ANO).replace(
+    atributoCookie(req, VIGENCIA_LLAVE).replace(
       `${COOKIE}=`,
       `${COOKIE}=${crearValorCookie(administrador.uid)}`
     )

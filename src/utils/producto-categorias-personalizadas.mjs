@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // CATEGORÍAS DE PRODUCTO AÑADIDAS DESDE /product/new.
 //
@@ -17,7 +19,7 @@
 // Sin React ni Firebase, para poder probarlo con `node --test`.
 // ----------------------------------------------------------------------
 
-export const COLECCION_CATEGORIAS_PRODUCTO = 'categorias_producto_personalizadas';
+export const COLECCION_CATEGORIAS_PRODUCTO = COLECCIONES.categoriasProductoPersonalizadas;
 
 export const MAXIMO_NOMBRE_CATEGORIA_PRODUCTO = 60;
 

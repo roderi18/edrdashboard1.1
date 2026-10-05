@@ -12,6 +12,7 @@ import {
 
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { listarAuditoriaSistema } from 'src/services/audit-log-service';
 
@@ -33,7 +34,7 @@ export const ADMIN_BACKUP_COLLECTIONS = [
   { key: 'productos', label: 'Productos', required: false },
 ];
 
-const BACKUP_META_COLLECTION = 'respaldos_admin';
+const BACKUP_META_COLLECTION = COLECCIONES.respaldosAdministracion;
 const BACKUP_META_DOC = 'ultimo';
 
 const normalizeFirestoreValue = (value) => {

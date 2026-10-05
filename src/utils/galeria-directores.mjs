@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // GALERÍA DE DIRECTORES NACIONALES (pestaña de Consejo Nacional).
 //
@@ -14,7 +16,7 @@
 // Global.
 // ----------------------------------------------------------------------
 
-export const COLECCION_GALERIA_DIRECTORES = 'galeria_directores_nacionales';
+export const COLECCION_GALERIA_DIRECTORES = COLECCIONES.galeriaDirectoresNacionales;
 
 const MAX_NOMBRE = 80;
 // Cabe un texto como "Ex Director Nacional 2010-2014 / 2018-2022". Con 30 se

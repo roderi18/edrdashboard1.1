@@ -10,6 +10,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import {
@@ -22,7 +23,7 @@ import {
 // que el Coordinador de Destacamento (o su asistente) las apruebe, edite o
 // rechace campo por campo.
 
-export const COLECCION_SOLICITUDES_CAMBIO_MIEMBRO = 'solicitudes_cambio_miembro';
+export const COLECCION_SOLICITUDES_CAMBIO_MIEMBRO = COLECCIONES.solicitudesCambioMiembro;
 
 export const ESTADOS_SOLICITUD_CAMBIO = {
   pendiente: 'pendiente',

@@ -4,6 +4,7 @@ import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { CAPACIDADES, analizarCombinacion } from 'src/utils/simulador-permisos';
 import { mergeCombinationCapabilityReview } from 'src/utils/role-combination-reviews';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import {
   COMBINACIONES,
@@ -25,7 +26,7 @@ import { AMBITOS_CAMBIO, proponerCambio } from './solicitudes-cambio-service';
 // todavia no existe, salvo que se pida rehacerlo a proposito.
 // ----------------------------------------------------------------------
 
-export const COLECCION_COMBINACIONES = 'combinaciones_roles';
+export const COLECCION_COMBINACIONES = COLECCIONES.combinacionesRoles;
 
 const asegurarFirebase = () => {
   if (!isFirebaseConfigured || !FIRESTORE) {

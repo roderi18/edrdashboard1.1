@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 import { createChatMessageDocument } from './chat-message-model.mjs';
 import { cumpleanosDelDia, DIAS_DE_AVISO_CHAT } from './cumpleanos-core.mjs';
 import {
@@ -27,7 +29,7 @@ import {
 // el mismo dia), y con los dos cada persona recibia el mismo aviso repetido.
 // ----------------------------------------------------------------------
 
-const COLECCION_CONVERSACIONES = 'conversaciones_chat';
+const COLECCION_CONVERSACIONES = COLECCIONES.conversacionesChat;
 const SUBCOLECCION_MENSAJES = 'mensajes';
 
 /**

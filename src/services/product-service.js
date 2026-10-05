@@ -24,6 +24,7 @@ import {
   siguienteNumeroCodigoProducto,
 } from 'src/utils/producto-codigo.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 import { crearDocumentoProducto, mapearProductoFirestoreAUi } from 'src/models/product-model';
@@ -41,7 +42,7 @@ import {
 const isStoredImageValue = (image) =>
   typeof image === 'string' && /^(https?:|data:|blob:)/i.test(image);
 
-const COLECCION_RESERVAS_CODIGOS = 'reservas_codigos_productos';
+const COLECCION_RESERVAS_CODIGOS = COLECCIONES.reservasCodigosProductos;
 
 const normalizarCodigoProducto = (codigo) => String(codigo || '').trim().toUpperCase();
 

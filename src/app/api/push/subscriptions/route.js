@@ -1,12 +1,13 @@
 import { createHash } from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { identificarConSesionRest } from 'src/server/sesion-rest.mjs';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 
 export const runtime = 'nodejs';
 
-const COLECCION = 'web_push_subscriptions';
+const COLECCION = COLECCIONES.suscripcionesWebPush;
 const errorJson = (error, status) => Response.json({ error }, { status });
 const subscriptionId = (uid, endpoint) =>
   createHash('sha256').update(`${uid}:${endpoint}`).digest('hex');

@@ -1,12 +1,13 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 import { exigirSesionRest, exigirPermisoDeCargoRest } from 'src/server/sesion-rest.mjs';
 
 export const runtime = 'nodejs';
 
-const COLECCION = 'notas_tutores_miembros';
-const COLECCION_AUDITORIA = 'auditoria_sistema';
+const COLECCION = COLECCIONES.notasTutoresMiembros;
+const COLECCION_AUDITORIA = COLECCIONES.auditoriaSistema;
 const TOPE_NOTA = 500;
 
 const jsonError = (message, status) => Response.json({ error: message }, { status });

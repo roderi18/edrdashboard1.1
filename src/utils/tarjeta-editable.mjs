@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // TARJETA EDITABLE (Desarrollo · pantalla).
 //
@@ -8,7 +10,7 @@
 // tarjeta sin pintar o con un ancho imposible.
 // ----------------------------------------------------------------------
 
-export const COLECCION_TARJETAS_DESARROLLO = 'tarjetas_desarrollo';
+export const COLECCION_TARJETAS_DESARROLLO = COLECCIONES.tarjetasDesarrollo;
 export const ID_TARJETA_DEMO = 'demo';
 
 // Límites del contenedor (px). Por debajo de 240 de ancho el pie se monta

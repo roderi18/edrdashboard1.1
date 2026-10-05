@@ -40,6 +40,28 @@ const nextConfig = {
 
   async headers() {
     return [
+      // CABECERAS DE SEGURIDAD PARA TODAS LAS RUTAS.
+      //
+      // No habia ninguna: la aplicacion se podia incrustar en la pagina de un
+      // tercero (clickjacking), el navegador adivinaba tipos de archivo y no se
+      // forzaba HTTPS. `frame-ancestors 'self'` basta con la vista previa del
+      // Designer, que es un iframe del MISMO origen. No se pone una CSP completa:
+      // exige inventariar Firebase, MUI y los scripts en linea, y un error ahi
+      // rompe la aplicacion entera; se hace aparte, con `Report-Only` primero.
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(self), microphone=(self), geolocation=(self)',
+          },
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000' },
+        ],
+      },
       {
         source: '/sw.js',
         headers: [

@@ -17,6 +17,7 @@ import { ROLES_DE_ADMINISTRACION, esPerfilDeAdministracion } from 'src/utils/adm
 import { sinRolDeAdministracion, rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 
 import { AUTH, FIRESTORE } from 'src/lib/firebase';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 import { resolverNotificacionConConfiguracion } from 'src/services/notification-service';
 
@@ -102,12 +103,12 @@ export const obtenerAdministradores = async () => {
     roleCodeAdminSnapshot,
   ] =
     await Promise.all([
-      getDocs(collection(FIRESTORE, 'admins')),
-      getDocs(query(collection(FIRESTORE, 'users'), where('rol', 'in', ADMIN_ROLE_VALUES))).catch(
+      getDocs(collection(FIRESTORE, COLECCIONES.administradores)),
+      getDocs(query(collection(FIRESTORE, COLECCIONES.usuarios), where('rol', 'in', ADMIN_ROLE_VALUES))).catch(
         () => ({ docs: [] })
       ),
       getDocs(
-        query(collection(FIRESTORE, 'usuarios_roles'), where('rol', 'in', ADMIN_ROLE_VALUES))
+        query(collection(FIRESTORE, COLECCIONES.usuariosRoles), where('rol', 'in', ADMIN_ROLE_VALUES))
       ).catch(() => ({ docs: [] })),
       getDocsByFieldIn('usuarios_roles', 'rolId', ROLES_DE_ADMINISTRACION),
       getDocsByFieldIn('usuarios_roles', 'roleId', ROLES_DE_ADMINISTRACION),
@@ -149,14 +150,14 @@ const getMemberRoleProfile = async (member) => {
   const codigoMiembro = member?.memberCode || member?.codigoMiembro || member?.memberId;
 
   if (memberId) {
-    const directSnap = await getDoc(doc(FIRESTORE, 'usuarios_roles', String(memberId)));
+    const directSnap = await getDoc(doc(FIRESTORE, COLECCIONES.usuariosRoles, String(memberId)));
 
     if (directSnap.exists()) {
       return { ref: directSnap.ref, data: directSnap.data() };
     }
 
     const byMemberId = query(
-      collection(FIRESTORE, 'usuarios_roles'),
+      collection(FIRESTORE, COLECCIONES.usuariosRoles),
       where('idMiembros', '==', Number(memberId)),
       limit(1)
     );
@@ -170,7 +171,7 @@ const getMemberRoleProfile = async (member) => {
 
   if (codigoMiembro) {
     const byCode = query(
-      collection(FIRESTORE, 'usuarios_roles'),
+      collection(FIRESTORE, COLECCIONES.usuariosRoles),
       where('codigoMiembro', '==', String(codigoMiembro)),
       limit(1)
     );
@@ -235,12 +236,12 @@ const getMatchingProfileDocs = async (collectionName, member = {}) => {
 
 const getAdminNotificationRecipients = async () => {
   const [adminDocs, userAdminDocs, roleAdminDocs] = await Promise.all([
-    getDocs(collection(FIRESTORE, 'admins')).catch(() => ({ docs: [] })),
-    getDocs(query(collection(FIRESTORE, 'users'), where('rol', 'in', ['admin', 'administrador']))).catch(
+    getDocs(collection(FIRESTORE, COLECCIONES.administradores)).catch(() => ({ docs: [] })),
+    getDocs(query(collection(FIRESTORE, COLECCIONES.usuarios), where('rol', 'in', ['admin', 'administrador']))).catch(
       () => ({ docs: [] })
     ),
     getDocs(
-      query(collection(FIRESTORE, 'usuarios_roles'), where('rol', 'in', ['admin', 'administrador']))
+      query(collection(FIRESTORE, COLECCIONES.usuariosRoles), where('rol', 'in', ['admin', 'administrador']))
     ).catch(() => ({ docs: [] })),
   ]);
   const recipients = new Set();
@@ -374,7 +375,7 @@ export const asignarAdministradorDesdeMiembro = async (
   // cliente. Se intenta por compatibilidad con lo que aun la lea y no se toma como
   // un fallo si no entra.
   await setDoc(
-    doc(FIRESTORE, 'admins', adminDocId),
+    doc(FIRESTORE, COLECCIONES.administradores, adminDocId),
     { ...adminPayload, creadoEn: now },
     { merge: true }
   ).catch(() => null);
@@ -398,7 +399,7 @@ export const asignarAdministradorDesdeMiembro = async (
 
   if (uid) {
     await setDoc(
-      doc(FIRESTORE, 'users', uid),
+      doc(FIRESTORE, COLECCIONES.usuarios, uid),
       {
         uid,
         email: correo,
@@ -549,7 +550,7 @@ export const quitarAdministradorAMiembro = async (member, { usuario = {}, rolId 
   });
 
   await Promise.all([
-    adminDocId ? deleteDoc(doc(FIRESTORE, 'admins', String(adminDocId))).catch(() => null) : null,
+    adminDocId ? deleteDoc(doc(FIRESTORE, COLECCIONES.administradores, String(adminDocId))).catch(() => null) : null,
     ...adminDocs.map((snapshot) => deleteDoc(snapshot.ref).catch(() => null)),
   ]);
 
@@ -600,7 +601,7 @@ export const quitarAdministradorAMiembro = async (member, { usuario = {}, rolId 
   // falle no puede tumbar un cambio que ya esta hecho.
   await Promise.all(
     [
-      uid ? doc(FIRESTORE, 'users', uid) : null,
+      uid ? doc(FIRESTORE, COLECCIONES.usuarios, uid) : null,
       ...userDocs.map((snapshot) => snapshot.ref),
     ]
       .filter(Boolean)

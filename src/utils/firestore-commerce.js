@@ -1,16 +1,18 @@
 import { Timestamp } from 'firebase/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+
 export const COLECCIONES_COMERCIO = {
-  carritos: 'carritos',
+  carritos: COLECCIONES.carritos,
   // Un documento por año con el ultimo numero de recibo entregado. Ver
   // `order-number-service`.
-  contadores: 'contadores_comercio',
-  ordenes: 'ordenes',
-  recibos: 'recibos',
-  direcciones: 'direcciones',
-  productos: 'productos',
-  resenasProductos: 'resenas_productos',
-  movimientosInventario: 'movimientos_inventario',
+  contadores: COLECCIONES.contadoresComercio,
+  ordenes: COLECCIONES.ordenes,
+  recibos: COLECCIONES.recibos,
+  direcciones: COLECCIONES.direcciones,
+  productos: COLECCIONES.productos,
+  resenasProductos: COLECCIONES.resenasProductos,
+  movimientosInventario: COLECCIONES.movimientosInventario,
 };
 
 export const TEXTO_SIN_TELEFONO = 'Sin numero de telefono';

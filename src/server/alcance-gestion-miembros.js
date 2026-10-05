@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getAdminDb } from 'src/server/firebase-admin';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { ROLES_ASIGNADOS_A_MANO } from 'src/catalogs/directiva-roles';
 import { buscarMiembroPorId, ubicacionDeDestacamento } from 'src/server/miembros-directorio';
 import { textoId, decidirGestionDeMiembro } from 'src/server/alcance-gestion-miembros-core.mjs';
@@ -31,7 +32,7 @@ export const cargosDeMiembro = async (idMiembros, resolverRoles) => {
   if (!idMiembros) return [];
 
   const encontrados = await getAdminDb()
-    .collection('asignacionesDirectiva')
+    .collection(COLECCIONES.asignacionesDirectiva)
     .where('idMiembro', '==', String(idMiembros))
     .get()
     .catch((error) => {
@@ -53,8 +54,8 @@ const esAdministrador = async ({ idMiembros, uid }) => {
   const candidatos = [uid, idMiembros].map(textoId).filter(Boolean);
 
   const documentos = await Promise.all([
-    ...candidatos.map((id) => db.collection('admins').doc(id).get().catch(() => null)),
-    ...candidatos.map((id) => db.collection('usuarios_roles').doc(id).get().catch(() => null)),
+    ...candidatos.map((id) => db.collection(COLECCIONES.administradores).doc(id).get().catch(() => null)),
+    ...candidatos.map((id) => db.collection(COLECCIONES.usuariosRoles).doc(id).get().catch(() => null)),
   ]);
 
   return documentos.some((documento) => {

@@ -4,6 +4,8 @@ import { getStorage } from 'firebase-admin/storage';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
+import { COLECCIONES } from '../../config/esquema-firestore.mjs';
+
 import { fechaClaveSalud } from '../../utils/salud-sistema.mjs';
 import {
   leerAdministradoresGlobales,
@@ -302,7 +304,7 @@ export async function ejecutarRespaldoDiario({ conexiones = conexion(), ahora = 
   // la base de datos se respaldó: sin ella, no hay respaldo que valga.
   if (partes.firestore) {
     await db
-      .collection('respaldos_admin')
+      .collection(COLECCIONES.respaldosAdministracion)
       .doc('ultimo')
       .set(
         {
@@ -342,13 +344,16 @@ export async function responderRespaldoDiario() {
   try {
     const resultado = await ejecutarRespaldoDiario();
 
-    return Response.json({
-      ok: resultado.completo,
-      carpeta: resultado.carpeta,
-      duracionMs: resultado.duracionMs,
-      fallos: resultado.fallos,
-      mensajeAlChat: resultado.mensajeAlChat,
-    });
+    return Response.json(
+      {
+        ok: resultado.completo,
+        carpeta: resultado.carpeta,
+        duracionMs: resultado.duracionMs,
+        fallos: resultado.fallos,
+        mensajeAlChat: resultado.mensajeAlChat,
+      },
+      { status: resultado.completo ? 200 : 503 }
+    );
   } catch (error) {
     console.error('[respaldo-diario]', error);
     return Response.json({ ok: false, error: error?.message || 'Error' }, { status: 500 });

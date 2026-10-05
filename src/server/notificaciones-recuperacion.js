@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getAdminDb } from 'src/server/firebase-admin';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 
 // ----------------------------------------------------------------------
 // Cerrar la peticion de ayuda de un miembro.
@@ -11,7 +12,7 @@ import { getAdminDb } from 'src/server/firebase-admin';
 // tumbando el codigo que el primero ya habia dictado.
 // ----------------------------------------------------------------------
 
-const COLECCION = 'notificaciones';
+const COLECCION = COLECCIONES.notificaciones;
 const TIPO = 'recuperacion_clave_miembro';
 
 export const marcarSolicitudesRecuperacionAtendidas = async ({
@@ -70,7 +71,7 @@ export const nombreDeUsuario = async (uid) => {
   if (!uid) return '';
 
   const documento = await getAdminDb()
-    .collection('usuarios_roles')
+    .collection(COLECCIONES.usuariosRoles)
     .doc(String(uid))
     .get()
     .catch(() => null);

@@ -6,6 +6,7 @@ import {
   rolPrincipalDeAdministracion,
 } from 'src/utils/roles-de-administracion.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { resolverCuentasDelObjetivo } from 'src/server/cuenta-del-objetivo.mjs';
 import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
@@ -41,7 +42,7 @@ export const runtime = 'nodejs';
 //     pueda nombrar a la siguiente y la plataforma se cierra por dentro.
 // ----------------------------------------------------------------------
 
-const COLECCION_USUARIOS_ROLES = 'usuarios_roles';
+const COLECCION_USUARIOS_ROLES = COLECCIONES.usuariosRoles;
 
 // Los mismos cuatro de `src/utils/admin-role-label.js`. Se repiten aqui —y no se
 // importan de un modulo de cliente— para que la regla del servidor no dependa de

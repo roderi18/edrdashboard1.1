@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 import { esUidDeBuzon, BUZON_OFICINA_NACIONAL } from './chat-buzones.mjs';
 
 // ----------------------------------------------------------------------
@@ -20,7 +22,7 @@ import { esUidDeBuzon, BUZON_OFICINA_NACIONAL } from './chat-buzones.mjs';
 // de Netlify, que no puede cargar módulos con `server-only`.
 // ----------------------------------------------------------------------
 
-export const COLECCION_ACTUALIZACIONES = 'actualizaciones_destacamentos';
+export const COLECCION_ACTUALIZACIONES = COLECCIONES.actualizacionesDestacamentos;
 export const TIPO_RESUMEN_ACTUALIZACIONES = 'resumen_actualizaciones_destacamentos';
 export const RUTA_BANDEJA_ACTUALIZACIONES = '/dashboard/admin/actualizaciones-destacamentos';
 
@@ -114,14 +116,14 @@ export const construirAvisoDeResumen = ({ conteo, idsDestinatarios, ahora = new 
 export const leerDestinatariosDelResumen = async (db) => {
   const cargos = [...BUZON_OFICINA_NACIONAL.cargos];
   const [porRol, porCargoSecundario, heredados, admins] = await Promise.all([
-    db.collection('usuarios_roles').where('rolId', 'in', cargos).get(),
+    db.collection(COLECCIONES.usuariosRoles).where('rolId', 'in', cargos).get(),
     db
-      .collection('usuarios_roles')
+      .collection(COLECCIONES.usuariosRoles)
       .where('rolesQueEjerce', 'array-contains-any', cargos)
       .get()
       .catch(() => ({ docs: [] })),
-    db.collection('usuarios_roles').where('rol', '==', 'administrador').get(),
-    db.collection('admins').get(),
+    db.collection(COLECCIONES.usuariosRoles).where('rol', '==', 'administrador').get(),
+    db.collection(COLECCIONES.administradores).get(),
   ]);
   const uids = new Set();
 

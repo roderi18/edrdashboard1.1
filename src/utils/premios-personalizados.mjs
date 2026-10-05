@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // PREMIOS AÑADIDOS DESDE LA APLICACIÓN (Sistema de Ascenso y Academia Ministerial).
 //
@@ -8,7 +10,7 @@
 // Ids `pp<fecha>`: nunca chocan con los del catálogo, que son palabras.
 // ----------------------------------------------------------------------
 
-export const COLECCION_PREMIOS_PERSONALIZADOS = 'premios_personalizados';
+export const COLECCION_PREMIOS_PERSONALIZADOS = COLECCIONES.premiosPersonalizados;
 export const MAXIMO_NOMBRE_PREMIO = 80;
 
 export const idDePremioNuevo = (ahora = Date.now()) => `pp${Math.trunc(Number(ahora)) || 0}`;
@@ -66,7 +68,7 @@ export const unirPremios = (catalogo = [], personalizados = []) => {
 // con él se lee y se escribe su estado y se busca su imagen.
 // ----------------------------------------------------------------------
 
-export const COLECCION_CONFIGURACION_PREMIOS = 'configuracion_premios';
+export const COLECCION_CONFIGURACION_PREMIOS = COLECCIONES.configuracionPremios;
 export const DOCUMENTO_UBICACIONES = 'ubicaciones';
 
 export const aplicarUbicaciones = (nodos = [], ubicaciones = {}) =>

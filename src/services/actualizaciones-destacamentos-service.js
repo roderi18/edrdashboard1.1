@@ -35,6 +35,7 @@ import {
   esDestacamentoProvisional,
 } from 'src/utils/personas-del-envio.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { DIRECTIVA_POSITIONS } from 'src/catalogs/directiva-positions';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
@@ -65,7 +66,7 @@ import {
 // bandeja y se cargan o descartan (más abajo).
 // ----------------------------------------------------------------------
 
-export const COLECCION_ACTUALIZACIONES_DESTACAMENTOS = 'actualizaciones_destacamentos';
+export const COLECCION_ACTUALIZACIONES_DESTACAMENTOS = COLECCIONES.actualizacionesDestacamentos;
 
 export const ESTADOS_ACTUALIZACION = {
   pendiente: 'pendiente',
@@ -632,7 +633,7 @@ export async function cargarActualizaciones(
       // El logo, solo si el enviado no es ya la foto del destacamento.
       if (campos.has('destLogo') && fila.logo?.ruta) {
         const fotoActual = await getDoc(
-          doc(FIRESTORE, 'fotos', `destacamento_${crudo.idDestacamento}_perfil`)
+          doc(FIRESTORE, COLECCIONES.fotos, `destacamento_${crudo.idDestacamento}_perfil`)
         ).catch(() => null);
         if (fotoActual?.data()?.rutaArchivo !== fila.logo.ruta) {
           cambiosFila.push('Logo: pasa a ser el enviado');

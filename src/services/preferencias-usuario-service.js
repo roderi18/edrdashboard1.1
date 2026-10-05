@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -15,7 +16,7 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 // mirar y se queda puesto hasta que lo cambie.
 // ----------------------------------------------------------------------
 
-export const COLECCION_PREFERENCIAS_USUARIOS = 'preferencias_usuarios';
+export const COLECCION_PREFERENCIAS_USUARIOS = COLECCIONES.preferenciasUsuarios;
 
 const referencia = (uid) => doc(FIRESTORE, COLECCION_PREFERENCIAS_USUARIOS, String(uid));
 

@@ -4,13 +4,14 @@ import { doc, query, where, setDoc, getDocs, deleteDoc, collection } from 'fireb
 import { uploadFilesToStorage } from 'src/utils/firebase-file-storage';
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 import {
   crearRegistroHistorialMiembro,
   registrarCambiosHistorialMiembro,
 } from 'src/services/member-history-service';
 
-export const COLECCION_DOCUMENTOS_SALUD_MIEMBROS = 'documentos_salud_miembros';
+export const COLECCION_DOCUMENTOS_SALUD_MIEMBROS = COLECCIONES.documentosSaludMiembros;
 
 const getFileExtension = (fileName = '') =>
   String(fileName || '')

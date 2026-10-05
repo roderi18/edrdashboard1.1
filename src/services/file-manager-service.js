@@ -10,11 +10,12 @@ import {
 import { uploadFilesToStorage } from 'src/utils/firebase-file-storage';
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { ROLES } from 'src/auth/permissions/roles';
 
-export const COLECCION_GESTOR_ARCHIVOS = 'gestorArchivos';
+export const COLECCION_GESTOR_ARCHIVOS = COLECCIONES.gestorArchivos;
 
 const getFileExtension = (fileName = '') =>
   String(fileName || '')

@@ -21,7 +21,7 @@ export async function POST(req) {
   try {
     if (!isAdminConfigured()) return Response.json({ enUso: false });
 
-    const solicitante = await identificarSolicitante(req);
+    const solicitante = await identificarSolicitante(req, { graciaPrimerAcceso: true });
 
     if (!solicitante) {
       return Response.json({ error: 'Vuelve a entrar e inténtalo de nuevo.' }, { status: 401 });

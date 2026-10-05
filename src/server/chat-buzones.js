@@ -9,6 +9,7 @@ import {
   COLECCION_BUZONES_CHAT,
 } from 'src/utils/chat-buzones.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { getAdminDb, getAdminAuth } from 'src/server/firebase-admin';
 
 import {
@@ -19,7 +20,7 @@ import {
 
 // La misma coleccion que `audit-log-service.js`: lo que se escribe aqui sale en
 // Historial junto a todo lo demas.
-const COLECCION_AUDITORIA_SISTEMA = 'auditoria_sistema';
+const COLECCION_AUDITORIA_SISTEMA = COLECCIONES.auditoriaSistema;
 
 // ----------------------------------------------------------------------
 // El cableado con Firebase de los buzones compartidos del chat. La logica —y el
@@ -153,7 +154,7 @@ export const registrarRespuestaDeBuzon = async ({
 
   await Promise.all([
     db
-      .collection('conversaciones_chat')
+      .collection(COLECCIONES.conversacionesChat)
       .doc(String(idConversacion))
       .collection(buzon.coleccionRespuestas)
       .doc(String(idMensaje))
@@ -206,7 +207,7 @@ export const leerRespuestasDeBuzon = async (buzon, idConversacion) => {
   if (!buzon || !idConversacion) return new Map();
 
   const snapshot = await getAdminDb()
-    .collection('conversaciones_chat')
+    .collection(COLECCIONES.conversacionesChat)
     .doc(String(idConversacion))
     .collection(buzon.coleccionRespuestas)
     .get();
@@ -233,21 +234,21 @@ export const perfilesDelBuzon = async (buzon) => {
   const incluyeGlobal = buzon.cargos.includes('administrador_global');
   const [porRol, porCargoSecundario, heredados, admins] = await Promise.all([
     db
-      .collection('usuarios_roles')
+      .collection(COLECCIONES.usuariosRoles)
       .where('rolId', 'in', [...buzon.cargos])
       .get(),
     // Quien tiene el cargo del buzon en CUALQUIER posicion —el segundo, el
     // cuarto...—, no solo como principal: sin esto, la Oficina Nacional que ademas
     // coordina algo no recibia el aviso de su buzon.
     db
-      .collection('usuarios_roles')
+      .collection(COLECCIONES.usuariosRoles)
       .where('rolesQueEjerce', 'array-contains-any', [...buzon.cargos])
       .get()
       .catch(() => ({ docs: [] })),
     incluyeGlobal
-      ? db.collection('usuarios_roles').where('rol', '==', 'administrador').get()
+      ? db.collection(COLECCIONES.usuariosRoles).where('rol', '==', 'administrador').get()
       : { docs: [] },
-    incluyeGlobal ? db.collection('admins').get() : { docs: [] },
+    incluyeGlobal ? db.collection(COLECCIONES.administradores).get() : { docs: [] },
   ]);
   const porUid = new Map();
 

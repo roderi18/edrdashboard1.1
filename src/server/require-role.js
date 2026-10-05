@@ -1,4 +1,6 @@
-import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+import { verificarTokenDeSesion } from 'src/server/verificar-token';
+import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 
 // ----------------------------------------------------------------------
 // Guardia de rol para las rutas /api que escriben en el backend .NET.
@@ -40,7 +42,7 @@ const normalizarRol = (valor) => String(valor ?? '').trim().toLowerCase();
  */
 const rolDelUsuario = async (decodificado) => {
   const documento = await getAdminDb()
-    .collection('usuarios_roles')
+    .collection(COLECCIONES.usuariosRoles)
     .doc(String(decodificado.uid))
     .get()
     .catch(() => null);
@@ -71,7 +73,18 @@ export async function requireRole(req, rolesPermitidos = []) {
   }
 
   try {
-    const decoded = await getAdminAuth().verifyIdToken(token);
+    const decoded = await verificarTokenDeSesion(token);
+
+    // Mismo encierro que `exigirSesion`: quien entró con un código del
+    // Coordinador o la clave inicial solo puede elegir su contraseña. Aquí no se
+    // miraba, así que ese token llegaba a las rutas de escritura de su cargo.
+    if (decoded?.debeCambiarClave === true) {
+      return Response.json(
+        { Success: false, Message: 'Crea tu contraseña antes de continuar.' },
+        { status: 403 }
+      );
+    }
+
     const rol = await rolDelUsuario(decoded);
 
     if (rolesPermitidos.length && !rolesPermitidos.includes(rol)) {
@@ -111,7 +124,7 @@ export async function exigirSesion(req) {
   }
 
   try {
-    const decodificado = await getAdminAuth().verifyIdToken(token);
+    const decodificado = await verificarTokenDeSesion(token);
 
     // Quien entro con la clave inicial o con un codigo del Coordinador tiene un
     // token valido pero todavia no ha elegido contraseña. La pantalla ya le

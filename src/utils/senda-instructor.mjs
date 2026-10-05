@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // SENDA DEL INSTRUCTOR (debajo de "Instructor CI" en la ficha del miembro).
 //
@@ -7,7 +9,7 @@
 // Firestore (`senda_instructor_miembros/{idMiembros}`).
 // ----------------------------------------------------------------------
 
-export const COLECCION_SENDA_INSTRUCTOR = 'senda_instructor_miembros';
+export const COLECCION_SENDA_INSTRUCTOR = COLECCIONES.sendaInstructorMiembros;
 
 export const NIVELES_SENDA_INSTRUCTOR = [
   { value: 'IF', label: 'Instructor en Formación (IF)' },

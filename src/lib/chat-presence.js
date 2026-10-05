@@ -1,10 +1,11 @@
 import { doc, getDoc, setDoc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
-export const COLECCION_PRESENCIA = 'presencia_chat';
+export const COLECCION_PRESENCIA = COLECCIONES.presenciaChat;
 // Con la pestaña en segundo plano el navegador retrasa los temporizadores hasta
 // un minuto: con 60 s de latido y 150 s de caducidad, a veces se pasaba y quien
 // seguia conectado parpadeaba en gris. Latido mas corto y margen mas holgado.

@@ -87,7 +87,10 @@ test('la campana pinta el producto y busca las fotos que faltan', () => {
     FILA,
     /const fotoDelCirculo = esDeProducto \? fotoPersona : notification\.avatarUrl;/
   );
-  assert.match(FOTOS, /doc\(FIRESTORE, 'productos', String\(idProducto\)\)/);
+  assert.match(
+    FOTOS,
+    /doc\(FIRESTORE, (?:'productos'|COLECCIONES\.productos), String\(idProducto\)\)/
+  );
   assert.match(
     FOTOS,
     /obtenerFotoPrincipal\(\{ tipoEntidad: 'miembro', idEntidad: idMiembros \}\)/

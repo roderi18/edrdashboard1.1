@@ -1,3 +1,4 @@
+import { COLECCIONES } from '../../config/esquema-firestore.mjs';
 import {
   ESTADOS_SALUD,
   UMBRALES_SALUD,
@@ -35,22 +36,22 @@ export const SERVICIOS_API = [
 
 // Una colección por módulo: si una REQUERIDA se queda vacía, algo se borró.
 export const COLECCIONES_POR_MODULO = [
-  { id: 'usuarios_roles', modulo: 'Cuentas y roles', requerida: true },
-  { id: 'admins', modulo: 'Administradores', requerida: true },
-  { id: 'asignacionesDirectiva', modulo: 'Directivas', requerida: true },
-  { id: 'auditoria_sistema', modulo: 'Auditoría', requerida: true },
-  { id: 'productos', modulo: 'Tienda', requerida: true },
-  { id: 'notificaciones', modulo: 'Notificaciones' },
-  { id: 'conversaciones_chat', modulo: 'Chat' },
-  { id: 'publicaciones', modulo: 'Muro' },
-  { id: 'asistencias', modulo: 'Asistencia' },
-  { id: 'recibos', modulo: 'Recibos de la tienda' },
-  { id: 'itemsAscenso', modulo: 'Sistema de Ascenso' },
-  { id: 'informacion_medica_basica_miembros', modulo: 'Salud del miembro' },
-  { id: 'fotos', modulo: 'Fotos' },
-  { id: 'cintas_miembros', modulo: 'Insignias' },
-  { id: 'everest_publicado', modulo: 'Portada (EXPEDITION Designer)' },
-  { id: 'gestorArchivos', modulo: 'Gestor de archivos' },
+  { id: COLECCIONES.usuariosRoles, modulo: 'Cuentas y roles', requerida: true },
+  { id: COLECCIONES.administradores, modulo: 'Administradores', requerida: true },
+  { id: COLECCIONES.asignacionesDirectiva, modulo: 'Directivas', requerida: true },
+  { id: COLECCIONES.auditoriaSistema, modulo: 'Auditoría', requerida: true },
+  { id: COLECCIONES.productos, modulo: 'Tienda', requerida: true },
+  { id: COLECCIONES.notificaciones, modulo: 'Notificaciones' },
+  { id: COLECCIONES.conversacionesChat, modulo: 'Chat' },
+  { id: COLECCIONES.publicaciones, modulo: 'Muro' },
+  { id: COLECCIONES.asistencias, modulo: 'Asistencia' },
+  { id: COLECCIONES.recibos, modulo: 'Recibos de la tienda' },
+  { id: COLECCIONES.itemsAscenso, modulo: 'Sistema de Ascenso' },
+  { id: COLECCIONES.informacionMedicaBasicaMiembros, modulo: 'Salud del miembro' },
+  { id: COLECCIONES.fotos, modulo: 'Fotos' },
+  { id: COLECCIONES.cintasMiembros, modulo: 'Insignias' },
+  { id: COLECCIONES.designerPublicado, modulo: 'Portada (EXPEDITION Designer)' },
+  { id: COLECCIONES.gestorArchivos, modulo: 'Gestor de archivos' },
 ];
 
 const ms = (inicio) => Date.now() - inicio;
@@ -278,7 +279,7 @@ const chequeoModulos = (bien, total) =>
 
 const chequeoRespaldo = (db, ahora) =>
   seguro({ id: 'respaldo_reciente', area: 'Mantenimiento', name: 'Último respaldo' }, async () => {
-    const respaldo = (await db.collection('respaldos_admin').doc('ultimo').get()).data();
+    const respaldo = (await db.collection(COLECCIONES.respaldosAdministracion).doc('ultimo').get()).data();
 
     if (!respaldo?.fecha) {
       return {
@@ -336,10 +337,10 @@ const chequeoNotificaciones = (db) =>
     { id: 'notificaciones_no_leidas', area: 'Notificaciones', name: 'Notificaciones pendientes' },
     async () => {
       const [pendientes, erroresSubida] = await Promise.all([
-        contar(db.collection('notificaciones').where('estado', '==', 'no_leida')),
+        contar(db.collection(COLECCIONES.notificaciones).where('estado', '==', 'no_leida')),
         contar(
           db
-            .collection('notificaciones')
+            .collection(COLECCIONES.notificaciones)
             .where('tipoNotificacion', '==', 'error_subida_archivo_imagen')
             .where('estado', '==', 'no_leida')
         ),
@@ -365,7 +366,7 @@ const chequeoAuditoria = (db, ahora) =>
   seguro({ id: 'auditoria_fallos', area: 'Auditoría', name: 'Auditoría (24 h)' }, async () => {
     const desde = new Date(ahora.getTime() - 86_400_000).toISOString();
     const recientes = await db
-      .collection('auditoria_sistema')
+      .collection(COLECCIONES.auditoriaSistema)
       .where('fecha', '>=', desde)
       .orderBy('fecha', 'desc')
       .limit(500)
