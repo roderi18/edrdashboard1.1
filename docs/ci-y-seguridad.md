@@ -13,8 +13,9 @@ nada se instala en la aplicación ni afecta su velocidad.
 | SBOM CycloneDX (`sbom.cdx.json`) | `seguridad.yml`, artefacto `sbom` | SBOM |
 | Dependabot | `.github/dependabot.yml` (PRs contra `development`) | SCA continuo |
 
-`seguridad.yml` corre en cada PR/push a `development`, `qa` y `main`, cada lunes
-y a mano (`workflow_dispatch`). Los informes quedan en los artefactos del run.
+`ci.yml` corre solo en PRs (no en el push de la fusión, que repetía lo mismo).
+`seguridad.yml` corre solo en PRs a `qa` y `main`, cada lunes y a mano
+(`workflow_dispatch`): en cada PR a `development` tardaba demasiado. Los informes quedan en los artefactos del run.
 
 ## Fases
 

@@ -11,11 +11,11 @@ name: Seguridad
 # `continue-on-error` y, en Semgrep, añadir `--severity ERROR --error` para que
 # solo lo grave bloquee. Detalle en docs/ci-y-seguridad.md.
 
+# NO EN CADA PUSH: Semgrep tarda ~4 minutos y en `development` frenaba cada
+# cambio. Se escanea al promover (PR a `qa` y a `main`), cada lunes y a mano.
 on:
   pull_request:
-    branches: [development, qa, main]
-  push:
-    branches: [development, qa, main]
+    branches: [qa, main]
   schedule:
     # Lunes 06:00 UTC: las CVE nuevas salen aunque nadie toque el codigo.
     - cron: '0 6 * * 1'

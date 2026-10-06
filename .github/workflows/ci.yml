@@ -1,9 +1,9 @@
 name: CI
 
+# Solo en PRs: el push que deja una fusion repetia exactamente lo que el PR ya
+# habia comprobado y cada cambio pagaba dos veces los ~4 minutos.
 on:
   pull_request:
-    branches: [development, qa, main]
-  push:
     branches: [development, qa, main]
 
 permissions:
