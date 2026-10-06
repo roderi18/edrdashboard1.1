@@ -164,6 +164,17 @@ gcloud storage cp -r "gs://systexploradores.firebasestorage.app/*" gs://systexpl
 - La copia conserva los metadatos, **incluido el token de descarga**
   (`firebaseStorageDownloadTokens`), así que la URL de QA funciona con el mismo
   token cambiando solo el bucket (§6.2).
+- **Permiso obligatorio en cada proyecto nuevo**: `storage.rules` consulta
+  Firestore (`firestore.get` del rol del usuario), y eso solo funciona si el
+  agente de Storage tiene `roles/firebaserules.firestoreServiceAgent`. Sin él,
+  TODA subida que dependa del rol devuelve `storage/unauthorized` (certificados,
+  fotos, salud, chat…). Pasó en dev y QA hasta el 06/10/2026:
+
+  ```bash
+  gcloud projects add-iam-policy-binding PROYECTO \
+    --member="serviceAccount:service-NUMERO_PROYECTO@gcp-sa-firebasestorage.iam.gserviceaccount.com" \
+    --role="roles/firebaserules.firestoreServiceAgent"
+  ```
 
 ### 5.4 Authentication (usuarios con su mismo UID)
 
