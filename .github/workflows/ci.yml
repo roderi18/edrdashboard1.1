@@ -32,6 +32,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Estos cuatro BLOQUEAN, como siempre.
       - name: Validate Firestore schema
         run: npm run test:firebase-esquema
 
@@ -44,6 +45,20 @@ jobs:
       - name: Test store
         run: npm run test:tienda
 
+      # FASE 1 — SOLO INFORMAN (continue-on-error). Al añadirlos, el linter tenia
+      # 117 errores y habia pruebas rojas en admin y member: si bloquearan desde
+      # el primer dia, ningun PR pasaria. Se ven en rojo en el resumen; cuando
+      # esten limpios se quita `continue-on-error` y pasan a bloquear.
+      - name: Lint (informa)
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Todas las pruebas (informa)
+        continue-on-error: true
+        run: >-
+          node --test tests/acceso/*.test.mjs tests/admin/*.test.mjs tests/ascenso/*.test.mjs
+          tests/chat/*.test.mjs tests/directivas/*.test.mjs tests/everest/*.test.mjs
+          tests/member/*.test.mjs tests/tienda/*.test.mjs
+
       - name: Build application
         run: npm run build
-
