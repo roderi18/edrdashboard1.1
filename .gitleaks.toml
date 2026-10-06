@@ -1,0 +1,16 @@
+# Reglas de fabrica de Gitleaks, con una excepcion: las claves `AIza...` de los
+# apphosting*.yaml son la configuracion PUBLICA de Firebase (viaja en el JS del
+# navegador y la protegen firestore.rules/storage.rules), no un secreto. Sin
+# esto, cada pasada las daria como filtradas. Una clave nueva NO entra aqui sin
+# confirmar que es publica.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Configuracion publica de Firebase por ambiente"
+regexTarget = "match"
+regexes = [
+  '''AIzaSyCp0VZy72mT4FJ7Gs7ibDUv17YysYFHADc''',
+  '''AIzaSyCO4zYfPc3B8CKjZ936GNljKzwn0hCAjVY''',
+  '''AIzaSyC4dkKYcICTIotPylaBA8hrVTLmsOZsKq0''',
+]

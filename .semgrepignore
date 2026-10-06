@@ -1,0 +1,13 @@
+# Lo que no es codigo de la aplicacion: Semgrep perderia tiempo y llenaria el
+# informe de avisos que no se despliegan.
+node_modules/
+.next/
+public/
+docs/
+tmp/
+output/
+outputs/
+tests/
+src/_mock/
+src/sections/_examples/
+package-lock.json
