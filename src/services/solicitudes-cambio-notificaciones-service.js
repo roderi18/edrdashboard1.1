@@ -3,6 +3,7 @@ import { doc, query, where, getDoc, getDocs, collection } from 'firebase/firesto
 import { primerNombreDeTexto, primerApellidoDeTexto } from 'src/utils/nombres-de-persona';
 
 import { FIRESTORE } from 'src/lib/firebase';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 
 import { crearNotificacionAdmin, crearNotificacionUsuario } from './notification-service';
 import {
@@ -38,7 +39,7 @@ export const resolverDestinatariosPorIdMiembros = async (idMiembros) => {
       snapshot?.docs?.forEach(agregarDesdeData);
     }),
     (async () => {
-      const directo = await getDoc(doc(FIRESTORE, 'usuarios_roles', String(idMiembros))).catch(
+      const directo = await getDoc(doc(FIRESTORE, COLECCIONES.usuariosRoles, String(idMiembros))).catch(
         () => null
       );
 

@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // QUIÉN ENTRA A EXPEDITION DESIGNER, A QUÉ PESTAÑAS Y PARA QUÉ.
 //
@@ -22,7 +24,7 @@
 // Sin React ni Firebase, para probarlo con `node --test`.
 // ----------------------------------------------------------------------
 
-export const COLECCION_CONFIGURACION_DESIGNER = 'configuracion_designer';
+export const COLECCION_CONFIGURACION_DESIGNER = COLECCIONES.configuracionDesigner;
 export const DOCUMENTO_ACCESOS_DESIGNER = 'accesos';
 
 export const PESTANAS_DESIGNER = Object.freeze([

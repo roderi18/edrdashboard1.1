@@ -1,7 +1,9 @@
 import { rolesDeAdministracionDe } from 'src/utils/roles-de-administracion.mjs';
 
+import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { ROLES_QUE_NO_SALEN_DE_UNA_CASILLA } from 'src/catalogs/directiva-roles';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 import {
   leerAsignacionesDe,
   resolverAccesoPorCargo,
@@ -59,7 +61,7 @@ export async function POST(req) {
   let caller;
 
   try {
-    caller = await auth.verifyIdToken(token);
+    caller = await verificarTokenDeSesion(token);
   } catch {
     return jsonError('Token inválido o expirado.', 401);
   }
@@ -70,7 +72,17 @@ export async function POST(req) {
     .get()
     .catch(() => null);
 
-  if (!puedeGestionarRoles(caller.rol || suAsignacion?.data()?.rolId || '')) {
+  // El perfil manda sobre el claim (ver `set-user-claims`).
+  const suRol = suAsignacion?.data()?.rolId || caller.rol || '';
+
+  if (!puedeGestionarRoles(suRol)) {
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.accesoDenegado,
+      resultado: 'denegado',
+      actor: { uid: caller.uid, rol: suRol },
+      detalle: { motivo: 'sin_permiso_gestionar_roles' },
+    });
+
     return jsonError('No tienes permiso para gestionar roles.', 403);
   }
 
@@ -130,6 +142,19 @@ export async function POST(req) {
      
     await escribirAccesoPorCargo({ db, auth, uid, idMiembros, acceso });
     resultado.sincronizadas += 1;
+  }
+
+  // Solo cuando ESCRIBE: la vista previa no cambia nada de nadie.
+  if (aplicar) {
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.rolesSincronizados,
+      actor: { uid: caller.uid, rol: suRol },
+      detalle: {
+        revisadas: resultado.revisadas,
+        sincronizadas: resultado.sincronizadas,
+        omitidas: resultado.omitidas,
+      },
+    });
   }
 
   return Response.json({ ok: true, aplicado: aplicar, ...resultado });

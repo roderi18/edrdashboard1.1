@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useMemo, useState, useEffect } from 'react';
 import { getDocs, collection } from 'firebase/firestore';
 
@@ -38,6 +39,7 @@ import {
 
 import { FIRESTORE } from 'src/lib/firebase';
 import { getMembers } from 'src/services/member-service';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { guardarAccesosDesigner } from 'src/services/accesos-designer-service';
 
 import { Label } from 'src/components/label';
@@ -77,7 +79,7 @@ function useCuentas(abierto) {
     if (!abierto || cuentas) return undefined;
     let activo = true;
 
-    Promise.all([getDocs(collection(FIRESTORE, 'usuarios_roles')), getMembers().catch(() => [])])
+    Promise.all([getDocs(collection(FIRESTORE, COLECCIONES.usuariosRoles)), getMembers().catch(() => [])])
       .then(([instantanea, miembros]) => {
         if (!activo) return;
 

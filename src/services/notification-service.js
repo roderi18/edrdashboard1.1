@@ -28,6 +28,7 @@ import {
 } from 'src/utils/estatus-miembro-avisos.mjs';
 
 import { getMembers } from 'src/services/member-service';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { AUTH, FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { ROLES, ALCANCES } from 'src/auth/permissions/roles';
@@ -633,7 +634,7 @@ const obtenerUsuariosConProductoEnCarrito = async (producto = {}) => {
     return [];
   }
 
-  const snapshot = await getDocs(collection(FIRESTORE, 'carritos')).catch(() => null);
+  const snapshot = await getDocs(collection(FIRESTORE, COLECCIONES.carritos)).catch(() => null);
   const ids = new Set();
 
   snapshot?.docs?.forEach((item) => {

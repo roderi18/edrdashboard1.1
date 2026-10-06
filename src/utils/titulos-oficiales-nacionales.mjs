@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // TÍTULOS DE LOS OFICIALES DE LA NACIONAL (tarjeta "Oficiales Especiales").
 //
@@ -16,7 +18,7 @@
 // Global añade con "Nuevo" y se suman detrás.
 // ----------------------------------------------------------------------
 
-export const COLECCION_TITULOS_OFICIALES = 'titulos_oficiales_nacionales';
+export const COLECCION_TITULOS_OFICIALES = COLECCIONES.titulosOficialesNacionales;
 export const DOCUMENTO_TITULOS_OFICIALES = 'actual';
 
 export const TITULOS_OFICIALES_DE_FABRICA = Object.freeze([

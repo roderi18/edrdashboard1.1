@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 import { buscarPosicionPorNodo } from './leadership-assignments.js';
 // Con extension explicita: este modulo se carga tambien desde `node --test`.
 import { DIRECTIVA_POSITIONS } from '../catalogs/directiva-positions.js';
@@ -24,9 +26,9 @@ import { DIRECTIVA_POSITIONS } from '../catalogs/directiva-positions.js';
 // directiva (leadership-member-options.js).
 export const NOMBRE_PROVISIONAL = 'Provisional';
 
-export const COLECCION_CUATRIENIOS = 'directiva_cuatrienios';
-export const COLECCION_INTEGRANTES = 'directiva_cuatrienios_integrantes';
-export const COLECCION_PERMANENTES = 'directiva_nacional_permanentes';
+export const COLECCION_CUATRIENIOS = COLECCIONES.directivasCuatrienios;
+export const COLECCION_INTEGRANTES = COLECCIONES.integrantesDirectivasCuatrienios;
+export const COLECCION_PERMANENTES = COLECCIONES.miembrosPermanentesDirectivaNacional;
 
 // Un cuatrienio termina el mismo dia que empieza el siguiente: el 22/08/2026 ya
 // es 2026-2030. Por eso `fin` es exclusivo. El fin de 2026-2030 no esta fijado

@@ -4,6 +4,7 @@ import { query, where, collection, onSnapshot } from 'firebase/firestore';
 
 import { sonarAviso } from 'src/utils/sonidos-de-aviso.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { isConversationsKey, isChatUnreadSummaryKey } from 'src/actions/chat';
 
@@ -41,7 +42,7 @@ export function useBuzonesEnVivo(buzones = [], enabled = true) {
 
       return onSnapshot(
         query(
-          collection(FIRESTORE, 'conversaciones_chat'),
+          collection(FIRESTORE, COLECCIONES.conversacionesChat),
           where('participantesIds', 'array-contains', Number(idMiembros))
         ),
         (snapshot) => {

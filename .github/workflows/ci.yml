@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [development, qa, main]
+  push:
+    branches: [development, qa, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Estos cuatro BLOQUEAN, como siempre.
+      - name: Validate Firestore schema
+        run: npm run test:firebase-esquema
+
+      - name: Test access control
+        run: npm run test:acceso
+
+      - name: Test chat authorization
+        run: npm run test:chat-auth
+
+      - name: Test store
+        run: npm run test:tienda
+
+      # FASE 1 — SOLO INFORMAN (continue-on-error). Al añadirlos, el linter tenia
+      # 117 errores y habia pruebas rojas en admin y member: si bloquearan desde
+      # el primer dia, ningun PR pasaria. Se ven en rojo en el resumen; cuando
+      # esten limpios se quita `continue-on-error` y pasan a bloquear.
+      - name: Lint (informa)
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Todas las pruebas (informa)
+        continue-on-error: true
+        run: >-
+          node --test tests/acceso/*.test.mjs tests/admin/*.test.mjs tests/ascenso/*.test.mjs
+          tests/chat/*.test.mjs tests/directivas/*.test.mjs tests/everest/*.test.mjs
+          tests/member/*.test.mjs tests/tienda/*.test.mjs
+
+      - name: Build application
+        run: npm run build

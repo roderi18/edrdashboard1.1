@@ -1,13 +1,16 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 import { ROLES_POR_CODIGO } from 'src/auth/permissions/roles';
 import { deriveUserClaims } from 'src/auth/permissions/user-claims';
 
 export const runtime = 'nodejs';
 
-const COLECCION_USUARIOS_ROLES = 'usuarios_roles';
+const COLECCION_USUARIOS_ROLES = COLECCIONES.usuariosRoles;
 
 const jsonError = (message, status) => Response.json({ error: message }, { status });
 
@@ -35,7 +38,8 @@ export async function POST(req) {
   let caller;
 
   try {
-    caller = await auth.verifyIdToken(token);
+    // Con revocacion: una sesion cerrada no cambia de rol.
+    caller = await verificarTokenDeSesion(token);
   } catch {
     return jsonError('Token inválido o expirado.', 401);
   }
@@ -60,6 +64,13 @@ export async function POST(req) {
   // para que el titular pueda volver a cambiar o recuperar su rol luego de que
   // la asignación principal haya pasado a ser el rol elegido.
   if (!esAdministradorGlobalActivo && !tieneAccesoDeRetorno) {
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.accesoDenegado,
+      resultado: 'denegado',
+      actor: { uid: caller.uid, rol: datosActuales?.rolId },
+      detalle: { motivo: 'cambio_de_rol_propio_sin_administrador_global' },
+    });
+
     return jsonError('La cuenta no tiene una asignación activa de Administrador Global.', 403);
   }
 
@@ -109,6 +120,14 @@ export async function POST(req) {
   });
   const claims = { ...(authUser.customClaims || {}), ...claimsDeRol };
   await auth.setCustomUserClaims(caller.uid, claims);
+
+  // El Administrador Global se pone otro rol para probar: queda de cual a cual.
+  await registrarEventoDeSeguridad(req, {
+    accion: ACCIONES_DE_SEGURIDAD.rolPropioCambiado,
+    actor: { uid: caller.uid, correo: authUser.email },
+    objetivo: { uid: caller.uid },
+    detalle: { de: datosActuales?.rolId ?? null, a: rolId },
+  });
 
   return Response.json({ ok: true, rolId, rolNombre: rol.nombre });
 }

@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // CINTAS DEL PERFIL: CATÁLOGO, ORDEN Y FILAS.
 //
@@ -12,15 +14,14 @@
 //
 // Sin React ni Firebase para poder probarlo con `node --test`.
 // ----------------------------------------------------------------------
-
 import { aplicarAjustes } from './insignias-personalizadas.mjs';
 import { TEXTOS_CINTAS_PERFIL } from './cintas-perfil-textos.mjs';
 
 export const RUTA_CINTAS_PERFIL = '/insignias/cintas';
-export const COLECCION_CINTAS_MIEMBROS = 'cintas_miembros';
+export const COLECCION_CINTAS_MIEMBROS = COLECCIONES.cintasMiembros;
 // El orden GLOBAL que pone el Administrador Global arrastrando en EXPLORA
 // Designer: `configuracion_cintas/orden` → `{ orden: ['3', '1', …] }`.
-export const COLECCION_CONFIGURACION_CINTAS = 'configuracion_cintas';
+export const COLECCION_CONFIGURACION_CINTAS = COLECCIONES.configuracionCintas;
 export const DOCUMENTO_ORDEN_CINTAS = 'orden';
 export const CINTAS_POR_FILA = 3;
 export const MAXIMO_CINTAS_VISIBLES = 18;

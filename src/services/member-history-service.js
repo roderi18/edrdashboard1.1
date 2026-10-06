@@ -14,9 +14,10 @@ import {
 
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
-export const COLECCION_HISTORIAL_MIEMBROS = 'historialMiembros';
+export const COLECCION_HISTORIAL_MIEMBROS = COLECCIONES.historialMiembros;
 export const SUBCOLECCION_REGISTROS_HISTORIAL = 'registros';
 
 const getRegistroId = () =>

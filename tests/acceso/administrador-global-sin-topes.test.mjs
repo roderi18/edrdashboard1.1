@@ -21,15 +21,21 @@ const REGLAS = fs.readFileSync('firestore.rules', 'utf8');
 // nada de lo de arriba: nadie mas gana acceso.
 // ----------------------------------------------------------------------
 
+// El pase: lee todo menos las huellas; escribe todo menos las huellas y las dos
+// auditorias, que son inalterables incluso para el (una bitacora que el
+// administrador puede corregir no prueba nada de lo que hizo el administrador).
+const PASE =
+  /\{\s*allow read: if coleccion != 'secretos_acceso' && esAdministradorGlobal\(\);\s*allow write: if coleccion != 'secretos_acceso'\s*&& coleccion != 'auditoria_sistema'\s*&& coleccion != 'auditoria_seguridad'\s*&& esAdministradorGlobal\(\);\s*\}/;
+
 test('el Administrador Global tiene un pase que ninguna regla puede negar', () => {
   // Dos bloques: el simple no alcanza a las subcolecciones.
+  const simple = REGLAS.slice(REGLAS.indexOf('match /{coleccion}/{documento} {'));
+  const profundo = REGLAS.slice(REGLAS.indexOf('match /{coleccion}/{documento}/{resto=**} {'));
+
+  assert.match(simple.slice('match /{coleccion}/{documento} '.length), new RegExp(`^${PASE.source}`));
   assert.match(
-    REGLAS,
-    /match \/\{coleccion\}\/\{documento\} \{\s*allow read, write: if coleccion != 'secretos_acceso' && esAdministradorGlobal\(\);\s*\}/
-  );
-  assert.match(
-    REGLAS,
-    /match \/\{coleccion\}\/\{documento\}\/\{resto=\*\*\} \{\s*allow read, write: if coleccion != 'secretos_acceso' && esAdministradorGlobal\(\);\s*\}/
+    profundo.slice('match /{coleccion}/{documento}/{resto=**} '.length),
+    new RegExp(`^${PASE.source}`)
   );
 });
 
@@ -38,8 +44,12 @@ test('las huellas de las contraseñas siguen sin abrirse para nadie', () => {
   // SIN CONEXION si se filtran. Ni el Administrador Global entra.
   assert.match(REGLAS, /match \/secretos_acceso\/\{idUsuario\} \{\s*allow read, write: if false;/);
 
-  const pases = REGLAS.match(/coleccion != 'secretos_acceso' && esAdministradorGlobal\(\)/g) || [];
-  assert.equal(pases.length, 2, 'los dos bloques del pase excluyen la coleccion');
+  const lecturas =
+    REGLAS.match(/allow read: if coleccion != 'secretos_acceso' && esAdministradorGlobal\(\)/g) || [];
+  const escrituras = REGLAS.match(/allow write: if coleccion != 'secretos_acceso'/g) || [];
+
+  assert.equal(lecturas.length, 2, 'los dos bloques del pase excluyen la coleccion al leer');
+  assert.equal(escrituras.length, 2, 'y al escribir');
 });
 
 test('se reconoce tambien a las cuentas anteriores al catalogo de cargos', () => {

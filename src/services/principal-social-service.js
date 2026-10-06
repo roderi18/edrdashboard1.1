@@ -11,14 +11,15 @@ import {
 } from 'firebase/firestore';
 
 import { getMembers } from 'src/services/member-service';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
 
 const COLECCIONES_SOCIALES = {
-  solicitudesAmistad: 'solicitudes_amistad',
-  amistades: 'amistades',
-  fotos: 'fotos',
+  solicitudesAmistad: COLECCIONES.solicitudesAmistad,
+  amistades: COLECCIONES.amistades,
+  fotos: COLECCIONES.fotos,
 };
 
 const ESTADO_PENDIENTE = 'pendiente';

@@ -3,6 +3,7 @@ import { doc, getDoc } from 'firebase/firestore';
 
 import { obtenerFotoPrincipal } from 'src/utils/firebase-photos';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -24,7 +25,7 @@ const fotosDePersona = new Map();
 const buscarFotoDeProducto = async (idProducto) => {
   if (fotosDeProducto.has(idProducto)) return fotosDeProducto.get(idProducto);
 
-  const promesa = getDoc(doc(FIRESTORE, 'productos', String(idProducto)))
+  const promesa = getDoc(doc(FIRESTORE, COLECCIONES.productos, String(idProducto)))
     .then((snap) => {
       const data = snap.exists() ? snap.data() : {};
       const imagenes = Array.isArray(data.imagenes) ? data.imagenes : [];
@@ -42,7 +43,7 @@ const buscarFotoDeProducto = async (idProducto) => {
 const buscarFotoDePersona = async (idCuenta) => {
   if (fotosDePersona.has(idCuenta)) return fotosDePersona.get(idCuenta);
 
-  const promesa = getDoc(doc(FIRESTORE, 'usuarios_roles', String(idCuenta)))
+  const promesa = getDoc(doc(FIRESTORE, COLECCIONES.usuariosRoles, String(idCuenta)))
     .then(async (snap) => {
       const idMiembros = snap.exists() ? snap.data()?.idMiembros : null;
 

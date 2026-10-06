@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getAdminDb } from 'src/server/firebase-admin';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 
 // ----------------------------------------------------------------------
 // Donde viven las huellas.
@@ -20,8 +21,8 @@ import { getAdminDb } from 'src/server/firebase-admin';
 // para que quien encuentre uno encuentre el otro sin buscar nada.
 // ----------------------------------------------------------------------
 
-const COLECCION = 'secretos_acceso';
-const COLECCION_PERFILES = 'usuarios_roles';
+const COLECCION = COLECCIONES.secretosAcceso;
+const COLECCION_PERFILES = COLECCIONES.usuariosRoles;
 
 const referencia = (id) => getAdminDb().collection(COLECCION).doc(String(id));
 
@@ -89,4 +90,55 @@ export const guardarSecretos = async (id, datos = {}) => {
       // tiene que verse: es justo lo que deja la huella expuesta.
       console.error('[secretos-acceso] no se pudo limpiar el perfil', error);
     });
+};
+
+/**
+ * Cuenta UN fallo contra el codigo de ese miembro, de forma atomica.
+ *
+ * Es una transaccion: antes se leia el contador, se sumaba uno y se escribia, asi
+ * que varias peticiones a la vez leian el mismo valor y contaban como una sola
+ * —diez intentos paralelos gastaban uno—. Al llegar a `maximo` el codigo se
+ * congela `bloqueoMs` y el contador vuelve a cero.
+ *
+ * `registroDeRespaldo` es el codigo que quien llama ya leyo (puede venir de la
+ * copia antigua en el perfil, que aun no esta en `secretos_acceso`).
+ */
+export const registrarFalloDeCodigo = async (
+  id,
+  { registroDeRespaldo = null, maximo, bloqueoMs } = {}
+) => {
+  if (!id) return { bloqueado: false };
+
+  const ref = referencia(id);
+
+  return getAdminDb().runTransaction(async (transaccion) => {
+    const documento = await transaccion.get(ref);
+    const registro = (documento.exists ? documento.data()?.codigoRestablecimiento : null) ?? registroDeRespaldo;
+
+    if (!registro) return { bloqueado: false };
+
+    const ahora = Date.now();
+    const congeladoHasta = registro.bloqueadoHasta ? new Date(registro.bloqueadoHasta).getTime() : 0;
+
+    // Ya congelado: no se cuenta nada mas.
+    if (congeladoHasta > ahora) return { bloqueado: true };
+
+    const intentos = Number(registro.intentos || 0) + 1;
+    const congelar = intentos >= maximo;
+
+    transaccion.set(
+      ref,
+      {
+        codigoRestablecimiento: {
+          ...registro,
+          intentos: congelar ? 0 : intentos,
+          bloqueadoHasta: congelar ? new Date(ahora + bloqueoMs).toISOString() : null,
+        },
+        actualizadoEn: new Date(ahora).toISOString(),
+      },
+      { merge: true }
+    );
+
+    return { bloqueado: congelar };
+  });
 };

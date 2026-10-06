@@ -1,14 +1,12 @@
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
 
-import { exigirSesionRest } from 'src/server/sesion-rest.mjs';
+import { exigirPermisoDeCargoRest } from 'src/server/sesion-rest.mjs';
 
 export async function POST(req) {
   try {
-    // Sin sesion no se crea un destacamento. QUIEN puede hacerlo depende de su
-    // seccion y su region —lo decide `canCreateDestInSection` en el navegador—, y
-    // esa comprobacion todavia no vive aqui: ver la nota al final del fichero.
-    const noAutorizado = await exigirSesionRest(req);
+    // Los cargos locales proponen el alta; la escritura efectiva es de Oficina Nacional.
+    const noAutorizado = await exigirPermisoDeCargoRest(req, ['organizacion.aprobar_cambios']);
 
     if (noAutorizado) return noAutorizado;
 

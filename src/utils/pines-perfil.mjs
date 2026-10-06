@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // PINES DEL PERFIL: CATÁLOGO, ORDEN Y ASIGNACIÓN.
 //
@@ -16,7 +18,6 @@
 //
 // Sin React ni Firebase, para probarlo con `node --test`.
 // ----------------------------------------------------------------------
-
 import {
   ordenarMedallas,
   moverMedallaEnOrden,
@@ -29,7 +30,7 @@ import {
 
 export const RUTA_PINES = '/insignias/pines';
 export const CARPETA_PINES = ['public', 'insignias', 'pines'];
-export const COLECCION_PINES_MIEMBROS = 'pines_miembros';
+export const COLECCION_PINES_MIEMBROS = COLECCIONES.pinesMiembros;
 // Junto al orden de cintas y medallas: la regla de `configuracion_cintas` ya lo cubre.
 export const DOCUMENTO_ORDEN_PINES = 'orden-pines';
 export const PINES_POR_FILA = 3;

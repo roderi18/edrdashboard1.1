@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // MEDALLAS DEL PERFIL: CATÁLOGO, ORDEN Y ASIGNACIÓN.
 //
@@ -14,12 +16,11 @@
 //
 // Sin React ni Firebase, para probarlo con `node --test`.
 // ----------------------------------------------------------------------
-
 import { normalizarVeces } from './cintas-perfil.mjs';
 
 export const RUTA_MEDALLAS = '/insignias/medallas';
 export const CARPETA_MEDALLAS = ['public', 'insignias', 'medallas'];
-export const COLECCION_MEDALLAS_MIEMBROS = 'medallas_miembros';
+export const COLECCION_MEDALLAS_MIEMBROS = COLECCIONES.medallasMiembros;
 // Mismo sitio que el orden de las cintas, otro documento: la regla ya existe.
 export const DOCUMENTO_ORDEN_MEDALLAS = 'orden-medallas';
 // Como mucho TRES en el perfil, en una sola fila justo debajo de las cintas y

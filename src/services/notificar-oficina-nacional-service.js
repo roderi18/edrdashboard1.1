@@ -9,6 +9,7 @@ import {
   TIPO_RECORDATORIO_CIERRE,
 } from 'src/utils/recordatorio-cierre-cuatrienio.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { ROLES } from 'src/auth/permissions/roles';
@@ -411,7 +412,7 @@ export async function recordarCierreDeCuatrienio({ usuario = {}, ahora = new Dat
 
   if (!recordatorio || !isFirebaseConfigured || !FIRESTORE) return null;
 
-  const existente = await getDoc(doc(FIRESTORE, 'notificaciones', recordatorio.id)).catch(
+  const existente = await getDoc(doc(FIRESTORE, COLECCIONES.notificaciones, recordatorio.id)).catch(
     () => null
   );
 

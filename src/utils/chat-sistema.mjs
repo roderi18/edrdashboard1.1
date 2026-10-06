@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // LA CUENTA "SISTEMA" DEL CHAT.
 //
@@ -30,7 +32,7 @@ export const CUENTA_SISTEMA = Object.freeze({
 // Donde queda constancia de cada envio: dia, hora, cuantos mensajes, a que
 // destacamento, a quienes y por que. Lo lee el Administrador Global en
 // Administracion → Notificaciones → "Chat Sistema"; lo escribe solo el servidor.
-export const COLECCION_REGISTRO_CHAT_SISTEMA = 'chat_sistema_registro';
+export const COLECCION_REGISTRO_CHAT_SISTEMA = COLECCIONES.registroChatSistema;
 
 // El error que devuelve el servidor si alguien intenta escribirle.
 export const CODIGO_CHAT_SOLO_LECTURA = 'CHAT_SISTEMA_SOLO_LECTURA';

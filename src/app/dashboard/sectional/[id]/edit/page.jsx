@@ -1,31 +1,8 @@
-import { CONFIG } from 'src/global-config';
-import { SECTIONALS } from 'src/_mock/assets';
+import { redirect } from 'next/navigation';
 
-import { SectionalEditView } from 'src/sections/sectional/view';
-
-
-// ----------------------------------------------------------------------
-
-export const metadata = { title: `Sectional edit | Dashboard - ${CONFIG.appName}` };
-
+// Conservar el enlace heredado, pero abrir el editor que consulta la sección
+// real en vez de depender de la lista de demostración.
 export default async function Page({ params }) {
   const { id } = await params;
-
-  const currentSectional = _sectionalList.find((sectional) => sectional.id === id);
-
-  return <SectionalEditView sectional={currentSectional} />;
+  redirect(`/dashboard/level/sectional/${encodeURIComponent(id)}/edit`);
 }
-
-// ----------------------------------------------------------------------
-
-/**
- * Static Exports in Next.js
- *
- * 1. Set `isStaticExport = true` in `next.config.{mjs|ts}`.
- * 2. This allows `generateStaticParams()` to pre-render dynamic routes at build time.
- *
- * For more details, see:
- * https://nextjs.org/docs/app/building-your-application/deploying/static-exports
- *
- * NOTE: Remove all "generateStaticParams()" functions if not using static exports.
- */

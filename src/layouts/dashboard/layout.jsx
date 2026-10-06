@@ -71,6 +71,7 @@ import { RoleCombinationPopover } from '../components/role-combination-popover';
 import { SesionComoUsuarioBanner } from '../components/sesion-como-usuario-banner';
 import { ProbarComoUsuarioDialog } from '../components/probar-como-usuario-dialog';
 import { MainSection, layoutClasses, HeaderSection, LayoutSection } from '../core';
+import { AvisoPermisosIncompletos } from '../components/aviso-permisos-incompletos';
 
 // La lista de chats y los contactos, precargados en segundo plano (ver el archivo).
 const PrecargaDelChat = dynamic(() => import('src/sections/chat/precarga-del-chat'), { ssr: false });
@@ -533,7 +534,12 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
     };
 
     const headerSlots = {
-      topArea: <SesionComoUsuarioBanner />,
+      topArea: (
+        <>
+          <SesionComoUsuarioBanner />
+          <AvisoPermisosIncompletos />
+        </>
+      ),
       bottomArea: isNavHorizontal ? (
         <NavHorizontal
           data={navData}

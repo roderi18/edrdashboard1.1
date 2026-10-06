@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // LA EVALUACIÓN DEL DESTACAMENTO.
 //
@@ -9,7 +11,7 @@
 // (`evaluaciones_destacamentos/{idDestacamento}`), como el estado Activo/Inactivo.
 // ----------------------------------------------------------------------
 
-export const COLECCION_EVALUACIONES_DESTACAMENTOS = 'evaluaciones_destacamentos';
+export const COLECCION_EVALUACIONES_DESTACAMENTOS = COLECCIONES.evaluacionesDestacamentos;
 
 export const EVALUACION_VACIA = Object.freeze({
   numeroEvaluacion: '',

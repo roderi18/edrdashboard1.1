@@ -1,6 +1,10 @@
 import { responderConEtag } from 'src/utils/respuesta-con-etag.mjs';
 import { normalizeApiResponse } from 'src/utils/normalize-api-response';
 import {
+  ACCIONES_DE_SEGURIDAD,
+  registrarEnLogDelServidor,
+} from 'src/utils/auditoria-seguridad.mjs';
+import {
   UPSTREAM_KEYS,
   fetchUpstreamText,
   invalidateUpstream,
@@ -8,6 +12,7 @@ import {
 } from 'src/utils/upstream-cache';
 
 import { getDivisions } from 'src/services/division-service';
+import { ipDelCliente } from 'src/server/ip-del-cliente.mjs';
 // Por REST y no con el Admin SDK a proposito: importar `firebase-admin` en esta
 // ruta la tumbaba entera en Netlify (500 al cargar el modulo, antes del
 // handler), y con ella la lista de miembros. Comprobar que hay sesion no
@@ -217,6 +222,24 @@ export async function GET(req) {
     }
 
     const visibles = permitidos ?? rows;
+
+    // QUIEN SE LLEVA EL PADRON. Es la lectura mas grande de datos personales de
+    // la aplicacion (menores incluidos) y no dejaba rastro. Solo en el log del
+    // servidor —se pide en cada carga de pantalla— y una vez cada diez minutos
+    // por cuenta. Si salio ENTERO por no poder acotarlo, se ve como advertencia.
+    registrarEnLogDelServidor(
+      req,
+      {
+        accion: ACCIONES_DE_SEGURIDAD.padronConsultado,
+        resultado: permitidos ? 'ok' : 'fallo',
+        actor: { uid: quien?.uid, correo: quien?.correo, rol: acceso?.rol },
+        detalle: { nivel, cantidad: visibles.length, completoSinAcotar: !permitidos },
+      },
+      {
+        ipDe: ipDelCliente,
+        repeticion: { clave: `padron:${quien?.uid}:${Boolean(permitidos)}`, ms: 10 * 60 * 1000 },
+      }
+    );
 
     // Con huella: si el padrón de esta cuenta no cambió, 304 y el navegador usa
     // su copia (privada: ver `respuesta-con-etag`).

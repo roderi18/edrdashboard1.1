@@ -1,5 +1,8 @@
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+import { verificarTokenDeSesion } from 'src/server/verificar-token';
 import { fijarClaimsConservandoClave } from 'src/server/claims-con-marca-de-clave';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 import { PERMISOS } from 'src/auth/permissions/permissions';
 import { PERMISOS_POR_ROL } from 'src/auth/permissions/role-permissions';
@@ -7,7 +10,7 @@ import { isKnownRole, deriveUserClaims } from 'src/auth/permissions/user-claims'
 
 export const runtime = 'nodejs';
 
-const COLECCION_USUARIOS_ROLES = 'usuarios_roles';
+const COLECCION_USUARIOS_ROLES = COLECCIONES.usuariosRoles;
 
 const jsonError = (message, status) => Response.json({ error: message }, { status });
 
@@ -69,16 +72,32 @@ export async function POST(req) {
 
   let caller;
   try {
-    caller = await auth.verifyIdToken(token);
+    caller = await verificarTokenDeSesion(token);
   } catch {
     return jsonError('Token inválido o expirado.', 401);
   }
 
   // 2) Autorizar al llamante: debe poder gestionar roles (por claims o por su
   //    asignación en Firestore, para no bloquear el bootstrap del primer admin).
+  // Quien aun no eligio su contraseña solo puede elegirla.
+  if (caller.debeCambiarClave === true) {
+    return jsonError('Crea tu contraseña antes de continuar.', 403);
+  }
+
   const callerAssignment = await leerAsignacion(db, caller.uid);
-  const callerRol = caller.rol || callerAssignment?.rolId || '';
+  // EL PERFIL MANDA, NO EL CLAIM. Los claims se quedan en la cuenta hasta que
+  // alguien los reescribe: a un administrador degradado en Firestore le seguia
+  // figurando `administrador_global` en el token y podia seguir gestionando
+  // roles. Es el mismo orden que `requireRole` y `identificarSolicitante`.
+  const callerRol = callerAssignment?.rolId || caller.rol || '';
   if (!puedeGestionarRoles(callerRol)) {
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.accesoDenegado,
+      resultado: 'denegado',
+      actor: { uid: caller.uid, rol: callerRol },
+      detalle: { motivo: 'sin_permiso_gestionar_roles' },
+    });
+
     return jsonError('No tienes permiso para gestionar roles.', 403);
   }
 
@@ -116,6 +135,13 @@ export async function POST(req) {
   });
   // Sin borrar `debeCambiarClave`: ver `claims-con-marca-de-clave.js`.
   await fijarClaimsConservandoClave(auth, authUid, claims);
+
+  await registrarEventoDeSeguridad(req, {
+    accion: ACCIONES_DE_SEGURIDAD.claimsFijados,
+    actor: { uid: caller.uid, rol: callerRol },
+    objetivo: { uid: authUid, idMiembros: asignacion.idMiembros ?? asignacion.memberId },
+    detalle: { rolId: asignacion.rolId },
+  });
 
   return Response.json({ ok: true, uid: authUid, claims });
 }

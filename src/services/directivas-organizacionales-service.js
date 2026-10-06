@@ -47,6 +47,7 @@ import {
   soloSugiereLaDirectivaDeUnaSeccion,
 } from 'src/utils/org-level-access';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { obtenerCargosApi } from 'src/services/cargos-api-service';
 import { tieneCasillaEnOrganigrama } from 'src/catalogs/directiva-diagrams';
@@ -115,11 +116,11 @@ const AMBITO_POR_NIVEL_DIRECTIVA = {
   [DIRECTIVA_LEVELS.destacamento]: AMBITOS_CAMBIO.directivaDestacamento,
 };
 
-export const COLECCION_POSICIONES_DIRECTIVA = 'posicionesDirectiva';
-export const COLECCION_CARGOS_DIRECTIVA_OBSOLETA = 'cargosDirectiva';
-export const COLECCION_DIRECTIVAS_ORGANIZACIONALES = 'directivasOrganizacionales';
-export const COLECCION_ASIGNACIONES_DIRECTIVA = 'asignacionesDirectiva';
-export const COLECCION_DISENOS_DIRECTIVA = 'disenosDirectiva';
+export const COLECCION_POSICIONES_DIRECTIVA = COLECCIONES.posicionesDirectiva;
+export const COLECCION_CARGOS_DIRECTIVA_OBSOLETA = COLECCIONES.cargosDirectiva;
+export const COLECCION_DIRECTIVAS_ORGANIZACIONALES = COLECCIONES.directivasOrganizacionales;
+export const COLECCION_ASIGNACIONES_DIRECTIVA = COLECCIONES.asignacionesDirectiva;
+export const COLECCION_DISENOS_DIRECTIVA = COLECCIONES.disenosDirectiva;
 
 // Los tres consejos de supervision son los mismos niveles excluyentes que ya
 // declara el catalogo: nacional, regional y seccional. La regla vive alli, aqui

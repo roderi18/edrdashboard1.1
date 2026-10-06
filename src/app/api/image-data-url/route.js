@@ -1,15 +1,23 @@
 export const runtime = 'nodejs';
 
+import { exigirSesionRest } from 'src/server/sesion-rest.mjs';
+
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 
-const isPrivateHost = (hostname) =>
-  /^127\./.test(hostname) ||
-  hostname === '::1' ||
-  hostname.startsWith('10.') ||
-  hostname.startsWith('192.168.') ||
-  /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+const ALLOWED_IMAGE_HOSTS = new Set([
+  'firebasestorage.googleapis.com',
+  'storage.googleapis.com',
+  'systexploradores.somee.com',
+  ...String(process.env.PDF_IMAGE_HOSTS || '')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean),
+]);
 
 export async function GET(req) {
+  const sinSesion = await exigirSesionRest(req);
+  if (sinSesion) return sinSesion;
+
   const { searchParams } = new URL(req.url);
   const rawUrl = searchParams.get('url');
 
@@ -25,15 +33,16 @@ export async function GET(req) {
     return Response.json({ message: 'La URL de la imagen no es valida.' }, { status: 400 });
   }
 
-  if (!['http:', 'https:'].includes(imageUrl.protocol) || isPrivateHost(imageUrl.hostname)) {
+  if (imageUrl.protocol !== 'https:' || !ALLOWED_IMAGE_HOSTS.has(imageUrl.hostname.toLowerCase())) {
     return Response.json({ message: 'La URL de la imagen no esta permitida.' }, { status: 400 });
   }
 
   try {
     const imageResponse = await fetch(imageUrl, {
       cache: 'no-store',
+      redirect: 'error',
       headers: {
-        Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        Accept: 'image/avif,image/webp,image/png,image/jpeg',
       },
     });
 
@@ -44,9 +53,9 @@ export async function GET(req) {
       );
     }
 
-    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+    const contentType = (imageResponse.headers.get('content-type') || '').split(';')[0].toLowerCase();
 
-    if (!contentType.startsWith('image/')) {
+    if (!['image/avif', 'image/webp', 'image/png', 'image/jpeg'].includes(contentType)) {
       return Response.json({ message: 'El archivo no es una imagen valida.' }, { status: 400 });
     }
 
@@ -59,16 +68,23 @@ export async function GET(req) {
       );
     }
 
-    const arrayBuffer = await imageResponse.arrayBuffer();
+    const reader = imageResponse.body?.getReader();
+    if (!reader) throw new Error('La imagen no tiene contenido legible.');
 
-    if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
-      return Response.json(
-        { message: 'La imagen es demasiado pesada para el PDF.' },
-        { status: 413 }
-      );
+    const chunks = [];
+    let bytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > MAX_IMAGE_BYTES) {
+        await reader.cancel();
+        return Response.json({ message: 'La imagen es demasiado pesada para el PDF.' }, { status: 413 });
+      }
+      chunks.push(value);
     }
 
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    const base64 = Buffer.concat(chunks).toString('base64');
 
     return Response.json({ dataUrl: `data:${contentType};base64,${base64}` });
   } catch (error) {

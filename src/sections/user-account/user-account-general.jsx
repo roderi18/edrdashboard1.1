@@ -1,5 +1,6 @@
 'use client';
 
+
 import * as z from 'zod';
 import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
@@ -36,6 +37,7 @@ import {
 import barriosData from 'src/data/barrios.json';
 import provinciasData from 'src/data/provincias.json';
 import municipiosData from 'src/data/municipios.json';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { guardarCorreoDeAcceso } from 'src/services/primer-acceso-service';
 import { getMembers, authHeaders, updateMemberApi } from 'src/services/member-service';
@@ -755,7 +757,7 @@ export function UserAccountGeneral() {
 
       if (isFirebaseConfigured && FIRESTORE) {
         await setDoc(
-          doc(FIRESTORE, 'usuarios_roles', String(memberId)),
+          doc(FIRESTORE, COLECCIONES.usuariosRoles, String(memberId)),
           {
             idMiembros: Number(memberId),
             codigoMiembro: payload.codigoMiembro,

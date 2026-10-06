@@ -1,10 +1,12 @@
 import 'server-only';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { crearCuentaSiFalta } from 'src/server/cuenta-de-miembro';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 import { leerSecretos, guardarSecretos } from 'src/server/secretos-acceso';
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
 import { puedeGestionarAMiembro } from 'src/server/alcance-gestion-miembros';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 import {
   nombreDeUsuario,
   marcarSolicitudesRecuperacionAtendidas,
@@ -35,7 +37,7 @@ export const runtime = 'nodejs';
 // codigo. Vence en un dia y muere al usarse.
 // ----------------------------------------------------------------------
 
-const COLECCION = 'usuarios_roles';
+const COLECCION = COLECCIONES.usuariosRoles;
 
 export async function POST(req) {
   try {
@@ -78,6 +80,16 @@ export async function POST(req) {
     if (!cuenta) {
       ({ cuenta, perfil } =
         (await crearCuentaSiFalta({ solicitante, idMiembros, codigoMiembro })) ?? {});
+
+      // `crearCuentaSiFalta` solo devuelve algo si la CREO: queda constancia.
+      if (cuenta) {
+        await registrarEventoDeSeguridad(req, {
+          accion: ACCIONES_DE_SEGURIDAD.cuentaCreada,
+          actor: solicitante,
+          objetivo: { uid: cuenta.uid, idMiembros, codigoMiembro },
+          detalle: { origen: 'codigo_restablecimiento' },
+        });
+      }
     }
 
     if (!cuenta) {
@@ -101,9 +113,13 @@ export async function POST(req) {
       // El motivo se queda aqui: a quien lo intenta se le contesta siempre lo
       // mismo, que distinguir "no es de los tuyos" de "manda mas que tu" es
       // dibujarle el organigrama a quien esta tanteando.
-      console.warn('[codigo-restablecimiento] intento fuera de alcance', {
-        solicitante: solicitante.uid,
-        motivo,
+      // El motivo SI queda en el registro, que solo lee el Administrador Global.
+      await registrarEventoDeSeguridad(req, {
+        accion: ACCIONES_DE_SEGURIDAD.codigoDenegado,
+        resultado: 'denegado',
+        actor: solicitante,
+        objetivo: { uid: cuenta.uid, idMiembros, codigoMiembro },
+        detalle: { motivo },
       });
 
       return Response.json(
@@ -134,6 +150,15 @@ export async function POST(req) {
       ),
       guardarSecretos(referencia.id, { codigoRestablecimiento: registro }),
     ]);
+
+    // Quien genero un codigo y para quien: con ese codigo se entra en la cuenta
+    // del otro, asi que es lo primero que hay que poder consultar.
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.codigoGenerado,
+      actor: solicitante,
+      objetivo: { uid: cuenta.uid, idMiembros, codigoMiembro },
+      detalle: { expiraEn },
+    });
 
     // Quien pidio ayuda ya la tiene: se cierra la solicitud para el OTRO
     // coordinador, que si no la ve abierta genera un segundo codigo y tumba

@@ -1,6 +1,12 @@
 import 'server-only';
 
+import { validarClaveNueva } from 'src/utils/validar-clave-nueva.mjs';
+
+import { limiteSuperado } from 'src/server/limite-intentos';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+import { olvidarEstadoDeCuenta } from 'src/server/verificar-token';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 import {
   claveYaUsada,
   CLAVES_RECORDADAS,
@@ -21,13 +27,16 @@ export const runtime = 'nodejs';
 // para cambiar la clave desde el navegador.
 // ----------------------------------------------------------------------
 
-const MINIMO = 6;
-
 export async function POST(req) {
   try {
     if (!isAdminConfigured()) {
       return Response.json({ error: 'El servidor no puede cambiar claves ahora mismo.' }, { status: 503 });
     }
+
+    // Contra quien prueba claves en bucle con una sesion robada.
+    const frenado = limiteSuperado(req, { grupo: 'clave-miembro', maximo: 10, ventanaMs: 60 * 1000 });
+
+    if (frenado) return frenado;
 
     const solicitante = await identificarSolicitante(req);
 
@@ -37,12 +46,12 @@ export async function POST(req) {
 
     const { clave } = await req.json();
     const claveNueva = String(clave ?? '');
+    const errorDeClave = validarClaveNueva(claveNueva, {
+      codigoMiembro: solicitante.codigoMiembro,
+    });
 
-    if (claveNueva.length < MINIMO) {
-      return Response.json(
-        { error: `La contraseña debe tener al menos ${MINIMO} caracteres.` },
-        { status: 400 }
-      );
+    if (errorDeClave) {
+      return Response.json({ error: errorDeClave }, { status: 400 });
     }
 
     // Solo la suya: el uid sale del token, no de lo que mande el navegador. No
@@ -72,6 +81,16 @@ export async function POST(req) {
     await getAdminAuth()
       .revokeRefreshTokens(solicitante.uid)
       .catch((error) => console.error('[clave-miembro] no se pudieron revocar las sesiones', error));
+    olvidarEstadoDeCuenta(solicitante.uid);
+
+    // Nueva contraseña y todas sus sesiones anteriores cerradas. La clave no se
+    // registra, ni su huella: solo que cambio, quien y si fue su primer acceso.
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.claveCambiada,
+      actor: solicitante,
+      objetivo: solicitante,
+      detalle: { primerAcceso: solicitante.debeCambiarClave === true, sesionesCerradas: true },
+    });
 
     // Ya tiene contraseña suya: se retira la marca y se tira el codigo del
     // Coordinador, que existia solo para llegar hasta aqui.
@@ -94,7 +113,7 @@ export async function POST(req) {
     // Solo si ya existe: uno creado aqui, con el cierre y nada mas, dejaria a la
     // sesion sin rol ni codigo de miembro.
     const porUid = await getAdminDb()
-      .collection('usuarios_roles')
+      .collection(COLECCIONES.usuariosRoles)
       .doc(String(solicitante.uid))
       .get();
 

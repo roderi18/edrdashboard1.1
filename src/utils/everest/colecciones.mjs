@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../../config/esquema-firestore.mjs';
+
 // ----------------------------------------------------------------------
 // DONDE GUARDA EXPEDITION DESIGNER.
 //
@@ -21,10 +23,10 @@
 // ----------------------------------------------------------------------
 
 export const COLECCIONES_EXPLORA = Object.freeze({
-  publicado: 'everest_publicado',
-  borradores: 'everest_borradores',
-  versiones: 'everest_versiones',
-  analiticas: 'everest_analiticas',
+  publicado: COLECCIONES.designerPublicado,
+  borradores: COLECCIONES.designerBorradores,
+  versiones: COLECCIONES.designerVersiones,
+  analiticas: COLECCIONES.designerAnaliticas,
 });
 
 /** Las pantallas que el Designer sabe editar. Por ahora, la portada. */

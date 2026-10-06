@@ -1,11 +1,13 @@
 import { UPSTREAM_KEYS, invalidateUpstream } from 'src/utils/upstream-cache';
 
-import { exigirSesionRest } from 'src/server/sesion-rest.mjs';
+import { exigirPermisoDeCargoRest } from 'src/server/sesion-rest.mjs';
 
 export async function POST(req) {
   try {
-    // Sin sesion no se crea una iglesia.
-    const noAutorizado = await exigirSesionRest(req);
+    const noAutorizado = await exigirPermisoDeCargoRest(req, [
+      'destacamentos.editar',
+      'organizacion.aprobar_cambios',
+    ]);
 
     if (noAutorizado) return noAutorizado;
 

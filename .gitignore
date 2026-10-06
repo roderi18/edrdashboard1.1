@@ -27,6 +27,7 @@ build
 .env.development.local
 .env.test.local
 .env.production.local
+.env.qa.local
 
 # misc
 .DS_Store

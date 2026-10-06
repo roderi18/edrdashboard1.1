@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { query, where, collection, onSnapshot } from 'firebase/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -23,7 +24,7 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 // el resumen del servidor, que no se ha quitado.
 // ----------------------------------------------------------------------
 
-const COLECCION_CONVERSACIONES = 'conversaciones_chat';
+const COLECCION_CONVERSACIONES = COLECCIONES.conversacionesChat;
 
 const noLeidosDe = (snapshot, idMiembros) => {
   const porConversacion = {};

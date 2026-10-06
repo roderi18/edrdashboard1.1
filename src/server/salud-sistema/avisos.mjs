@@ -1,3 +1,5 @@
+import { COLECCIONES } from '../../config/esquema-firestore.mjs';
+
 import { createChatMessageDocument } from '../chat-message-model.mjs';
 import { CUENTA_SISTEMA, participanteSistema } from '../../utils/chat-sistema.mjs';
 import {
@@ -20,8 +22,8 @@ import {
 // una tarea o la prueba a mano.
 // ----------------------------------------------------------------------
 
-const COLECCION_CONVERSACIONES = 'conversaciones_chat';
-const COLECCION_NOTIFICACIONES = 'notificaciones';
+const COLECCION_CONVERSACIONES = COLECCIONES.conversacionesChat;
+const COLECCION_NOTIFICACIONES = COLECCIONES.notificaciones;
 const ADMINISTRADOR_GLOBAL = 'administrador_global';
 
 const limpiar = (valor, max = 240) =>
@@ -37,9 +39,9 @@ const limpiar = (valor, max = 240) =>
  */
 export async function leerAdministradoresGlobales(db) {
   const [porRol, porCargos] = await Promise.all([
-    db.collection('usuarios_roles').where('rolId', '==', ADMINISTRADOR_GLOBAL).get(),
+    db.collection(COLECCIONES.usuariosRoles).where('rolId', '==', ADMINISTRADOR_GLOBAL).get(),
     db
-      .collection('usuarios_roles')
+      .collection(COLECCIONES.usuariosRoles)
       .where('rolesQueEjerce', 'array-contains', ADMINISTRADOR_GLOBAL)
       .get(),
   ]);
@@ -102,7 +104,7 @@ export async function escribirEnGrupoDeAdministradores({
   ahora = new Date().toISOString(),
 }) {
   const { referencia, datos } = await grupoDeAdministradores(db);
-  const referenciaMensaje = referencia.collection('mensajes').doc(idMensaje);
+  const referenciaMensaje = referencia.collection(COLECCIONES.mensajes).doc(idMensaje);
 
   if ((await referenciaMensaje.get()).exists)
     return { enviado: false, idConversacion: referencia.id };

@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 
 import { buildDefaultMemberPermissions } from 'src/utils/member-default-permissions';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { buscarMiembroPorId } from 'src/server/miembros-directorio';
 import { getAdminDb, getAdminAuth } from 'src/server/firebase-admin';
 import { resolverRolesPorAsignaciones } from 'src/catalogs/directiva-roles';
@@ -30,7 +31,7 @@ import {
 // entra la primera vez con el código de un solo uso.
 // ----------------------------------------------------------------------
 
-const COLECCION = 'usuarios_roles';
+const COLECCION = COLECCIONES.usuariosRoles;
 
 // Larga y aleatoria porque nadie la va a teclear: solo tiene que ser imposible
 // de adivinar mientras el miembro no elija la suya.
@@ -100,7 +101,7 @@ export async function crearCuentaDeMiembro({
 
   try {
     await Promise.all([
-      db.collection('users').doc(cuenta.uid).set(
+      db.collection(COLECCIONES.usuarios).doc(cuenta.uid).set(
         {
           uid: cuenta.uid,
           email: correo,

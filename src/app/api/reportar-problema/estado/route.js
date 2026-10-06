@@ -8,6 +8,7 @@ import {
   etiquetaEstadoReporte,
 } from 'src/utils/estado-reporte-problema.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
 export const runtime = 'nodejs';
@@ -27,8 +28,8 @@ const bearer = (request) =>
 
 const esAdministradorGlobal = async (db, uid) => {
   const [porId, porUid] = await Promise.all([
-    db.collection('usuarios_roles').doc(uid).get(),
-    db.collection('usuarios_roles').where('uid', '==', uid).limit(1).get(),
+    db.collection(COLECCIONES.usuariosRoles).doc(uid).get(),
+    db.collection(COLECCIONES.usuariosRoles).where('uid', '==', uid).limit(1).get(),
   ]);
   const perfil = porId.exists ? porId.data() : porUid.docs[0]?.data();
   if (!perfil) return null;
@@ -65,7 +66,7 @@ export async function POST(request) {
   const perfil = await esAdministradorGlobal(db, caller.uid);
   if (!perfil) return errorJson('Solo el Administrador Global cambia el estado de un reporte.', 403);
 
-  const reporteRef = db.collection('reportes_problemas').doc(idReporte);
+  const reporteRef = db.collection(COLECCIONES.reportesProblemas).doc(idReporte);
   const reporteSnap = await reporteRef.get();
   if (!reporteSnap.exists) return errorJson('Ese reporte no existe.', 404);
   const reporte = reporteSnap.data();
@@ -86,16 +87,16 @@ export async function POST(request) {
   if (reporte.idConversacion) {
     batch.set(
       db
-        .collection('conversaciones_chat')
+        .collection(COLECCIONES.conversacionesChat)
         .doc(reporte.idConversacion)
-        .collection('mensajes')
+        .collection(COLECCIONES.mensajes)
         .doc(`reporte_${idReporte}`),
       { metadatos: { reporteProblema: cambio } },
       { merge: true }
     );
   }
   batch.set(
-    db.collection('notificaciones').doc(`reporte_problema_${idReporte}`),
+    db.collection(COLECCIONES.notificaciones).doc(`reporte_problema_${idReporte}`),
     { metadatos: { reporteProblema: cambio }, actualizadoEnServidor: FieldValue.serverTimestamp() },
     { merge: true }
   );
@@ -106,7 +107,7 @@ export async function POST(request) {
       estado === ESTADOS_REPORTE.resuelto
         ? 'Tu reporte de problema fue resuelto. ¡Gracias por avisar!'
         : 'Estamos trabajando en tu reporte de problema.';
-    const avisoRef = db.collection('notificaciones').doc(`reporte_problema_${idReporte}_${estado}`);
+    const avisoRef = db.collection(COLECCIONES.notificaciones).doc(`reporte_problema_${idReporte}_${estado}`);
     batch.set(avisoRef, {
       id: avisoRef.id,
       tipoNotificacion: 'reporte_problema_estado',

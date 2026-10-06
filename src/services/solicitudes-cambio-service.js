@@ -16,6 +16,7 @@ import {
   requiereRevisionDeAdministradorGlobal,
 } from 'src/utils/org-level-access';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 import { registrarAuditoriaSistema } from './audit-log-service';
@@ -49,7 +50,7 @@ import {
 // gestiona su Coordinador, como hasta ahora.
 // ----------------------------------------------------------------------
 
-export const COLECCION_SOLICITUDES_CAMBIO = 'solicitudes_cambio';
+export const COLECCION_SOLICITUDES_CAMBIO = COLECCIONES.solicitudesCambio;
 
 export const AMBITOS_CAMBIO = {
   destacamento: 'destacamento',

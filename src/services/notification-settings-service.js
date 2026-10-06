@@ -10,6 +10,7 @@ import {
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { registrarAuditoriaSilenciosa } from 'src/services/audit-log-service';
 
@@ -67,9 +68,9 @@ async function listarConfiguracionNotificacionesSinCache() {
       getDocs(collection(FIRESTORE, COLECCIONES_NOTIFICACIONES.tipos)),
       getDocs(collection(FIRESTORE, COLECCIONES_NOTIFICACIONES.plantillas)),
       getDocs(collection(FIRESTORE, COLECCIONES_NOTIFICACIONES.preferencias)),
-      getDocs(collection(FIRESTORE, 'admins')).catch(() => ({ docs: [] })),
-      getDocs(collection(FIRESTORE, 'users')).catch(() => ({ docs: [] })),
-      getDocs(collection(FIRESTORE, 'usuarios_roles')).catch(() => ({ docs: [] })),
+      getDocs(collection(FIRESTORE, COLECCIONES.administradores)).catch(() => ({ docs: [] })),
+      getDocs(collection(FIRESTORE, COLECCIONES.usuarios)).catch(() => ({ docs: [] })),
+      getDocs(collection(FIRESTORE, COLECCIONES.usuariosRoles)).catch(() => ({ docs: [] })),
     ]);
 
   const destinatariosMap = new Map();

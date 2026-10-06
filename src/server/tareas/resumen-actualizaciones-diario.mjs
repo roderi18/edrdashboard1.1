@@ -2,6 +2,8 @@ import webpush from 'web-push';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
+import { COLECCIONES } from '../../config/esquema-firestore.mjs';
+
 import { COLECCION_NOTIFICACIONES } from '../cumpleanos-core.mjs';
 import { WEB_PUSH_VAPID_PUBLIC_KEY } from '../../utils/web-push-key.js';
 import { OPCIONES_ENVIO_PUSH } from '../../utils/web-push-opciones.mjs';
@@ -26,7 +28,7 @@ import {
 // ----------------------------------------------------------------------
 
 
-const COLECCION_SUSCRIPCIONES_PUSH = 'web_push_subscriptions';
+const COLECCION_SUSCRIPCIONES_PUSH = COLECCIONES.suscripcionesWebPush;
 const TAMANO_GRUPO_PUSH = 30;
 
 // Mismo arranque que `cumpleanos-diarios.mjs`: así se puede probar fuera de

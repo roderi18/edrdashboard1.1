@@ -7,6 +7,7 @@ import { isAdminConfigured } from 'src/server/firebase-admin';
 import { pedirAyudaAlCoordinador } from 'src/server/coordinadores-recuperacion';
 import { datosMinimosDeMiembro, buscarMiembroPorNumero } from 'src/server/miembros-directorio';
 import { buscarCuentaMiembro, buscarPerfilesPorNumeroMiembro } from 'src/server/claves-miembro';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 export const runtime = 'nodejs';
 
@@ -97,6 +98,14 @@ export async function POST(req) {
         numeroUsuario: numero,
       });
 
+      // Llega sin sesion: no hay actor, pero si el numero, la IP y a cuantos se
+      // les aviso. Asi se ve si alguien llena el panel de los coordinadores.
+      await registrarEventoDeSeguridad(req, {
+        accion: ACCIONES_DE_SEGURIDAD.ayudaCoordinadorSolicitada,
+        resultado: enviadas ? 'ok' : 'fallo',
+        detalle: { numero, enviadas: Number(enviadas || 0), motivo: motivo ?? null },
+      });
+
       return Response.json({
         enviadas,
         coordinadores,
@@ -104,7 +113,17 @@ export async function POST(req) {
       });
     }
 
-    return Response.json(await resolverEnlace(numero));
+    const enlace = await resolverEnlace(numero);
+
+    // A quien se le iba a mandar el enlace, pedido sin sesion: si alguien recorre
+    // numeros por aqui, se ve.
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.recuperacionConsultada,
+      resultado: enlace?.puedeEnviar ? 'ok' : 'fallo',
+      detalle: { numero, puedeEnviar: Boolean(enlace?.puedeEnviar) },
+    });
+
+    return Response.json(enlace);
   } catch (error) {
     console.error('[recuperacion] no se pudo atender', error);
 

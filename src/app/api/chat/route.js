@@ -18,6 +18,7 @@ import { COLECCIONES_NOTIFICACIONES } from 'src/utils/firebase-notificaciones';
 import { contactoDeBuzon, esBuzonCompartido, buzonPorIdMiembros } from 'src/utils/chat-buzones.mjs';
 
 import { enviarPushAUsuarios } from 'src/server/web-push';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 import { getAdminDb, isAdminConfigured } from 'src/server/firebase-admin';
 import { deleteChatStorageObjects } from 'src/server/chat-storage-rest.mjs';
@@ -98,10 +99,14 @@ import {
 
 export const runtime = 'nodejs';
 
-const COLECCION_CONVERSACIONES = 'conversaciones_chat';
+const COLECCION_CONVERSACIONES = COLECCIONES.conversacionesChat;
 const SUBCOLECCION_MENSAJES = 'mensajes';
-const COLECCIONES_USUARIOS = ['users', 'usuarios_roles', 'admins'];
-const COLECCION_FOTOS = 'fotos';
+const COLECCIONES_USUARIOS = [
+  COLECCIONES.usuarios,
+  COLECCIONES.usuariosRoles,
+  COLECCIONES.administradores,
+];
+const COLECCION_FOTOS = COLECCIONES.fotos;
 const MEMBER_PHOTO_CACHE_TTL_MS = 5 * 60_000;
 const memberPhotoCache = new Map();
 

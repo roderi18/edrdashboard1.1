@@ -19,6 +19,7 @@ import {
 } from 'src/utils/org-level-access';
 
 import { getMembers } from 'src/services/member-service';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 export { buildDefaultMemberPermissions };
@@ -105,7 +106,7 @@ const getActiveMemberPhotoUrl = async (idMiembros) => {
     return '';
   }
 
-  const snapshot = await getDoc(doc(FIRESTORE, 'fotos', `miembro_${memberId}_perfil`)).catch(
+  const snapshot = await getDoc(doc(FIRESTORE, COLECCIONES.fotos, `miembro_${memberId}_perfil`)).catch(
     () => null
   );
 
@@ -768,7 +769,7 @@ const syncRoleProfileByAuthUid = async ({
   );
 
   await setDoc(
-    doc(FIRESTORE, 'usuarios_roles', authUid),
+    doc(FIRESTORE, COLECCIONES.usuariosRoles, authUid),
     {
       ...perfilSinClaves,
       uid: authUid,
@@ -2784,7 +2785,7 @@ export const loadMemberAccessProfile = async (authUser) => {
         }
 
         const profileQuery = query(
-          collection(FIRESTORE, 'usuarios_roles'),
+          collection(FIRESTORE, COLECCIONES.usuariosRoles),
           where('idMiembros', '==', memberId),
           limit(1)
         );

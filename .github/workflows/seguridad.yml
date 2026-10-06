@@ -1,0 +1,105 @@
+name: Seguridad
+
+# Escaneos del checklist de Desarrollo/QA/Produccion: SAST (Semgrep), secretos
+# (Gitleaks), dependencias (npm audit) e inventario (SBOM CycloneDX). Nada de
+# esto se instala en la aplicacion ni corre en produccion: solo revisa el codigo
+# en la maquina de GitHub. Todo gratis.
+#
+# FASE 1 — SOLO INFORMAN. La primera pasada encuentra lo que ya habia; si
+# bloqueara, no pasaria ningun PR. Cada informe queda como artefacto del run y
+# en el resumen. FASE 2 (cuando se haya revisado lo encontrado): quitar
+# `continue-on-error` y, en Semgrep, añadir `--severity ERROR --error` para que
+# solo lo grave bloquee. Detalle en docs/ci-y-seguridad.md.
+
+on:
+  pull_request:
+    branches: [development, qa, main]
+  push:
+    branches: [development, qa, main]
+  schedule:
+    # Lunes 06:00 UTC: las CVE nuevas salen aunque nadie toque el codigo.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seguridad-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Semgrep (informa)
+        continue-on-error: true
+        run: |
+          semgrep scan --metrics=off \
+            --config p/javascript --config p/react --config p/nextjs \
+            --config p/nodejsscan --config p/owasp-top-ten \
+            --json --output semgrep.json \
+            --text --text-output semgrep.txt
+          {
+            echo '## Semgrep'
+            echo '```'
+            tail -n 60 semgrep.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep
+          path: |
+            semgrep.json
+            semgrep.txt
+          if-no-files-found: ignore
+
+  gitleaks:
+    name: Secretos (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Todo el historial: una clave borrada en un commit viejo sigue filtrada.
+          fetch-depth: 0
+
+      - name: Gitleaks (informa)
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependencias:
+    name: Dependencias (npm audit + SBOM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: npm audit altas y criticas (informa)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: SBOM CycloneDX
+        run: npx --yes @cyclonedx/cyclonedx-npm --omit dev --output-file sbom.cdx.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cdx.json

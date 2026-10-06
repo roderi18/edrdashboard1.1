@@ -36,7 +36,9 @@ test('el destacamento elegido se guarda en su perfil y se recupera', () => {
   assert.ok(vista.includes('guardarDestacamentoDeAsistencia(user.uid, idDestacamento)'));
   assert.ok(vista.includes('obtenerDestacamentoDeAsistencia(user.uid)'));
   assert.ok(
-    servicio.includes("export const COLECCION_PREFERENCIAS_USUARIOS = 'preferencias_usuarios';")
+    /export const COLECCION_PREFERENCIAS_USUARIOS = (?:'preferencias_usuarios'|COLECCIONES\.preferenciasUsuarios);/.test(
+      servicio
+    )
   );
   assert.ok(servicio.includes('asistencia: { idDestacamento: String(idDestacamento) }'));
 });

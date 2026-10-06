@@ -4,6 +4,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 import { sanearChequeoSalud } from 'src/utils/salud-sistema.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { avisarDeLaSalud } from 'src/server/salud-sistema/avisos.mjs';
 import { getAdminDb, getAdminAuth, isAdminConfigured } from 'src/server/firebase-admin';
 
@@ -31,7 +32,7 @@ const bearer = (request) =>
 const esAdministradorGlobal = async (db, token) => {
   if (token.rol === ADMINISTRADOR_GLOBAL) return true;
 
-  const perfil = (await db.collection('usuarios_roles').doc(token.uid).get()).data() || {};
+  const perfil = (await db.collection(COLECCIONES.usuariosRoles).doc(token.uid).get()).data() || {};
 
   return (
     perfil.rolId === ADMINISTRADOR_GLOBAL ||

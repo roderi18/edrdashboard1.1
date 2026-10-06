@@ -1,11 +1,13 @@
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+
 // Catalogo canonico de permisos. Los codigos se guardan en Firebase en espanol.
 
 export const COLECCIONES_AUTORIZACION = {
-  permisos: 'permisos',
-  roles: 'roles',
-  usuariosRoles: 'usuarios_roles',
-  solicitudesPermiso: 'solicitudes_permiso',
-  auditoriaPermisos: 'auditoria_permisos',
+  permisos: COLECCIONES.permisos,
+  roles: COLECCIONES.roles,
+  usuariosRoles: COLECCIONES.usuariosRoles,
+  solicitudesPermiso: COLECCIONES.solicitudesPermiso,
+  auditoriaPermisos: COLECCIONES.auditoriaPermisos,
 };
 
 export const PERMISOS = {

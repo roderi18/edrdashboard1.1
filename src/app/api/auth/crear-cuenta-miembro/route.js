@@ -4,6 +4,7 @@ import { limiteSuperado } from 'src/server/limite-intentos';
 import { isAdminConfigured } from 'src/server/firebase-admin';
 import { CuentaYaExiste, crearCuentaDeMiembro } from 'src/server/cuenta-de-miembro';
 import { normalizarCodigo, identificarSolicitante } from 'src/server/claves-miembro';
+import { ACCIONES_DE_SEGURIDAD, registrarEventoDeSeguridad } from 'src/server/auditoria-seguridad';
 
 export const runtime = 'nodejs';
 
@@ -47,6 +48,13 @@ export async function POST(req) {
     }
 
     if (!solicitante.puedeCrearMiembros) {
+      await registrarEventoDeSeguridad(req, {
+        accion: ACCIONES_DE_SEGURIDAD.accesoDenegado,
+        resultado: 'denegado',
+        actor: solicitante,
+        detalle: { motivo: 'sin_permiso_crear_cuentas' },
+      });
+
       return Response.json({ error: 'Tu rol no puede crear cuentas de acceso.' }, { status: 403 });
     }
 
@@ -75,6 +83,13 @@ export async function POST(req) {
 
       throw error;
     }
+
+    await registrarEventoDeSeguridad(req, {
+      accion: ACCIONES_DE_SEGURIDAD.cuentaCreada,
+      actor: solicitante,
+      objetivo: { uid: creada.cuenta.uid, idMiembros: memberId, codigoMiembro },
+      detalle: { origen: 'alta_de_miembro', destacamento: destId ?? null },
+    });
 
     // La contraseña NO sale de aqui, a proposito.
     return Response.json({

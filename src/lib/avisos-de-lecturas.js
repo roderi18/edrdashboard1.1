@@ -1,10 +1,12 @@
 'use client';
 
+
 import { useState, useEffect } from 'react';
 import { doc, setDoc, increment, onSnapshot, serverTimestamp } from 'firebase/firestore';
 
 import { invalidarLecturas, registrarAvisador } from 'src/utils/cache-de-lecturas.mjs';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -28,7 +30,7 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 // cada pantalla se sigue poniendo al día al visitarla, como antes.
 // ----------------------------------------------------------------------
 
-const COLECCION = 'versiones_lecturas';
+const COLECCION = COLECCIONES.versionesLecturas;
 const DOCUMENTO = 'general';
 const ESPERA_PARA_JUNTAR_MS = 1500;
 const EVENTO = 'edr-lecturas-cambiadas';

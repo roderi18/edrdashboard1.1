@@ -1,6 +1,7 @@
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 import { FIRESTORE } from 'src/lib/firebase';
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 
 // ----------------------------------------------------------------------
 // EL BRAZO QUE APLICA los sonidos de aviso.
@@ -10,7 +11,7 @@ import { FIRESTORE } from 'src/lib/firebase';
 // puerta paralela; la regla de ESLint mira la sintaxis y no puede distinguirlo.
 // ----------------------------------------------------------------------
 
-export const COLECCION_SONIDOS = 'configuracion_sonidos';
+export const COLECCION_SONIDOS = COLECCIONES.configuracionSonidos;
 export const DOCUMENTO_SONIDOS = 'avisos';
 
 export const referenciaDeLosSonidos = () => doc(FIRESTORE, COLECCION_SONIDOS, DOCUMENTO_SONIDOS);

@@ -1,0 +1,31 @@
+# Entorno QA (backend `expedition-qa`, proyecto `systexploradores-qa`, rama `qa`).
+# App Hosting combina este archivo con `apphosting.yaml` cuando el "nombre de
+# entorno" del backend es `qa`: aqui va SOLO lo que cambia.
+#
+# Sin este archivo, QA se compilaba con la configuracion de produccion
+# (`apphosting.yaml`) y leia y escribia los datos reales de `systexploradores`.
+#
+# Nada de esto es secreto: la configuracion web de Firebase y la clave publica
+# VAPID viajan en el JS del navegador. Los secretos (cuenta de servicio, clave
+# privada VAPID, secreto de tareas) estan en Secret Manager de este proyecto.
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyC4dkKYcICTIotPylaBA8hrVTLmsOZsKq0
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: systexploradores-qa.firebaseapp.com
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: systexploradores-qa
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: systexploradores-qa.firebasestorage.app
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: '63685419528'
+  - variable: NEXT_PUBLIC_FIREBASE_APPID
+    value: 1:63685419528:web:25b1e72b19797b1a86e7bd
+  # Pareja de WEB_PUSH_VAPID_PRIVATE_KEY de este proyecto (ver src/utils/web-push-key.js).
+  - variable: NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY
+    value: BDFYhvGwlAO31QdDGP06FT2XhMg3d-QcqyVFFuFUsWj3LiYvJpS8CXGR7iOCldxlU6enWZ4K58lLpK8byse-l0U
+  - variable: WEB_PUSH_VAPID_SUBJECT
+    value: https://expedition-qa--systexploradores-qa.us-central1.hosted.app
+    availability:
+      - RUNTIME

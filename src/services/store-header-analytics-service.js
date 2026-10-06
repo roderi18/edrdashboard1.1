@@ -1,5 +1,6 @@
 import { doc, setDoc, getDocs, increment, collection, serverTimestamp } from 'firebase/firestore';
 
+import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
 import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 
 // ----------------------------------------------------------------------
@@ -17,7 +18,7 @@ import { FIRESTORE, isFirebaseConfigured } from 'src/lib/firebase';
 // pasa en esa pantalla: si la escritura no sale, la portada se ve igual.
 // ----------------------------------------------------------------------
 
-export const COLECCION_ANALITICAS_ENCABEZADO = 'analiticas_encabezado_tienda';
+export const COLECCION_ANALITICAS_ENCABEZADO = COLECCIONES.analiticasEncabezadoTienda;
 
 const referencia = (idElemento) =>
   doc(FIRESTORE, COLECCION_ANALITICAS_ENCABEZADO, String(idElemento));
