@@ -41,3 +41,19 @@ Semgrep, añadir `--severity ERROR --error` para que solo lo grave bloquee.
 `.gitleaks.toml` solo deja pasar las tres claves `AIza…` de `apphosting*.yaml`:
 son la configuración pública de Firebase, no secretos. Una clave nueva no se
 añade sin confirmar que es pública.
+
+## Estado de dependencias (06/10/2026)
+
+`npm audit --omit=dev`: de 50 (4 críticas, 19 altas) a 2 moderadas.
+
+- `npm audit fix` sin `--force` (incluye `next`, `axios`, `@fastify/busboy`…).
+- `maplibre-gl` 5 → 6 (mapa de contacto y ejemplos).
+- `pdfjs-dist` 5 → 6: **su worker se copia a mano** a `public/app/pdf.worker.min.mjs`
+  (`cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/app/`); si la
+  versión del worker no coincide con la librería, la lectura de PDF de
+  Certificados falla.
+- `xlsx` 0.18.5 → 0.20.3 desde `cdn.sheetjs.com`: SheetJS dejó de publicar en
+  npm y la versión de npm tiene CVE sin arreglo.
+- `overrides` de `@grpc/grpc-js` ≥ 1.14.5 para `@firebase/firestore` (traía 1.9.16
+  vulnerable; `npm audit` proponía bajar Firebase a la v9).
+- Pendientes, moderadas: `exceljs` → `uuid` (el arreglo es versión mayor de exceljs).
