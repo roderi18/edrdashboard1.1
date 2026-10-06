@@ -87,7 +87,12 @@ const resolveTabValue = (pathname) => {
   return exactTab?.href || nestedTab?.href || paths.dashboard.admin.root;
 };
 
-export function AdminTabsLayout({ action = null, children, ...other }) {
+// Administración vuelve a su ancho de siempre (1200 px, el 'lg' de MUI). El tope
+// compacto de 800 px de `DashboardContent` dejaba la tabla de administradores
+// apretada, con los roles partidos en cuatro líneas.
+const ANCHO_ADMINISTRACION_PX = 1200;
+
+export function AdminTabsLayout({ action = null, children, sx, ...other }) {
   const tabsRef = useRef(null);
   const pathname = usePathname();
   const tabValue = resolveTabValue(pathname);
@@ -125,7 +130,10 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
   // anada manana nace protegida, sin que nadie tenga que acordarse.
   if (!puedeEntrar) {
     return (
-      <DashboardContent {...other}>
+      <DashboardContent
+        sx={[{ maxWidth: ANCHO_ADMINISTRACION_PX }, ...(Array.isArray(sx) ? sx : [sx])]}
+        {...other}
+      >
         <CustomBreadcrumbs
           heading="Administradores"
           links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Administradores' }]}
@@ -139,7 +147,10 @@ export function AdminTabsLayout({ action = null, children, ...other }) {
   }
 
   return (
-    <DashboardContent {...other}>
+    <DashboardContent
+      sx={[{ maxWidth: ANCHO_ADMINISTRACION_PX }, ...(Array.isArray(sx) ? sx : [sx])]}
+      {...other}
+    >
       <CustomBreadcrumbs
         heading="Administradores"
         links={[{ name: 'Panel', href: paths.dashboard.root }, { name: 'Administradores' }]}
