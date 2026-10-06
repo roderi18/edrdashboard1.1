@@ -14,7 +14,7 @@ import { layoutClasses } from '../core';
 // Tope del diseño compacto para las pantallas que no piden otro ancho. El 'lg'
 // de MUI son 1200 px; se pidió 1100 px, y Container solo acepta los puntos de
 // corte del tema, así que el tope va por `sx`.
-const ANCHO_COMPACTO_PX = 800;
+const ANCHO_COMPACTO_PX = 1100;
 
 export function DashboardContent({
   sx,
