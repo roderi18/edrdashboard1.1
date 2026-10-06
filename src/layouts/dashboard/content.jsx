@@ -11,6 +11,11 @@ import { layoutClasses } from '../core';
 
 // ----------------------------------------------------------------------
 
+// Tope del diseño compacto para las pantallas que no piden otro ancho. El 'lg'
+// de MUI son 1200 px; se pidió 1100 px, y Container solo acepta los puntos de
+// corte del tema, así que el tope va por `sx`.
+const ANCHO_COMPACTO_PX = 800;
+
 export function DashboardContent({
   sx,
   children,
@@ -24,15 +29,18 @@ export function DashboardContent({
 
   const isNavHorizontal = settings.state.navLayout === 'horizontal';
 
+  const topeCompacto = settings.state.compactLayout && maxWidth === 'lg';
+
   return (
     <Container
       className={mergeClasses([layoutClasses.content, className])}
-      maxWidth={settings.state.compactLayout ? maxWidth : false}
+      maxWidth={settings.state.compactLayout && !topeCompacto ? maxWidth : false}
       sx={[
         (theme) => ({
           display: 'flex',
           flex: '1 1 auto',
           flexDirection: 'column',
+          ...(topeCompacto && { maxWidth: ANCHO_COMPACTO_PX }),
           pt: 'var(--layout-dashboard-content-pt)',
           pb: 'var(--layout-dashboard-content-pb)',
           [theme.breakpoints.up(layoutQuery)]: {

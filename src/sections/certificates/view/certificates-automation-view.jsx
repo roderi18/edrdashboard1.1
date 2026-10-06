@@ -1,10 +1,10 @@
-﻿'use client';
+'use client';
 
 import 'dayjs/locale/es';
 
 import dayjs from 'dayjs';
 import QRCode from 'qrcode';
-import { useRef, useMemo, useState, useEffect } from 'react';
+import { memo, useRef, useMemo, useState, useEffect, useCallback, useDeferredValue } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -38,8 +38,11 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
 
+import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { getMembers } from 'src/services/member-service';
+import { getChurches } from 'src/services/church-service';
+import { getSectionals } from 'src/services/sectional-service';
 import {
   listarLotesCertificados,
   guardarLoteCertificados,
@@ -54,7 +57,6 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { FilasDeListaCargando } from 'src/components/pantalla-cargando';
 
 import { AwardsPathSelector } from 'src/sections/member/awards/components/awards-path-selector';
@@ -506,6 +508,89 @@ function CertificateStatusSelect({ value, disabled, onChange }) {
 
 // ----------------------------------------------------------------------
 
+// Fila memorizada: antes cada tecla en "Instructor", la fecha o el buscador, y
+// cada casilla marcada, volvían a pintar TODA la tabla de miembros (y cada fila
+// buscaba en la lista de seleccionados), y se notaba el retraso al escribir.
+// Ahora solo se repinta la fila que cambia.
+const FilaDeMiembro = memo(function FilaDeMiembro({
+  member,
+  checked,
+  certificateStatus,
+  church,
+  onToggle,
+  onChangeStatus,
+}) {
+  const memberId = String(member.id);
+
+  return (
+    <TableRow
+      hover
+      selected={checked}
+      sx={{ cursor: 'pointer' }}
+      onClick={() => onToggle(memberId)}
+    >
+      <TableCell padding="checkbox" sx={{ width: 52 }}>
+        <Checkbox
+          checked={checked}
+          onClick={(event) => event.stopPropagation()}
+          onChange={() => onToggle(memberId)}
+        />
+      </TableCell>
+      <TableCell sx={{ minWidth: 0 }}>
+        <Typography
+          noWrap
+          variant="subtitle2"
+          sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+        >
+          {getMemberFullName(member) || 'Sin nombre'}
+        </Typography>
+        <Typography
+          noWrap
+          variant="caption"
+          sx={{
+            display: 'block',
+            color: 'text.secondary',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {member.memberId || member.codigoMiembro || '-'}
+        </Typography>
+      </TableCell>
+      <TableCell sx={{ minWidth: 0 }}>
+        <Typography noWrap variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {church?.sectionalName || '-'}
+        </Typography>
+        <Typography
+          noWrap
+          variant="caption"
+          sx={{
+            display: 'block',
+            color: 'text.secondary',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {church?.name || '-'}
+        </Typography>
+      </TableCell>
+      <TableCell sx={{ minWidth: 0 }}>
+        <Typography noWrap variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {member.memberDivision || '-'}
+        </Typography>
+      </TableCell>
+      <TableCell sx={{ width: 132 }}>
+        <CertificateStatusSelect
+          value={certificateStatus}
+          onChange={(status) => onChangeStatus(member, status)}
+        />
+      </TableCell>
+    </TableRow>
+  );
+});
+
+// ----------------------------------------------------------------------
+
 // El documento (y con él `@react-pdf/renderer`, cerca de medio megabyte) se trae
 // al generar o descargar, no al abrir Certificados.
 const generarPdfDeCertificados = async (props) => {
@@ -514,6 +599,12 @@ const generarPdfDeCertificados = async (props) => {
   return generarPdfDeCertificadosDocumento(props);
 };
 
+// Ancho máximo de esta pantalla en monitores grandes (en píxeles). Es el único
+// número que hay que tocar; no depende del ajuste general del dashboard.
+const ANCHO_DE_PANTALLA_PX = 1600;
+// La pestaña "Importar certificado" lleva el editor y la vista previa lado a lado.
+const ANCHO_DE_IMPORTAR_PX = Math.max(ANCHO_DE_PANTALLA_PX, 1200);
+
 export function CertificatesAutomationView() {
   const { user } = useAuthContext();
   const templatePreviewRef = useRef(null);
@@ -521,16 +612,19 @@ export function CertificatesAutomationView() {
   const [members, setMembers] = useState([]);
   const [currentTab, setCurrentTab] = useState('create');
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [churchById, setChurchById] = useState({});
   const [search, setSearch] = useState('');
   const [courseId, setCourseId] = useState(DEFAULT_COURSE.id);
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
   const [certificateStatuses, setCertificateStatuses] = useState({});
   const [formValues, setFormValues] = useState(DEFAULT_FORM);
   const [createdBatches, setCreatedBatches] = useState([]);
+  // Mientras llegan los lotes se pinta un esqueleto: antes se veia "Todavia no
+  // hay certificados creados" y "0 lotes" aunque los hubiera.
+  const [loadingBatches, setLoadingBatches] = useState(true);
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [certificateMenuAnchor, setCertificateMenuAnchor] = useState(null);
   const [certificateActionMode, setCertificateActionMode] = useState('');
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [deleteTemplateConfirmOpen, setDeleteTemplateConfirmOpen] = useState(false);
   const [duplicateRouteConfirmOpen, setDuplicateRouteConfirmOpen] = useState(false);
   const [duplicateRouteTemplate, setDuplicateRouteTemplate] = useState(null);
@@ -642,6 +736,8 @@ export function CertificatesAutomationView() {
         setSelectedTemplateId('');
         setCreatedBatches([]);
         toast.error(error?.message || 'No se pudieron cargar los certificados desde Firebase.');
+      } finally {
+        setLoadingBatches(false);
       }
     };
 
@@ -663,6 +759,45 @@ export function CertificatesAutomationView() {
     };
 
     loadMembers();
+  }, []);
+
+  // Sección y destacamento: el miembro solo trae el id de su destacamento, y la
+  // sección cuelga de la iglesia de ese destacamento (miembro → destacamento →
+  // iglesia → sección). Antes se buscaba el id del destacamento en la lista de
+  // iglesias, no casaba nunca y todo salía "-". Va por su cuenta (en caché) para
+  // que la lista aparezca sin esperarlo.
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([getDestsApi(), getChurches(), getSectionals()])
+      .then(([dests, churches, sectionals]) => {
+        if (!active) return;
+
+        const iglesias = new Map((churches || []).map((c) => [String(c.id), c]));
+        const secciones = new Map((sectionals || []).map((x) => [String(x.id), x]));
+
+        setChurchById(
+          Object.fromEntries(
+            (dests || []).map((dest) => {
+              const iglesia = iglesias.get(String(dest.churchId));
+              const seccion = secciones.get(String(iglesia?.idSeccion));
+
+              return [
+                String(dest.id),
+                {
+                  name: dest.name || '',
+                  sectionalName: seccion?.sectionalName || iglesia?.sectionalName || '',
+                },
+              ];
+            })
+          )
+        );
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -697,8 +832,11 @@ export function CertificatesAutomationView() {
     };
   }, [certificateStatusScopeId]);
 
+  // El buscador pinta la letra al instante; el filtrado de la lista va detrás.
+  const deferredSearch = useDeferredValue(search);
+
   const filteredMembers = useMemo(() => {
-    const searchValue = normalizeText(search);
+    const searchValue = normalizeText(deferredSearch);
 
     if (!searchValue) return members;
 
@@ -708,7 +846,7 @@ export function CertificatesAutomationView() {
 
       return normalizeText(`${fullName} ${memberCode}`).includes(searchValue);
     });
-  }, [members, search]);
+  }, [members, deferredSearch]);
 
   const memberCertificateStatusById = useMemo(
     () =>
@@ -722,15 +860,18 @@ export function CertificatesAutomationView() {
     [certificateStatuses, members]
   );
 
+  // Un Set: mirar si una fila está marcada ya no recorre toda la selección.
+  const selectedIdSet = useMemo(() => new Set(selectedMemberIds), [selectedMemberIds]);
+
   const selectedMembers = useMemo(
     () =>
       members
-        .filter((member) => selectedMemberIds.includes(String(member.id)))
+        .filter((member) => selectedIdSet.has(String(member.id)))
         .map((member) => ({
           ...member,
           certificateStatus: memberCertificateStatusById[String(member.id)],
         })),
-    [memberCertificateStatusById, members, selectedMemberIds]
+    [memberCertificateStatusById, members, selectedIdSet]
   );
 
   const selectableFilteredMembers = useMemo(
@@ -743,13 +884,13 @@ export function CertificatesAutomationView() {
 
   const allFilteredSelected =
     !!selectableFilteredMembers.length &&
-    selectableFilteredMembers.every((member) => selectedMemberIds.includes(String(member.id)));
+    selectableFilteredMembers.every((member) => selectedIdSet.has(String(member.id)));
 
   const someFilteredSelected = selectableFilteredMembers.some((member) =>
-    selectedMemberIds.includes(String(member.id))
+    selectedIdSet.has(String(member.id))
   );
 
-  const handleToggleMember = (memberId) => {
+  const handleToggleMember = useCallback((memberId) => {
     const normalizedId = String(memberId);
 
     setSelectedMemberIds((current) =>
@@ -757,7 +898,7 @@ export function CertificatesAutomationView() {
         ? current.filter((id) => id !== normalizedId)
         : [...current, normalizedId]
     );
-  };
+  }, []);
 
   const handleToggleFilteredMembers = (event) => {
     const shouldSelect = event.target.checked;
@@ -773,27 +914,46 @@ export function CertificatesAutomationView() {
     });
   };
 
-  const handleChangeCertificateStatus = async (member, status) => {
-    const memberKey = String(member.id);
-    const previousStatus = certificateStatuses[memberKey] || DEFAULT_CERTIFICATE_STATUS;
+  // Lo último que se ve de cada fila y la última petición de cada una: la
+  // función se queda estable (para la fila memorizada) y, si se cambia el estado
+  // dos veces seguidas y falla la primera, no pisa la segunda al deshacer.
+  const estadoVisibleRef = useRef({});
+  estadoVisibleRef.current = memberCertificateStatusById;
+  const ambitoDeEstadoRef = useRef(certificateStatusScopeId);
+  ambitoDeEstadoRef.current = certificateStatusScopeId;
+  const usuarioRef = useRef(user);
+  usuarioRef.current = user;
+  const ultimoCambioDeEstadoRef = useRef({});
 
+  const handleChangeCertificateStatus = useCallback(async (member, status) => {
+    const memberKey = String(member.id);
+    const previousStatus = estadoVisibleRef.current[memberKey] || DEFAULT_CERTIFICATE_STATUS;
+    const turno = (ultimoCambioDeEstadoRef.current[memberKey] || 0) + 1;
+    ultimoCambioDeEstadoRef.current[memberKey] = turno;
+
+    // Optimista: el chip cambia en el clic; quien deja de estar "presente" sale
+    // de la selección al instante, porque ya no se puede certificar.
     setCertificateStatuses((current) => ({ ...current, [memberKey]: status }));
+    if (status !== 'presente') {
+      setSelectedMemberIds((current) => current.filter((id) => id !== memberKey));
+    }
 
     try {
       await guardarEstadoCertificado({
-        scopeId: certificateStatusScopeId,
+        scopeId: ambitoDeEstadoRef.current,
         member: {
           ...member,
           memberName: getMemberFullName(member) || member.memberId || member.codigoMiembro || '',
         },
         status,
-        user,
+        user: usuarioRef.current,
       });
     } catch (error) {
+      if (ultimoCambioDeEstadoRef.current[memberKey] !== turno) return;
       setCertificateStatuses((current) => ({ ...current, [memberKey]: previousStatus }));
       toast.error(error?.message || 'No se pudo guardar el estado en Firebase.');
     }
-  };
+  }, []);
 
   const handleFormValue = (field) => (event) => {
     setFormValues((current) => ({ ...current, [field]: event.target.value }));
@@ -805,7 +965,7 @@ export function CertificatesAutomationView() {
     setTemplateDraftBaseline(emptyDraft);
     setSelectedTemplateFieldId(emptyDraft.fields[0]?.id || '');
     setImportDialogStep('template');
-    setImportDialogOpen(true);
+    setCurrentTab('import');
   };
 
   const handleEditSelectedTemplate = () => {
@@ -824,7 +984,7 @@ export function CertificatesAutomationView() {
     setTemplateDraftBaseline(draft);
     setSelectedTemplateFieldId(draft.fields[0]?.id || '');
     setImportDialogStep('template');
-    setImportDialogOpen(true);
+    setCurrentTab('import');
   };
 
   const handleTemplateFile = async (event) => {
@@ -1087,7 +1247,7 @@ export function CertificatesAutomationView() {
       });
       setSelectedTemplateId(savedTemplate.id);
       setTemplateDraftBaseline(savedTemplate);
-      setImportDialogOpen(false);
+      setCurrentTab('create');
       setDuplicateRouteConfirmOpen(false);
       setDuplicateRouteTemplate(null);
       toast.success('Plantilla guardada en Firebase.');
@@ -1436,7 +1596,11 @@ export function CertificatesAutomationView() {
           <Chip
             color="primary"
             variant="soft"
-            label={`${createdBatches.length} lote${createdBatches.length === 1 ? '' : 's'}`}
+            label={
+              loadingBatches
+                ? 'Cargando…'
+                : `${createdBatches.length} lote${createdBatches.length === 1 ? '' : 's'}`
+            }
           />
         </Stack>
       </Stack>
@@ -1498,7 +1662,15 @@ export function CertificatesAutomationView() {
                 </TableRow>
               ))}
 
-              {!createdBatches.length && (
+              {loadingBatches && (
+                <TableRow>
+                  <TableCell colSpan={7} sx={{ p: 0 }}>
+                    <FilasDeListaCargando filas={5} />
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {!loadingBatches && !createdBatches.length && (
                 <TableRow>
                   <TableCell colSpan={7}>
                     <Box sx={{ py: 8, textAlign: 'center' }}>
@@ -1634,13 +1806,8 @@ export function CertificatesAutomationView() {
       : '';
 
   const renderImportDialog = () => (
-    <Dialog
-      fullWidth
-      maxWidth="lg"
-      open={importDialogOpen}
-      onClose={() => setImportDialogOpen(false)}
-    >
-      <DialogTitle>
+    <Card>
+      <Box sx={{ p: 3 }}>
         {importDialogStep === 'template' ? (
           'Importar certificado'
         ) : (
@@ -1652,9 +1819,9 @@ export function CertificatesAutomationView() {
             </Typography>
           </Stack>
         )}
-      </DialogTitle>
+      </Box>
 
-      <DialogContent dividers>
+      <Box sx={{ p: 3, borderTop: 1, borderBottom: 1, borderColor: 'divider' }}>
         {importDialogStep === 'template' ? (
           <Box
             sx={{
@@ -2140,9 +2307,9 @@ export function CertificatesAutomationView() {
             }
           />
         )}
-      </DialogContent>
+      </Box>
 
-      <DialogActions sx={{ gap: 1 }}>
+      <Stack direction="row" sx={{ p: 2, gap: 1, justifyContent: 'flex-end' }}>
         {importDialogStep === 'template' ? (
           <>
             <LoadingButton
@@ -2154,7 +2321,7 @@ export function CertificatesAutomationView() {
             >
               Guardar cambios
             </LoadingButton>
-            <Button variant="outlined" onClick={() => setImportDialogOpen(false)}>
+            <Button variant="outlined" onClick={() => setCurrentTab('create')}>
               Cancelar
             </Button>
             <Tooltip title={selectAwardPathTooltip}>
@@ -2184,8 +2351,8 @@ export function CertificatesAutomationView() {
             </LoadingButton>
           </>
         )}
-      </DialogActions>
-    </Dialog>
+      </Stack>
+    </Card>
   );
 
   const renderDeleteTemplateConfirmDialog = () => (
@@ -2240,25 +2407,20 @@ export function CertificatesAutomationView() {
   );
 
   return (
-    <DashboardContent>
-      <CustomBreadcrumbs
-        heading="Certificados"
-        links={[{ name: 'Panel' }, { name: 'Certificados' }]}
-        action={
-          <Button
-            variant="contained"
-            startIcon={<Iconify icon="solar:import-bold" />}
-            onClick={handleOpenImportDialog}
-          >
-            Importar certificado
-          </Button>
-        }
-        sx={{ mb: { xs: 3, md: 5 } }}
-      />
-
+    // Todo el ancho disponible: con `lg` (1200 px) la plantilla, la vista previa
+    // y la lista de miembros quedaban apretadas en pantallas grandes.
+    <DashboardContent
+      maxWidth={false}
+      sx={{
+        maxWidth: currentTab === 'import' ? ANCHO_DE_IMPORTAR_PX : ANCHO_DE_PANTALLA_PX,
+        mx: 'auto',
+      }}
+    >
       <Tabs
         value={currentTab}
-        onChange={(event, newValue) => setCurrentTab(newValue)}
+        onChange={(event, newValue) =>
+          newValue === 'import' ? handleOpenImportDialog() : setCurrentTab(newValue)
+        }
         sx={{ mb: { xs: 3, md: 5 } }}
       >
         <Tab
@@ -2271,393 +2433,362 @@ export function CertificatesAutomationView() {
           label="Certificados creados"
           icon={<Iconify width={24} icon="solar:folder-check-bold" />}
         />
+        <Tab
+          value="import"
+          label="Importar certificado"
+          icon={<Iconify width={24} icon="solar:import-bold" />}
+        />
       </Tabs>
 
-      {currentTab === 'create' ? (
-        <Box
-          sx={{
-            gap: 3,
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', lg: '360px 1fr' },
-            alignItems: 'start',
-          }}
-        >
-          <Stack spacing={3}>
-            <Card sx={{ p: 3 }}>
-              <Stack spacing={2.5}>
-                <Box>
-                  <Typography variant="h6">Plantilla del curso</Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                    Selecciona la plantilla guardada en Firebase para generar certificados.
-                  </Typography>
-                </Box>
+      {/* PESTAÑAS OPTIMISTAS: las dos se quedan montadas y solo se oculta la
+          inactiva. Antes cambiar de pestaña desmontaba "Crear certificados"
+          (miembros, plantilla, vista previa) y volver la reconstruia entera:
+          el clic tardaba y se perdia lo que estaba a medias. */}
+      <Box
+        sx={{
+          gap: 3,
+          display: currentTab === 'create' ? 'grid' : 'none',
+          gridTemplateColumns: { xs: '1fr', lg: '360px 1fr' },
+          alignItems: 'start',
+        }}
+      >
+        <Stack spacing={3}>
+          <Card sx={{ p: 3 }}>
+            <Stack spacing={2.5}>
+              <Box>
+                <Typography variant="h6">Plantilla del curso</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                  Selecciona la plantilla guardada en Firebase para generar certificados.
+                </Typography>
+              </Box>
 
-                <TextField
-                  select
-                  fullWidth
-                  label="Curso"
-                  value={courseSelectValue}
-                  onChange={(event) => handleCourseSelect(event.target.value)}
-                >
-                  {!importedTemplates.length && (
-                    <MenuItem value={`${DEFAULT_COURSE_PREFIX}${DEFAULT_COURSE.id}`} disabled>
-                      Importa la plantilla Seguridad
-                    </MenuItem>
-                  )}
-                  {importedTemplates.map((template) => (
-                    <MenuItem
-                      key={template.id}
-                      value={`${IMPORTED_TEMPLATE_COURSE_PREFIX}${template.id}`}
-                    >
-                      {template.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-
-                <TextField
-                  fullWidth
-                  type="date"
-                  label="Fecha de emisión"
-                  value={formValues.issuedAt}
-                  onChange={handleFormValue('issuedAt')}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Instructor / firma"
-                  value={formValues.instructor}
-                  onChange={handleFormValue('instructor')}
-                />
-              </Stack>
-            </Card>
-
-            <Card sx={{ p: 3 }}>
-              <Stack spacing={2}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Typography variant="subtitle1">Vista previa</Typography>
-                  {selectedTemplate ? (
-                    <Stack direction="row" spacing={0.75} alignItems="center">
-                      <Tooltip title="Modificar plantilla">
-                        <IconButton
-                          size="small"
-                          onClick={handleEditSelectedTemplate}
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Iconify icon="solar:pen-linear" width={18} />
-                        </IconButton>
-                      </Tooltip>
-
-                      <Tooltip title="Eliminar plantilla">
-                        <IconButton
-                          size="small"
-                          onClick={() => setDeleteTemplateConfirmOpen(true)}
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
-                            borderRadius: 1,
-                            '&:hover': {
-                              color: 'error.main',
-                              borderColor: 'error.main',
-                              bgcolor: 'error.lighter',
-                            },
-                          }}
-                        >
-                          <Iconify icon="solar:trash-bin-trash-bold" width={18} />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  ) : (
-                    <Chip size="small" label={selectedCourse.label} />
-                  )}
-                </Stack>
-
-                {selectedTemplate ? (
-                  <>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: 'text.secondary',
-                        overflowWrap: 'anywhere',
-                      }}
-                    >
-                      Se guardará en{' '}
-                      {formatAwardRouteText(getTemplateAwardRoute(selectedTemplate)?.rutaTexto) ||
-                        'Ruta no seleccionada'}
-                    </Typography>
-
-                    <Box
-                      sx={{
-                        position: 'relative',
-                        overflow: 'hidden',
-                        borderRadius: 1,
-                        aspectRatio: '1.414 / 1',
-                        bgcolor: 'background.neutral',
-                        border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
-                      }}
-                    >
-                      <Box
-                        component="img"
-                        loading="lazy"
-                        decoding="async"
-                        src={selectedTemplate.dataUrl}
-                        alt={selectedTemplate.name}
-                        sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
-                      />
-                      {getTemplateFields(selectedTemplate).map((field) => {
-                        const position = selectedTemplate.positions?.[field.id] ||
-                          DEFAULT_TEMPLATE_POSITIONS[field.id] || { x: 50, y: 50 };
-                        const previewSize = Math.max(
-                          24,
-                          Math.round(getTemplateFieldSize(field) * 0.5)
-                        );
-
-                        return (
-                          <Box
-                            key={field.id}
-                            sx={{
-                              px: isQrTemplateField(field) ? 0 : 0.75,
-                              py: isQrTemplateField(field) ? 0 : 0.25,
-                              width: isQrTemplateField(field)
-                                ? previewSize
-                                : Math.max(60, Math.round(Number(field.width || 180) * 0.5)),
-                              height: isQrTemplateField(field) ? previewSize : 'auto',
-                              borderRadius: 0.75,
-                              position: 'absolute',
-                              left: `${position.x}%`,
-                              top: `${position.y}%`,
-                              color: selectedTemplate.textColor,
-                              fontSize: getScaledTemplatePreviewFontSize(field),
-                              ...(isQrTemplateField(field)
-                                ? {}
-                                : getTemplatePreviewTypography(field)),
-                              textAlign: 'center',
-                              bgcolor: 'rgba(255,255,255,0.72)',
-                              transform: 'translate(-50%, -50%)',
-                            }}
-                          >
-                            {isQrTemplateField(field) ? (
-                              <Box
-                                component="img"
-                                loading="lazy"
-                                decoding="async"
-                                src={SAMPLE_QR_CODE_SRC}
-                                alt="QR"
-                                sx={{ width: 1, height: 1, display: 'block' }}
-                              />
-                            ) : (
-                              getTemplateFieldPreview(field)
-                            )}
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  </>
-                ) : (
-                  <Box
-                    sx={{
-                      p: 3,
-                      minHeight: 220,
-                      borderRadius: 1,
-                      display: 'flex',
-                      textAlign: 'center',
-                      alignItems: 'center',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      border: (theme) =>
-                        `4px solid ${selectedCourse.accent || theme.palette.divider}`,
-                      bgcolor: 'background.neutral',
-                    }}
-                  >
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Exploradores del Rey
-                    </Typography>
-                    <Typography variant="h5" sx={{ mt: 1 }}>
-                      {selectedCourse.certificateTitle}
-                    </Typography>
-                    <Divider
-                      sx={{
-                        my: 2,
-                        width: 120,
-                        borderWidth: 2,
-                        borderColor: selectedCourse.accent,
-                      }}
-                    />
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {selectedCourse.body}
-                    </Typography>
-                  </Box>
-                )}
-
-                {renderDownloadButton()}
-              </Stack>
-            </Card>
-          </Stack>
-
-          <Card>
-            <Stack
-              spacing={2}
-              sx={{
-                p: 3,
-                pb: 2,
-              }}
-            >
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={2}
-                alignItems={{ xs: 'stretch', sm: 'center' }}
-                justifyContent="space-between"
+              <TextField
+                select
+                fullWidth
+                label="Curso"
+                value={courseSelectValue}
+                onChange={(event) => handleCourseSelect(event.target.value)}
               >
-                <Box>
-                  <Typography variant="h6">Personas para certificar</Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                    Selecciona los miembros que recibirán el certificado.
-                  </Typography>
-                </Box>
-
-                <Chip
-                  color="primary"
-                  variant="soft"
-                  label={`${selectedMembers.length} seleccionado${
-                    selectedMembers.length === 1 ? '' : 's'
-                  }`}
-                />
-              </Stack>
+                {!importedTemplates.length && (
+                  <MenuItem value={`${DEFAULT_COURSE_PREFIX}${DEFAULT_COURSE.id}`} disabled>
+                    Importa la plantilla Seguridad
+                  </MenuItem>
+                )}
+                {importedTemplates.map((template) => (
+                  <MenuItem
+                    key={template.id}
+                    value={`${IMPORTED_TEMPLATE_COURSE_PREFIX}${template.id}`}
+                  >
+                    {template.name}
+                  </MenuItem>
+                ))}
+              </TextField>
 
               <TextField
                 fullWidth
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar por nombre o código"
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Iconify icon="solar:magnifer-linear" />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
+                type="date"
+                label="Fecha de emisión"
+                value={formValues.issuedAt}
+                onChange={handleFormValue('issuedAt')}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+
+              <TextField
+                fullWidth
+                label="Instructor / firma"
+                value={formValues.instructor}
+                onChange={handleFormValue('instructor')}
+              />
+            </Stack>
+          </Card>
+
+          <Card sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Typography variant="subtitle1">Vista previa</Typography>
+                {selectedTemplate ? (
+                  <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Tooltip title="Modificar plantilla">
+                      <IconButton
+                        size="small"
+                        onClick={handleEditSelectedTemplate}
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+                          borderRadius: 1,
+                        }}
+                      >
+                        <Iconify icon="solar:pen-linear" width={18} />
+                      </IconButton>
+                    </Tooltip>
+
+                    <Tooltip title="Eliminar plantilla">
+                      <IconButton
+                        size="small"
+                        onClick={() => setDeleteTemplateConfirmOpen(true)}
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+                          borderRadius: 1,
+                          '&:hover': {
+                            color: 'error.main',
+                            borderColor: 'error.main',
+                            bgcolor: 'error.lighter',
+                          },
+                        }}
+                      >
+                        <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                ) : (
+                  <Chip size="small" label={selectedCourse.label} />
+                )}
+              </Stack>
+
+              {selectedTemplate ? (
+                <>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
+                    Se guardará en{' '}
+                    {formatAwardRouteText(getTemplateAwardRoute(selectedTemplate)?.rutaTexto) ||
+                      'Ruta no seleccionada'}
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      overflow: 'hidden',
+                      borderRadius: 1,
+                      aspectRatio: '1.414 / 1',
+                      bgcolor: 'background.neutral',
+                      border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      loading="lazy"
+                      decoding="async"
+                      src={selectedTemplate.dataUrl}
+                      alt={selectedTemplate.name}
+                      sx={{ width: 1, height: 1, display: 'block', objectFit: 'cover' }}
+                    />
+                    {getTemplateFields(selectedTemplate).map((field) => {
+                      const position = selectedTemplate.positions?.[field.id] ||
+                        DEFAULT_TEMPLATE_POSITIONS[field.id] || { x: 50, y: 50 };
+                      const previewSize = Math.max(
+                        24,
+                        Math.round(getTemplateFieldSize(field) * 0.5)
+                      );
+
+                      return (
+                        <Box
+                          key={field.id}
+                          sx={{
+                            px: isQrTemplateField(field) ? 0 : 0.75,
+                            py: isQrTemplateField(field) ? 0 : 0.25,
+                            width: isQrTemplateField(field)
+                              ? previewSize
+                              : Math.max(60, Math.round(Number(field.width || 180) * 0.5)),
+                            height: isQrTemplateField(field) ? previewSize : 'auto',
+                            borderRadius: 0.75,
+                            position: 'absolute',
+                            left: `${position.x}%`,
+                            top: `${position.y}%`,
+                            color: selectedTemplate.textColor,
+                            fontSize: getScaledTemplatePreviewFontSize(field),
+                            ...(isQrTemplateField(field)
+                              ? {}
+                              : getTemplatePreviewTypography(field)),
+                            textAlign: 'center',
+                            bgcolor: 'rgba(255,255,255,0.72)',
+                            transform: 'translate(-50%, -50%)',
+                          }}
+                        >
+                          {isQrTemplateField(field) ? (
+                            <Box
+                              component="img"
+                              loading="lazy"
+                              decoding="async"
+                              src={SAMPLE_QR_CODE_SRC}
+                              alt="QR"
+                              sx={{ width: 1, height: 1, display: 'block' }}
+                            />
+                          ) : (
+                            getTemplateFieldPreview(field)
+                          )}
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </>
+              ) : (
+                <Box
+                  sx={{
+                    p: 3,
+                    minHeight: 220,
+                    borderRadius: 1,
+                    display: 'flex',
+                    textAlign: 'center',
+                    alignItems: 'center',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    border: (theme) =>
+                      `4px solid ${selectedCourse.accent || theme.palette.divider}`,
+                    bgcolor: 'background.neutral',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Exploradores del Rey
+                  </Typography>
+                  <Typography variant="h5" sx={{ mt: 1 }}>
+                    {selectedCourse.certificateTitle}
+                  </Typography>
+                  <Divider
+                    sx={{
+                      my: 2,
+                      width: 120,
+                      borderWidth: 2,
+                      borderColor: selectedCourse.accent,
+                    }}
+                  />
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {selectedCourse.body}
+                  </Typography>
+                </Box>
+              )}
+
+              {renderDownloadButton()}
+            </Stack>
+          </Card>
+        </Stack>
+
+        <Card>
+          <Stack
+            spacing={2}
+            sx={{
+              p: 3,
+              pb: 2,
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              justifyContent="space-between"
+            >
+              <Box>
+                <Typography variant="h6">Personas para certificar</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                  Selecciona los miembros que recibirán el certificado.
+                </Typography>
+              </Box>
+
+              <Chip
+                color="primary"
+                variant="soft"
+                label={`${selectedMembers.length} seleccionado${
+                  selectedMembers.length === 1 ? '' : 's'
+                }`}
               />
             </Stack>
 
-            <TableContainer sx={{ maxHeight: 560, overflowX: 'hidden' }}>
-              <Scrollbar sx={{ overflowX: 'hidden' }}>
-                <Table stickyHeader sx={{ tableLayout: 'fixed', width: 1 }}>
-                  <TableHead>
+            <TextField
+              fullWidth
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por nombre o código"
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Iconify icon="solar:magnifer-linear" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          </Stack>
+
+          <TableContainer sx={{ maxHeight: 560, overflowX: 'hidden' }}>
+            <Scrollbar sx={{ overflowX: 'hidden' }}>
+              <Table stickyHeader sx={{ tableLayout: 'fixed', width: 1 }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell padding="checkbox" sx={{ width: 52 }}>
+                      <Checkbox
+                        checked={allFilteredSelected}
+                        indeterminate={!allFilteredSelected && someFilteredSelected}
+                        onChange={handleToggleFilteredMembers}
+                        disabled={!selectableFilteredMembers.length}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ width: '40%' }}>Nombre</TableCell>
+                    <TableCell sx={{ width: '22%' }}>Niveles Organizacionales</TableCell>
+                    <TableCell sx={{ width: '14%' }}>División</TableCell>
+                    <TableCell sx={{ width: 132 }}>Estado</TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {loadingMembers ? (
                     <TableRow>
-                      <TableCell padding="checkbox" sx={{ width: 52 }}>
-                        <Checkbox
-                          checked={allFilteredSelected}
-                          indeterminate={!allFilteredSelected && someFilteredSelected}
-                          onChange={handleToggleFilteredMembers}
-                          disabled={!selectableFilteredMembers.length}
-                        />
+                      {/* Filas en esqueleto, no un spinner con "Cargando miembros...". */}
+                      <TableCell colSpan={5} sx={{ p: 0 }}>
+                        <FilasDeListaCargando filas={5} />
                       </TableCell>
-                      <TableCell sx={{ width: '40%' }}>Nombre</TableCell>
-                      <TableCell sx={{ width: '22%' }}>Código</TableCell>
-                      <TableCell sx={{ width: '14%' }}>División</TableCell>
-                      <TableCell sx={{ width: 132 }}>Estado</TableCell>
                     </TableRow>
-                  </TableHead>
+                  ) : (
+                    filteredMembers.map((member) => {
+                      const memberId = String(member.id);
 
-                  <TableBody>
-                    {loadingMembers ? (
-                      <TableRow>
-                        {/* Filas en esqueleto, no un spinner con "Cargando miembros...". */}
-                        <TableCell colSpan={5} sx={{ p: 0 }}>
-                          <FilasDeListaCargando filas={5} />
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredMembers.map((member) => {
-                        const memberId = String(member.id);
-                        const checked = selectedMemberIds.includes(memberId);
-                        const certificateStatus =
-                          memberCertificateStatusById[memberId] || DEFAULT_CERTIFICATE_STATUS;
+                      return (
+                        <FilaDeMiembro
+                          key={memberId}
+                          member={member}
+                          checked={selectedIdSet.has(memberId)}
+                          certificateStatus={
+                            memberCertificateStatusById[memberId] || DEFAULT_CERTIFICATE_STATUS
+                          }
+                          church={churchById[String(member.idDestacamento ?? member.destId ?? '')]}
+                          onToggle={handleToggleMember}
+                          onChangeStatus={handleChangeCertificateStatus}
+                        />
+                      );
+                    })
+                  )}
 
-                        return (
-                          <TableRow
-                            hover
-                            key={memberId}
-                            selected={checked}
-                            sx={{ cursor: 'pointer' }}
-                            onClick={() => handleToggleMember(memberId)}
-                          >
-                            <TableCell padding="checkbox" sx={{ width: 52 }}>
-                              <Checkbox
-                                checked={checked}
-                                onClick={(event) => event.stopPropagation()}
-                                onChange={() => handleToggleMember(memberId)}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ minWidth: 0 }}>
-                              <Typography
-                                noWrap
-                                variant="subtitle2"
-                                sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
-                              >
-                                {getMemberFullName(member) || 'Sin nombre'}
-                              </Typography>
-                            </TableCell>
-                            <TableCell sx={{ minWidth: 0 }}>
-                              <Typography
-                                noWrap
-                                variant="body2"
-                                sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
-                              >
-                                {member.memberId || member.codigoMiembro || '-'}
-                              </Typography>
-                            </TableCell>
-                            <TableCell sx={{ minWidth: 0 }}>
-                              <Typography
-                                noWrap
-                                variant="body2"
-                                sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
-                              >
-                                {member.memberDivision || '-'}
-                              </Typography>
-                            </TableCell>
-                            <TableCell sx={{ width: 132 }}>
-                              <CertificateStatusSelect
-                                value={certificateStatus}
-                                onChange={(status) => handleChangeCertificateStatus(member, status)}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
+                  {!loadingMembers && !filteredMembers.length && (
+                    <TableRow>
+                      <TableCell colSpan={5}>
+                        <Box sx={{ py: 8, textAlign: 'center' }}>
+                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            No hay miembros para mostrar.
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Scrollbar>
+          </TableContainer>
+        </Card>
+      </Box>
 
-                    {!loadingMembers && !filteredMembers.length && (
-                      <TableRow>
-                        <TableCell colSpan={5}>
-                          <Box sx={{ py: 8, textAlign: 'center' }}>
-                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                              No hay miembros para mostrar.
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </Scrollbar>
-            </TableContainer>
-          </Card>
-        </Box>
-      ) : (
-        renderCreatedBatches()
-      )}
+      <Box sx={{ display: currentTab === 'created' ? 'block' : 'none' }}>
+        {renderCreatedBatches()}
+      </Box>
 
       {renderBatchDialog()}
-      {renderImportDialog()}
+      {currentTab === 'import' && renderImportDialog()}
       {renderDeleteTemplateConfirmDialog()}
       {renderDuplicateRouteConfirmDialog()}
     </DashboardContent>

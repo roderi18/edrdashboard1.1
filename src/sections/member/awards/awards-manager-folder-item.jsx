@@ -6,6 +6,8 @@ import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 
+import { motivoParaNoEliminar, avisoDeEliminarCarpeta } from 'src/utils/premios-personalizados.mjs';
+
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -167,9 +169,9 @@ export function FileManagerFolderItem({
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 
-        {/* Eliminar es global y definitivo: solo el Administrador Global
-            (el mismo que recibe "Cambiar nombre"). */}
-        {onRenombrar && (
+        {/* Eliminar es global: solo el Administrador Global (el mismo que
+            recibe "Cambiar nombre"), y nunca un programa de la raíz. */}
+        {onRenombrar && !motivoParaNoEliminar(folder) && (
           <MenuItem
             onClick={() => {
               confirmDialog.onTrue();
@@ -203,10 +205,19 @@ export function FileManagerFolderItem({
     <ConfirmDialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Eliminar"
-      content="¿Seguro que deseas eliminar este elemento?"
+      title="Eliminar carpeta"
+      // Decir qué se va ANTES de confirmar: la carpeta se lleva todo lo de
+      // dentro, y "¿Eliminar este elemento?" no lo avisaba.
+      content={avisoDeEliminarCarpeta(folder.allData || [], folder)}
       action={
-        <Button variant="contained" color="error" onClick={onDelete}>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => {
+            confirmDialog.onFalse();
+            onDelete?.();
+          }}
+        >
           Eliminar
         </Button>
       }

@@ -34,6 +34,7 @@ import {
   origenDelProgreso,
   motivoParaNoMover,
   aplicarUbicaciones,
+  motivoParaNoEliminar,
   motivoParaNoRenombrar,
 } from 'src/utils/premios-personalizados.mjs';
 
@@ -670,12 +671,22 @@ export function AwardsManagerView({ memberId, readOnly = false, enFicha = false 
   // ELIMINAR ES GLOBAL Y DEFINITIVO: antes solo se quitaba de la pantalla y al
   // volver a entrar reaparecía. Ahora se guarda (Administrador Global) y deja de
   // verse para todos; el progreso de los miembros no se borra.
-  const eliminarGlobal = async (ids) => {
+  const eliminarGlobal = async (idsPedidos) => {
     if (!isAdminGlobal(user)) {
       toast.error('Solo el Administrador Global puede eliminar premios o carpetas.');
       return;
     }
-    const nodos = tableData.filter((n) => ids.includes(n.id));
+    // Los programas de la raíz nunca: con ellos se iría el árbol de todos. Se
+    // filtran también aquí porque la selección múltiple puede incluirlos.
+    const nodos = tableData.filter((n) => idsPedidos.includes(n.id) && !motivoParaNoEliminar(n));
+    if (!nodos.length) {
+      toast.error(
+        motivoParaNoEliminar(tableData.find((n) => idsPedidos.includes(n.id))) ||
+          'Nada que eliminar.'
+      );
+      return;
+    }
+    const ids = nodos.map((n) => n.id);
     const antes = eliminados;
     setEliminados((prev) => ({ ...prev, ...Object.fromEntries(ids.map((id) => [id, true])) }));
     try {
