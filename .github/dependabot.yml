@@ -1,17 +1,24 @@
 # Dependabot abre PRs para actualizar librerias. Van contra `development` para
 # seguir el flujo development -> qa -> main (promotion-gate.yml); contra `main`
 # los rechazaria la promocion.
+#
+# UNA VEZ AL MES Y UN SOLO PR POR ECOSISTEMA. La primera pasada semanal abrio
+# diez PRs de golpe, varios de saltos mayores (react-dropzone 14 -> 20,
+# framer-motion 12 -> 14) que pueden romper pantallas. Las versiones mayores se
+# ignoran: se hacen a mano, probando. Las vulnerabilidades las sigue avisando
+# `npm audit` en seguridad.yml cada lunes.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     target-branch: development
     schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 1
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
     groups:
-      # Menores y parches en un solo PR por semana; las mayores, una por una.
       menores-y-parches:
         update-types: [minor, patch]
 
@@ -20,3 +27,10 @@ updates:
     target-branch: development
     schedule:
       interval: monthly
+    open-pull-requests-limit: 1
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+    groups:
+      acciones:
+        patterns: ['*']
