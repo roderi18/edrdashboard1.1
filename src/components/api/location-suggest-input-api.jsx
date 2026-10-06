@@ -17,6 +17,10 @@ export default function LocationSuggestInput({
     allowSpecialChars = false,
     allowDash = false,
     disabled = false,
+    // Respeta mayúsculas y minúsculas tal como se escriben. Por defecto el texto
+    // se pasa a "Primera Mayúscula" por palabra, y eso impedía escribir nombres
+    // como "SEDE Norte" o "del Este".
+    respetarMayusculas = false,
 }) {
     const { control, setValue, watch } = useFormContext();
 
@@ -80,6 +84,8 @@ export default function LocationSuggestInput({
         value = value.replace(/^\s+/, '');
         value = value.replace(/\s{2,}/g, ' ');
         value = value.slice(0, maxLength);
+
+        if (respetarMayusculas) return value;
 
         // Se capitaliza al principio, tras espacio y tambien tras "(" y ".".
         //

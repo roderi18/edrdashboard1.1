@@ -19,6 +19,7 @@ import TableRow, { tableRowClasses } from '@mui/material/TableRow';
 import TableCell, { tableCellClasses } from '@mui/material/TableCell';
 
 import { esCarpetaDePremios } from 'src/utils/insignias-de-premios.mjs';
+import { motivoParaNoEliminar, avisoDeEliminarCarpeta } from 'src/utils/premios-personalizados.mjs';
 
 import {
   getAwardsProgressCache,
@@ -114,6 +115,12 @@ export function AwardsManagerTableRow({
   const shareDialog = useBoolean();
   const detailsDrawer = useBoolean();
   const confirmDialog = useBoolean();
+  // ELIMINAR CARPETA, también en la vista de lista. Solo existía en la de
+  // cuadrícula: quien trabajaba en lista no tenía forma de quitar una carpeta.
+  // Mismo poder que "Cambiar nombre" (Administrador Global) y nunca la raíz.
+  const confirmarEliminarCarpeta = useBoolean();
+  const puedeEliminarCarpeta =
+    row.type === 'folder' && Boolean(onRenombrar) && !motivoParaNoEliminar(row);
   const menuActions = usePopover();
   const { favorited, onToggleFavorite } = useAwardFavorite({
     memberId,
@@ -328,6 +335,21 @@ export function AwardsManagerTableRow({
           >
             <Iconify icon="solar:trash-bin-trash-bold" />
             Eliminar certificado
+          </MenuItem>
+        )}
+
+        {puedeEliminarCarpeta && <Divider sx={{ borderStyle: 'dashed' }} />}
+
+        {puedeEliminarCarpeta && (
+          <MenuItem
+            onClick={() => {
+              menuActions.onClose();
+              confirmarEliminarCarpeta.onTrue();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Eliminar carpeta
           </MenuItem>
         )}
       </MenuList>
@@ -673,6 +695,27 @@ export function AwardsManagerTableRow({
 
       {renderMenuActions()}
       {renderConfirmDialog()}
+
+      {puedeEliminarCarpeta && (
+        <ConfirmDialog
+          open={confirmarEliminarCarpeta.value}
+          onClose={confirmarEliminarCarpeta.onFalse}
+          title="Eliminar carpeta"
+          content={avisoDeEliminarCarpeta(allData.length ? allData : tableData || [], row)}
+          action={
+            <Button
+              variant="contained"
+              color="error"
+              onClick={() => {
+                confirmarEliminarCarpeta.onFalse();
+                onDeleteRow?.();
+              }}
+            >
+              Eliminar
+            </Button>
+          }
+        />
+      )}
 
       <Dialog open={renameOpen} onClose={() => setRenameOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ pb: 0 }}>Renombrar documento</DialogTitle>

@@ -83,6 +83,7 @@ export default function SectionalGeneralSection({
             <LocationSuggestInput
                 name="sectionalName"
                 label="Nombre Principal de Sección"
+                respetarMayusculas
                 allowNumbers
                 allowDash
                 allowSpecialChars

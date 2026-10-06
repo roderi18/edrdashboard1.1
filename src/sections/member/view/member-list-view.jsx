@@ -652,6 +652,7 @@ export function MemberListView({ destId = null }) {
       label: roleInfo ? getCargoLabel(roleInfo) : role,
     };
   });
+  // En orden alfabético (con tildes y números en su sitio), no en el del padrón.
   const distinctSectionals = getAvailableOptionsFromData({
     inputData: visibleMembers,
     property: 'sectionalId',
@@ -659,7 +660,12 @@ export function MemberListView({ destId = null }) {
       const found = sectionals.find((s) => String(s.id) === String(id));
       return found?.sectionalName || found?.nombre || id;
     },
-  });
+  }).sort((a, b) =>
+    String(a?.label ?? a).localeCompare(String(b?.label ?? b), 'es', {
+      sensitivity: 'base',
+      numeric: true,
+    })
+  );
   const distinctRegionals = getAvailableOptionsFromData({
     inputData: visibleMembers,
     property: 'regionalId',
