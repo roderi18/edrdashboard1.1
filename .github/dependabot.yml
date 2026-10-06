@@ -1,0 +1,22 @@
+# Dependabot abre PRs para actualizar librerias. Van contra `development` para
+# seguir el flujo development -> qa -> main (promotion-gate.yml); contra `main`
+# los rechazaria la promocion.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: development
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Menores y parches en un solo PR por semana; las mayores, una por una.
+      menores-y-parches:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: development
+    schedule:
+      interval: monthly
