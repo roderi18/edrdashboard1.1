@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 import { getFirestore } from 'firebase-admin/firestore';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 
@@ -57,6 +58,14 @@ export const getAdminAuth = () => {
 export const getAdminDb = () => {
   if (!cachedDb) cachedDb = getFirestore(ensureApp());
   return cachedDb;
+};
+
+// El bucket de Storage del proyecto (el mismo que usa el navegador).
+export const getAdminBucket = () => {
+  const app = ensureApp();
+  return getStorage(app).bucket(
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${app.options.projectId}.firebasestorage.app`
+  );
 };
 
 export const isAdminConfigured = () => Boolean(process.env.FIREBASE_SERVICE_ACCOUNT);
