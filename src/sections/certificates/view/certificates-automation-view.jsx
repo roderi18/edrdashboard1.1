@@ -39,6 +39,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { getMemberFullName } from 'src/utils/get-member-fullname';
+import { direccionPublicaActual } from 'src/utils/direccion-publica.mjs';
+import { urlDelCertificadoPublico } from 'src/utils/certificado-publico.mjs';
 
 import { getDestsApi } from 'src/services/dest-service';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -345,6 +347,15 @@ const blobToDataUrl = (blob) =>
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+
+// Lo que lleva el QR de un certificado guardado: la página que lo enseña en
+// su contenedor, con la fecha y hora de generación (como el ONERRD). Los
+// creados antes de que existiera no tienen clave y siguen con su PDF.
+const enlaceDelQr = (certificate = {}) =>
+  urlDelCertificadoPublico(direccionPublicaActual(), certificate.id, certificate.claveAcceso) ||
+  certificate.pdfUrl ||
+  certificate.url ||
+  '';
 
 const buildQrCodeDataUrl = (value) =>
   QRCode.toDataURL(value || 'Certificado pendiente', {
@@ -1364,8 +1375,8 @@ export function CertificatesAutomationView() {
       batch,
       certificateFiles,
       user,
-      buildFinalBlob: async ({ member, pdfUrl }) => {
-        const qrDataUrl = await buildQrCodeDataUrl(pdfUrl);
+      buildFinalBlob: async ({ member, pdfUrl, urlQr }) => {
+        const qrDataUrl = await buildQrCodeDataUrl(urlQr || pdfUrl);
         const qrKey = String(member.id || member.memberId || member.codigoMiembro || '');
 
         return generarPdfDeCertificados({
@@ -1381,7 +1392,7 @@ export function CertificatesAutomationView() {
 
     await Promise.all(
       savedBatch.certificates.map(async (certificate) => {
-        const qrDataUrl = await buildQrCodeDataUrl(certificate.pdfUrl);
+        const qrDataUrl = await buildQrCodeDataUrl(enlaceDelQr(certificate));
 
         [certificate.memberDocId, certificate.memberId, certificate.id]
           .filter(Boolean)
@@ -1505,7 +1516,7 @@ export function CertificatesAutomationView() {
     try {
       setDownloadingCertificateId(certificateId);
       const pdfTemplate = await resolveTemplateForPdf(template);
-      const qrValue = member.pdfUrl || member.url || '';
+      const qrValue = enlaceDelQr(member);
       const qrDataUrl = qrValue ? await buildQrCodeDataUrl(qrValue) : '';
       const blob = await generarPdfDeCertificados({
         course,

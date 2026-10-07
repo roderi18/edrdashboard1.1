@@ -14,26 +14,28 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
-// EL CONTENEDOR QUE ABRE EL CÓDIGO QR: arriba, qué certificado es y la fecha y
-// hora en que se generó; dentro, el PDF guardado en Firebase.
+// EL CONTENEDOR QUE ABRE EL CÓDIGO QR DE UN CERTIFICADO: arriba, qué
+// certificado es y la fecha y hora en que se generó; dentro, el PDF guardado
+// en Firebase. Uno solo para el ONERRD y los de "Crear certificados": cada
+// página le da su título, su línea de detalle y, si quiere, sus avisos.
 //
 // El PDF se pinta con pdf.js en lienzos y no en un <iframe>: Chrome de Android
 // no enseña PDFs incrustados y Safari del iPhone solo la primera página, y casi
 // todo el que escanea el QR lo hace con el móvil.
 // ----------------------------------------------------------------------
 
-const AVISOS = {
+const AVISOS_COMUNES = {
   prueba: {
     titulo: 'Certificado de prueba',
     texto:
-      'Este código pertenece a un PDF de prueba del Certificado de Registro ONERRD: no tiene validez. Los certificados emitidos abren aquí su certificado.',
+      'Este código pertenece a un PDF de prueba: no tiene validez. Los certificados emitidos abren aquí su certificado.',
     color: 'info',
     icono: 'solar:info-circle-bold',
   },
   'no-encontrado': {
     titulo: 'Certificado no encontrado',
     texto:
-      'Este código no corresponde a ningún certificado ONERRD emitido. Si lo escaneó de un certificado impreso, comuníquese con la Oficina Nacional de Exploradores del Rey.',
+      'Este código no corresponde a ningún certificado emitido. Si lo escaneó de un certificado impreso, comuníquese con la Oficina Nacional de Exploradores del Rey.',
     color: 'error',
     icono: 'solar:danger-triangle-bold',
   },
@@ -141,15 +143,21 @@ function PaginasDelPdf({ url }) {
   );
 }
 
-export function CertificadoOnerrdPublico({
+// `estado`: 'ok' o uno de los avisos ('prueba', 'no-encontrado', 'sin-pdf',
+// 'no-disponible'). `avisos` cambia el texto de alguno ({ prueba: '…' }).
+export function CertificadoPublico({
   estado,
-  numero,
+  titulo,
+  detalle,
   generadoEn,
-  destacamento,
   urlPdf,
   urlDescarga,
+  avisos = {},
 }) {
-  const aviso = AVISOS[estado];
+  const aviso = AVISOS_COMUNES[estado] && {
+    ...AVISOS_COMUNES[estado],
+    ...(avisos[estado] && { texto: avisos[estado] }),
+  };
 
   return (
     <Box
@@ -182,13 +190,10 @@ export function CertificadoOnerrdPublico({
             <Typography variant="overline" sx={{ color: 'text.secondary' }}>
               Exploradores del Rey · Oficina Nacional
             </Typography>
-            <Typography variant="h5">
-              {aviso ? aviso.titulo : 'Certificado de Registro ONERRD'}
-            </Typography>
-            {!aviso && (
+            <Typography variant="h5">{aviso ? aviso.titulo : titulo}</Typography>
+            {!aviso && detalle && (
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                N.º {numero}
-                {destacamento ? ` · Destacamento ${destacamento}` : ''}
+                {detalle}
               </Typography>
             )}
           </Box>

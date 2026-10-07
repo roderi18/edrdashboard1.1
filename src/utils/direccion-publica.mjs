@@ -40,3 +40,16 @@ export const direccionPublica = ({ configurada, proyecto, origenActual } = {}) =
   if (origenActual && !esLocal(origenActual)) return sinBarraFinal(origenActual);
   return '';
 };
+
+// La de este ambiente, vista desde el navegador: el proyecto de Firebase con
+// que se compiló y la pestaña como último recurso.
+export const direccionPublicaActual = () => {
+  const origenActual = typeof window === 'undefined' ? '' : window.location.origin;
+  return (
+    direccionPublica({
+      configurada: process.env.NEXT_PUBLIC_URL_PUBLICA,
+      proyecto: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      origenActual,
+    }) || origenActual
+  );
+};

@@ -1,5 +1,3 @@
-import { timingSafeEqual } from 'crypto';
-
 import {
   rutaPdfOnerrd,
   esClaveOnerrdValida,
@@ -7,6 +5,7 @@ import {
 } from 'src/utils/certificado-onerrd.mjs';
 
 import { COLECCIONES } from 'src/config/esquema-firestore.mjs';
+import { mismaClave } from 'src/server/certificado-publico.mjs';
 import { getAdminDb, getAdminBucket, isAdminConfigured } from 'src/server/firebase-admin';
 
 // ----------------------------------------------------------------------
@@ -19,13 +18,6 @@ import { getAdminDb, getAdminBucket, isAdminConfigured } from 'src/server/fireba
 // clave no es la suya: no se distingue, para no confirmar números), 'sin-pdf'
 // (emitido, pero su PDF aún no se guardó en Storage) y 'no-disponible'.
 // ----------------------------------------------------------------------
-
-// Comparación en tiempo constante: no deja adivinar la clave letra a letra.
-const mismaClave = (a, b) => {
-  const x = Buffer.from(String(a));
-  const y = Buffer.from(String(b));
-  return x.length === y.length && timingSafeEqual(x, y);
-};
 
 export const buscarCertificadoOnerrd = async (numero, clave) => {
   if (!esNumeroOnerrdValido(numero) || !esClaveOnerrdValida(clave)) {

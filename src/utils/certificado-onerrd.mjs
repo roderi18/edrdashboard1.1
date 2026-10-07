@@ -14,6 +14,12 @@
 // la vista previa ni de la resolución con que se pinte el fondo.
 // ----------------------------------------------------------------------
 
+import {
+  crearClaveCertificado,
+  esClaveCertificadoValida,
+  formatearFechaHoraCertificado,
+} from './certificado-publico.mjs';
+
 // Carta apaisada en puntos: el tamaño de la plantilla de 2027 (viewBox
 // 792 x 612). Si el SVG trae otro viewBox, manda el del SVG.
 export const PAGINA_ONERRD_POR_DEFECTO = Object.freeze({ ancho: 792, alto: 612 });
@@ -547,28 +553,8 @@ export const anioDeRegistroPropuesto = (hoy = new Date()) =>
 // TEXTO Y MEDIDAS, iguales en la vista previa y en el PDF.
 // ----------------------------------------------------------------------
 
-const ZONA_HORARIA_ONERRD = 'America/Santo_Domingo';
-
-// 07/10/2026 10:32 a. m. en hora de Santo Domingo (dé igual la del equipo).
-export const formatearFechaHoraOnerrd = (valor) => {
-  const fecha = valor instanceof Date ? valor : new Date(valor);
-  if (Number.isNaN(fecha.getTime())) return '';
-  const partes = Object.fromEntries(
-    new Intl.DateTimeFormat('en-US', {
-      timeZone: ZONA_HORARIA_ONERRD,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    })
-      .formatToParts(fecha)
-      .map(({ type, value }) => [type, value])
-  );
-  const meridiano = partes.dayPeriod?.toUpperCase() === 'PM' ? 'p. m.' : 'a. m.';
-  return `${partes.day}/${partes.month}/${partes.year} ${partes.hour}:${partes.minute} ${meridiano}`;
-};
+// El de todos los certificados con QR (hora de Santo Domingo).
+export const formatearFechaHoraOnerrd = formatearFechaHoraCertificado;
 
 // ----------------------------------------------------------------------
 // CÓDIGO QR. Abre el certificado guardado: al emitir, el PDF se guarda en
@@ -588,16 +574,10 @@ export const rutaPdfOnerrd = (numeroRegistro) => `${CARPETA_PDF_ONERRD}/${numero
 
 export const esNumeroOnerrdValido = (valor) => /^\d{4}-\d{3,6}$/.test(String(valor ?? ''));
 
-export const esClaveOnerrdValida = (valor) => /^[A-Za-z0-9_-]{24,64}$/.test(String(valor ?? ''));
+// La clave y su formato son los de todos los certificados con QR.
+export const esClaveOnerrdValida = esClaveCertificadoValida;
 
-// 32 caracteres aleatorios (24 bytes): imposible de adivinar.
-export const crearClaveOnerrd = () => {
-  const bytes = new Uint8Array(24);
-  globalThis.crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 32);
-};
+export const crearClaveOnerrd = crearClaveCertificado;
 
 // Lo que lleva el QR. Sin número o sin clave (un PDF de prueba, o un
 // certificado emitido antes de que existiera el QR) va a la página que dice
