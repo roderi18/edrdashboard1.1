@@ -823,6 +823,20 @@ service firebase.storage {
       allow delete: if resource != null && esAdministradorGlobal();
     }
 
+    // LOS PDF DEL CERTIFICADO ONERRD: lo que abre su código QR. Los sube quien
+    // emite (Administrador Global u Oficina Nacional), solo PDF y con el nombre
+    // del número (AAAA-NNN.pdf). Nadie los lee desde el navegador: los entrega
+    // la ruta pública /api/certificados-onerrd con el Admin SDK, y solo con la
+    // clave de cada certificado. Nada se borra.
+    match /certificados-onerrd/{archivo} {
+      allow read: if false;
+      allow create, update: if (esAdministradorGlobal() || esOficinaNacional())
+        && archivo.matches('[0-9]{4}-[0-9]{3,6}[.]pdf')
+        && request.resource.contentType == 'application/pdf'
+        && request.resource.size < 15 * 1024 * 1024;
+      allow delete: if false;
+    }
+
     // EL RESPALDO DIARIO (`src/utils/respaldo-diario.mjs`): la base de datos, el
     // padrón y las cuentas de toda la organización, y el espejo de los archivos.
     // Solo lo escribe y lo lee el servidor (Admin SDK, que no pasa por aquí).

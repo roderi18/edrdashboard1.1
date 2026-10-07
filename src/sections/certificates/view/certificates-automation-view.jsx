@@ -4,6 +4,7 @@ import 'dayjs/locale/es';
 
 import dayjs from 'dayjs';
 import QRCode from 'qrcode';
+import dynamic from 'next/dynamic';
 import { memo, useRef, useMemo, useState, useEffect, useCallback, useDeferredValue } from 'react';
 
 import Box from '@mui/material/Box';
@@ -19,6 +20,7 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
 import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
@@ -62,6 +64,8 @@ import { FilasDeListaCargando } from 'src/components/pantalla-cargando';
 import { AwardsPathSelector } from 'src/sections/member/awards/components/awards-path-selector';
 
 import { useAuthContext } from 'src/auth/hooks';
+
+import { puedeUsarOnerrd } from '../onerrd/puede-usar-onerrd';
 
 // ----------------------------------------------------------------------
 
@@ -601,9 +605,16 @@ const generarPdfDeCertificados = async (props) => {
 
 // Ancho máximo de esta pantalla en monitores grandes (en píxeles). Es el único
 // número que hay que tocar; no depende del ajuste general del dashboard.
-const ANCHO_DE_PANTALLA_PX = 1600;
+const ANCHO_DE_PANTALLA_PX = 1400;
 // La pestaña "Importar certificado" lleva el editor y la vista previa lado a lado.
 const ANCHO_DE_IMPORTAR_PX = Math.max(ANCHO_DE_PANTALLA_PX, 1200);
+
+// La pestaña ONERRD (editor, lienzo y firmas) se baja solo al abrirla: quien
+// entra a crear certificados de cursos no la paga.
+const OnerrdView = dynamic(() => import('../onerrd/onerrd-view').then((m) => m.OnerrdView), {
+  ssr: false,
+  loading: () => <Skeleton variant="rounded" height={560} />,
+});
 
 export function CertificatesAutomationView() {
   const { user } = useAuthContext();
@@ -611,6 +622,9 @@ export function CertificatesAutomationView() {
   const templateFileInputRef = useRef(null);
   const [members, setMembers] = useState([]);
   const [currentTab, setCurrentTab] = useState('create');
+  // Montada desde la primera visita y luego solo oculta, como las demás: así
+  // volver no pierde un diseño a medio editar.
+  const [onerrdVisitada, setOnerrdVisitada] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [churchById, setChurchById] = useState({});
   const [search, setSearch] = useState('');
@@ -2418,9 +2432,14 @@ export function CertificatesAutomationView() {
     >
       <Tabs
         value={currentTab}
-        onChange={(event, newValue) =>
-          newValue === 'import' ? handleOpenImportDialog() : setCurrentTab(newValue)
-        }
+        onChange={(event, newValue) => {
+          if (newValue === 'import') {
+            handleOpenImportDialog();
+            return;
+          }
+          if (newValue === 'onerrd') setOnerrdVisitada(true);
+          setCurrentTab(newValue);
+        }}
         sx={{ mb: { xs: 3, md: 5 } }}
       >
         <Tab
@@ -2428,6 +2447,13 @@ export function CertificatesAutomationView() {
           label="Crear certificados"
           icon={<Iconify width={24} icon="solar:document-add-bold" />}
         />
+        {puedeUsarOnerrd(user) && (
+          <Tab
+            value="onerrd"
+            label="ONERRD"
+            icon={<Iconify width={24} icon="solar:medal-ribbon-star-bold" />}
+          />
+        )}
         <Tab
           value="created"
           label="Certificados creados"
@@ -2788,6 +2814,12 @@ export function CertificatesAutomationView() {
       </Box>
 
       {renderBatchDialog()}
+      {onerrdVisitada && (
+        <Box sx={{ display: currentTab === 'onerrd' ? 'block' : 'none' }}>
+          <OnerrdView />
+        </Box>
+      )}
+
       {currentTab === 'import' && renderImportDialog()}
       {renderDeleteTemplateConfirmDialog()}
       {renderDuplicateRouteConfirmDialog()}

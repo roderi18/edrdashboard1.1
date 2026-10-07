@@ -120,6 +120,10 @@ export const AMBITOS_CAMBIO = {
   // la cambian el Administrador Global y la Oficina Nacional: en el acto y con
   // Historial.
   cuentaRegresivaLanding: 'cuenta_regresiva_landing',
+  // El certificado ONERRD (pestaña de Certificados): plantilla, imagen, firmas,
+  // diseño y cada emisión. Solo Administrador Global y Oficina Nacional: se
+  // aplica en el acto y queda en Historial.
+  certificadoOnerrd: 'certificado_onerrd',
 };
 
 // Ambitos cuya modificacion aprueba UNICAMENTE la Oficina Nacional.
