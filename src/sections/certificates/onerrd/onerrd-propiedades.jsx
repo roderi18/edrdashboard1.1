@@ -459,6 +459,7 @@ export function PropiedadesOnerrd({
         para moverlo o cambiarlo. Arrastra para mover, las asas para cambiar el tamaño y las flechas
         del teclado para afinar (Mayús = más rápido). Con la cuadrícula a la vista se pega a sus
         líneas (con Alt, no). Doble clic en un texto (o Intro) para escribirlo dentro de su caja.
+        Ctrl + C y Ctrl + V copian y pegan un texto (Ctrl + D lo duplica) y Supr lo elimina.
       </Typography>
     );
   }

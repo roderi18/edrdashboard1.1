@@ -20,8 +20,8 @@ import {
 //   (`emitido.disenoFactura`): volver a bajarla no cambia con el diseño nuevo.
 //
 // Los textos son campos del certificado ONERRD (`sanearCampoOnerrd`): el
-// mismo lienzo, las mismas opciones y el mismo PDF. La tabla, el sello y la
-// raya son de la factura.
+// mismo lienzo, las mismas opciones y el mismo PDF. La tabla, el sello, las
+// formas (barras, rayas y recuadros) y la raya son de la factura.
 //
 // El número es correlativo y único para todas las facturas (`contador-
 // facturas`), reservado en la misma transacción que el certificado. El PDF se
@@ -90,6 +90,25 @@ const redondear = (valor) => Math.round(valor * 100) / 100;
 
 const colorHex = (valor, porDefecto) =>
   /^#[0-9a-f]{6}$/i.test(String(valor || '')) ? String(valor).toUpperCase() : porDefecto;
+
+// Un color o nada ('' = sin relleno / sin borde).
+const colorOVacio = (valor, porDefecto) => (valor === '' ? '' : colorHex(valor, porDefecto));
+
+// Los colores de la casa (`src/theme`): el navy del escudo, el oro
+// institucional, el azul cielo del sello y el celeste del azul institucional
+// (`primary.lighter`); la franja es ese celeste a medias con el blanco. Antes
+// la factura iba en gris y negro, copiada de la que se hacía a mano.
+export const COLORES_FACTURA_ONERRD = Object.freeze({
+  navy: '#122A4F',
+  oro: '#C9A227',
+  sello: '#1C74D4',
+  celeste: '#DDE7F6',
+  franja: '#EEF3FB',
+  texto: '#1C252E',
+  blanco: '#FFFFFF',
+});
+
+const { navy: NAVY, oro: ORO, texto: TEXTO, blanco: BLANCO } = COLORES_FACTURA_ONERRD;
 
 const fuenteValida = (valor, porDefecto = 'Helvetica') =>
   FUENTES_ONERRD.some((item) => item.value === valor) ? valor : porDefecto;
@@ -297,84 +316,99 @@ const textoFijo = (id, etiqueta, contenido, estilo) => ({
 const textoDato = (id, etiqueta, estilo) => ({ id, tipo: 'texto', etiqueta, ...estilo });
 
 const LETRA = (tamano, peso = 400, extra = {}) => ({
-  fuente: 'Helvetica',
+  fuente: 'Roboto',
   peso,
   negrita: peso >= 600,
   tamano,
-  color: '#000000',
+  color: TEXTO,
   alineacion: 'left',
   mayusculas: false,
   espaciado: 0,
   ...extra,
 });
 
-// La factura, medida en puntos sobre la carta (márgenes de 58 pt). Cabecera:
-// el logo a la izquierda y, a su lado, el remitente (nombre, dirección, RNC,
-// correo y teléfono); a la derecha, FACTURA con la fecha, el número y el
-// vencimiento debajo. Luego a quién se factura, el concepto y la tabla.
-const REMITENTE = 132; // donde empieza el texto, a la derecha del logo
-const DATOS = 382; // la columna de FECHA / N.º / VENCE
+// La factura, medida en puntos sobre la carta (márgenes de 32 pt). Cabecera:
+// el logo a la izquierda y, a su lado, el remitente (ERRD, Tienda, dirección,
+// teléfonos, correo y RNC); una raya dorada vertical y, a la derecha, FACTURA
+// subrayada en oro con la fecha, el número y el vencimiento. Luego "FACTURAR
+// A" en su barra navy con el recuadro debajo, el concepto, la tabla, el sello
+// y el pie con el nombre de la organización. Las barras, rayas y recuadros
+// son formas (`FORMAS_DE_FABRICA_FACTURA_ONERRD`).
+const REMITENTE = 144; // donde empieza el texto, a la derecha del logo
+const DATOS = 400; // la columna de FECHA / N.º / VENCE
+const DERECHA = 580; // el margen derecho
 
 export const CAMPOS_DE_FABRICA_FACTURA_ONERRD = Object.freeze(
   [
     textoFijo('facturaEmisor', 'Emisor', EMISOR_FACTURA_ONERRD.nombre, {
-      ...LETRA(15, 700, { color: '#1B2F5E' }),
-      ...enCaja(REMITENTE, 50, 220),
+      ...LETRA(28, 700, { color: NAVY }),
+      ...enCaja(REMITENTE, 49, 210),
     }),
     textoFijo('facturaTienda', 'Subtítulo del emisor', EMISOR_FACTURA_ONERRD.subtitulo, {
-      ...LETRA(10.5, 700, { cursiva: true, color: '#333333' }),
-      ...enCaja(REMITENTE, 66, 220),
+      // Roboto no trae cursiva: la de "Tienda" es la de Helvetica.
+      ...LETRA(16, 700, { fuente: 'Helvetica', cursiva: true, color: ORO }),
+      ...enCaja(REMITENTE, 71, 210),
     }),
     textoFijo('facturaDireccion', 'Dirección', EMISOR_FACTURA_ONERRD.direccion, {
-      ...LETRA(7.5, 400, { color: '#333333' }),
-      ...enCaja(REMITENTE, 81, 230),
-    }),
-    textoFijo('facturaRnc', 'RNC', EMISOR_FACTURA_ONERRD.rnc, {
-      ...LETRA(7.5, 400, { color: '#333333' }),
-      ...enCaja(REMITENTE, 91, 230),
-    }),
-    textoFijo('facturaCorreo', 'Correo electrónico', EMISOR_FACTURA_ONERRD.correo, {
-      ...LETRA(7.5, 400, { color: '#333333' }),
-      ...enCaja(REMITENTE, 101, 230),
+      ...LETRA(9),
+      ...enCaja(REMITENTE, 91, 220),
     }),
     textoFijo('facturaTelefonos', 'Número telefónico', EMISOR_FACTURA_ONERRD.telefono, {
-      ...LETRA(7.5, 400, { color: '#333333' }),
-      ...enCaja(REMITENTE, 111, 230),
+      ...LETRA(9),
+      ...enCaja(REMITENTE, 104, 220),
+    }),
+    textoFijo('facturaCorreo', 'Correo electrónico', EMISOR_FACTURA_ONERRD.correo, {
+      ...LETRA(9),
+      ...enCaja(REMITENTE, 117.5, 220),
+    }),
+    textoFijo('facturaRnc', 'RNC', EMISOR_FACTURA_ONERRD.rnc, {
+      ...LETRA(9),
+      ...enCaja(REMITENTE, 130.5, 220),
     }),
     textoFijo('facturaTitulo', 'Título', 'FACTURA', {
-      ...LETRA(26, 400, { color: '#7F7F7F', alineacion: 'right', espaciado: 1 }),
-      ...enCaja(DATOS - 20, 58, 554 - DATOS + 20),
+      ...LETRA(37, 700, { color: NAVY, espaciado: 0.5 }),
+      ...enCaja(DATOS - 1, 61.5, DERECHA - DATOS + 1),
     }),
     textoFijo('facturaFechaEtiqueta', 'Rótulo de la fecha', 'FECHA:', {
-      ...LETRA(8.5, 700),
-      ...enCaja(DATOS, 86, 80),
+      ...LETRA(10, 700, { color: NAVY }),
+      ...enCaja(DATOS, 106, 90),
     }),
     textoDato('facturaFecha', 'Fecha', {
-      ...LETRA(8.5, 400, { alineacion: 'right' }),
-      ...enCaja(DATOS + 70, 86, 554 - DATOS - 70),
+      ...LETRA(10, 400, { alineacion: 'right' }),
+      ...enCaja(DATOS + 70, 106, DERECHA - DATOS - 70),
     }),
     textoFijo('facturaNumeroEtiqueta', 'Rótulo del número', 'N.º DE FACTURA:', {
-      ...LETRA(8.5, 700),
-      ...enCaja(DATOS, 99, 80),
+      ...LETRA(10, 700, { color: NAVY }),
+      ...enCaja(DATOS, 124, 100),
     }),
     textoDato('facturaNumero', 'Número de factura', {
-      ...LETRA(8.5, 400, { alineacion: 'right' }),
-      ...enCaja(DATOS + 70, 99, 554 - DATOS - 70),
+      ...LETRA(10, 400, { alineacion: 'right' }),
+      ...enCaja(DATOS + 90, 124, DERECHA - DATOS - 90),
     }),
     textoDato('facturaVence', 'Vencimiento', {
-      ...LETRA(8, 400, { alineacion: 'right' }),
-      ...enCaja(DATOS, 112, 554 - DATOS),
+      ...LETRA(9, 400, { alineacion: 'right' }),
+      ...enCaja(DATOS, 140, DERECHA - DATOS),
+    }),
+    // El rótulo va en blanco sobre la barra navy (una forma) y el nombre en el
+    // recuadro de debajo: antes era un solo texto con "FACTURAR A: " delante.
+    textoFijo('facturaAEtiqueta', 'Rótulo de «Facturar a»', 'FACTURAR A:', {
+      ...LETRA(11, 700, { color: BLANCO }),
+      ...enCaja(43, 166, 200),
     }),
     textoDato('facturaA', 'Facturar a', {
-      ...LETRA(8.5, 700),
-      prefijo: 'FACTURAR A: ',
-      ...enCaja(58, 150, 306),
+      ...LETRA(10.5),
+      prefijo: '',
+      ...enCaja(43, 193, DERECHA - 43 - 11),
     }),
     textoFijo('facturaConceptoEtiqueta', 'Rótulo del concepto', 'Concepto:', {
-      ...LETRA(8.5, 700),
-      ...enCaja(58, 176, 44),
+      ...LETRA(11.5, 700, { color: NAVY }),
+      ...enCaja(34, 233, 64),
     }),
-    textoDato('facturaConcepto', 'Concepto', { ...LETRA(8.5), ...enCaja(100, 176, 420) }),
+    textoDato('facturaConcepto', 'Concepto', { ...LETRA(10.5), ...enCaja(101, 233, 470) }),
+    textoFijo('facturaPie', 'Pie', 'EXPLORADORES DEL REY REPÚBLICA DOMINICANA', {
+      ...LETRA(9.5, 400, { color: NAVY, alineacion: 'center', espaciado: 2.5 }),
+      ...enCaja(160, 760, 292),
+    }),
   ].map((campo) => Object.freeze(campo))
 );
 
@@ -387,52 +421,72 @@ export const COLUMNAS_TABLA_FACTURA = Object.freeze([0.49, 0.15, 0.14, 0.22]);
 export const TABLA_DE_FABRICA_FACTURA_ONERRD = Object.freeze({
   visible: true,
   x: 50,
-  y: redondear((198 / PAGINA_FACTURA_ONERRD.alto) * 100),
-  ancho: redondear((496 / PAGINA_FACTURA_ONERRD.ancho) * 100),
-  filas: 10,
-  altoFila: 21.5,
-  fuente: 'Helvetica',
-  tamano: 9,
-  colorTexto: '#000000',
-  colorBorde: '#000000',
+  y: redondear((256 / PAGINA_FACTURA_ONERRD.alto) * 100),
+  ancho: redondear((548 / PAGINA_FACTURA_ONERRD.ancho) * 100),
+  filas: 8,
+  altoFila: 25.5,
+  fuente: 'Roboto',
+  tamano: 10,
+  colorTexto: TEXTO,
+  colorBorde: NAVY,
   grosorBorde: 1.2,
-  colorFranja: '#D9D9D9',
-  colorImporte: '#D9D9D9',
-  colorTotal: '#404040',
+  colorFranja: COLORES_FACTURA_ONERRD.franja,
+  colorImporte: COLORES_FACTURA_ONERRD.celeste,
+  colorTotal: NAVY,
+  // El encabezado relleno (navy con letras blancas), las esquinas redondeadas
+  // y el TOTAL en su propia caja, separado de la tabla. Vacío / 0 = la tabla
+  // de antes, sin relleno: así la pintan los diseños guardados sin estas
+  // claves (las facturas ya emitidas no cambian al volver a bajarlas).
+  colorEncabezado: NAVY,
+  colorTextoEncabezado: BLANCO,
+  radio: 5,
+  separacionTotal: 6,
   titulos: Object.freeze({
     descripcion: 'DESCRIPCIÓN',
-    precio: 'Precio UD',
-    cantidad: 'Cantidad',
+    precio: 'PRECIO UD',
+    cantidad: 'CANTIDAD',
     importe: 'IMPORTE',
     total: 'TOTAL',
   }),
 });
 
+// Lo que toman las claves nuevas de la tabla en un diseño guardado sin ellas.
+const TABLA_ANTIGUA = Object.freeze({
+  colorEncabezado: '',
+  colorTextoEncabezado: '',
+  radio: 0,
+  separacionTotal: 0,
+});
+
 // El sello del estado (PAGADO…): x, y = su centro; ancho = el de su recuadro.
 export const SELLO_DE_FABRICA_FACTURA_ONERRD = Object.freeze({
   visible: true,
-  x: 44.6,
-  y: 60.2,
-  ancho: 35.3,
-  rotacion: -15,
-  fuente: 'Helvetica',
-  colorTexto: '#29ABE2',
-  colorBorde: '#1F4E79',
+  x: 50,
+  y: 75.4,
+  ancho: 36,
+  rotacion: -12,
+  fuente: 'Roboto',
+  colorTexto: COLORES_FACTURA_ONERRD.sello,
+  colorBorde: COLORES_FACTURA_ONERRD.sello,
   grosorBorde: 3,
+  // Esquinas redondeadas (pt). Un sello guardado sin la clave, recto.
+  radio: 6,
 });
 
-// El logo de la cabecera: x, y = su centro; 62 pt de ancho, arriba a la izquierda.
+// El logo de la cabecera: x, y = su centro; 94 pt de ancho, arriba a la izquierda.
 export const LOGO_DE_FABRICA_FACTURA_ONERRD = Object.freeze({
   visible: true,
-  x: redondear(((58 + 31) / PAGINA_FACTURA_ONERRD.ancho) * 100),
-  y: redondear(((44 + 31) / PAGINA_FACTURA_ONERRD.alto) * 100),
-  ancho: redondear((62 / PAGINA_FACTURA_ONERRD.ancho) * 100),
+  x: redondear(((34 + 47) / PAGINA_FACTURA_ONERRD.ancho) * 100),
+  y: redondear((78 / PAGINA_FACTURA_ONERRD.alto) * 100),
+  ancho: redondear((94 / PAGINA_FACTURA_ONERRD.ancho) * 100),
   rotacion: 0,
 });
 
-// La raya bajo "FACTURAR A": x, y = su centro.
+// La raya bajo "FACTURAR A" (la de la primera factura): x, y = su centro.
+// Desde que "Facturar a" va en su recuadro, la de fábrica sale oculta; un
+// diseño guardado la conserva como la tenía.
 export const LINEA_DE_FABRICA_FACTURA_ONERRD = Object.freeze({
-  visible: true,
+  visible: false,
   x: redondear(((58 + 153) / PAGINA_FACTURA_ONERRD.ancho) * 100),
   y: redondear((157 / PAGINA_FACTURA_ONERRD.alto) * 100),
   ancho: 50,
@@ -463,6 +517,112 @@ export const IMAGEN_NUEVA_FACTURA_ONERRD = Object.freeze({
   visible: true,
 });
 
+// FORMAS: rectángulos de color que se mueven, estiran, giran e inclinan; con
+// ellas se dibujan las barras, rayas y recuadros de la factura (la raya
+// dorada de la cabecera, la barra de "FACTURAR A", el pie…). x, y = su
+// centro en % de la página; ancho en % de la página; alto en pt (una raya
+// de 1 pt no se puede dar en % del alto). `relleno` y `colorBorde` vacíos =
+// sin relleno / sin borde. `esquinas`: cuáles se redondean (la barra de
+// "FACTURAR A", solo las de arriba). `inclinacion`: grados de sesgo
+// horizontal (las puntas en bisel de las barras del pie).
+export const ESQUINAS_FORMA_FACTURA = Object.freeze(['todas', 'arriba', 'abajo']);
+
+export const MAXIMO_FORMAS_FACTURA_ONERRD = 30;
+
+export const FORMA_NUEVA_FACTURA_ONERRD = Object.freeze({
+  etiqueta: 'Forma',
+  visible: true,
+  x: 50,
+  y: 50,
+  ancho: 30,
+  alto: 20,
+  relleno: NAVY,
+  colorBorde: '',
+  grosorBorde: 0,
+  radio: 0,
+  esquinas: 'todas',
+  inclinacion: 0,
+  rotacion: 0,
+});
+
+// De una caja en puntos (izquierda, arriba, ancho, alto) a una forma.
+const forma = (id, etiqueta, izquierda, arriba, ancho, alto, estilo = {}) => ({
+  ...FORMA_NUEVA_FACTURA_ONERRD,
+  id,
+  etiqueta,
+  x: redondear(((izquierda + ancho / 2) / PAGINA_FACTURA_ONERRD.ancho) * 100),
+  y: redondear(((arriba + alto / 2) / PAGINA_FACTURA_ONERRD.alto) * 100),
+  ancho: redondear((ancho / PAGINA_FACTURA_ONERRD.ancho) * 100),
+  alto,
+  ...estilo,
+});
+
+export const FORMAS_DE_FABRICA_FACTURA_ONERRD = Object.freeze(
+  [
+    forma('divisorCabecera', 'Raya de la cabecera', 369.2, 38, 1.6, 102, { relleno: ORO }),
+    forma('subrayadoTitulo', 'Subrayado de FACTURA', 400, 83.6, 52, 2.8, { relleno: ORO }),
+    forma('recuadroFacturarA', 'Recuadro de «Facturar a»', 32, 155.6, 548, 54.4, {
+      relleno: '',
+      colorBorde: NAVY,
+      grosorBorde: 1.2,
+      radio: 5,
+    }),
+    forma('barraFacturarA', 'Barra de «Facturar a»', 32, 155.6, 548, 20.4, {
+      radio: 5,
+      esquinas: 'arriba',
+    }),
+    forma('barraPie', 'Barra del pie', 32, 735.5, 418, 4.5, { inclinacion: -35 }),
+    forma('barraPieOro', 'Barra dorada del pie', 452, 735.75, 128, 4, {
+      relleno: ORO,
+      inclinacion: -35,
+    }),
+    forma('rayaPieIzquierda', 'Raya del pie (izquierda)', 32, 759.5, 124, 1, { relleno: ORO }),
+    forma('rayaPieDerecha', 'Raya del pie (derecha)', 456, 759.5, 124, 1, { relleno: ORO }),
+  ].map((item) => Object.freeze(item))
+);
+
+export const esIdFormaFacturaOnerrd = (id) =>
+  /^[A-Za-z][A-Za-z0-9_-]{0,39}$/.test(String(id ?? ''));
+
+export const crearIdFormaFacturaOnerrd = (existentes = []) => {
+  const usados = new Set(existentes.map((item) => item.id));
+  let indice = existentes.length + 1;
+  while (usados.has(`forma${indice}`)) indice += 1;
+  return `forma${indice}`;
+};
+
+export const sanearFormaFactura = (entrada = {}) => {
+  const f = FORMA_NUEVA_FACTURA_ONERRD;
+  return {
+    id: entrada.id,
+    etiqueta: texto(entrada.etiqueta, 60) || f.etiqueta,
+    visible: entrada.visible !== false,
+    x: acotarPosicion(numero(entrada.x, f.x)),
+    y: acotarPosicion(numero(entrada.y, f.y)),
+    ancho: redondear(acotar(numero(entrada.ancho, f.ancho), 0.1, 100)),
+    alto: redondear(acotar(numero(entrada.alto, f.alto), 0.25, PAGINA_FACTURA_ONERRD.alto)),
+    relleno: colorOVacio(entrada.relleno ?? f.relleno, f.relleno),
+    colorBorde: colorOVacio(entrada.colorBorde ?? f.colorBorde, NAVY),
+    grosorBorde: redondear(acotar(numero(entrada.grosorBorde, f.grosorBorde), 0, 10)),
+    radio: redondear(acotar(numero(entrada.radio, f.radio), 0, 100)),
+    esquinas: ESQUINAS_FORMA_FACTURA.includes(entrada.esquinas) ? entrada.esquinas : f.esquinas,
+    inclinacion: redondear(acotar(numero(entrada.inclinacion, 0), -60, 60)),
+    rotacion: acotarRotacionOnerrd(numero(entrada.rotacion, 0)),
+  };
+};
+
+const sanearFormasFactura = (lista) => {
+  const vistas = new Set();
+  return (Array.isArray(lista) ? lista : [])
+    .filter((item) => {
+      if (!esIdFormaFacturaOnerrd(item?.id) || vistas.has(item.id)) return false;
+      vistas.add(item.id);
+      return true;
+    })
+    .slice(0, MAXIMO_FORMAS_FACTURA_ONERRD)
+    .map(sanearFormaFactura);
+};
+
 const sanearImagenesFactura = (lista) => {
   const vistas = new Set();
   return (Array.isArray(lista) ? lista : [])
@@ -492,8 +652,12 @@ const sanearCampoFactura = (entrada) => {
   return { ...campo, deFabrica: Boolean(fabrica) };
 };
 
-const sanearTabla = (entrada = {}) => {
+// Sin tabla (diseño de fábrica), la de fábrica; una guardada sin las claves
+// del encabezado relleno se queda como era (`TABLA_ANTIGUA`).
+const sanearTabla = (guardada) => {
+  const entrada = guardada || {};
   const f = TABLA_DE_FABRICA_FACTURA_ONERRD;
+  const nueva = guardada ? TABLA_ANTIGUA : f;
   const titulos = Object.fromEntries(
     Object.entries(f.titulos).map(([clave, valor]) => [
       clave,
@@ -515,11 +679,21 @@ const sanearTabla = (entrada = {}) => {
     colorFranja: colorHex(entrada.colorFranja, f.colorFranja),
     colorImporte: colorHex(entrada.colorImporte, f.colorImporte),
     colorTotal: colorHex(entrada.colorTotal, f.colorTotal),
+    colorEncabezado: colorOVacio(entrada.colorEncabezado ?? nueva.colorEncabezado, NAVY),
+    colorTextoEncabezado: colorOVacio(
+      entrada.colorTextoEncabezado ?? nueva.colorTextoEncabezado,
+      BLANCO
+    ),
+    radio: redondear(acotar(numero(entrada.radio, nueva.radio), 0, 30)),
+    separacionTotal: redondear(
+      acotar(numero(entrada.separacionTotal, nueva.separacionTotal), 0, 60)
+    ),
     titulos,
   };
 };
 
-const sanearSello = (entrada = {}) => {
+const sanearSello = (guardado) => {
+  const entrada = guardado || {};
   const f = SELLO_DE_FABRICA_FACTURA_ONERRD;
   return {
     visible: entrada.visible !== false,
@@ -531,6 +705,7 @@ const sanearSello = (entrada = {}) => {
     colorTexto: colorHex(entrada.colorTexto, f.colorTexto),
     colorBorde: colorHex(entrada.colorBorde, f.colorBorde),
     grosorBorde: redondear(acotar(numero(entrada.grosorBorde, f.grosorBorde), 0, 10)),
+    radio: redondear(acotar(numero(entrada.radio, guardado ? 0 : f.radio), 0, 60)),
   };
 };
 
@@ -548,7 +723,7 @@ const sanearLogo = (entrada = {}) => {
 const sanearLineaDeDiseno = (entrada = {}) => {
   const f = LINEA_DE_FABRICA_FACTURA_ONERRD;
   return {
-    visible: entrada.visible !== false,
+    visible: (entrada.visible ?? f.visible) !== false,
     x: acotarPosicion(numero(entrada.x, f.x)),
     y: acotarPosicion(numero(entrada.y, f.y)),
     ancho: redondear(acotar(numero(entrada.ancho, f.ancho), 2, 100)),
@@ -570,8 +745,12 @@ export const sanearDisenoFacturaOnerrd = (diseno = {}) => {
       vistos.add(campo.id);
       return true;
     });
+  // Un texto de fábrica que no estaba en un diseño guardado (porque llegó
+  // después, como el pie) se añade OCULTO: si no, aparecía de pronto en las
+  // facturas ya emitidas con ese diseño.
   CAMPOS_DE_FABRICA_FACTURA_ONERRD.forEach((fabrica) => {
-    if (!vistos.has(fabrica.id)) campos.push(sanearCampoFactura(fabrica));
+    if (vistos.has(fabrica.id)) return;
+    campos.push(sanearCampoFactura(guardados ? { ...fabrica, visible: false } : fabrica));
   });
 
   const oculto = { visible: false, x: 50, y: 50, ancho: 10 };
@@ -582,6 +761,14 @@ export const sanearDisenoFacturaOnerrd = (diseno = {}) => {
     linea: sanearLineaDeDiseno(diseno?.linea),
     logo: sanearLogo(diseno?.logo),
     imagenes: sanearImagenesFactura(diseno?.imagenes),
+    // Un diseño guardado antes de las formas no las tenía: se queda sin ellas.
+    formas: sanearFormasFactura(
+      Array.isArray(diseno?.formas)
+        ? diseno.formas
+        : guardados
+          ? []
+          : FORMAS_DE_FABRICA_FACTURA_ONERRD
+    ),
     firmas: [],
     imagen: oculto,
     iconoRegion: oculto,
@@ -591,8 +778,8 @@ export const sanearDisenoFacturaOnerrd = (diseno = {}) => {
 
 // Para guardar: solo lo de la factura.
 export const disenoFacturaParaGuardar = (diseno) => {
-  const { campos, tabla, sello, linea, logo, imagenes } = sanearDisenoFacturaOnerrd(diseno);
-  return { campos, tabla, sello, linea, logo, imagenes };
+  const { campos, tabla, sello, linea, logo, imagenes, formas } = sanearDisenoFacturaOnerrd(diseno);
+  return { campos, tabla, sello, linea, logo, imagenes, formas };
 };
 
 export const esCampoDeFabricaFactura = (id) => IDS_DE_FABRICA.has(id);
@@ -606,6 +793,7 @@ export const cajaDeTablaFactura = (tabla, datos, pagina = PAGINA_FACTURA_ONERRD)
   const left = (tabla.x / 100) * pagina.ancho - width / 2;
   const top = (tabla.y / 100) * pagina.alto;
   const alto = tabla.altoFila;
+  const separacion = tabla.separacionTotal || 0;
 
   let x = left;
   const columnas = COLUMNAS_TABLA_FACTURA.map((parte) => {
@@ -634,7 +822,14 @@ export const cajaDeTablaFactura = (tabla, datos, pagina = PAGINA_FACTURA_ONERRD)
       ? [{ etiqueta: `IMPUESTOS (${datos.porcentajeImpuestos}%)`, valor: datos.impuestos }]
       : []),
     { etiqueta: tabla.titulos.total, valor: datos?.total || '', total: true },
-  ].map((fila, i) => ({ ...fila, top: bottom + alto * i, height: alto }));
+  ].map((fila, i) => ({ ...fila, top: bottom + separacion + alto * i, height: alto }));
+
+  // Con el encabezado relleno, los totales van en su caja aparte: el rótulo
+  // en navy bajo CANTIDAD (bajo PRECIO y CANTIDAD si hay desglose, que
+  // "IMPUESTOS (18%)" no cabe en una columna) y el valor bajo IMPORTE.
+  const etiquetaTotales = conDesglose
+    ? { left: columnas[1].left, width: columnas[1].width + columnas[2].width }
+    : { left: columnas[2].left, width: columnas[2].width };
 
   return {
     left,
@@ -646,7 +841,14 @@ export const cajaDeTablaFactura = (tabla, datos, pagina = PAGINA_FACTURA_ONERRD)
     filas,
     bottom,
     totales,
-    height: bottom - top + alto * totales.length,
+    etiquetaTotales,
+    marcoTotales: {
+      left: etiquetaTotales.left,
+      top: bottom + separacion,
+      width: etiquetaTotales.width + columnas[3].width,
+      height: alto * totales.length,
+    },
+    height: bottom - top + separacion + alto * totales.length,
   };
 };
 
@@ -666,6 +868,25 @@ export const cajaDeSelloFactura = (sello, textoSello, pagina = PAGINA_FACTURA_ON
     tamano,
     espaciado: redondear(tamano * 0.07),
   };
+};
+
+export const cajaDeFormaFactura = (item, pagina = PAGINA_FACTURA_ONERRD) => {
+  const width = (item.ancho / 100) * pagina.ancho;
+  return {
+    left: (item.x / 100) * pagina.ancho - width / 2,
+    top: (item.y / 100) * pagina.alto - item.alto / 2,
+    width,
+    height: item.alto,
+  };
+};
+
+// El radio de cada esquina (arriba-izq., arriba-der., abajo-der., abajo-izq.),
+// nunca mayor que media caja. Lo usan la vista previa y el PDF.
+export const radiosDeEsquinas = (radio, esquinas = 'todas', caja = null) => {
+  const r = caja ? Math.min(radio, caja.width / 2, caja.height / 2) : radio;
+  const arriba = esquinas !== 'abajo' ? r : 0;
+  const abajo = esquinas !== 'arriba' ? r : 0;
+  return { tl: arriba, tr: arriba, br: abajo, bl: abajo };
 };
 
 export const cajaDeLineaFactura = (linea, pagina = PAGINA_FACTURA_ONERRD) => {

@@ -2,6 +2,8 @@ import { pdf, Page, Text, View, Image, Document } from '@react-pdf/renderer';
 
 import { cajaDeImagenOnerrd } from 'src/utils/certificado-onerrd.mjs';
 import {
+  radiosDeEsquinas,
+  cajaDeFormaFactura,
   cajaDeLineaFactura,
   cajaDeSelloFactura,
   cajaDeTablaFactura,
@@ -21,6 +23,38 @@ import { tipografiaPdf, TextoOnerrdPdf } from './onerrd-pdf';
 // ----------------------------------------------------------------------
 
 const posicion = (caja) => ({ position: 'absolute', ...caja });
+
+const esquinas = ({ tl, tr, br, bl }) => ({
+  borderTopLeftRadius: tl,
+  borderTopRightRadius: tr,
+  borderBottomRightRadius: br,
+  borderBottomLeftRadius: bl,
+});
+
+// Una forma: su caja, relleno, borde, esquinas, giro e inclinación (como la
+// vista previa, sobre su centro).
+function FormaPdf({ forma }) {
+  const caja = cajaDeFormaFactura(forma);
+  const transform = [
+    forma.rotacion ? `rotate(${forma.rotacion}deg)` : '',
+    forma.inclinacion ? `skewX(${forma.inclinacion}deg)` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return (
+    <View
+      style={{
+        ...posicion(caja),
+        ...(forma.relleno ? { backgroundColor: forma.relleno } : {}),
+        ...(forma.colorBorde && forma.grosorBorde
+          ? { borderWidth: forma.grosorBorde, borderColor: forma.colorBorde }
+          : {}),
+        ...esquinas(radiosDeEsquinas(forma.radio, forma.esquinas, caja)),
+        ...(transform ? { transform } : {}),
+      }}
+    />
+  );
+}
 
 const letraDeTabla = (tabla, negrita = false) => ({
   ...tipografiaPdf({ fuente: tabla.fuente, peso: negrita ? 700 : 400, negrita }),
@@ -59,10 +93,27 @@ function TablaPdf({ tabla, datos }) {
     tabla.titulos.importe,
   ];
   const importe = c.columnas[3];
+  // Encabezado relleno, esquinas redondeadas y TOTAL en su caja: la tabla de
+  // fábrica. Sin color de encabezado, la de antes (como la vista previa).
+  const rellena = !!tabla.colorEncabezado;
+  const r = tabla.radio;
+  const negritaEncabezado = rellena
+    ? { ...negrita, color: tabla.colorTextoEncabezado || tabla.colorTexto }
+    : negrita;
+  const ultima = c.filas[c.filas.length - 1];
 
   return (
     <>
-      {/* Fondos: franjas y la columna del importe, gris entera. */}
+      {rellena && (
+        <View
+          style={{
+            ...posicion({ left: c.left, top: c.top, width: c.width, height: c.alto }),
+            backgroundColor: tabla.colorEncabezado,
+            ...esquinas({ tl: r, tr: r, br: 0, bl: 0 }),
+          }}
+        />
+      )}
+      {/* Fondos: franjas y la columna del importe entera. */}
       {c.filas
         .filter((fila) => fila.franja)
         .map((fila) => (
@@ -74,6 +125,7 @@ function TablaPdf({ tabla, datos }) {
               width: c.width - importe.width,
               height: fila.height,
               backgroundColor: tabla.colorFranja,
+              ...(fila === ultima && r ? { borderBottomLeftRadius: r } : {}),
             })}
           />
         ))}
@@ -84,6 +136,7 @@ function TablaPdf({ tabla, datos }) {
           width: importe.width,
           height: c.bottom - c.top - c.alto,
           backgroundColor: tabla.colorImporte,
+          ...(r ? { borderBottomRightRadius: r } : {}),
         })}
       />
 
@@ -96,6 +149,7 @@ function TablaPdf({ tabla, datos }) {
           height: c.bottom - c.top,
           borderWidth: borde,
           borderColor: tabla.colorBorde,
+          ...(r ? { borderRadius: r } : {}),
         })}
       />
       <View
@@ -125,7 +179,7 @@ function TablaPdf({ tabla, datos }) {
           key={`t${i}`}
           caja={{ ...c.columnas[i], top: c.encabezado.top, height: c.alto }}
           alinear="center"
-          estilo={negrita}
+          estilo={negritaEncabezado}
         >
           {titulo}
         </Celda>
@@ -150,7 +204,7 @@ function TablaPdf({ tabla, datos }) {
             </Celda>
             <Celda
               caja={{ ...c.columnas[2], top: fila.top, height: fila.height }}
-              alinear="right"
+              alinear={rellena ? 'center' : 'right'}
               estilo={letra}
             >
               {String(fila.linea.cantidad)}
@@ -164,38 +218,98 @@ function TablaPdf({ tabla, datos }) {
           </View>
         ))}
 
-      {/* Subtotal, descuento, impuestos y TOTAL, bajo la columna del importe. */}
-      {c.totales.map((fila) => (
-        <View key={fila.etiqueta}>
-          <Celda
-            caja={{
-              left: c.columnas[1].left,
-              top: fila.top,
-              width: c.columnas[1].width + c.columnas[2].width - 6,
-              height: fila.height,
-            }}
-            alinear="right"
-            estilo={negrita}
-          >
-            {fila.etiqueta}
-          </Celda>
+      {/* TOTAL en su caja: rótulo relleno a la izquierda, importe a la derecha. */}
+      {rellena && (
+        <>
           <View
             style={{
-              ...posicion({ ...importe, top: fila.top, height: fila.height }),
+              ...posicion(c.marcoTotales),
               backgroundColor: tabla.colorImporte,
-              borderWidth: borde * 0.8,
-              borderColor: '#7F7F7F',
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingHorizontal: 6,
+              ...(r ? { borderRadius: r } : {}),
             }}
-          >
-            <Text style={{ ...negrita, color: tabla.colorTotal }}>{datos.moneda}</Text>
-            <Text style={{ ...negrita, color: tabla.colorTotal }}>{fila.valor}</Text>
+          />
+          <View
+            style={{
+              ...posicion({
+                ...c.etiquetaTotales,
+                top: c.marcoTotales.top,
+                height: c.marcoTotales.height,
+              }),
+              backgroundColor: tabla.colorEncabezado,
+              ...esquinas({ tl: r, tr: 0, br: 0, bl: r }),
+            }}
+          />
+          {c.totales.map((fila) => (
+            <View key={fila.etiqueta}>
+              <Celda
+                caja={{ ...c.etiquetaTotales, top: fila.top, height: fila.height }}
+                alinear="center"
+                estilo={negritaEncabezado}
+              >
+                {fila.etiqueta}
+              </Celda>
+              <View
+                style={{
+                  ...posicion({ ...importe, top: fila.top, height: fila.height }),
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingHorizontal: 6,
+                }}
+              >
+                <Text style={{ ...(fila.total ? negrita : letra), color: tabla.colorTotal }}>
+                  {datos.moneda}
+                </Text>
+                <Text style={{ ...(fila.total ? negrita : letra), color: tabla.colorTotal }}>
+                  {fila.valor}
+                </Text>
+              </View>
+            </View>
+          ))}
+          <View
+            style={{
+              ...posicion(c.marcoTotales),
+              borderWidth: borde,
+              borderColor: tabla.colorBorde,
+              ...(r ? { borderRadius: r } : {}),
+            }}
+          />
+        </>
+      )}
+
+      {/* Subtotal, descuento, impuestos y TOTAL, bajo la columna del importe. */}
+      {!rellena &&
+        c.totales.map((fila) => (
+          <View key={fila.etiqueta}>
+            <Celda
+              caja={{
+                left: c.columnas[1].left,
+                top: fila.top,
+                width: c.columnas[1].width + c.columnas[2].width - 6,
+                height: fila.height,
+              }}
+              alinear="right"
+              estilo={negrita}
+            >
+              {fila.etiqueta}
+            </Celda>
+            <View
+              style={{
+                ...posicion({ ...importe, top: fila.top, height: fila.height }),
+                backgroundColor: tabla.colorImporte,
+                borderWidth: borde * 0.8,
+                borderColor: '#7F7F7F',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 6,
+              }}
+            >
+              <Text style={{ ...negrita, color: tabla.colorTotal }}>{datos.moneda}</Text>
+              <Text style={{ ...negrita, color: tabla.colorTotal }}>{fila.valor}</Text>
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
     </>
   );
 }
@@ -208,6 +322,7 @@ function SelloPdf({ sello, texto }) {
         ...posicion({ left: caja.left, top: caja.top, width: caja.width, height: caja.height }),
         borderWidth: sello.grosorBorde,
         borderColor: sello.colorBorde,
+        ...(sello.radio ? { borderRadius: sello.radio } : {}),
         alignItems: 'center',
         justifyContent: 'center',
         transform: `rotate(${sello.rotacion}deg)`,
@@ -253,6 +368,12 @@ function FacturaOnerrd({ diseno, datos, campos, imagenes }) {
                 ...(imagen.rotacion ? { transform: `rotate(${imagen.rotacion}deg)` } : {}),
               }}
             />
+          ))}
+        {/* Las formas (barras, rayas, recuadros), bajo la tabla y los textos. */}
+        {(diseno.formas || [])
+          .filter((forma) => forma.visible)
+          .map((forma) => (
+            <FormaPdf key={forma.id} forma={forma} />
           ))}
         {diseno.tabla.visible && <TablaPdf tabla={diseno.tabla} datos={datos} />}
         {diseno.linea.visible && (

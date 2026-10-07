@@ -2,6 +2,8 @@ import Box from '@mui/material/Box';
 
 import { cajaDeImagenOnerrd } from 'src/utils/certificado-onerrd.mjs';
 import {
+  radiosDeEsquinas,
+  cajaDeFormaFactura,
   cajaDeLineaFactura,
   cajaDeSelloFactura,
   cajaDeTablaFactura,
@@ -12,28 +14,51 @@ import {
 import { cssDeFuenteOnerrd } from './imagenes-onerrd';
 
 // ----------------------------------------------------------------------
-// LA TABLA, LA RAYA Y EL SELLO DE LA FACTURA EN EL LIENZO. El lienzo del
-// certificado (`LienzoOnerrd`) los pinta con `renderExtras` y les presta sus
-// herramientas: elegir, mover, estirar (asa) y girar (el sello). Las medidas
+// LA TABLA, LAS FORMAS, LA RAYA Y EL SELLO DE LA FACTURA EN EL LIENZO. El
+// lienzo del certificado (`LienzoOnerrd`) los pinta con `renderExtras` y les
+// presta sus herramientas: elegir, mover, estirar (asa) y girar. Las medidas
 // son las mismas cajas que el PDF (`factura-onerrd.mjs`), en cqw.
 // ----------------------------------------------------------------------
 
 const PAGINA = PAGINA_FACTURA_ONERRD;
 
+const acotar = (valor, minimo, maximo) => Math.min(maximo, Math.max(minimo, valor));
+const redondear = (valor) => Math.round(valor * 100) / 100;
+
 // `imagenes`: { id: { dataUrl, proporcion } } de las subidas a la factura.
-export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramientas) {
+// `onCambiarElemento`: para las asas propias de las formas (ancho y alto).
+export function pintarExtrasFactura(
+  { diseno, datos, imagenes = {}, onCambiarElemento },
+  herramientas
+) {
   const { unidad, modoVista, esElegido, contorno, empezarMover, empezarEstirar } = herramientas;
-  const { empezarRotar, asaDeGiro, Asa } = herramientas;
+  const { empezarRotar, asaDeGiro, Asa, arrastrar, varios, claveDe } = herramientas;
   const cq = (pt) => `${pt * unidad}cqw`;
+  const esquinasCss = ({ tl, tr, br, bl }) => ({
+    borderTopLeftRadius: cq(tl),
+    borderTopRightRadius: cq(tr),
+    borderBottomRightRadius: cq(br),
+    borderBottomLeftRadius: cq(bl),
+  });
 
   // Un bloque que se elige, se arrastra y se estira, en su caja (pt).
-  // `id`: el del elemento en su lista (imágenes); la tabla, el sello y la raya
-  // son uno de cada y se llaman como su tipo.
-  const bloque = (tipo, elemento, caja, hijos, { giro = false, id = tipo, ...estilo } = {}) => {
+  // `id`: el del elemento en su lista (imágenes, formas); la tabla, el sello y
+  // la raya son uno de cada y se llaman como su tipo. `asa: false`, sin la
+  // del ancho (la forma pone las suyas).
+  const bloque = (
+    tipo,
+    elemento,
+    caja,
+    hijos,
+    { giro = false, asa = true, id = tipo, ...estilo } = {}
+  ) => {
     const elegido = esElegido(tipo, id);
+    // Con varios elegidos, sin asas: estirar o girar es de uno.
+    const conAsas = elegido && !modoVista && !varios;
     return (
       <Box
         key={`${tipo}-${id}`}
+        data-elemento-onerrd={claveDe(tipo, id)}
         onPointerDown={modoVista ? undefined : empezarMover(tipo, id, elemento)}
         sx={{
           position: 'absolute',
@@ -49,14 +74,14 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
         }}
       >
         {hijos}
-        {elegido && !modoVista && (
+        {conAsas && asa && (
           <Asa
             cursor="ew-resize"
             sx={{ right: -7, bottom: -7 }}
             onPointerDown={empezarEstirar(tipo, id, elemento)}
           />
         )}
-        {elegido && !modoVista && giro && asaDeGiro(empezarRotar(tipo, id, elemento))}
+        {conAsas && giro && asaDeGiro(empezarRotar(tipo, id, elemento))}
       </Box>
     );
   };
@@ -128,17 +153,93 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
       );
     });
 
+  // Las formas (barras, rayas, recuadros), en su orden: la que va después
+  // queda encima (la barra de "FACTURAR A" sobre su recuadro).
+  (diseno.formas || [])
+    .filter((forma) => forma.visible)
+    .forEach((forma) => {
+      const caja = cajaDeFormaFactura(forma, PAGINA);
+      const elegido = esElegido('formas', forma.id);
+      // Una raya de 1 pt se elige mal: su zona de clic mide al menos 8 pt.
+      const margen = Math.max(0, (8 - caja.height) / 2);
+      const transform = [
+        forma.rotacion ? `rotate(${forma.rotacion}deg)` : '',
+        forma.inclinacion ? `skewX(${forma.inclinacion}deg)` : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      // Las asas de la forma: el ancho (derecha) y el alto (abajo), desde el
+      // centro, que es el punto guardado. Sin el mínimo del 2 % de las
+      // imágenes: la raya dorada de la cabecera mide 1,6 pt.
+      const estirar = (clave) => (evento) => {
+        const inicio = forma[clave];
+        arrastrar(evento, (dx, dy) => {
+          const valor =
+            clave === 'ancho'
+              ? acotar(inicio + dx * 2, 0.1, 100)
+              : acotar(inicio + ((dy * 2) / 100) * PAGINA.alto, 0.25, PAGINA.alto);
+          onCambiarElemento?.('formas', forma.id, { [clave]: redondear(valor) });
+        });
+      };
+      partes.push(
+        bloque(
+          'formas',
+          forma,
+          { ...caja, top: caja.top - margen, height: caja.height + margen * 2 },
+          <>
+            <Box
+              sx={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: cq(margen),
+                height: cq(caja.height),
+                bgcolor: forma.relleno || 'transparent',
+                border:
+                  forma.colorBorde && forma.grosorBorde
+                    ? `${cq(forma.grosorBorde)} solid ${forma.colorBorde}`
+                    : 'none',
+                boxSizing: 'border-box',
+                pointerEvents: 'none',
+                ...esquinasCss(radiosDeEsquinas(forma.radio, forma.esquinas, caja)),
+              }}
+            />
+            {elegido && !modoVista && !varios && (
+              <>
+                <Asa
+                  cursor="ew-resize"
+                  sx={{ right: -7, top: '50%', mt: '-6px' }}
+                  onPointerDown={estirar('ancho')}
+                />
+                <Asa
+                  cursor="ns-resize"
+                  sx={{ left: '50%', ml: '-6px', bottom: -7 }}
+                  onPointerDown={estirar('alto')}
+                />
+              </>
+            )}
+          </>,
+          { id: forma.id, asa: false, giro: true, ...(transform ? { transform } : {}) }
+        )
+      );
+    });
+
   if (diseno.tabla.visible) {
     const { tabla } = diseno;
     const c = cajaDeTablaFactura(tabla, datos, PAGINA);
     const borde = tabla.grosorBorde;
     const importe = c.columnas[3];
+    // Encabezado relleno, esquinas redondeadas y TOTAL en su caja: la tabla
+    // de fábrica. Sin color de encabezado, la de antes.
+    const rellena = !!tabla.colorEncabezado;
+    const r = tabla.radio;
     const letra = {
       fontFamily: cssDeFuenteOnerrd(tabla.fuente),
       fontSize: cq(tabla.tamano),
       color: tabla.colorTexto,
       lineHeight: 1.15,
     };
+    const letraEncabezado = { ...letra, color: tabla.colorTextoEncabezado || tabla.colorTexto };
     // Dentro del bloque, las cajas van desde su esquina.
     const en = (caja) => ({
       position: 'absolute',
@@ -147,11 +248,11 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
       width: cq(caja.width),
       height: cq(caja.height),
     });
-    const celda = (caja, contenido, alinear = 'left', negrita = false) => (
+    const celda = (caja, contenido, alinear = 'left', negrita = false, estilo = letra) => (
       <Box
         sx={{
           ...en(caja),
-          ...letra,
+          ...estilo,
           fontWeight: negrita ? 700 : 400,
           display: 'flex',
           flexDirection: 'column',
@@ -167,6 +268,7 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
     );
     const titulos = ['descripcion', 'precio', 'cantidad', 'importe'];
     const altoTabla = c.bottom - c.top;
+    const ultima = c.filas[c.filas.length - 1];
 
     partes.push(
       bloque(
@@ -174,6 +276,15 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
         tabla,
         { left: c.left, top: c.top, width: c.width, height: c.height },
         <>
+          {rellena && (
+            <Box
+              sx={{
+                ...en({ left: c.left, top: c.top, width: c.width, height: c.alto }),
+                bgcolor: tabla.colorEncabezado,
+                ...esquinasCss({ tl: r, tr: r, br: 0, bl: 0 }),
+              }}
+            />
+          )}
           {c.filas
             .filter((fila) => fila.franja)
             .map((fila) => (
@@ -187,6 +298,7 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
                     height: fila.height,
                   }),
                   bgcolor: tabla.colorFranja,
+                  ...(fila === ultima && { borderBottomLeftRadius: cq(r) }),
                 }}
               />
             ))}
@@ -199,12 +311,14 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
                 height: altoTabla - c.alto,
               }),
               bgcolor: tabla.colorImporte,
+              borderBottomRightRadius: cq(r),
             }}
           />
           <Box
             sx={{
               ...en({ left: c.left, top: c.top, width: c.width, height: altoTabla }),
               border: `${cq(borde)} solid ${tabla.colorBorde}`,
+              borderRadius: cq(r),
               boxSizing: 'border-box',
             }}
           />
@@ -239,7 +353,8 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
                 { ...c.columnas[i], top: c.top, height: c.alto },
                 tabla.titulos[clave],
                 'center',
-                true
+                true,
+                letraEncabezado
               )}
             </Box>
           ))}
@@ -262,7 +377,7 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
                 {celda(
                   { ...c.columnas[2], top: fila.top, height: fila.height },
                   String(fila.linea.cantidad),
-                  'right'
+                  rellena ? 'center' : 'right'
                 )}
                 {celda(
                   { ...importe, top: fila.top, height: fila.height },
@@ -273,39 +388,97 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
                 )}
               </Box>
             ))}
-          {c.totales.map((fila) => (
-            <Box key={fila.etiqueta}>
-              {celda(
-                {
-                  left: c.columnas[1].left,
-                  top: fila.top,
-                  width: c.columnas[1].width + c.columnas[2].width - 6,
-                  height: fila.height,
-                },
-                fila.etiqueta,
-                'right',
-                true
-              )}
+          {rellena ? (
+            // TOTAL en su caja: rótulo navy a la izquierda, importe a la derecha.
+            <>
               <Box
                 sx={{
-                  ...en({ ...importe, top: fila.top, height: fila.height }),
-                  ...letra,
-                  fontWeight: 700,
-                  color: tabla.colorTotal,
+                  ...en(c.marcoTotales),
                   bgcolor: tabla.colorImporte,
-                  border: `${cq(borde * 0.8)} solid #7F7F7F`,
-                  boxSizing: 'border-box',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  px: cq(6),
+                  borderRadius: cq(r),
                 }}
-              >
-                <span>{datos.moneda}</span>
-                <span>{fila.valor}</span>
+              />
+              <Box
+                sx={{
+                  ...en({
+                    ...c.etiquetaTotales,
+                    top: c.marcoTotales.top,
+                    height: c.marcoTotales.height,
+                  }),
+                  bgcolor: tabla.colorEncabezado,
+                  ...esquinasCss({ tl: r, tr: 0, br: 0, bl: r }),
+                }}
+              />
+              {c.totales.map((fila) => (
+                <Box key={fila.etiqueta}>
+                  {celda(
+                    { ...c.etiquetaTotales, top: fila.top, height: fila.height },
+                    fila.etiqueta,
+                    'center',
+                    true,
+                    letraEncabezado
+                  )}
+                  <Box
+                    sx={{
+                      ...en({ ...importe, top: fila.top, height: fila.height }),
+                      ...letra,
+                      fontWeight: fila.total ? 700 : 400,
+                      color: tabla.colorTotal,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      px: cq(6),
+                    }}
+                  >
+                    <span>{datos.moneda}</span>
+                    <span>{fila.valor}</span>
+                  </Box>
+                </Box>
+              ))}
+              <Box
+                sx={{
+                  ...en(c.marcoTotales),
+                  border: `${cq(borde)} solid ${tabla.colorBorde}`,
+                  borderRadius: cq(r),
+                  boxSizing: 'border-box',
+                }}
+              />
+            </>
+          ) : (
+            c.totales.map((fila) => (
+              <Box key={fila.etiqueta}>
+                {celda(
+                  {
+                    left: c.columnas[1].left,
+                    top: fila.top,
+                    width: c.columnas[1].width + c.columnas[2].width - 6,
+                    height: fila.height,
+                  },
+                  fila.etiqueta,
+                  'right',
+                  true
+                )}
+                <Box
+                  sx={{
+                    ...en({ ...importe, top: fila.top, height: fila.height }),
+                    ...letra,
+                    fontWeight: 700,
+                    color: tabla.colorTotal,
+                    bgcolor: tabla.colorImporte,
+                    border: `${cq(borde * 0.8)} solid #7F7F7F`,
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    px: cq(6),
+                  }}
+                >
+                  <span>{datos.moneda}</span>
+                  <span>{fila.valor}</span>
+                </Box>
               </Box>
-            </Box>
-          ))}
+            ))
+          )}
         </>
       )
     );
@@ -346,6 +519,7 @@ export function pintarExtrasFactura({ diseno, datos, imagenes = {} }, herramient
             position: 'absolute',
             inset: 0,
             border: `${cq(sello.grosorBorde)} solid ${sello.colorBorde}`,
+            borderRadius: cq(sello.radio || 0),
             boxSizing: 'border-box',
             display: 'flex',
             alignItems: 'center',

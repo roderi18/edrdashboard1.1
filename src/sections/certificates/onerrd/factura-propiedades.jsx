@@ -9,12 +9,14 @@ import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { FUENTES_ONERRD } from 'src/utils/certificado-onerrd.mjs';
+import { COLORES_FACTURA_ONERRD } from 'src/utils/factura-onerrd.mjs';
 
 import { Iconify } from 'src/components/iconify';
 
 import {
   Escalon,
   Posicion,
+  NumeroCampo,
   ControlDeGiro,
   SelectorDeColor,
   PropiedadesOnerrd,
@@ -68,6 +70,32 @@ function Color({ titulo, valor, onCambiar }) {
   );
 }
 
+// Un color que puede no estar ('' = sin relleno, sin borde, sin encabezado):
+// el interruptor lo pone (con `porDefecto`) o lo quita.
+function ColorOpcional({ titulo, valor, porDefecto, onCambiar }) {
+  return (
+    <Stack spacing={0.5} alignItems="flex-start">
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={!!valor}
+            onChange={(event) => onCambiar(event.target.checked ? porDefecto : '')}
+          />
+        }
+        label={<Typography variant="caption">{titulo}</Typography>}
+      />
+      {!!valor && <SelectorDeColor valor={valor} onCambiar={onCambiar} />}
+    </Stack>
+  );
+}
+
+const ESQUINAS = [
+  ['todas', 'Todas'],
+  ['arriba', 'Solo arriba'],
+  ['abajo', 'Solo abajo'],
+];
+
 function SelectorDeFuente({ valor, onCambiar }) {
   return (
     <TextField
@@ -94,16 +122,19 @@ export function PropiedadesFactura({
   onEliminarCampo,
   imagenes = {},
   onQuitarImagen,
+  onQuitarForma,
 }) {
   if (!seleccion) {
     return (
       <Typography variant="body2" sx={{ color: 'text.secondary', py: 1 }}>
-        Pulsa un texto, una imagen, la tabla, la raya o el sello en la factura para moverlo o
-        cambiarlo. «Subir imagen» añade un logo o lo que quieras (PNG, JPG, WebP). Arrastra para
-        mover, las asas para cambiar el tamaño (el asa redonda gira) y las flechas del teclado para
-        afinar (Mayús = más rápido). Doble clic en un texto (o Intro) para escribirlo dentro de su
-        caja. Los datos de cada factura (a quién, estado, líneas, descuento, impuestos) se escriben
-        en «Datos del registro».
+        Pulsa un texto, una imagen, una forma (barras, rayas, recuadros), la tabla o el sello en la
+        factura para moverlo o cambiarlo. «Agregar forma» añade una barra o un recuadro; «Subir
+        imagen», un logo o lo que quieras (PNG, JPG, WebP). Arrastra para mover, las asas para
+        cambiar el tamaño (el asa redonda gira) y las flechas del teclado para afinar (Mayús = más
+        rápido). Doble clic en un texto (o Intro) para escribirlo dentro de su caja. Ctrl + C y Ctrl
+        + V copian y pegan textos y formas (Ctrl + D duplica) y Supr elimina; lo de fábrica
+        eliminado se recupera en «Ocultos». Los datos de cada factura (a quién, estado, líneas,
+        descuento, impuestos) se escriben en «Datos del registro».
       </Typography>
     );
   }
@@ -173,8 +204,43 @@ export function PropiedadesFactura({
             mas="Borde más grueso"
             onChange={(grosorBorde) => cambiar({ grosorBorde })}
           />
+          <Escalon
+            label="Esquinas"
+            value={tabla.radio}
+            min={0}
+            max={30}
+            paso={0.5}
+            menos="Esquinas más rectas"
+            mas="Esquinas más redondas"
+            onChange={(radio) => cambiar({ radio })}
+          />
+          {!!tabla.colorEncabezado && (
+            <Escalon
+              label="Hueco al total"
+              value={tabla.separacionTotal}
+              min={0}
+              max={60}
+              paso={1}
+              menos="Total más pegado"
+              mas="Total más separado"
+              onChange={(separacionTotal) => cambiar({ separacionTotal })}
+            />
+          )}
         </Stack>
         <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+          <ColorOpcional
+            titulo="Encabezado relleno"
+            valor={tabla.colorEncabezado}
+            porDefecto={COLORES_FACTURA_ONERRD.navy}
+            onCambiar={(colorEncabezado) => cambiar({ colorEncabezado })}
+          />
+          {!!tabla.colorEncabezado && (
+            <Color
+              titulo="Letras del encabezado"
+              valor={tabla.colorTextoEncabezado || COLORES_FACTURA_ONERRD.blanco}
+              onCambiar={(colorTextoEncabezado) => cambiar({ colorTextoEncabezado })}
+            />
+          )}
           <Color
             titulo="Texto"
             valor={tabla.colorTexto}
@@ -248,6 +314,16 @@ export function PropiedadesFactura({
             mas="Borde más grueso"
             onChange={(grosorBorde) => cambiar({ grosorBorde })}
           />
+          <Escalon
+            label="Esquinas"
+            value={sello.radio}
+            min={0}
+            max={60}
+            paso={0.5}
+            menos="Esquinas más rectas"
+            mas="Esquinas más redondas"
+            onChange={(radio) => cambiar({ radio })}
+          />
           <Color
             titulo="Letras"
             valor={sello.colorTexto}
@@ -301,6 +377,139 @@ export function PropiedadesFactura({
           color="error"
           startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
           onClick={() => onQuitarImagen(imagen.id)}
+          sx={{ alignSelf: 'flex-start' }}
+        >
+          Quitar de la factura
+        </Button>
+      </Stack>
+    );
+  }
+
+  if (seleccion.tipo === 'formas') {
+    const forma = diseno.formas.find((item) => item.id === seleccion.id);
+    if (!forma) return null;
+    const cambiar = (cambios) => onCambiarElemento('formas', forma.id, cambios);
+    return (
+      <Stack spacing={2}>
+        <Mostrar elemento={forma} cambiar={cambiar} titulo={forma.etiqueta} />
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Arrastra para moverla; el asa de la derecha cambia el ancho, la de abajo el alto y la
+          redonda la gira. Va debajo de los textos: una barra navy con un texto blanco encima es un
+          rótulo, como el de «FACTURAR A».
+        </Typography>
+        <TextField
+          size="small"
+          label="Nombre"
+          value={forma.etiqueta}
+          onChange={(event) => cambiar({ etiqueta: event.target.value })}
+          slotProps={{ htmlInput: { maxLength: 60 } }}
+          sx={{ maxWidth: 320 }}
+        />
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+          <NumeroCampo
+            label="X %"
+            value={forma.x}
+            min={-5}
+            max={105}
+            onChange={(x) => cambiar({ x })}
+            sx={{ width: 96 }}
+          />
+          <NumeroCampo
+            label="Y %"
+            value={forma.y}
+            min={-5}
+            max={105}
+            onChange={(y) => cambiar({ y })}
+            sx={{ width: 96 }}
+          />
+          <NumeroCampo
+            label="Ancho %"
+            value={forma.ancho}
+            min={0.1}
+            max={100}
+            onChange={(ancho) => cambiar({ ancho })}
+            sx={{ width: 96 }}
+          />
+          <NumeroCampo
+            label="Alto (pt)"
+            value={forma.alto}
+            min={0.25}
+            max={792}
+            onChange={(alto) => cambiar({ alto })}
+            sx={{ width: 96 }}
+          />
+        </Stack>
+        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+          <Escalon
+            label="Borde"
+            value={forma.grosorBorde}
+            min={0}
+            max={10}
+            paso={0.1}
+            menos="Borde más fino"
+            mas="Borde más grueso"
+            onChange={(grosorBorde) => cambiar({ grosorBorde })}
+          />
+          <Escalon
+            label="Esquinas"
+            value={forma.radio}
+            min={0}
+            max={100}
+            paso={0.5}
+            menos="Esquinas más rectas"
+            mas="Esquinas más redondas"
+            onChange={(radio) => cambiar({ radio })}
+          />
+          <TextField
+            select
+            size="small"
+            label="Redondear"
+            value={forma.esquinas}
+            onChange={(event) => cambiar({ esquinas: event.target.value })}
+            sx={{ minWidth: 140 }}
+          >
+            {ESQUINAS.map(([value, label]) => (
+              <MenuItem key={value} value={value}>
+                {label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Escalon
+            label="Bisel (°)"
+            value={forma.inclinacion}
+            min={-60}
+            max={60}
+            paso={1}
+            menos="Inclinar a la izquierda"
+            mas="Inclinar a la derecha"
+            onChange={(inclinacion) => cambiar({ inclinacion })}
+          />
+        </Stack>
+        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+          <ColorOpcional
+            titulo="Relleno"
+            valor={forma.relleno}
+            porDefecto={COLORES_FACTURA_ONERRD.navy}
+            onCambiar={(relleno) => cambiar({ relleno })}
+          />
+          <ColorOpcional
+            titulo="Color del borde"
+            valor={forma.colorBorde}
+            porDefecto={COLORES_FACTURA_ONERRD.navy}
+            onCambiar={(colorBorde) =>
+              cambiar({
+                colorBorde,
+                // Encender el borde sin grosor no se vería.
+                ...(colorBorde && !forma.grosorBorde ? { grosorBorde: 1 } : {}),
+              })
+            }
+          />
+        </Stack>
+        <ControlDeGiro valor={forma.rotacion} onCambiar={(rotacion) => cambiar({ rotacion })} />
+        <Button
+          color="error"
+          startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+          onClick={() => onQuitarForma(forma.id)}
           sx={{ alignSelf: 'flex-start' }}
         >
           Quitar de la factura

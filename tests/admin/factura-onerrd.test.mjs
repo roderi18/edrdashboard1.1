@@ -33,6 +33,9 @@ import {
   LOGO_FACTURA_ONERRD,
   EMISOR_FACTURA_ONERRD,
   resolverDescripcionOnerrd,
+  cajaDeFormaFactura,
+  COLORES_FACTURA_ONERRD,
+  FORMAS_DE_FABRICA_FACTURA_ONERRD,
 } from '../../src/utils/factura-onerrd.mjs';
 
 test('"Facturar a" propone al coordinador y su destacamento, como el ejemplo', () => {
@@ -148,9 +151,10 @@ test('subtotal, descuento e impuestos como un recibo; el sello dice el estado', 
     caja.totales.map((t) => t.etiqueta),
     ['SUBTOTAL', 'DESCUENTO', 'IMPUESTOS (18%)', 'TOTAL']
   );
-  assert.equal(caja.totales[0].top, caja.bottom);
-  // 10 filas (o más si hay más líneas) bajo el encabezado.
-  assert.equal(caja.filas.length, 10);
+  // Con su hueco: el TOTAL va en su caja, separado de la tabla.
+  assert.equal(caja.totales[0].top, caja.bottom + tabla.separacionTotal);
+  // 8 filas (o más si hay más líneas) bajo el encabezado.
+  assert.equal(caja.filas.length, 8);
   assert.ok(Math.abs(caja.columnas.reduce((s, c) => s + c.width, 0) - caja.width) < 1e-9);
 });
 
@@ -185,7 +189,7 @@ test('el diseño: los textos de fábrica nunca se pierden y se editan como en el
   assert.ok(vacio.campos.every((c) => c.deFabrica));
   // No tropiezan con los campos de fábrica del certificado (mismo saneado).
   assert.equal(vacio.campos.find((c) => c.id === 'facturaTitulo').contenido, 'FACTURA');
-  assert.equal(vacio.campos.find((c) => c.id === 'facturaTitulo').fuente, 'Helvetica');
+  assert.equal(vacio.campos.find((c) => c.id === 'facturaTitulo').fuente, 'Roboto');
 
   const guardado = sanearDisenoFacturaOnerrd({
     campos: [{ id: 'facturaTitulo', tamano: 30, rotacion: 370, color: '#ff0000' }],
@@ -199,7 +203,7 @@ test('el diseño: los textos de fábrica nunca se pierden y se editan como en el
   assert.equal(titulo.contenido, 'FACTURA'); // lo no guardado, el de fábrica
   assert.equal(guardado.campos.length, CAMPOS_DE_FABRICA_FACTURA_ONERRD.length);
   assert.equal(guardado.sello.ancho, 100);
-  assert.equal(guardado.sello.colorTexto, '#29ABE2');
+  assert.equal(guardado.sello.colorTexto, COLORES_FACTURA_ONERRD.sello);
   assert.equal(guardado.tabla.filas, 20);
   assert.equal(guardado.tabla.titulos.total, 'TOTAL A PAGAR');
 
@@ -276,4 +280,69 @@ test('la descripción lleva el número de registro con la variable {registro}', 
   });
   assert.equal(datos.lineas[0].descripcion, 'Cuota Renovación de Membresía Anual 2027 (2027-015)');
   assert.equal(datos.lineas[1].descripcion, 'Pañoletas del 2027-015');
+});
+
+// El diseño de fábrica con los colores de la casa: barras y rayas (formas),
+// "FACTURAR A" en su barra navy, la tabla con el encabezado relleno y el
+// TOTAL en su caja, el sello azul y el pie. Todo editable. Lo que se rompía
+// si no: una factura ya emitida (su diseño guardado no trae estas claves)
+// cambiaba de aspecto al volver a bajarla, o le salía de pronto el pie.
+test('el diseño de fábrica nuevo, sin cambiar las facturas ya emitidas', () => {
+  const fabrica = sanearDisenoFacturaOnerrd();
+  const { navy, oro } = COLORES_FACTURA_ONERRD;
+
+  // Las formas de fábrica, con su raya dorada de la cabecera de 1,6 pt.
+  assert.deepEqual(
+    fabrica.formas.map((f) => f.id),
+    FORMAS_DE_FABRICA_FACTURA_ONERRD.map((f) => f.id)
+  );
+  const divisor = fabrica.formas.find((f) => f.id === 'divisorCabecera');
+  assert.equal(divisor.relleno, oro);
+  assert.ok(Math.abs(cajaDeFormaFactura(divisor).width - 1.6) < 0.05);
+  const barra = fabrica.formas.find((f) => f.id === 'barraFacturarA');
+  assert.equal(barra.relleno, navy);
+  assert.equal(barra.esquinas, 'arriba');
+  // El recuadro, sin relleno ('' se conserva, no vuelve a navy).
+  assert.equal(fabrica.formas.find((f) => f.id === 'recuadroFacturarA').relleno, '');
+
+  // "FACTURAR A:" en blanco sobre la barra; el nombre ya no lleva el rótulo.
+  const campo = (id) => fabrica.campos.find((c) => c.id === id);
+  assert.equal(campo('facturaAEtiqueta').color, '#FFFFFF');
+  assert.equal(campo('facturaA').prefijo, '');
+  assert.equal(campo('facturaPie').contenido, 'EXPLORADORES DEL REY REPÚBLICA DOMINICANA');
+  assert.equal(fabrica.tabla.colorEncabezado, navy);
+  assert.equal(fabrica.linea.visible, false);
+
+  // Con encabezado relleno, el rótulo del TOTAL va bajo CANTIDAD y el valor
+  // bajo IMPORTE; con desglose, el rótulo ocupa también PRECIO.
+  const datos = datosDeFacturaOnerrd(facturaDePruebaOnerrd({}, { anio: 2027 }));
+  const caja = cajaDeTablaFactura(fabrica.tabla, datos);
+  assert.equal(caja.etiquetaTotales.left, caja.columnas[2].left);
+  assert.ok(
+    Math.abs(caja.marcoTotales.left + caja.marcoTotales.width - (caja.left + caja.width)) < 1e-9
+  );
+
+  // Un diseño guardado antes (como la copia de una factura emitida): sin
+  // formas, tabla y sello como eran, y los textos nuevos ocultos.
+  const antiguo = sanearDisenoFacturaOnerrd({
+    campos: [{ id: 'facturaA', prefijo: 'FACTURAR A: ' }],
+    tabla: { colorBorde: '#000000' },
+    sello: { colorTexto: '#29ABE2' },
+    linea: { visible: true, x: 34.48, y: 19.82, ancho: 50, grosor: 1, color: '#000000' },
+  });
+  assert.deepEqual(antiguo.formas, []);
+  assert.equal(antiguo.tabla.colorEncabezado, '');
+  assert.equal(antiguo.tabla.radio, 0);
+  assert.equal(antiguo.tabla.separacionTotal, 0);
+  assert.equal(antiguo.sello.radio, 0);
+  assert.equal(antiguo.linea.visible, true);
+  assert.equal(antiguo.campos.find((c) => c.id === 'facturaA').prefijo, 'FACTURAR A: ');
+  assert.equal(antiguo.campos.find((c) => c.id === 'facturaPie').visible, false);
+  assert.equal(antiguo.campos.find((c) => c.id === 'facturaAEtiqueta').visible, false);
+
+  // Lo guardado con formas vuelve igual (lo que se guarda las incluye).
+  assert.deepEqual(
+    sanearDisenoFacturaOnerrd(disenoFacturaParaGuardar(fabrica)).formas,
+    fabrica.formas
+  );
 });

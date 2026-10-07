@@ -83,8 +83,15 @@ import { FirmasOnerrd } from './onerrd-firmas';
 import { LienzoOnerrd } from './onerrd-lienzo';
 import { puedeUsarOnerrd } from './puede-usar-onerrd';
 import { PropiedadesOnerrd } from './onerrd-propiedades';
+import { useBorradorOnerrd } from './use-borrador-onerrd';
 import { descargarFacturaDePruebaOnerrd } from './descargas-onerrd';
 import { TituloDesplegable, EditorFacturaOnerrd } from './factura-editor';
+import {
+  copiarOnerrd,
+  copiaDeCampoOnerrd,
+  recordarPegadoOnerrd,
+  leerPortapapelesOnerrd,
+} from './portapapeles-onerrd';
 import {
   generarQrOnerrd,
   medirTextoOnerrd,
@@ -233,6 +240,32 @@ export function OnerrdView() {
   // Trabajando solo en la factura: lo de la izquierda que es del certificado
   // (fecha, región, destacamento, firmas, plantilla) se oculta.
   const soloFactura = verFactura && !verCertificado;
+  // "Datos del registro" se puede ocultar para que el certificado (y la
+  // factura) ocupen todo el ancho: el lienzo se mide por el ancho de su
+  // contenedor, así que crece solo. Antes los 380 px del panel lo dejaban
+  // pequeño y había que tirar del zoom y de las barras para ver un trozo.
+  const [panelOculto, setPanelOculto] = useState(false);
+  const botonPanel = (
+    <Tooltip
+      title={
+        panelOculto ? 'Mostrar «Datos del registro»' : 'Ocultar «Datos del registro» y agrandar'
+      }
+    >
+      <IconButton
+        size="small"
+        onClick={() => setPanelOculto((v) => !v)}
+        sx={{ display: { xs: 'none', lg: 'inline-flex' } }}
+      >
+        <Iconify
+          icon={
+            panelOculto
+              ? 'solar:quit-full-screen-square-outline'
+              : 'solar:full-screen-square-outline'
+          }
+        />
+      </IconButton>
+    </Tooltip>
+  );
   const [ocupado, setOcupado] = useState('');
   const [confirmacion, setConfirmacion] = useState(null);
 
@@ -467,6 +500,70 @@ export function OnerrdView() {
     setSeleccion(null);
   };
 
+  // Ctrl + C / Ctrl + V / Ctrl + D / Supr en el lienzo del certificado. Se
+  // copian los textos (también a la factura y desde ella); las formas son
+  // de la factura.
+  // Pega una lista de copiados y devuelve lo pegado ({ tipo, id }), que el
+  // lienzo deja elegido en grupo.
+  const pegarTextos = (copiados) => {
+    if (!copiados?.length) return [];
+    const textos = copiados.filter((copiado) => copiado.tipo === 'campo');
+    if (textos.length < copiados.length) toast.info('Las formas solo se pegan en la factura.');
+    if (!textos.length) return [];
+    const campos = [...diseno.campos];
+    const pegados = textos.map((copiado) => {
+      const campo = sanearCampoOnerrd(copiaDeCampoOnerrd(copiado.elemento, copiado.texto, campos));
+      campos.push(campo);
+      return { ...copiado, elemento: campo };
+    });
+    setDiseno((actual) => ({
+      ...actual,
+      campos: [...actual.campos, ...pegados.map((p) => p.elemento)],
+    }));
+    recordarPegadoOnerrd(pegados);
+    const elegidos = pegados.map((p) => ({ tipo: 'campo', id: p.elemento.id }));
+    setSeleccion(elegidos[elegidos.length - 1]);
+    return elegidos;
+  };
+
+  // Eliminar: un texto añadido se quita; uno de fábrica, la imagen, el icono
+  // de la región y el QR se ocultan (vuelven desde su casilla "Mostrar").
+  const eliminarElegido = (sel) => {
+    if (sel?.tipo === 'campo') {
+      const campo = diseno.campos.find((item) => item.id === sel.id);
+      if (campo?.deFabrica) cambiarElemento('campo', sel.id, { visible: false });
+      else eliminarCampo(sel.id);
+    } else if (['imagen', 'iconoRegion', 'qr'].includes(sel?.tipo)) {
+      cambiarElemento(sel.tipo, sel.id, { visible: false });
+    } else if (sel?.tipo === 'firma') {
+      toast.info('Las firmas no se eliminan: elige «Sin firma» en su panel.');
+    }
+  };
+
+  // `lista`: lo elegido (uno, o varios con Ctrl + clic). Devuelve lo pegado.
+  const alAtajo = (accion, sel, lista = sel ? [sel] : []) => {
+    if (accion === 'pegar') return pegarTextos(leerPortapapelesOnerrd());
+    if (accion === 'eliminar') {
+      lista.forEach(eliminarElegido);
+      if (lista.some((item) => item.tipo !== 'firma')) setSeleccion(null);
+      return undefined;
+    }
+    const copiados = lista
+      .filter((item) => item.tipo === 'campo')
+      .map((item) => textosDeVista.find((t) => t.campo.id === item.id))
+      .filter(Boolean)
+      .map((pintado) => ({ tipo: 'campo', elemento: pintado.campo, texto: pintado.texto }));
+    if (!copiados.length) {
+      if (sel) toast.info('Se copian los textos.');
+      return undefined;
+    }
+    if (accion === 'copiar') {
+      copiarOnerrd(copiados);
+      return undefined;
+    }
+    return pegarTextos(copiados);
+  };
+
   const guardarDiseno = async () => {
     setOcupado('diseno');
     try {
@@ -488,6 +585,28 @@ export function OnerrdView() {
     [disenoFactura]
   );
   const hayCambiosFactura = disenoFacturaSaneado !== disenoFacturaGuardado;
+
+  // Lo no guardado sobrevive a recargar o cerrar la página (en este navegador).
+  useBorradorOnerrd({
+    clave: 'onerrd-borrador-diseno',
+    actual: disenoSaneado,
+    guardado: disenoGuardado,
+    listo: !cargando,
+    onRecuperar: (recuperado) => {
+      setDiseno(sanearDisenoOnerrd(recuperado));
+      toast.info('Se recuperaron los cambios sin guardar del diseño del certificado.');
+    },
+  });
+  useBorradorOnerrd({
+    clave: 'onerrd-borrador-factura',
+    actual: disenoFacturaSaneado,
+    guardado: disenoFacturaGuardado,
+    listo: !cargando,
+    onRecuperar: (recuperado) => {
+      setDisenoFactura(sanearDisenoFacturaOnerrd(recuperado));
+      toast.info('Se recuperaron los cambios sin guardar del diseño de la factura.');
+    },
+  });
 
   const guardarDisenoFactura = async () => {
     setOcupado('diseno-factura');
@@ -927,10 +1046,15 @@ export function OnerrdView() {
           display: 'grid',
           gap: 3,
           alignItems: 'start',
-          gridTemplateColumns: { xs: '1fr', lg: '380px minmax(0, 1fr)' },
+          gridTemplateColumns: {
+            xs: '1fr',
+            lg: panelOculto ? 'minmax(0, 1fr)' : '380px minmax(0, 1fr)',
+          },
         }}
       >
-        <Stack spacing={3}>
+        {/* Oculto con display y no desmontado: lo escrito en el panel se
+            conserva al volver a mostrarlo. */}
+        <Stack spacing={3} sx={{ display: { lg: panelOculto ? 'none' : 'flex' } }}>
           <Card sx={{ p: 2.5 }}>
             <Typography variant="h6">Datos del registro</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2.5 }}>
@@ -1366,6 +1490,7 @@ export function OnerrdView() {
         <Stack spacing={3} sx={{ minWidth: 0 }}>
           <Card sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}>
             <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+              {botonPanel}
               <TituloDesplegable
                 titulo="Diseño del certificado"
                 abierto={verCertificado}
@@ -1460,6 +1585,7 @@ export function OnerrdView() {
                     onSeleccionar={setSeleccion}
                     onCambiarElemento={cambiarElemento}
                     onSubirFondo={pedirFondo}
+                    onAtajo={alAtajo}
                   />
                 </VisorOnerrd>
 
@@ -1508,6 +1634,7 @@ export function OnerrdView() {
               numeroRegistro={proximoNumero}
               onSubirImagen={pedirImagenFactura}
               subiendoImagen={ocupado === 'imagen-factura'}
+              botonPanel={botonPanel}
             />
           ) : (
             // Abre la factura y recoge el certificado (se vuelve a abrir desde su

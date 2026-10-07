@@ -95,9 +95,12 @@ export function VisorOnerrd({ cuadricula, onCuadricula, mostrarCuadricula, child
 
   // Ctrl + clic y arrastrar mueve la vista, no el elemento: se atrapa en la
   // fase de captura para que el lienzo no llegue a elegir ni a arrastrar nada.
+  // Sobre un elemento (al editar), Ctrl + clic lo suma a los elegidos: eso lo
+  // hace el lienzo; la vista se mueve con Ctrl + arrastrar en lo vacío.
   const empezarAMoverLaVista = (evento) => {
     const visor = visorRef.current;
     if (!visor || evento.button > 0 || !(evento.ctrlKey || evento.metaKey)) return;
+    if (mostrarCuadricula && evento.target.closest?.('[data-elemento-onerrd]')) return;
     evento.preventDefault();
     evento.stopPropagation();
     const inicio = {
@@ -155,7 +158,7 @@ export function VisorOnerrd({ cuadricula, onCuadricula, mostrarCuadricula, child
             display: { xs: 'none', sm: 'inline' },
           }}
         >
-          Ctrl + rueda: zoom · Ctrl + arrastrar: mover
+          Ctrl + rueda: zoom · Ctrl + arrastrar: mover · Ctrl + clic: elegir varios
         </Box>
         <Tooltip title="Alejar (Ctrl + rueda)">
           <span>

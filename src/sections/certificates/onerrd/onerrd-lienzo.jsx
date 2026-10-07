@@ -1,9 +1,11 @@
+import { flushSync } from 'react-dom';
 import { memo, useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
+import { imantarTextoOnerrd } from 'src/utils/iman-onerrd.mjs';
 import {
   acotarPosicion,
   pesoDeCampoOnerrd,
@@ -25,7 +27,9 @@ import { cssDeFuenteOnerrd } from './imagenes-onerrd';
 // mide en `cqw` (ancho del contenedor), así la vista previa escala igual que
 // el PDF a cualquier tamaño de pantalla.
 //
-// Atajos con un elemento elegido: flechas = mover 0,2 % (Mayús = 1 %).
+// Atajos con un elemento elegido: flechas = mover 0,2 % (Mayús = 1 %);
+// Ctrl + C / Ctrl + V / Ctrl + D = copiar / pegar / duplicar y Supr = eliminar
+// (los resuelve quien usa el lienzo, con `onAtajo`).
 // Arrastrar no pega a nada, salvo a la cuadrícula si está a la vista (con Alt,
 // tampoco). Antes se pegaba al centro de la hoja: un texto alineado a la
 // izquierda cerca del medio saltaba solo a la línea roja y no se podía dejar
@@ -48,6 +52,18 @@ const CELDAS_POR_PULGADA = 4;
 
 // Con la cuadrícula a la vista, el centro se pega a la línea más cercana.
 const pegarACuadricula = (valor, pasoPct) => Math.round(valor / pasoPct) * pasoPct;
+
+// Ctrl (o Cmd) + tecla, con el lienzo enfocado. Supr / Retroceso = eliminar.
+const ATAJOS_CON_CTRL = Object.freeze({ c: 'copiar', v: 'pegar', d: 'duplicar' });
+
+// Un elemento elegido como texto ("campo|texto3") para la lista de elegidos y
+// para encontrar su caja en el DOM (`data-elemento-onerrd`). Los ids no
+// llevan "|".
+const claveDe = (tipo, id) => `${tipo}|${id}`;
+const desdeClave = (clave) => {
+  const [tipo, id] = clave.split('|');
+  return { tipo, id };
+};
 
 function Asa({ cursor, sx, onPointerDown }) {
   return (
@@ -91,6 +107,8 @@ function LienzoOnerrdBase({
   // sello, raya), que pinta quien la usa con las mismas herramientas.
   paginaEnBlanco = false,
   renderExtras,
+  // (accion, seleccion): 'copiar' | 'pegar' | 'duplicar' | 'eliminar'.
+  onAtajo,
 }) {
   const lienzoRef = useRef(null);
   const [editando, setEditando] = useState(null); // id del texto que se escribe
@@ -109,12 +127,54 @@ function LienzoOnerrdBase({
     lienzoRef.current?.focus({ preventScroll: true });
   };
 
-  const esElegido = (tipo, id) => seleccion?.tipo === tipo && seleccion?.id === id;
+  // VARIOS ELEGIDOS (Ctrl + clic): `marcados` son sus claves ("tipo|id"),
+  // la elegida (`seleccion`, la del panel de propiedades) incluida. Se mueven,
+  // se borran, se copian y se duplican juntos. Elegir otra cosa sin Ctrl, o
+  // nada, los suelta.
+  const [marcados, setMarcados] = useState([]);
+  const varios = marcados.length > 1;
+  const guiaRef = useRef(null);
+
+  useEffect(() => {
+    const sigue = seleccion && marcados.includes(claveDe(seleccion.tipo, seleccion.id));
+    if (marcados.length && (!sigue || modoVista)) setMarcados([]);
+  }, [seleccion, marcados, modoVista]);
+
+  const esElegido = (tipo, id) =>
+    (seleccion?.tipo === tipo && seleccion?.id === id) || marcados.includes(claveDe(tipo, id));
+
+  // Lo elegido, en lista (para los atajos y las flechas).
+  const elegidos = () => (varios ? marcados.map(desdeClave) : seleccion ? [seleccion] : []);
+
+  // Campos y firmas por su id; lo demás (imagen, QR, icono, y la tabla, el
+  // sello, las formas y las imágenes de la factura) es una clave del diseño:
+  // un elemento, o una lista donde se busca por id.
+  const elementoDe = (tipo, id) => {
+    const lista =
+      tipo === 'campo' ? diseno.campos : tipo === 'firma' ? diseno.firmas : diseno[tipo];
+    return Array.isArray(lista) ? lista.find((item) => item.id === id) : lista;
+  };
+
+  // La guía roja del imán, en % del ancho (null = oculta). Se pinta tocando
+  // el DOM, como el arrastre: nada de redibujar la pantalla en cada fotograma.
+  const mostrarGuia = (x) => {
+    const guia = guiaRef.current;
+    if (!guia) return;
+    guia.style.display = x === null ? 'none' : 'block';
+    if (x !== null) guia.style.left = `${x}%`;
+  };
+
+  // IMÁN DE TEXTOS: un texto que se arrastra cerca de otro (a menos de
+  // `CERCA_Y` % de alto) se alinea con él cuando uno de sus bordes o su centro
+  // queda a menos de `IMAN_X` % del de la otra caja: textos uno debajo de
+  // otro, en columna, sin afinar a ojo. Con Alt, libre (como la cuadrícula).
+  const imantar = (campo, x, y) => imantarTextoOnerrd(campo, x, y, diseno.campos);
 
   // Arrastre genérico: `alMover(dxPct, dyPct, evento)` con el desplazamiento
   // en % del lienzo desde que se pulsó. Un movimiento de menos de 3 px es un
   // clic, no un arrastre (no mueve nada al solo elegir).
-  const arrastrar = useCallback((evento, alMover) => {
+  // `alTerminar`: al soltar, después del último movimiento (haya movido o no).
+  const arrastrar = useCallback((evento, alMover, alTerminar) => {
     const rect = lienzoRef.current?.getBoundingClientRect();
     if (!rect || evento.button > 0) return;
     evento.preventDefault();
@@ -158,6 +218,7 @@ function LienzoOnerrdBase({
       window.removeEventListener('pointermove', mover);
       window.removeEventListener('pointerup', soltar);
       window.removeEventListener('pointercancel', soltar);
+      alTerminar?.();
     };
 
     window.addEventListener('pointermove', mover);
@@ -165,15 +226,95 @@ function LienzoOnerrdBase({
     window.addEventListener('pointercancel', soltar);
   }, []);
 
+  // Mover: mientras se arrastra, el elemento se desplaza SOLO en pantalla (la
+  // propiedad CSS `translate`, que se suma a su `transform` de centrar y
+  // girar) y la posición se guarda en el diseño al soltar. Antes cada
+  // fotograma cambiaba el diseño: se volvían a medir todos los textos y a
+  // pintar la pantalla entera, y el arrastre iba a saltos.
+  //
+  // Ctrl + clic no mueve: suma o quita el elemento de los elegidos. Arrastrar
+  // uno de los elegidos mueve todos con el mismo desplazamiento.
   const empezarMover = (tipo, id, elemento) => (evento) => {
+    if (evento.button > 0) return;
+    const clave = claveDe(tipo, id);
+
+    if (evento.ctrlKey || evento.metaKey) {
+      evento.preventDefault();
+      evento.stopPropagation();
+      lienzoRef.current?.focus({ preventScroll: true });
+      const antes = marcados.length
+        ? marcados
+        : seleccion
+          ? [claveDe(seleccion.tipo, seleccion.id)]
+          : [];
+      if (antes.includes(clave)) {
+        const resto = antes.filter((item) => item !== clave);
+        setMarcados(resto);
+        onSeleccionar(resto.length ? desdeClave(resto[resto.length - 1]) : null);
+      } else {
+        setMarcados([...antes, clave]);
+        onSeleccionar({ tipo, id });
+      }
+      return;
+    }
+
+    const enGrupo = varios && marcados.includes(clave);
+    if (!enGrupo && marcados.length) setMarcados([]);
     onSeleccionar({ tipo, id });
+
+    const grupo = (enGrupo ? marcados : [clave])
+      .map((item) => {
+        const propio = item === clave;
+        const { tipo: t, id: i } = desdeClave(item);
+        const el = propio ? elemento : elementoDe(t, i);
+        const nodo = propio
+          ? evento.currentTarget
+          : lienzoRef.current?.querySelector(`[data-elemento-onerrd="${item}"]`);
+        return el && { tipo: t, id: i, x0: el.x, y0: el.y, nodo };
+      })
+      .filter(Boolean);
     const { x: x0, y: y0 } = elemento;
-    arrastrar(evento, (dx, dy, ev) => {
-      const pegado = verCuadricula && !ev.altKey;
-      const x = pegado ? pegarACuadricula(x0 + dx, pasoX) : x0 + dx;
-      const y = pegado ? pegarACuadricula(y0 + dy, pasoY) : y0 + dy;
-      onCambiarElemento(tipo, id, { x: acotarPosicion(x), y: acotarPosicion(y) });
-    });
+    let desplazamiento = null;
+
+    const alSoltar = () => {
+      mostrarGuia(null);
+      // `flushSync`: React pinta ya la posición nueva y justo después se quita
+      // el desplazamiento. Quitarlo antes hacía volver el elemento un instante
+      // atrás; dejarlo para el siguiente fotograma lo dejaba descolocado en
+      // una pestaña en segundo plano (ahí el navegador no da fotogramas).
+      if (desplazamiento) {
+        flushSync(() =>
+          grupo.forEach((g) =>
+            onCambiarElemento(g.tipo, g.id, {
+              x: acotarPosicion(g.x0 + desplazamiento.dx),
+              y: acotarPosicion(g.y0 + desplazamiento.dy),
+            })
+          )
+        );
+      }
+      grupo.forEach((g) => {
+        if (g.nodo) g.nodo.style.translate = '';
+      });
+    };
+    arrastrar(
+      evento,
+      (dx, dy, ev, rect) => {
+        const pegado = verCuadricula && !ev.altKey;
+        let x = pegado ? pegarACuadricula(x0 + dx, pasoX) : x0 + dx;
+        const y = acotarPosicion(pegado ? pegarACuadricula(y0 + dy, pasoY) : y0 + dy);
+        // El imán, solo con un texto suelto (un grupo ya va alineado entre sí).
+        const iman = tipo === 'campo' && !enGrupo && !ev.altKey ? imantar(elemento, x, y) : null;
+        if (iman) x = iman.x;
+        x = acotarPosicion(x);
+        mostrarGuia(iman ? iman.guia : null);
+        desplazamiento = { dx: x - x0, dy: y - y0 };
+        const traslado = `${(desplazamiento.dx / 100) * rect.width}px ${(desplazamiento.dy / 100) * rect.height}px`;
+        grupo.forEach((g) => {
+          if (g.nodo) g.nodo.style.translate = traslado;
+        });
+      },
+      alSoltar
+    );
   };
 
   // Imagen y firma: el asa cambia el ancho (y el alto con él, por proporción).
@@ -205,6 +346,25 @@ function LienzoOnerrdBase({
   };
 
   const alTeclear = (evento) => {
+    // Copiar, pegar, duplicar y eliminar: los hace quien sabe de qué listas
+    // es cada elemento (el editor del certificado o el de la factura).
+    const atajo =
+      evento.ctrlKey || evento.metaKey ? ATAJOS_CON_CTRL[evento.key.toLowerCase()] : null;
+    const borrar = evento.key === 'Delete' || evento.key === 'Backspace';
+    if (onAtajo && (atajo || (borrar && seleccion))) {
+      evento.preventDefault();
+      // Lo pegado o duplicado (si son varios) queda elegido en grupo, listo
+      // para moverlo junto.
+      const nuevos = onAtajo(atajo || 'eliminar', seleccion, elegidos());
+      if (Array.isArray(nuevos))
+        setMarcados(nuevos.length > 1 ? nuevos.map((n) => claveDe(n.tipo, n.id)) : []);
+      return;
+    }
+    if (evento.key === 'Escape' && seleccion) {
+      setMarcados([]);
+      onSeleccionar(null);
+      return;
+    }
     if (!seleccion) return;
     if (evento.key === 'Enter' && seleccion.tipo === 'campo') {
       const campo = diseno.campos.find((item) => item.id === seleccion.id);
@@ -217,22 +377,16 @@ function LienzoOnerrdBase({
     if (!evento.key.startsWith('Arrow')) return;
     evento.preventDefault();
     const paso = evento.shiftKey ? 1 : 0.2;
-    // Campos y firmas por su id; lo demás (imagen, QR, icono, y la tabla, el
-    // sello y las imágenes de la factura) es una clave del diseño: un elemento,
-    // o una lista donde se busca por id.
-    const lista =
-      seleccion.tipo === 'campo'
-        ? diseno.campos
-        : seleccion.tipo === 'firma'
-          ? diseno.firmas
-          : diseno[seleccion.tipo];
-    const elemento = Array.isArray(lista) ? lista.find((item) => item.id === seleccion.id) : lista;
-    if (!elemento) return;
     const dx = { ArrowLeft: -paso, ArrowRight: paso }[evento.key] || 0;
     const dy = { ArrowUp: -paso, ArrowDown: paso }[evento.key] || 0;
-    onCambiarElemento(seleccion.tipo, seleccion.id, {
-      x: acotarPosicion(elemento.x + dx),
-      y: acotarPosicion(elemento.y + dy),
+    // Todos los elegidos a la vez.
+    elegidos().forEach(({ tipo, id }) => {
+      const elemento = elementoDe(tipo, id);
+      if (!elemento) return;
+      onCambiarElemento(tipo, id, {
+        x: acotarPosicion(elemento.x + dx),
+        y: acotarPosicion(elemento.y + dy),
+      });
     });
   };
 
@@ -252,6 +406,7 @@ function LienzoOnerrdBase({
     return (
       <Box
         key={`${tipo}-${id}`}
+        data-elemento-onerrd={claveDe(tipo, id)}
         onPointerDown={modoVista ? undefined : empezarMover(tipo, id, elemento)}
         sx={{
           position: 'absolute',
@@ -298,7 +453,7 @@ function LienzoOnerrdBase({
             {etiqueta}
           </Box>
         )}
-        {elegido && !modoVista && (
+        {elegido && !modoVista && !varios && (
           <Asa
             cursor="nwse-resize"
             sx={{ right: -7, bottom: -7 }}
@@ -307,6 +462,7 @@ function LienzoOnerrdBase({
         )}
         {elegido &&
           !modoVista &&
+          !varios &&
           tipo === 'firma' &&
           // Asa de giro, redonda y por encima: se arrastra alrededor del centro.
           asaDeGiro(empezarRotar('firma', id, elemento))}
@@ -372,6 +528,7 @@ function LienzoOnerrdBase({
     return (
       <Box
         key={campo.id}
+        data-elemento-onerrd={claveDe('campo', campo.id)}
         onPointerDown={
           modoVista || escribiendo ? undefined : empezarMover('campo', campo.id, campo)
         }
@@ -519,7 +676,7 @@ function LienzoOnerrdBase({
             </Box>
           ))
         )}
-        {elegido && !modoVista && !escribiendo && (
+        {elegido && !modoVista && !escribiendo && !varios && (
           <>
             <Asa
               cursor="ew-resize"
@@ -658,12 +815,33 @@ function LienzoOnerrdBase({
         contorno,
         empezarMover,
         empezarEstirar: empezarEstirarImagen,
+        // Con varios elegidos no hay asas (estirar o girar es de uno).
+        varios,
+        claveDe,
+        // Para las asas propias de la factura (el alto de una forma).
+        arrastrar,
         empezarRotar,
         asaDeGiro,
         Asa,
       })}
 
       {textos.map(renderTexto)}
+
+      {/* La guía del imán: una raya vertical de punta a punta de la hoja. */}
+      <Box
+        ref={guiaRef}
+        sx={{
+          display: 'none',
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          width: '1px',
+          ml: '-0.5px',
+          bgcolor: 'error.main',
+          zIndex: 4,
+          pointerEvents: 'none',
+        }}
+      />
     </Box>
   );
 }
