@@ -39,7 +39,7 @@ import { Iconify } from 'src/components/iconify';
 // El texto se edita en local: así se puede borrar el número entero para
 // escribir otro (con el valor atado al diseño, el campo vacío volvía solo al
 // número anterior). Se aplica en cuanto es un número válido, acotado.
-function NumeroCampo({ label, value, onChange, min, max, step = 0.1, sx }) {
+export function NumeroCampo({ label, value, onChange, min, max, step = 0.1, sx }) {
   const [texto, setTexto] = useState(String(value));
   const [enfocado, setEnfocado] = useState(false);
   // Lo último que vale, para las flechas mantenidas (un intervalo vería el
@@ -296,7 +296,7 @@ const CONTORNO_INICIAL = '#9A2222';
 const redondear2 = (valor) => Math.round(valor * 100) / 100;
 
 // − número +: para afinar sin teclear (espaciado, grosor del contorno).
-function Escalon({ label, value, min, max, paso, menos, mas, onChange }) {
+export function Escalon({ label, value, min, max, paso, menos, mas, onChange }) {
   const mover = (delta) => onChange(redondear2(Math.min(max, Math.max(min, value + delta))));
   return (
     <Stack direction="row" alignItems="center" spacing={0.25}>
@@ -327,7 +327,7 @@ function Escalon({ label, value, min, max, paso, menos, mas, onChange }) {
   );
 }
 
-function SelectorDeColor({ valor, onCambiar }) {
+export function SelectorDeColor({ valor, onCambiar }) {
   return (
     <Box
       component="label"
@@ -354,7 +354,7 @@ function SelectorDeColor({ valor, onCambiar }) {
   );
 }
 
-function Posicion({ elemento, onCambiar }) {
+export function Posicion({ elemento, onCambiar }) {
   return (
     <Stack direction="row" spacing={1} alignItems="center">
       <NumeroCampo
@@ -386,6 +386,50 @@ function Posicion({ elemento, onCambiar }) {
           <Iconify icon="solar:align-right-bold-duotone" sx={{ transform: 'rotate(90deg)' }} />
         </IconButton>
       </Tooltip>
+    </Stack>
+  );
+}
+
+// Giro sobre el centro: grados, deslizador, ±90° y enderezar. Lo usan las
+// firmas, los textos y el sello de la factura.
+export function ControlDeGiro({ valor = 0, onCambiar }) {
+  const girar = (grados) => onCambiar(acotarRotacionOnerrd(grados));
+  return (
+    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+      <Escalon
+        label="Giro (°)"
+        value={valor ?? 0}
+        min={-180}
+        max={180}
+        paso={1}
+        menos="Girar a la izquierda"
+        mas="Girar a la derecha"
+        onChange={girar}
+      />
+      <Slider
+        size="small"
+        min={-180}
+        max={180}
+        value={valor ?? 0}
+        onChange={(event, grados) => onCambiar(grados)}
+        marks={[-90, 0, 90].map((value) => ({ value }))}
+        sx={{ flex: 1, minWidth: 160, mx: 1 }}
+      />
+      <Stack direction="row" spacing={0.5}>
+        <Tooltip title="90° a la izquierda">
+          <IconButton size="small" onClick={() => girar((valor ?? 0) - 90)}>
+            <Iconify icon="solar:restart-bold" width={18} sx={{ transform: 'scaleX(-1)' }} />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="90° a la derecha">
+          <IconButton size="small" onClick={() => girar((valor ?? 0) + 90)}>
+            <Iconify icon="solar:restart-bold" width={18} />
+          </IconButton>
+        </Tooltip>
+        <Button size="small" color="inherit" onClick={() => onCambiar(0)}>
+          Enderezar
+        </Button>
+      </Stack>
     </Stack>
   );
 }
@@ -617,52 +661,7 @@ export function PropiedadesOnerrd({
         <Posicion elemento={ranura} onCambiar={cambiar} />
 
         {/* Giro sobre el centro (también con el asa redonda de encima de la firma). */}
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
-          <Escalon
-            label="Giro (°)"
-            value={ranura.rotacion ?? 0}
-            min={-180}
-            max={180}
-            paso={1}
-            menos="Girar a la izquierda"
-            mas="Girar a la derecha"
-            onChange={(rotacion) => cambiar({ rotacion: acotarRotacionOnerrd(rotacion) })}
-          />
-          <Slider
-            size="small"
-            min={-180}
-            max={180}
-            value={ranura.rotacion ?? 0}
-            onChange={(event, rotacion) => cambiar({ rotacion })}
-            marks={[-90, 0, 90].map((value) => ({ value }))}
-            sx={{ flex: 1, minWidth: 160, mx: 1 }}
-          />
-          <Stack direction="row" spacing={0.5}>
-            <Tooltip title="90° a la izquierda">
-              <IconButton
-                size="small"
-                onClick={() =>
-                  cambiar({ rotacion: acotarRotacionOnerrd((ranura.rotacion ?? 0) - 90) })
-                }
-              >
-                <Iconify icon="solar:restart-bold" width={18} sx={{ transform: 'scaleX(-1)' }} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="90° a la derecha">
-              <IconButton
-                size="small"
-                onClick={() =>
-                  cambiar({ rotacion: acotarRotacionOnerrd((ranura.rotacion ?? 0) + 90) })
-                }
-              >
-                <Iconify icon="solar:restart-bold" width={18} />
-              </IconButton>
-            </Tooltip>
-            <Button size="small" color="inherit" onClick={() => cambiar({ rotacion: 0 })}>
-              Enderezar
-            </Button>
-          </Stack>
-        </Stack>
+        <ControlDeGiro valor={ranura.rotacion} onCambiar={(rotacion) => cambiar({ rotacion })} />
       </Stack>
     );
   }
@@ -979,6 +978,9 @@ export function PropiedadesOnerrd({
           />
         </Tooltip>
       </Stack>
+
+      {/* Giro sobre el centro de la caja (también con el asa redonda de encima). */}
+      <ControlDeGiro valor={campo.rotacion} onCambiar={(rotacion) => cambiar({ rotacion })} />
     </Stack>
   );
 }

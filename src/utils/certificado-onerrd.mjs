@@ -457,6 +457,9 @@ export const sanearCampoOnerrd = (entrada = {}) => {
     // Un nombre de iglesia largo se encoge hasta caber en su caja en vez de
     // partirse en dos líneas encima del diseño.
     ajustarAlAncho: campo.ajustarAlAncho !== false,
+    // Giro en grados sobre el centro de la caja (pantalla y PDF), como las
+    // firmas. Lo usa también la factura (su sello, sus textos).
+    rotacion: acotarRotacionOnerrd(campo.rotacion),
   };
 };
 

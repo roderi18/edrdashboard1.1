@@ -48,7 +48,7 @@ const ESTANDAR = {
   Courier: ['Courier', 'Courier-Bold', 'Courier-Oblique', 'Courier-BoldOblique'],
 };
 
-const tipografiaPdf = (campo) => {
+export const tipografiaPdf = (campo) => {
   if (campo.fuente === 'Roboto' || campo.fuente === 'Oswald') {
     return { fontFamily: `Onerrd${campo.fuente}`, fontWeight: pesoDeCampoOnerrd(campo) };
   }
@@ -69,6 +69,43 @@ const cajaConHolgura = (campo, caja) => {
   const desplazamiento = { left: 0, center: extra / 2, right: extra }[campo.alineacion] ?? 0;
   return { ...caja, left: caja.left - desplazamiento, width: caja.width + extra };
 };
+
+const posicionPdf = (caja) => ({ position: 'absolute', ...caja });
+
+// Un texto del certificado (o de la factura, que usa los mismos campos): con
+// su contorno debajo, su giro sobre el centro de la caja, o la imagen que
+// dibujó el navegador si lleva degradado.
+export function TextoOnerrdPdf({ campo, texto, tamano, lineaBase, dibujo, pagina }) {
+  const giro = campo.rotacion ? { transform: `rotate(${campo.rotacion}deg)` } : {};
+  if (dibujo) {
+    return <Image src={dibujo.dataUrl} style={{ ...posicionPdf(dibujo.caja), ...giro }} />;
+  }
+  const caja = cajaConHolgura(campo, cajaDeTextoOnerrd(campo, tamano, pagina, lineaBase));
+  const letra = {
+    ...tipografiaPdf(campo),
+    fontSize: tamano,
+    lineHeight: INTERLINEADO_ONERRD,
+    textAlign: campo.alineacion,
+    letterSpacing: campo.espaciado,
+  };
+  const contorno = campo.contorno ? desplazamientosDeContorno(campo.grosorContorno) : [];
+  return (
+    <>
+      {/* El contorno: copias desplazadas, debajo del texto. */}
+      {contorno.map(([dx, dy]) => (
+        <View
+          key={`${dx},${dy}`}
+          style={{ ...posicionPdf({ ...caja, left: caja.left + dx, top: caja.top + dy }), ...giro }}
+        >
+          <Text style={{ ...letra, color: campo.contorno }}>{texto}</Text>
+        </View>
+      ))}
+      <View style={{ ...posicionPdf(caja), ...giro }}>
+        <Text style={{ ...letra, color: campo.color }}>{texto}</Text>
+      </View>
+    </>
+  );
+}
 
 function CertificadoOnerrd({
   pagina,
@@ -132,37 +169,9 @@ function CertificadoOnerrd({
           <Image src={qr.dataUrl} style={posicion(cajaDeImagenOnerrd(diseno.qr, 1, pagina))} />
         )}
 
-        {textos.campos.map(({ campo, texto, tamano, lineaBase, dibujo }) => {
-          // Con degradado, el texto ya viene dibujado por el navegador.
-          if (dibujo) {
-            return <Image key={campo.id} src={dibujo.dataUrl} style={posicion(dibujo.caja)} />;
-          }
-          const caja = cajaConHolgura(campo, cajaDeTextoOnerrd(campo, tamano, pagina, lineaBase));
-          const letra = {
-            ...tipografiaPdf(campo),
-            fontSize: tamano,
-            lineHeight: INTERLINEADO_ONERRD,
-            textAlign: campo.alineacion,
-            letterSpacing: campo.espaciado,
-          };
-          const contorno = campo.contorno ? desplazamientosDeContorno(campo.grosorContorno) : [];
-          return (
-            <Fragment key={campo.id}>
-              {/* El contorno: copias desplazadas, debajo del texto. */}
-              {contorno.map(([dx, dy]) => (
-                <View
-                  key={`${dx},${dy}`}
-                  style={posicion({ ...caja, left: caja.left + dx, top: caja.top + dy })}
-                >
-                  <Text style={{ ...letra, color: campo.contorno }}>{texto}</Text>
-                </View>
-              ))}
-              <View style={posicion(caja)}>
-                <Text style={{ ...letra, color: campo.color }}>{texto}</Text>
-              </View>
-            </Fragment>
-          );
-        })}
+        {textos.campos.map((texto) => (
+          <TextoOnerrdPdf key={texto.campo.id} {...texto} pagina={pagina} />
+        ))}
       </Page>
     </Document>
   );

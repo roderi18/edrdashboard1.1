@@ -1,0 +1,279 @@
+// LA FACTURA DE CADA CERTIFICADO ONERRD.
+//
+// Qué protege: cada certificado ONERRD lleva su factura con el formato de la
+// Tienda ERRD (número correlativo, fecha, "Facturar a", concepto, líneas con
+// precio, cantidad e importe, total y sello del estado). Los datos son los de
+// un recibo (estado, vencimiento, líneas, descuento, impuestos) y se guardan
+// al emitir; el diseño se edita como el del certificado. Un certificado
+// emitido antes de que existiera la factura no la inventa, y las facturas de
+// la primera versión (un solo precio) siguen saliendo igual.
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+  cajaDeSelloFactura,
+  cajaDeTablaFactura,
+  sanearFacturaOnerrd,
+  datosDeFacturaOnerrd,
+  formatearMontoOnerrd,
+  facturaDePruebaOnerrd,
+  PAGINA_FACTURA_ONERRD,
+  facturarAPropuestoOnerrd,
+  formatearFechaLargaOnerrd,
+  sanearDisenoFacturaOnerrd,
+  facturaDesdeValoresOnerrd,
+  ID_CONTADOR_FACTURAS_ONERRD,
+  NUMERO_FACTURA_DE_PRUEBA_ONERRD,
+  PRECIO_FACTURA_ONERRD_POR_DEFECTO,
+  CAMPOS_DE_FABRICA_FACTURA_ONERRD,
+  esIdImagenFacturaOnerrd,
+  disenoFacturaParaGuardar,
+  crearIdImagenFacturaOnerrd,
+  LOGO_FACTURA_ONERRD,
+  EMISOR_FACTURA_ONERRD,
+  resolverDescripcionOnerrd,
+} from '../../src/utils/factura-onerrd.mjs';
+
+test('"Facturar a" propone al coordinador y su destacamento, como el ejemplo', () => {
+  assert.equal(
+    facturarAPropuestoOnerrd({ coordinador: 'Leoncio Alberto Vásquez', numeroDestacamento: '11' }),
+    'Leoncio Alberto Vásquez -Dest. 11'
+  );
+  assert.equal(facturarAPropuestoOnerrd({ pastor: 'Ana Ruiz' }), 'Ana Ruiz');
+  assert.equal(facturarAPropuestoOnerrd({}), '');
+});
+
+test('los datos de un recibo: estado, vencimiento, líneas, descuento e impuestos', () => {
+  const valores = { coordinador: 'Leoncio Alberto Vásquez', numeroDestacamento: '11', anio: 2027 };
+  const vacia = sanearFacturaOnerrd({}, valores);
+  assert.equal(vacia.facturarA, 'Leoncio Alberto Vásquez -Dest. 11');
+  assert.equal(vacia.estado, 'pagada');
+  assert.deepEqual(vacia.lineas, [
+    {
+      descripcion: 'Cuota Renovación de Membresía Anual 2027 ({registro})',
+      cantidad: 1,
+      precio: PRECIO_FACTURA_ONERRD_POR_DEFECTO,
+    },
+  ]);
+
+  const escrita = facturaDesdeValoresOnerrd({
+    ...valores,
+    facturaA: '  Otro  nombre ',
+    facturaEstado: 'pendiente',
+    facturaVence: '2026-11-07T12:00:00Z',
+    facturaLineas: [
+      { descripcion: '', cantidad: '2', precio: '1,250.5' },
+      { descripcion: 'Pañoletas', cantidad: '0', precio: '-3' },
+    ],
+    facturaCodigo: ' fidelidad25 ',
+    facturaDescuento: '100',
+    facturaImpuestos: '150',
+  });
+  assert.equal(escrita.facturarA, 'Otro nombre');
+  assert.equal(escrita.estado, 'pendiente');
+  assert.equal(escrita.vence, '2026-11-07T12:00:00.000Z');
+  assert.deepEqual(escrita.lineas[0], {
+    descripcion: 'Cuota Renovación de Membresía Anual 2027 ({registro})',
+    cantidad: 2,
+    precio: 1250.5,
+  });
+  // Cantidad mínima 1; un precio roto vuelve al de siempre.
+  assert.deepEqual(escrita.lineas[1], { descripcion: 'Pañoletas', cantidad: 1, precio: 1500 });
+  assert.equal(escrita.codigoDescuento, 'fidelidad25');
+  assert.equal(escrita.descuento, 100);
+  assert.equal(escrita.impuestos, 100); // tope 100 %
+  assert.equal(sanearFacturaOnerrd({ estado: 'otro' }).estado, 'pagada');
+  assert.match(ID_CONTADOR_FACTURAS_ONERRD, /^contador-/);
+});
+
+test('la factura pinta lo del ejemplo: número, fecha larga, concepto, línea y total', () => {
+  const datos = datosDeFacturaOnerrd({
+    numeroRegistro: '2027-009',
+    anio: 2027,
+    emitidoEnIso: '2026-01-30T15:00:00Z',
+    // La forma de las primeras facturas emitidas: un solo precio.
+    factura: {
+      numero: 100,
+      facturarA: 'Leoncio Alberto Vásquez -Dest. 11',
+      precio: 1500,
+      cantidad: 1,
+      codigoDescuento: 'fidelidad25',
+    },
+  });
+  assert.equal(datos.numero, '100');
+  assert.equal(datos.fecha, '30 de enero de 2026');
+  assert.equal(datos.facturarA, 'Leoncio Alberto Vásquez -Dest. 11');
+  assert.equal(datos.concepto, 'Pago de cuota de Renovación de Membresía Anual 2027');
+  assert.deepEqual(datos.lineas, [
+    {
+      descripcion: 'Cuota Renovación de Membresía Anual 2027 (2027-009)',
+      detalle: '(código: fidelidad25)',
+      precio: '1500.00',
+      cantidad: 1,
+      importe: '1,500.00',
+    },
+  ]);
+  assert.equal(datos.total, '1,500.00');
+  assert.equal(datos.descuento, '');
+  assert.equal(datos.moneda, 'RD$');
+  assert.equal(datos.sello, 'PAGADO');
+});
+
+test('subtotal, descuento e impuestos como un recibo; el sello dice el estado', () => {
+  const datos = datosDeFacturaOnerrd({
+    anio: 2027,
+    emitidoEnIso: '2026-10-07T15:00:00Z',
+    factura: {
+      numero: 7,
+      estado: 'pendiente',
+      lineas: [
+        { descripcion: 'Cuota', cantidad: 2, precio: 1500 },
+        { descripcion: 'Pañoletas', cantidad: 3, precio: 100 },
+      ],
+      descuento: 300,
+      impuestos: 18,
+    },
+  });
+  assert.equal(datos.subtotal, '3,300.00');
+  assert.equal(datos.impuestos, '594.00');
+  assert.equal(datos.descuento, '300.00');
+  assert.equal(datos.total, '3,594.00');
+  assert.equal(datos.sello, 'PENDIENTE');
+
+  // Bajo la tabla: SUBTOTAL, DESCUENTO, IMPUESTOS y TOTAL, uno tras otro.
+  const { tabla } = sanearDisenoFacturaOnerrd();
+  const caja = cajaDeTablaFactura(tabla, datos);
+  assert.deepEqual(
+    caja.totales.map((t) => t.etiqueta),
+    ['SUBTOTAL', 'DESCUENTO', 'IMPUESTOS (18%)', 'TOTAL']
+  );
+  assert.equal(caja.totales[0].top, caja.bottom);
+  // 10 filas (o más si hay más líneas) bajo el encabezado.
+  assert.equal(caja.filas.length, 10);
+  assert.ok(Math.abs(caja.columnas.reduce((s, c) => s + c.width, 0) - caja.width) < 1e-9);
+});
+
+test('un certificado emitido antes de la factura no la inventa', () => {
+  assert.equal(datosDeFacturaOnerrd({ numeroRegistro: '2027-008' }), null);
+  assert.equal(formatearMontoOnerrd(1234567.5), '1,234,567.50');
+  // La fecha va en hora de Santo Domingo: las 2 a. m. UTC aún son el día anterior.
+  assert.equal(formatearFechaLargaOnerrd('2026-10-08T02:00:00Z'), '7 de octubre de 2026');
+});
+
+test('la factura de prueba lleva el número y el sello PRUEBA', () => {
+  const datos = datosDeFacturaOnerrd(
+    facturaDePruebaOnerrd(
+      { coordinador: 'Ana Ruiz', numeroDestacamento: '7', facturaCodigo: 'x1' },
+      { anio: 2027, fecha: '2026-10-07T15:00:00Z' }
+    )
+  );
+  assert.equal(datos.numero, NUMERO_FACTURA_DE_PRUEBA_ONERRD);
+  assert.equal(datos.facturarA, 'Ana Ruiz -Dest. 7');
+  assert.equal(datos.total, '1,500.00');
+  assert.equal(datos.sello, 'PRUEBA');
+  assert.equal(datos.lineas[0].detalle, '(código: x1)');
+  assert.equal(datos.fecha, '7 de octubre de 2026');
+});
+
+test('el diseño: los textos de fábrica nunca se pierden y se editan como en el certificado', () => {
+  const vacio = sanearDisenoFacturaOnerrd();
+  assert.deepEqual(
+    vacio.campos.map((c) => c.id),
+    CAMPOS_DE_FABRICA_FACTURA_ONERRD.map((c) => c.id)
+  );
+  assert.ok(vacio.campos.every((c) => c.deFabrica));
+  // No tropiezan con los campos de fábrica del certificado (mismo saneado).
+  assert.equal(vacio.campos.find((c) => c.id === 'facturaTitulo').contenido, 'FACTURA');
+  assert.equal(vacio.campos.find((c) => c.id === 'facturaTitulo').fuente, 'Helvetica');
+
+  const guardado = sanearDisenoFacturaOnerrd({
+    campos: [{ id: 'facturaTitulo', tamano: 30, rotacion: 370, color: '#ff0000' }],
+    sello: { rotacion: -15, ancho: 500, colorTexto: 'azul' },
+    tabla: { filas: 99, titulos: { total: 'TOTAL A PAGAR' } },
+  });
+  const titulo = guardado.campos.find((c) => c.id === 'facturaTitulo');
+  assert.equal(titulo.tamano, 30);
+  assert.equal(titulo.rotacion, 10);
+  assert.equal(titulo.color, '#FF0000');
+  assert.equal(titulo.contenido, 'FACTURA'); // lo no guardado, el de fábrica
+  assert.equal(guardado.campos.length, CAMPOS_DE_FABRICA_FACTURA_ONERRD.length);
+  assert.equal(guardado.sello.ancho, 100);
+  assert.equal(guardado.sello.colorTexto, '#29ABE2');
+  assert.equal(guardado.tabla.filas, 20);
+  assert.equal(guardado.tabla.titulos.total, 'TOTAL A PAGAR');
+
+  // El sello: un estado más largo encoge la letra para caber en su recuadro.
+  const pagado = cajaDeSelloFactura(guardado.sello, 'PAGADO', PAGINA_FACTURA_ONERRD);
+  const pendiente = cajaDeSelloFactura(guardado.sello, 'PENDIENTE', PAGINA_FACTURA_ONERRD);
+  assert.ok(pendiente.tamano < pagado.tamano);
+});
+
+// Imágenes subidas a la factura: el diseño guarda solo su sitio, tamaño y
+// giro, y la imagen va en su propio documento (por su id). Un id raro no
+// apunta a otro documento de la colección.
+test('las imágenes de la factura: id propio, posición, tamaño y giro', () => {
+  const id = crearIdImagenFacturaOnerrd(1791380000000);
+  assert.equal(id, 'factura-imagen-1791380000000');
+  assert.equal(esIdImagenFacturaOnerrd(id), true);
+  assert.equal(esIdImagenFacturaOnerrd('diseno'), false);
+  assert.equal(esIdImagenFacturaOnerrd('factura-imagen-../x'), false);
+
+  const { imagenes } = sanearDisenoFacturaOnerrd({
+    imagenes: [
+      { id, x: 20, y: 'roto', ancho: 300, rotacion: 270 },
+      { id },
+      { id: 'contador-facturas', x: 1 },
+    ],
+  });
+  assert.deepEqual(imagenes, [{ id, visible: true, x: 20, y: 50, ancho: 100, rotacion: -90 }]);
+  assert.deepEqual(disenoFacturaParaGuardar({ imagenes }).imagenes, imagenes);
+  assert.deepEqual(sanearDisenoFacturaOnerrd().imagenes, []);
+});
+
+// La cabecera de fábrica lleva el logo (el emblema en PNG: el PDF no lee WebP)
+// y el remitente completo: dirección, RNC, correo y teléfono.
+test('la cabecera: logo y remitente con RNC, correo y teléfono', () => {
+  assert.equal(LOGO_FACTURA_ONERRD.src, '/marca/watermark.png');
+  const { campos, logo } = sanearDisenoFacturaOnerrd();
+  assert.equal(logo.visible, true);
+  const texto = (id) => campos.find((c) => c.id === id)?.contenido;
+  assert.equal(texto('facturaRnc'), 'RNC: 4-30-29726-7');
+  assert.equal(texto('facturaCorreo'), 'Correo electrónico: oficinanacional@errd.org.do');
+  assert.equal(texto('facturaTelefonos'), 'Número telefónico: 809-000-0000');
+  assert.equal(texto('facturaDireccion'), EMISOR_FACTURA_ONERRD.direccion);
+  // El remitente va a la derecha del logo, sin pisarlo.
+  const ladoDerechoLogo = logo.x + logo.ancho / 2;
+  const izquierdaRemitente = (c) => c.x - c.ancho / 2;
+  ['facturaEmisor', 'facturaRnc', 'facturaCorreo'].forEach((id) => {
+    assert.ok(izquierdaRemitente(campos.find((c) => c.id === id)) > ladoDerechoLogo, id);
+  });
+  // Un diseño guardado antes del logo lo recibe en su sitio de fábrica.
+  assert.deepEqual(sanearDisenoFacturaOnerrd({ campos: [] }).logo, logo);
+});
+
+// La descripción se escribe a mano y puede llevar {registro}: la factura pone
+// el número de registro del certificado, "(2027-015)". La de siempre ya lo
+// lleva al final. Sin número, los paréntesis vacíos no salen.
+test('la descripción lleva el número de registro con la variable {registro}', () => {
+  assert.equal(
+    resolverDescripcionOnerrd('Cuota Renovación de Membresía Anual 2027 ({registro})', '2027-015'),
+    'Cuota Renovación de Membresía Anual 2027 (2027-015)'
+  );
+  assert.equal(resolverDescripcionOnerrd('Pañoletas ({registro})', ''), 'Pañoletas');
+  assert.equal(resolverDescripcionOnerrd('Sin variable', '2027-015'), 'Sin variable');
+  const datos = datosDeFacturaOnerrd({
+    numeroRegistro: '2027-015',
+    anio: 2027,
+    emitidoEnIso: '2026-10-07T15:00:00Z',
+    factura: {
+      numero: 3,
+      lineas: [
+        { descripcion: '', cantidad: 1, precio: 1500 },
+        { descripcion: 'Pañoletas del {registro}', cantidad: 2, precio: 100 },
+      ],
+    },
+  });
+  assert.equal(datos.lineas[0].descripcion, 'Cuota Renovación de Membresía Anual 2027 (2027-015)');
+  assert.equal(datos.lineas[1].descripcion, 'Pañoletas del 2027-015');
+});

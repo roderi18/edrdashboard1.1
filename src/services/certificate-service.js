@@ -63,12 +63,15 @@ const getCreator = (user, fallbackName = 'Usuario') => ({
     user?.codigoMiembro ||
     fallbackName,
   correo: user?.email || '',
+  // Sale debajo del nombre en "Certificados creados".
+  codigo: String(user?.codigoMiembro || user?.codigoUsuario || ''),
 });
 
 const toLegacyCreator = (creator = {}) => ({
   uid: creator.uid || '',
   name: creator.nombre || '',
   email: creator.correo || '',
+  code: creator.codigo || '',
 });
 
 const getMemberName = (member = {}) =>

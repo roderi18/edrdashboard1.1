@@ -1,6 +1,7 @@
 import { ref, uploadBytes } from 'firebase/storage';
 import { doc, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 
+import { ID_CONTADOR_FACTURAS_ONERRD } from 'src/utils/factura-onerrd.mjs';
 import {
   rutaPdfOnerrd,
   idContadorOnerrd,
@@ -39,11 +40,26 @@ export const escribirFirmaOnerrd = (id, datos, { fusionar = false } = {}) =>
 // Reserva el siguiente número del año y deja el registro en la MISMA
 // transacción: dos personas que emiten a la vez no pueden sacar el mismo
 // número (Firestore relee el contador y una de las dos lo vuelve a intentar).
-export const escribirEmisionOnerrd = ({ anio, valores, firmas, diseno, autor, claveAcceso }) => {
+// La factura reserva su número correlativo igual, en la misma transacción.
+export const escribirEmisionOnerrd = ({
+  anio,
+  valores,
+  firmas,
+  diseno,
+  autor,
+  claveAcceso,
+  factura,
+  disenoFactura,
+}) => {
   const refContador = doc(FIRESTORE, COLECCION_ONERRD, idContadorOnerrd(anio));
+  const refFacturas = doc(FIRESTORE, COLECCION_ONERRD, ID_CONTADOR_FACTURAS_ONERRD);
 
   return runTransaction(FIRESTORE, async (transaccion) => {
     const contador = await transaccion.get(refContador);
+    const facturas = factura ? await transaccion.get(refFacturas) : null;
+    const numeroFactura = factura
+      ? siguienteSecuenciaOnerrd(facturas.exists() ? facturas.data().ultimo : 0)
+      : 0;
     const secuencia = siguienteSecuenciaOnerrd(contador.exists() ? contador.data().ultimo : 0);
     const numeroRegistro = formatearNumeroOnerrd(anio, secuencia);
     const refEmitido = doc(FIRESTORE, COLECCION_ONERRD_EMITIDOS, numeroRegistro);
@@ -58,21 +74,24 @@ export const escribirEmisionOnerrd = ({ anio, valores, firmas, diseno, autor, cl
       diseno: sanearDisenoOnerrd(diseno),
       // La clave del enlace del QR: sin ella la ruta pública no entrega el PDF.
       claveAcceso,
+      ...(factura && { factura: { ...factura, numero: numeroFactura } }),
+      ...(disenoFactura && { disenoFactura }),
       emitidoEnIso: ahora,
       emitidoPor: autor,
       emitidoEnServidor: serverTimestamp(),
     };
 
     transaccion.set(refContador, { anio: Number(anio), ultimo: secuencia, actualizadoEn: ahora });
+    if (factura) transaccion.set(refFacturas, { ultimo: numeroFactura, actualizadoEn: ahora });
     transaccion.set(refEmitido, emitido);
 
     return { id: numeroRegistro, ...emitido };
   });
 };
 
-// El PDF emitido, en Storage: es lo que abre el código QR. Se vuelve a subir
-// en cada descarga desde "Certificados emitidos" (si la primera vez falló, así
-// se arregla) y nunca se borra.
+// El PDF emitido, en Storage: es lo que abre el código QR y lo que se
+// descarga en "Certificados creados". Se sube al emitir (con reintentos) y
+// nunca se borra.
 export const subirPdfOnerrd = (numeroRegistro, blob) =>
   uploadBytes(ref(FIREBASE_STORAGE, rutaPdfOnerrd(numeroRegistro)), blob, {
     contentType: 'application/pdf',

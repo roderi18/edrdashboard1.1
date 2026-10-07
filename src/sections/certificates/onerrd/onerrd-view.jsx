@@ -10,9 +10,11 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import Collapse from '@mui/material/Collapse';
 import Skeleton from '@mui/material/Skeleton';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -21,6 +23,17 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { direccionPublica } from 'src/utils/direccion-publica.mjs';
+import {
+  LINEA_FACTURA_INICIAL,
+  ESTADOS_FACTURA_ONERRD,
+  facturarAPropuestoOnerrd,
+  disenoFacturaParaGuardar,
+  sanearDisenoFacturaOnerrd,
+  VARIABLE_REGISTRO_FACTURA,
+  facturaDesdeValoresOnerrd,
+  descripcionPropuestaOnerrd,
+  IMAGEN_NUEVA_FACTURA_ONERRD,
+} from 'src/utils/factura-onerrd.mjs';
 import {
   PESOS_ONERRD,
   regionOnerrd,
@@ -49,11 +62,14 @@ import {
   listarFirmasOnerrd,
   guardarImagenOnerrd,
   guardarDisenoOnerrd,
-  listarEmitidosOnerrd,
   leerIconosRegionOnerrd,
   leerUltimoNumeroOnerrd,
+  leerDisenoFacturaOnerrd,
   emitirCertificadoOnerrd,
   guardarIconoRegionOnerrd,
+  leerImagenesFacturaOnerrd,
+  guardarImagenFacturaOnerrd,
+  guardarDisenoFacturaOnerrd,
 } from 'src/services/certificado-onerrd-service';
 
 import { toast } from 'src/components/snackbar';
@@ -65,19 +81,18 @@ import { useAuthContext } from 'src/auth/hooks';
 import { VisorOnerrd } from './onerrd-visor';
 import { FirmasOnerrd } from './onerrd-firmas';
 import { LienzoOnerrd } from './onerrd-lienzo';
-import { EmitidosOnerrd } from './onerrd-emitidos';
 import { puedeUsarOnerrd } from './puede-usar-onerrd';
 import { PropiedadesOnerrd } from './onerrd-propiedades';
+import { descargarFacturaDePruebaOnerrd } from './descargas-onerrd';
+import { TituloDesplegable, EditorFacturaOnerrd } from './factura-editor';
 import {
-  lineaBaseOnerrd,
   generarQrOnerrd,
   medirTextoOnerrd,
-  cargarLetrasOnerrd,
   rasterizarSvgOnerrd,
   prepararImagenOnerrd,
-  rasterizarTextoOnerrd,
   leerFotoDeRegionOnerrd,
   TIPOS_DE_IMAGEN_ONERRD,
+  prepararTextosParaPdfOnerrd,
 } from './imagenes-onerrd';
 
 // ----------------------------------------------------------------------
@@ -170,6 +185,10 @@ const valoresIniciales = () => ({
   // A mediodía: guardada como ISO, una fecha a medianoche podía caer en el día
   // anterior al leerla en otra zona horaria.
   fecha: dayjs().hour(12).minute(0).second(0).millisecond(0).toISOString(),
+  // La factura (como un recibo): una línea con el precio de siempre, pagada.
+  // "Facturar a" vacío propone al coordinador.
+  facturaEstado: 'pagada',
+  facturaLineas: [{ ...LINEA_FACTURA_INICIAL }],
 });
 
 export function OnerrdView() {
@@ -193,7 +212,6 @@ export function OnerrdView() {
   const [diseno, setDiseno] = useState(() => sanearDisenoOnerrd());
   const [disenoGuardado, setDisenoGuardado] = useState(() => JSON.stringify(sanearDisenoOnerrd()));
   const [firmas, setFirmas] = useState([]);
-  const [emitidos, setEmitidos] = useState([]);
   const [ultimo, setUltimo] = useState(0);
   const [valores, setValores] = useState(valoresIniciales);
   const [seleccion, setSeleccion] = useState(null);
@@ -201,8 +219,21 @@ export function OnerrdView() {
   const [menuAgregar, setMenuAgregar] = useState(null);
   const [cuadricula, setCuadricula] = useState(false);
   const [fuentesListas, setFuentesListas] = useState(0);
+  // La factura: su diseño (como el del certificado) y qué desplegable se ve.
+  const [disenoFactura, setDisenoFactura] = useState(() => sanearDisenoFacturaOnerrd());
+  const [disenoFacturaGuardado, setDisenoFacturaGuardado] = useState(() =>
+    JSON.stringify(disenoFacturaParaGuardar(sanearDisenoFacturaOnerrd()))
+  );
+  const [verCertificado, setVerCertificado] = useState(true);
+  const [verFactura, setVerFactura] = useState(false);
+  // Las imágenes subidas a la factura: { id: { dataUrl, proporcion, nombreArchivo } }.
+  const [imagenesFactura, setImagenesFactura] = useState({});
+  const entradaImagenFacturaRef = useRef(null);
+  const alSubirImagenFactura = useRef(null);
+  // Trabajando solo en la factura: lo de la izquierda que es del certificado
+  // (fecha, región, destacamento, firmas, plantilla) se oculta.
+  const soloFactura = verFactura && !verCertificado;
   const [ocupado, setOcupado] = useState('');
-  const [descargando, setDescargando] = useState(null);
   const [confirmacion, setConfirmacion] = useState(null);
 
   const pagina = fondo?.pagina || PAGINA_ONERRD_POR_DEFECTO;
@@ -219,9 +250,9 @@ export function OnerrdView() {
       leerImagenOnerrd(),
       leerDisenoOnerrd(),
       listarFirmasOnerrd(),
-      listarEmitidosOnerrd(),
       leerIconosRegionOnerrd(),
-    ]).then(([rFondo, rImagen, rDiseno, rFirmas, rEmitidos, rIconos]) => {
+      leerDisenoFacturaOnerrd(),
+    ]).then(([rFondo, rImagen, rDiseno, rFirmas, rIconos, rFactura]) => {
       if (!vivo) return;
       if (rFondo.status === 'fulfilled' && rFondo.value?.dataUrl) setFondo(rFondo.value);
       if (rImagen.status === 'fulfilled' && rImagen.value?.dataUrl) setImagen(rImagen.value);
@@ -230,10 +261,18 @@ export function OnerrdView() {
         setDisenoGuardado(JSON.stringify(rDiseno.value));
       }
       if (rFirmas.status === 'fulfilled') setFirmas(rFirmas.value);
-      if (rEmitidos.status === 'fulfilled') setEmitidos(rEmitidos.value);
       if (rIconos.status === 'fulfilled') setIconosRegion(rIconos.value);
 
-      const fallos = [rFondo, rImagen, rDiseno, rFirmas, rEmitidos, rIconos].filter(
+      if (rFactura.status === 'fulfilled') {
+        setDisenoFactura(rFactura.value);
+        setDisenoFacturaGuardado(JSON.stringify(disenoFacturaParaGuardar(rFactura.value)));
+        // Sus imágenes llegan aparte (un documento cada una).
+        leerImagenesFacturaOnerrd(rFactura.value.imagenes.map((item) => item.id))
+          .then((leidas) => vivo && setImagenesFactura((actual) => ({ ...actual, ...leidas })))
+          .catch((error) => console.error('[onerrd] no se pudieron leer las imágenes', error));
+      }
+
+      const fallos = [rFondo, rImagen, rDiseno, rFirmas, rIconos, rFactura].filter(
         (r) => r.status === 'rejected'
       );
       if (fallos.length) {
@@ -444,6 +483,72 @@ export function OnerrdView() {
 
   const descartarCambios = () => setDiseno(JSON.parse(disenoGuardado));
 
+  const disenoFacturaSaneado = useMemo(
+    () => JSON.stringify(disenoFacturaParaGuardar(disenoFactura)),
+    [disenoFactura]
+  );
+  const hayCambiosFactura = disenoFacturaSaneado !== disenoFacturaGuardado;
+
+  const guardarDisenoFactura = async () => {
+    setOcupado('diseno-factura');
+    try {
+      await guardarDisenoFacturaOnerrd({ diseno: disenoFactura, user });
+      setDisenoFacturaGuardado(disenoFacturaSaneado);
+      toast.success('Diseño de la factura guardado.');
+    } catch (error) {
+      console.error('[onerrd] no se pudo guardar el diseño de la factura', error);
+      toast.error('No se pudo guardar el diseño de la factura. Inténtalo de nuevo.');
+    } finally {
+      setOcupado('');
+    }
+  };
+
+  // "Subir imagen" de la factura: abre el selector y devuelve el id de la
+  // imagen ya guardada (para elegirla en el lienzo).
+  const pedirImagenFactura = () =>
+    new Promise((resolver) => {
+      alSubirImagenFactura.current = resolver;
+      entradaImagenFacturaRef.current?.click();
+    });
+
+  const subirImagenFactura = async (archivo) => {
+    const resolver = alSubirImagenFactura.current;
+    alSubirImagenFactura.current = null;
+    if (!archivo) return;
+    setOcupado('imagen-factura');
+    try {
+      const preparada = await prepararImagenOnerrd(archivo);
+      const guardada = await guardarImagenFacturaOnerrd({ ...preparada, user });
+      setImagenesFactura((actual) => ({ ...actual, [guardada.id]: guardada }));
+      setDisenoFactura((actual) => ({
+        ...actual,
+        imagenes: [...actual.imagenes, { ...IMAGEN_NUEVA_FACTURA_ONERRD, id: guardada.id }],
+      }));
+      toast.success('Imagen subida. Colócala y pulsa «Guardar diseño».');
+      resolver?.(guardada.id);
+    } catch (error) {
+      console.error('[onerrd] no se pudo subir la imagen de la factura', error);
+      toast.error(error?.code || !error?.message ? 'No se pudo subir la imagen.' : error.message);
+    } finally {
+      setOcupado('');
+    }
+  };
+
+  const descartarFactura = () =>
+    setDisenoFactura(sanearDisenoFacturaOnerrd(JSON.parse(disenoFacturaGuardado)));
+
+  // Las líneas de la factura en "Datos del registro".
+  const lineasFactura = valores.facturaLineas?.length
+    ? valores.facturaLineas
+    : [{ ...LINEA_FACTURA_INICIAL }];
+  const cambiarLinea = (indice, cambios) =>
+    setValores((v) => ({
+      ...v,
+      facturaLineas: lineasFactura.map((linea, i) =>
+        i === indice ? { ...linea, ...cambios } : linea
+      ),
+    }));
+
   // ---------------------------------------------------------------- archivos
 
   const subirFondo = async (archivo) => {
@@ -590,19 +695,10 @@ export function OnerrdView() {
       : null;
     // Con la línea base que tiene cada texto en pantalla, para que el PDF lo
     // ponga a la misma altura.
-    const conTexto = resolverTextos(sanearDisenoOnerrd(d), v).filter((t) => t.texto);
-    await cargarLetrasOnerrd(conTexto.map((t) => t.campo));
-    const campos = conTexto.map((t) => {
-      const lineaBase = lineaBaseOnerrd(t.campo);
-      return {
-        ...t,
-        lineaBase,
-        // El PDF no rellena letras con degradado: las dibuja el navegador.
-        ...(t.campo.degradado && {
-          dibujo: rasterizarTextoOnerrd({ ...t, pagina, lineaBase }),
-        }),
-      };
-    });
+    const campos = await prepararTextosParaPdfOnerrd(
+      resolverTextos(sanearDisenoOnerrd(d), v),
+      pagina
+    );
     const blob = await generarPdfOnerrd({
       pagina,
       fondo: fondo.dataUrl,
@@ -618,20 +714,25 @@ export function OnerrdView() {
     return blob;
   };
 
-  // Lo que abre el QR. Si la subida falla, el certificado sigue emitido y
-  // descargado: se vuelve a publicar al descargarlo desde "Certificados emitidos".
+  // Lo que abre el QR (y lo que se descarga en "Certificados creados"). Se
+  // reintenta: la lista de emitidos de esta pestaña, que lo volvía a publicar,
+  // ya no está. Si aun así falla, el certificado sigue emitido y descargado.
   const publicar = async (emitido, blob) => {
     if (!emitido.claveAcceso) return true;
-    try {
-      await publicarPdfOnerrd(emitido.numeroRegistro, blob);
-      return true;
-    } catch (error) {
-      console.error('[onerrd] no se pudo publicar el PDF del QR', error);
-      toast.warning(
-        `El código QR de ${emitido.numeroRegistro} aún no abre el PDF: no se pudo publicar. Vuelve a descargarlo desde "Certificados emitidos" para reintentarlo.`
-      );
-      return false;
+    for (let intento = 1; intento <= 3; intento += 1) {
+      try {
+        await publicarPdfOnerrd(emitido.numeroRegistro, blob);
+        return true;
+      } catch (error) {
+        console.error(`[onerrd] no se pudo publicar el PDF del QR (intento ${intento})`, error);
+
+        if (intento < 3) await new Promise((resolver) => setTimeout(resolver, 1000 * intento));
+      }
     }
+    toast.warning(
+      `El certificado ${emitido.numeroRegistro} se emitió y se descargó, pero su PDF no se pudo guardar: su código QR no lo abrirá. Guarda el PDF descargado.`
+    );
+    return false;
   };
 
   const descargarPrueba = async () => {
@@ -643,9 +744,12 @@ export function OnerrdView() {
     try {
       const v = { ...valores, numeroRegistro: proximoNumero };
       await construirPdf(diseno, v, nombreDeArchivoOnerrd(`prueba-${proximoNumero}`, v));
+      // Y su factura de prueba (con su diseño en pantalla, sello PRUEBA y sin
+      // gastar número).
+      await descargarFacturaDePruebaOnerrd(valores, anio, disenoFactura, proximoNumero);
     } catch (error) {
       console.error('[onerrd] no se pudo generar la prueba', error);
-      toast.error('No se pudo generar el PDF de prueba.');
+      toast.error('No se pudo generar la prueba (certificado y factura).');
     } finally {
       setOcupado('');
     }
@@ -677,10 +781,12 @@ export function OnerrdView() {
         diseno,
         // La clave del enlace del QR, de este certificado y nada más.
         claveAcceso: crearClaveOnerrd(),
+        // Su factura (el número lo reserva la misma transacción).
+        factura: facturaDesdeValoresOnerrd(valores),
+        disenoFactura,
         user,
       });
       setUltimo(emitido.secuencia);
-      setEmitidos((actual) => [emitido, ...actual.filter((e) => e.id !== emitido.id)]);
     } catch (error) {
       console.error('[onerrd] no se pudo emitir', error);
       toast.error('No se pudo emitir el certificado. No se gastó ningún número.');
@@ -699,11 +805,16 @@ export function OnerrdView() {
         toast.success(`Certificado ${emitido.numeroRegistro} emitido.`);
       }
       // Limpio para el siguiente: emitir dos veces lo mismo gastaría otro número.
-      setValores((actual) => ({ anio: actual.anio, fecha: actual.fecha }));
+      setValores((actual) => ({
+        anio: actual.anio,
+        fecha: actual.fecha,
+        facturaEstado: actual.facturaEstado,
+        facturaLineas: [{ ...LINEA_FACTURA_INICIAL }],
+      }));
     } catch (error) {
       console.error('[onerrd] emitido pero sin PDF', error);
       toast.error(
-        `El número ${emitido.numeroRegistro} quedó registrado, pero el PDF falló. Descárgalo desde "Certificados emitidos".`
+        `El número ${emitido.numeroRegistro} quedó registrado, pero el PDF falló. Su factura está en "Certificados creados".`
       );
     } finally {
       setOcupado('');
@@ -733,25 +844,6 @@ export function OnerrdView() {
       color: 'primary',
       accion: emitir,
     });
-  };
-
-  const redescargar = async (emitido) => {
-    setDescargando(emitido.id);
-    try {
-      const blob = await construirPdf(
-        emitido.diseno,
-        { anio: emitido.anio, ...emitido.valores },
-        nombreDeArchivoOnerrd(emitido.numeroRegistro, emitido.valores),
-        // El mismo enlace: volver a descargarlo no cambia el QR, y vuelve a publicar el PDF (por si la primera vez falló).
-        { claveAcceso: emitido.claveAcceso }
-      );
-      await publicar(emitido, blob);
-    } catch (error) {
-      console.error('[onerrd] no se pudo volver a descargar', error);
-      toast.error('No se pudo generar el PDF.');
-    } finally {
-      setDescargando(null);
-    }
   };
 
   // ---------------------------------------------------------------- pintado
@@ -810,6 +902,16 @@ export function OnerrdView() {
         }}
       />
       <input
+        ref={entradaImagenFacturaRef}
+        hidden
+        type="file"
+        accept={TIPOS_DE_IMAGEN_ONERRD.join(',')}
+        onChange={(event) => {
+          subirImagenFactura(event.target.files?.[0]);
+          event.target.value = '';
+        }}
+      />
+      <input
         ref={entradaIconoRegionRef}
         hidden
         type="file"
@@ -832,7 +934,9 @@ export function OnerrdView() {
           <Card sx={{ p: 2.5 }}>
             <Typography variant="h6">Datos del registro</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2.5 }}>
-              Lo que cambia en cada certificado. Se ve en vivo en la vista previa.
+              {soloFactura
+                ? 'Lo de la factura. Lo del certificado vuelve al abrir «Diseño del certificado».'
+                : 'Lo que cambia en cada certificado. Se ve en vivo en la vista previa.'}
             </Typography>
 
             <Stack spacing={2}>
@@ -844,95 +948,303 @@ export function OnerrdView() {
                   value={valores.anio}
                   onChange={(event) => setValores((v) => ({ ...v, anio: event.target.value }))}
                   error={!esAnioDeRegistroValido(anio)}
+                  helperText={soloFactura ? 'Va en el concepto.' : undefined}
                   sx={{ width: 140 }}
                 />
+                {!soloFactura && (
+                  <DatePicker
+                    label="Fecha"
+                    format="DD/MM/YYYY"
+                    value={valores.fecha ? dayjs(valores.fecha) : null}
+                    onChange={(fecha) =>
+                      setValores((v) => ({
+                        ...v,
+                        fecha: fecha?.isValid()
+                          ? fecha.hour(12).minute(0).second(0).millisecond(0).toISOString()
+                          : '',
+                      }))
+                    }
+                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                  />
+                )}
+              </Stack>
+
+              {!soloFactura && (
+                <>
+                  <TextField
+                    select
+                    size="small"
+                    label="Región"
+                    value={regionOnerrd(valores.region) ? valores.region : ''}
+                    onChange={(event) => setValores((v) => ({ ...v, region: event.target.value }))}
+                    onFocus={() => setSeleccion({ tipo: 'iconoRegion', id: 'iconoRegion' })}
+                    helperText={
+                      valores.region && !cargandoFotosRegion && !iconoDeRegion(valores.region)
+                        ? 'Esta región no tiene foto en Niveles organizacionales.'
+                        : 'Su imagen (la de Niveles organizacionales) sale en el certificado.'
+                    }
+                  >
+                    <MenuItem value="">Sin región</MenuItem>
+                    {REGIONES_ONERRD.map((region) => (
+                      <MenuItem key={region.id} value={region.id}>
+                        {region.nombre}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+
+                  {camposDeTexto.map((campo) => (
+                    <TextField
+                      key={campo.id}
+                      size="small"
+                      label={campo.etiqueta}
+                      placeholder={campo.ejemplo}
+                      value={valores[campo.id] ?? ''}
+                      disabled={!campo.visible}
+                      helperText={
+                        campo.visible ? undefined : (
+                          // Oculto no sale en el lienzo y no se puede pulsar ahí:
+                          // se vuelve a mostrar desde aquí.
+                          <>
+                            Oculto en el diseño ·{' '}
+                            <Link
+                              component="button"
+                              type="button"
+                              variant="caption"
+                              onClick={() => {
+                                cambiarElemento('campo', campo.id, { visible: true });
+                                setSeleccion({ tipo: 'campo', id: campo.id });
+                              }}
+                            >
+                              Mostrar
+                            </Link>
+                          </>
+                        )
+                      }
+                      onChange={(event) =>
+                        setValores((v) => ({ ...v, [campo.id]: event.target.value }))
+                      }
+                      onFocus={() => setSeleccion({ tipo: 'campo', id: campo.id })}
+                      slotProps={{
+                        htmlInput: { maxLength: 200 },
+                        // El texto fijo del diseño, a la vista: aquí solo va el nombre.
+                        input: {
+                          startAdornment: campo.prefijo ? (
+                            <InputAdornment position="start" sx={{ mr: 0.25 }}>
+                              {campo.prefijo}
+                            </InputAdornment>
+                          ) : undefined,
+                          endAdornment: campo.sufijo ? (
+                            <InputAdornment position="end" sx={{ ml: 0.25 }}>
+                              {campo.sufijo}
+                            </InputAdornment>
+                          ) : undefined,
+                        },
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* La factura de este certificado, con los datos de un recibo
+                  (/dashboard/invoice). Su diseño, en "Diseño de la factura";
+                  se descarga en "Certificados creados". */}
+              <Divider textAlign="left" sx={{ typography: 'overline', color: 'text.secondary' }}>
+                Factura
+              </Divider>
+              <TextField
+                size="small"
+                label="Facturar a"
+                placeholder={facturarAPropuestoOnerrd(valores) || 'Nombre -Dest. 11'}
+                value={valores.facturaA ?? ''}
+                onChange={(event) => setValores((v) => ({ ...v, facturaA: event.target.value }))}
+                helperText="Vacío: el coordinador y su destacamento."
+                slotProps={{ htmlInput: { maxLength: 160 } }}
+              />
+              <Stack direction="row" spacing={1.5}>
+                <TextField
+                  select
+                  size="small"
+                  label="Estado"
+                  value={valores.facturaEstado || 'pagada'}
+                  onChange={(event) =>
+                    setValores((v) => ({ ...v, facturaEstado: event.target.value }))
+                  }
+                  sx={{ width: 140, flexShrink: 0 }}
+                >
+                  {ESTADOS_FACTURA_ONERRD.map((estado) => (
+                    <MenuItem key={estado.value} value={estado.value}>
+                      {estado.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
                 <DatePicker
-                  label="Fecha"
+                  label="Vence"
                   format="DD/MM/YYYY"
-                  value={valores.fecha ? dayjs(valores.fecha) : null}
+                  value={valores.facturaVence ? dayjs(valores.facturaVence) : null}
                   onChange={(fecha) =>
                     setValores((v) => ({
                       ...v,
-                      fecha: fecha?.isValid()
+                      facturaVence: fecha?.isValid()
                         ? fecha.hour(12).minute(0).second(0).millisecond(0).toISOString()
                         : '',
                     }))
                   }
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                  slotProps={{
+                    textField: { size: 'small', fullWidth: true },
+                    field: { clearable: true },
+                  }}
                 />
               </Stack>
 
-              <TextField
-                select
-                size="small"
-                label="Región"
-                value={regionOnerrd(valores.region) ? valores.region : ''}
-                onChange={(event) => setValores((v) => ({ ...v, region: event.target.value }))}
-                onFocus={() => setSeleccion({ tipo: 'iconoRegion', id: 'iconoRegion' })}
-                helperText={
-                  valores.region && !cargandoFotosRegion && !iconoDeRegion(valores.region)
-                    ? 'Esta región no tiene foto en Niveles organizacionales.'
-                    : 'Su imagen (la de Niveles organizacionales) sale en el certificado.'
-                }
-              >
-                <MenuItem value="">Sin región</MenuItem>
-                {REGIONES_ONERRD.map((region) => (
-                  <MenuItem key={region.id} value={region.id}>
-                    {region.nombre}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              {camposDeTexto.map((campo) => (
-                <TextField
-                  key={campo.id}
-                  size="small"
-                  label={campo.etiqueta}
-                  placeholder={campo.ejemplo}
-                  value={valores[campo.id] ?? ''}
-                  disabled={!campo.visible}
-                  helperText={
-                    campo.visible ? undefined : (
-                      // Oculto no sale en el lienzo y no se puede pulsar ahí:
-                      // se vuelve a mostrar desde aquí.
-                      <>
-                        Oculto en el diseño ·{' '}
-                        <Link
-                          component="button"
-                          type="button"
-                          variant="caption"
-                          onClick={() => {
-                            cambiarElemento('campo', campo.id, { visible: true });
-                            setSeleccion({ tipo: 'campo', id: campo.id });
-                          }}
+              {lineasFactura.map((linea, indice) => (
+                <Stack key={indice} spacing={1}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <TextField
+                      size="small"
+                      fullWidth
+                      label={`Línea ${indice + 1}`}
+                      placeholder={descripcionPropuestaOnerrd(valores.anio)}
+                      value={linea.descripcion ?? ''}
+                      onChange={(event) =>
+                        cambiarLinea(indice, { descripcion: event.target.value })
+                      }
+                      helperText={
+                        indice === 0
+                          ? `{registro} = número de registro (${proximoNumero || '2027-015'})`
+                          : undefined
+                      }
+                      slotProps={{
+                        htmlInput: { maxLength: 160 },
+                        // Añade el número de registro al final: "(2027-015)".
+                        input: {
+                          endAdornment: !String(linea.descripcion ?? '').includes(
+                            VARIABLE_REGISTRO_FACTURA
+                          ) && (
+                            <InputAdornment position="end">
+                              <Tooltip title="Añadir el número de registro al final, entre paréntesis">
+                                <Button
+                                  size="small"
+                                  onClick={() =>
+                                    cambiarLinea(indice, {
+                                      descripcion: `${
+                                        String(linea.descripcion ?? '').trim() ||
+                                        descripcionPropuestaOnerrd(valores.anio).replace(
+                                          ` (${VARIABLE_REGISTRO_FACTURA})`,
+                                          ''
+                                        )
+                                      } (${VARIABLE_REGISTRO_FACTURA})`,
+                                    })
+                                  }
+                                  sx={{ minWidth: 0, px: 0.75, whiteSpace: 'nowrap' }}
+                                >
+                                  + N.º
+                                </Button>
+                              </Tooltip>
+                            </InputAdornment>
+                          ),
+                        },
+                      }}
+                    />
+                    {lineasFactura.length > 1 && (
+                      <Tooltip title="Quitar esta línea">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() =>
+                            setValores((v) => ({
+                              ...v,
+                              facturaLineas: lineasFactura.filter((_, i) => i !== indice),
+                            }))
+                          }
                         >
-                          Mostrar
-                        </Link>
-                      </>
-                    )
-                  }
+                          <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Stack>
+                  <Stack direction="row" spacing={1}>
+                    <TextField
+                      size="small"
+                      label="Cantidad"
+                      value={linea.cantidad ?? ''}
+                      onChange={(event) => cambiarLinea(indice, { cantidad: event.target.value })}
+                      slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 5 } }}
+                      sx={{ width: 100 }}
+                    />
+                    <TextField
+                      size="small"
+                      fullWidth
+                      label="Precio"
+                      value={linea.precio ?? ''}
+                      onChange={(event) => cambiarLinea(indice, { precio: event.target.value })}
+                      slotProps={{
+                        htmlInput: { inputMode: 'decimal', maxLength: 12 },
+                        input: {
+                          startAdornment: <InputAdornment position="start">RD$</InputAdornment>,
+                        },
+                      }}
+                    />
+                  </Stack>
+                </Stack>
+              ))}
+              <Button
+                size="small"
+                color="inherit"
+                disabled={lineasFactura.length >= 20}
+                onClick={() =>
+                  setValores((v) => ({
+                    ...v,
+                    facturaLineas: [...lineasFactura, { ...LINEA_FACTURA_INICIAL }],
+                  }))
+                }
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Agregar línea
+              </Button>
+
+              <TextField
+                size="small"
+                label="Código de descuento"
+                placeholder="Opcional"
+                value={valores.facturaCodigo ?? ''}
+                onChange={(event) =>
+                  setValores((v) => ({ ...v, facturaCodigo: event.target.value }))
+                }
+                slotProps={{ htmlInput: { maxLength: 40 } }}
+              />
+              <Stack direction="row" spacing={1.5}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  label="Descuento"
+                  placeholder="0.00"
+                  value={valores.facturaDescuento ?? ''}
                   onChange={(event) =>
-                    setValores((v) => ({ ...v, [campo.id]: event.target.value }))
+                    setValores((v) => ({ ...v, facturaDescuento: event.target.value }))
                   }
-                  onFocus={() => setSeleccion({ tipo: 'campo', id: campo.id })}
                   slotProps={{
-                    htmlInput: { maxLength: 200 },
-                    // El texto fijo del diseño, a la vista: aquí solo va el nombre.
+                    htmlInput: { inputMode: 'decimal', maxLength: 12 },
                     input: {
-                      startAdornment: campo.prefijo ? (
-                        <InputAdornment position="start" sx={{ mr: 0.25 }}>
-                          {campo.prefijo}
-                        </InputAdornment>
-                      ) : undefined,
-                      endAdornment: campo.sufijo ? (
-                        <InputAdornment position="end" sx={{ ml: 0.25 }}>
-                          {campo.sufijo}
-                        </InputAdornment>
-                      ) : undefined,
+                      startAdornment: <InputAdornment position="start">RD$</InputAdornment>,
                     },
                   }}
                 />
-              ))}
+                <TextField
+                  size="small"
+                  fullWidth
+                  label="Impuestos"
+                  placeholder="0"
+                  value={valores.facturaImpuestos ?? ''}
+                  onChange={(event) =>
+                    setValores((v) => ({ ...v, facturaImpuestos: event.target.value }))
+                  }
+                  slotProps={{
+                    htmlInput: { inputMode: 'decimal', maxLength: 6 },
+                    input: { endAdornment: <InputAdornment position="end">%</InputAdornment> },
+                  }}
+                />
+              </Stack>
 
               <Alert severity="info" icon={<Iconify icon="solar:medal-ribbon-star-bold" />}>
                 Próximo número: <strong>{proximoNumero || '—'}</strong>. Se confirma al emitir; dos
@@ -967,201 +1279,254 @@ export function OnerrdView() {
             </Stack>
           </Card>
 
-          <FirmasOnerrd
-            diseno={diseno}
-            firmasActivas={firmasActivas}
-            user={user}
-            onCambiarRanura={(id, cambios) => cambiarElemento('firma', id, cambios)}
-            onFirmasCambiaron={recargarFirmas}
-            onSeleccionar={setSeleccion}
-          />
-
-          <Card sx={{ p: 2.5 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Plantilla e imagen
-            </Typography>
-            <Stack spacing={1.5}>
-              <LoadingButton
-                variant="outlined"
-                loading={ocupado === 'fondo'}
-                loadingPosition="start"
-                startIcon={<Iconify icon="eva:cloud-upload-fill" />}
-                onClick={pedirFondo}
-              >
-                {fondo ? 'Cambiar plantilla .svg' : 'Subir plantilla .svg'}
-              </LoadingButton>
-              {fondo && (
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {fondo.nombreArchivo || 'Plantilla'} · {Math.round(pagina.ancho)} ×{' '}
-                  {Math.round(pagina.alto)} pt
-                </Typography>
-              )}
-              <LoadingButton
-                variant="outlined"
-                loading={ocupado === 'imagen'}
-                loadingPosition="start"
-                startIcon={<Iconify icon="solar:gallery-add-bold" />}
-                onClick={() => entradaImagenRef.current?.click()}
-              >
-                {imagen ? 'Cambiar imagen' : 'Subir imagen (PNG, JPG, WebP)'}
-              </LoadingButton>
-              {imagen && !diseno.imagen.visible && (
-                <Button
-                  variant="outlined"
-                  startIcon={<Iconify icon="solar:eye-bold" />}
-                  onClick={() => {
-                    cambiarElemento('imagen', 'imagen', { visible: true });
-                    setSeleccion({ tipo: 'imagen', id: 'imagen' });
-                  }}
-                >
-                  Mostrar la imagen (está oculta)
-                </Button>
-              )}
-              {!diseno.iconoRegion?.visible && (
-                <Button
-                  variant="outlined"
-                  startIcon={<Iconify icon="solar:eye-bold" />}
-                  onClick={() => {
-                    cambiarElemento('iconoRegion', 'iconoRegion', { visible: true });
-                    setSeleccion({ tipo: 'iconoRegion', id: 'iconoRegion' });
-                  }}
-                >
-                  Mostrar el icono de la región (está oculto)
-                </Button>
-              )}
-              {!diseno.qr?.visible && (
-                <Button
-                  variant="outlined"
-                  startIcon={<Iconify icon="solar:eye-bold" />}
-                  onClick={() => {
-                    cambiarElemento('qr', 'qr', { visible: true });
-                    setSeleccion({ tipo: 'qr', id: 'qr' });
-                  }}
-                >
-                  Mostrar el código QR (está oculto)
-                </Button>
-              )}
-            </Stack>
-          </Card>
-        </Stack>
-
-        <Card sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}>
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={1}
-            flexWrap="wrap"
-            useFlexGap
-            sx={{ mb: 2 }}
-          >
-            <Typography variant="h6" sx={{ flex: 1, minWidth: 160 }}>
-              Diseño del certificado
-            </Typography>
-            <Button
-              size="small"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-              endIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={16} />}
-              onClick={(event) => setMenuAgregar(event.currentTarget)}
-            >
-              Agregar texto
-            </Button>
-            <Menu anchorEl={menuAgregar} open={!!menuAgregar} onClose={() => setMenuAgregar(null)}>
-              {Object.entries(NUEVO_TEXTO).map(([tipo, { titulo, detalle }]) => (
-                <MenuItem key={tipo} onClick={() => agregarTexto(tipo)}>
-                  <ListItemText primary={titulo} secondary={detalle} />
-                </MenuItem>
-              ))}
-            </Menu>
-            <Button
-              size="small"
-              color={modoVista ? 'primary' : 'inherit'}
-              startIcon={<Iconify icon={modoVista ? 'solar:eye-closed-bold' : 'solar:eye-bold'} />}
-              onClick={() => {
-                setModoVista((v) => !v);
-                setSeleccion(null);
-              }}
-            >
-              {modoVista ? 'Volver a editar' : 'Ver resultado'}
-            </Button>
-            {hayCambios && (
-              <Tooltip title="Volver a lo último guardado">
-                <Button
-                  size="small"
-                  color="inherit"
-                  startIcon={<Iconify icon="solar:restart-bold" />}
-                  onClick={descartarCambios}
-                >
-                  Descartar
-                </Button>
-              </Tooltip>
-            )}
-            <LoadingButton
-              size="small"
-              variant="contained"
-              loading={ocupado === 'diseno'}
-              disabled={!hayCambios}
-              onClick={guardarDiseno}
-              startIcon={
-                <Iconify icon={hayCambios ? 'solar:file-text-bold' : 'solar:check-circle-bold'} />
-              }
-            >
-              {hayCambios ? 'Guardar diseño' : 'Guardado'}
-            </LoadingButton>
-          </Stack>
-
-          <VisorOnerrd
-            cuadricula={cuadricula}
-            onCuadricula={setCuadricula}
-            mostrarCuadricula={!modoVista && !!fondo}
-          >
-            <LienzoOnerrd
-              pagina={pagina}
-              fondo={fondo?.dataUrl}
-              imagen={imagen}
-              diseno={diseno}
-              firmasPorId={firmasPorId}
-              qr={qrVista}
-              iconoRegion={iconoDeRegion(valores.region) || undefined}
-              nombreRegion={regionOnerrd(valores.region)?.nombre}
-              textos={textosDeVista}
-              valores={valores}
-              onCambiarValor={cambiarValor}
-              seleccion={seleccion}
-              modoVista={modoVista}
-              cuadricula={cuadricula}
-              onSeleccionar={setSeleccion}
-              onCambiarElemento={cambiarElemento}
-              onSubirFondo={pedirFondo}
-            />
-          </VisorOnerrd>
-
-          {!modoVista && fondo && (
+          {!soloFactura && (
             <>
-              <Divider sx={{ my: 2.5 }} />
-              <PropiedadesOnerrd
-                seleccion={seleccion}
+              <FirmasOnerrd
                 diseno={diseno}
                 firmasActivas={firmasActivas}
-                onCambiarElemento={cambiarElemento}
-                onEliminarCampo={eliminarCampo}
-                onSubirImagen={() => entradaImagenRef.current?.click()}
-                onQuitarImagen={quitarImagen}
-                tieneImagen={!!imagen}
-                region={regionOnerrd(valores.region) ? valores.region : ''}
-                onCambiarRegion={(region) => setValores((v) => ({ ...v, region }))}
-                iconosRegion={iconosRegion}
-                fotosRegion={fotosRegion}
-                cargandoFotosRegion={cargandoFotosRegion}
-                subiendoRegion={ocupado.startsWith('region-') ? ocupado.slice(7) : ''}
-                onSubirIconoRegion={pedirIconoRegion}
-                onQuitarIconoRegion={quitarIconoRegion}
+                user={user}
+                onCambiarRanura={(id, cambios) => cambiarElemento('firma', id, cambios)}
+                onFirmasCambiaron={recargarFirmas}
+                onSeleccionar={setSeleccion}
               />
+
+              <Card sx={{ p: 2.5 }}>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                  Plantilla e imagen
+                </Typography>
+                <Stack spacing={1.5}>
+                  <LoadingButton
+                    variant="outlined"
+                    loading={ocupado === 'fondo'}
+                    loadingPosition="start"
+                    startIcon={<Iconify icon="eva:cloud-upload-fill" />}
+                    onClick={pedirFondo}
+                  >
+                    {fondo ? 'Cambiar plantilla .svg' : 'Subir plantilla .svg'}
+                  </LoadingButton>
+                  {fondo && (
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {fondo.nombreArchivo || 'Plantilla'} · {Math.round(pagina.ancho)} ×{' '}
+                      {Math.round(pagina.alto)} pt
+                    </Typography>
+                  )}
+                  <LoadingButton
+                    variant="outlined"
+                    loading={ocupado === 'imagen'}
+                    loadingPosition="start"
+                    startIcon={<Iconify icon="solar:gallery-add-bold" />}
+                    onClick={() => entradaImagenRef.current?.click()}
+                  >
+                    {imagen ? 'Cambiar imagen' : 'Subir imagen (PNG, JPG, WebP)'}
+                  </LoadingButton>
+                  {imagen && !diseno.imagen.visible && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<Iconify icon="solar:eye-bold" />}
+                      onClick={() => {
+                        cambiarElemento('imagen', 'imagen', { visible: true });
+                        setSeleccion({ tipo: 'imagen', id: 'imagen' });
+                      }}
+                    >
+                      Mostrar la imagen (está oculta)
+                    </Button>
+                  )}
+                  {!diseno.iconoRegion?.visible && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<Iconify icon="solar:eye-bold" />}
+                      onClick={() => {
+                        cambiarElemento('iconoRegion', 'iconoRegion', { visible: true });
+                        setSeleccion({ tipo: 'iconoRegion', id: 'iconoRegion' });
+                      }}
+                    >
+                      Mostrar el icono de la región (está oculto)
+                    </Button>
+                  )}
+                  {!diseno.qr?.visible && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<Iconify icon="solar:eye-bold" />}
+                      onClick={() => {
+                        cambiarElemento('qr', 'qr', { visible: true });
+                        setSeleccion({ tipo: 'qr', id: 'qr' });
+                      }}
+                    >
+                      Mostrar el código QR (está oculto)
+                    </Button>
+                  )}
+                </Stack>
+              </Card>
             </>
           )}
-        </Card>
-      </Box>
+        </Stack>
 
-      <EmitidosOnerrd emitidos={emitidos} descargando={descargando} onDescargar={redescargar} />
+        {/* Certificado y factura: dos desplegables que se abren y cierran desde
+            su título; pueden estar los dos abiertos. */}
+        <Stack spacing={3} sx={{ minWidth: 0 }}>
+          <Card sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}>
+            <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+              <TituloDesplegable
+                titulo="Diseño del certificado"
+                abierto={verCertificado}
+                onAlternar={() => setVerCertificado((v) => !v)}
+              />
+              {verCertificado && (
+                <>
+                  <Button
+                    size="small"
+                    startIcon={<Iconify icon="mingcute:add-line" />}
+                    endIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={16} />}
+                    onClick={(event) => setMenuAgregar(event.currentTarget)}
+                  >
+                    Agregar texto
+                  </Button>
+                  <Menu
+                    anchorEl={menuAgregar}
+                    open={!!menuAgregar}
+                    onClose={() => setMenuAgregar(null)}
+                  >
+                    {Object.entries(NUEVO_TEXTO).map(([tipo, { titulo, detalle }]) => (
+                      <MenuItem key={tipo} onClick={() => agregarTexto(tipo)}>
+                        <ListItemText primary={titulo} secondary={detalle} />
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                  <Button
+                    size="small"
+                    color={modoVista ? 'primary' : 'inherit'}
+                    startIcon={
+                      <Iconify icon={modoVista ? 'solar:eye-closed-bold' : 'solar:eye-bold'} />
+                    }
+                    onClick={() => {
+                      setModoVista((v) => !v);
+                      setSeleccion(null);
+                    }}
+                  >
+                    {modoVista ? 'Volver a editar' : 'Ver resultado'}
+                  </Button>
+                  {hayCambios && (
+                    <Tooltip title="Volver a lo último guardado">
+                      <Button
+                        size="small"
+                        color="inherit"
+                        startIcon={<Iconify icon="solar:restart-bold" />}
+                        onClick={descartarCambios}
+                      >
+                        Descartar
+                      </Button>
+                    </Tooltip>
+                  )}
+                  <LoadingButton
+                    size="small"
+                    variant="contained"
+                    loading={ocupado === 'diseno'}
+                    disabled={!hayCambios}
+                    onClick={guardarDiseno}
+                    startIcon={
+                      <Iconify
+                        icon={hayCambios ? 'solar:file-text-bold' : 'solar:check-circle-bold'}
+                      />
+                    }
+                  >
+                    {hayCambios ? 'Guardar diseño' : 'Guardado'}
+                  </LoadingButton>
+                </>
+              )}
+            </Stack>
+
+            <Collapse in={verCertificado}>
+              <Box sx={{ mt: 2 }}>
+                <VisorOnerrd
+                  cuadricula={cuadricula}
+                  onCuadricula={setCuadricula}
+                  mostrarCuadricula={!modoVista && !!fondo}
+                >
+                  <LienzoOnerrd
+                    pagina={pagina}
+                    fondo={fondo?.dataUrl}
+                    imagen={imagen}
+                    diseno={diseno}
+                    firmasPorId={firmasPorId}
+                    qr={qrVista}
+                    iconoRegion={iconoDeRegion(valores.region) || undefined}
+                    nombreRegion={regionOnerrd(valores.region)?.nombre}
+                    textos={textosDeVista}
+                    valores={valores}
+                    onCambiarValor={cambiarValor}
+                    seleccion={seleccion}
+                    modoVista={modoVista}
+                    cuadricula={cuadricula}
+                    onSeleccionar={setSeleccion}
+                    onCambiarElemento={cambiarElemento}
+                    onSubirFondo={pedirFondo}
+                  />
+                </VisorOnerrd>
+
+                {!modoVista && fondo && (
+                  <>
+                    <Divider sx={{ my: 2.5 }} />
+                    <PropiedadesOnerrd
+                      seleccion={seleccion}
+                      diseno={diseno}
+                      firmasActivas={firmasActivas}
+                      onCambiarElemento={cambiarElemento}
+                      onEliminarCampo={eliminarCampo}
+                      onSubirImagen={() => entradaImagenRef.current?.click()}
+                      onQuitarImagen={quitarImagen}
+                      tieneImagen={!!imagen}
+                      region={regionOnerrd(valores.region) ? valores.region : ''}
+                      onCambiarRegion={(region) => setValores((v) => ({ ...v, region }))}
+                      iconosRegion={iconosRegion}
+                      fotosRegion={fotosRegion}
+                      cargandoFotosRegion={cargandoFotosRegion}
+                      subiendoRegion={ocupado.startsWith('region-') ? ocupado.slice(7) : ''}
+                      onSubirIconoRegion={pedirIconoRegion}
+                      onQuitarIconoRegion={quitarIconoRegion}
+                    />
+                  </>
+                )}
+              </Box>
+            </Collapse>
+          </Card>
+
+          {verFactura ? (
+            <EditorFacturaOnerrd
+              abierto
+              onAlternar={() => setVerFactura(false)}
+              diseno={disenoFactura}
+              onCambiarDiseno={setDisenoFactura}
+              hayCambios={hayCambiosFactura}
+              guardando={ocupado === 'diseno-factura'}
+              onGuardar={guardarDisenoFactura}
+              onDescartar={descartarFactura}
+              valores={valores}
+              anio={anio}
+              onCambiarValor={cambiarValor}
+              fuentesListas={fuentesListas}
+              imagenes={imagenesFactura}
+              numeroRegistro={proximoNumero}
+              onSubirImagen={pedirImagenFactura}
+              subiendoImagen={ocupado === 'imagen-factura'}
+            />
+          ) : (
+            // Abre la factura y recoge el certificado (se vuelve a abrir desde su
+            // título: los dos pueden estar abiertos).
+            <Button
+              variant="outlined"
+              size="large"
+              startIcon={<Iconify icon="solar:file-text-bold" />}
+              onClick={() => {
+                setVerFactura(true);
+                setVerCertificado(false);
+              }}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              Ver y editar factura
+            </Button>
+          )}
+        </Stack>
+      </Box>
 
       <ConfirmDialog
         open={!!confirmacion}

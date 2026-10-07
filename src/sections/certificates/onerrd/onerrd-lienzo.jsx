@@ -87,6 +87,10 @@ function LienzoOnerrdBase({
   onCambiarElemento,
   onCambiarValor,
   onSubirFondo,
+  // La factura: hoja en blanco (sin plantilla) y sus propios elementos (tabla,
+  // sello, raya), que pinta quien la usa con las mismas herramientas.
+  paginaEnBlanco = false,
+  renderExtras,
 }) {
   const lienzoRef = useRef(null);
   const [editando, setEditando] = useState(null); // id del texto que se escribe
@@ -213,16 +217,16 @@ function LienzoOnerrdBase({
     if (!evento.key.startsWith('Arrow')) return;
     evento.preventDefault();
     const paso = evento.shiftKey ? 1 : 0.2;
-    const elemento =
+    // Campos y firmas por su id; lo demás (imagen, QR, icono, y la tabla, el
+    // sello y las imágenes de la factura) es una clave del diseño: un elemento,
+    // o una lista donde se busca por id.
+    const lista =
       seleccion.tipo === 'campo'
-        ? diseno.campos.find((campo) => campo.id === seleccion.id)
+        ? diseno.campos
         : seleccion.tipo === 'firma'
-          ? diseno.firmas.find((firma) => firma.id === seleccion.id)
-          : seleccion.tipo === 'qr'
-            ? diseno.qr
-            : seleccion.tipo === 'iconoRegion'
-              ? diseno.iconoRegion
-              : diseno.imagen;
+          ? diseno.firmas
+          : diseno[seleccion.tipo];
+    const elemento = Array.isArray(lista) ? lista.find((item) => item.id === seleccion.id) : lista;
     if (!elemento) return;
     const dx = { ArrowLeft: -paso, ArrowRight: paso }[evento.key] || 0;
     const dy = { ArrowUp: -paso, ArrowDown: paso }[evento.key] || 0;
@@ -301,49 +305,23 @@ function LienzoOnerrdBase({
             onPointerDown={empezarEstirarImagen(tipo, id, elemento)}
           />
         )}
-        {elegido && !modoVista && tipo === 'firma' && (
+        {elegido &&
+          !modoVista &&
+          tipo === 'firma' &&
           // Asa de giro, redonda y por encima: se arrastra alrededor del centro.
-          <Tooltip title="Arrastra para girar (se pega a 0°, 90°…; con Alt, libre)" placement="top">
-            <Box
-              onPointerDown={empezarRotar(id)}
-              sx={{
-                position: 'absolute',
-                left: '50%',
-                top: -30,
-                width: 16,
-                height: 16,
-                ml: '-8px',
-                borderRadius: '50%',
-                bgcolor: 'common.white',
-                border: (theme) => `2px solid ${theme.vars.palette.primary.main}`,
-                cursor: 'grab',
-                zIndex: 3,
-                touchAction: 'none',
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  left: '50%',
-                  top: 14,
-                  width: '1px',
-                  height: 14,
-                  bgcolor: 'primary.main',
-                },
-              }}
-            />
-          </Tooltip>
-        )}
+          asaDeGiro(empezarRotar('firma', id, elemento))}
       </Box>
     );
   };
 
-  // Girar una firma: el ángulo del puntero alrededor del centro de la firma.
+  // Girar (firmas, textos, el sello de la factura): el ángulo del puntero
+  // alrededor del centro del elemento, que le dice quien llama en % del lienzo.
   // Cerca de 0°, ±90° y 180° se pega (a menos de 4°); con Alt, libre.
-  const empezarRotar = (id) => (evento) => {
+  const empezarRotar = (tipo, id, centro) => (evento) => {
     const rect = lienzoRef.current?.getBoundingClientRect();
-    const ranura = diseno.firmas.find((item) => item.id === id);
-    if (!rect || !ranura) return;
-    const cx = rect.left + (ranura.x / 100) * rect.width;
-    const cy = rect.top + (ranura.y / 100) * rect.height;
+    if (!rect || !centro) return;
+    const cx = rect.left + (centro.x / 100) * rect.width;
+    const cy = rect.top + (centro.y / 100) * rect.height;
     arrastrar(evento, (dx, dy, ev) => {
       // El asa está arriba: apuntar hacia arriba es 0°.
       let grados = (Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI + 90;
@@ -351,9 +329,41 @@ function LienzoOnerrdBase({
         const recto = Math.round(grados / 90) * 90;
         if (Math.abs(grados - recto) < 4) grados = recto;
       }
-      onCambiarElemento('firma', id, { rotacion: acotarRotacionOnerrd(grados) });
+      onCambiarElemento(tipo, id, { rotacion: acotarRotacionOnerrd(grados) });
     });
   };
+
+  // El asa redonda de girar, encima del elemento.
+  const asaDeGiro = (onPointerDown) => (
+    <Tooltip title="Arrastra para girar (se pega a 0°, 90°…; con Alt, libre)" placement="top">
+      <Box
+        onPointerDown={onPointerDown}
+        sx={{
+          position: 'absolute',
+          left: '50%',
+          top: -30,
+          width: 16,
+          height: 16,
+          ml: '-8px',
+          borderRadius: '50%',
+          bgcolor: 'common.white',
+          border: (theme) => `2px solid ${theme.vars.palette.primary.main}`,
+          cursor: 'grab',
+          zIndex: 3,
+          touchAction: 'none',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            left: '50%',
+            top: 14,
+            width: '1px',
+            height: 14,
+            bgcolor: 'primary.main',
+          },
+        }}
+      />
+    </Tooltip>
+  );
 
   const renderTexto = ({ campo, texto, tamano }) => {
     const elegido = esElegido('campo', campo.id);
@@ -374,7 +384,8 @@ function LienzoOnerrdBase({
           // El punto guardado es el centro de la PRIMERA línea, como en el PDF.
           top: `calc(${campo.y}% - ${(tamano * unidad * INTERLINEADO_ONERRD) / 2}cqw)`,
           width: `${campo.ancho}%`,
-          transform: 'translateX(-50%)',
+          // Gira sobre el centro de su caja, como el PDF.
+          transform: `translateX(-50%)${campo.rotacion ? ` rotate(${campo.rotacion}deg)` : ''}`,
           fontFamily: cssDeFuenteOnerrd(campo.fuente),
           fontWeight: pesoDeCampoOnerrd(campo),
           fontStyle: campo.cursiva ? 'italic' : 'normal',
@@ -520,13 +531,14 @@ function LienzoOnerrdBase({
               sx={{ right: -7, bottom: -7 }}
               onPointerDown={empezarEscalarTexto(campo)}
             />
+            {asaDeGiro(empezarRotar('campo', campo.id, campo))}
           </>
         )}
       </Box>
     );
   };
 
-  if (!fondo) {
+  if (!fondo && !paginaEnBlanco) {
     return (
       <Box
         onClick={onSubirFondo}
@@ -571,13 +583,15 @@ function LienzoOnerrdBase({
         userSelect: 'none',
       }}
     >
-      <Box
-        component="img"
-        src={fondo}
-        alt="Plantilla del certificado"
-        draggable={false}
-        sx={{ position: 'absolute', inset: 0, width: 1, height: 1, pointerEvents: 'none' }}
-      />
+      {fondo && (
+        <Box
+          component="img"
+          src={fondo}
+          alt="Plantilla del certificado"
+          draggable={false}
+          sx={{ position: 'absolute', inset: 0, width: 1, height: 1, pointerEvents: 'none' }}
+        />
+      )}
 
       {verCuadricula && (
         // Encima del fondo y debajo de los elementos (que van en zIndex 1).
@@ -636,6 +650,18 @@ function LienzoOnerrdBase({
       })}
 
       {diseno.qr?.visible && renderImagen('qr', 'qr', diseno.qr, qr, 1, 'Código QR')}
+
+      {renderExtras?.({
+        unidad,
+        modoVista,
+        esElegido,
+        contorno,
+        empezarMover,
+        empezarEstirar: empezarEstirarImagen,
+        empezarRotar,
+        asaDeGiro,
+        Asa,
+      })}
 
       {textos.map(renderTexto)}
     </Box>

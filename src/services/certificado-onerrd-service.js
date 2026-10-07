@@ -9,6 +9,13 @@ import {
   esAnioDeRegistroValido,
   idDocumentoIconoRegionOnerrd,
 } from 'src/utils/certificado-onerrd.mjs';
+import {
+  esIdImagenFacturaOnerrd,
+  ID_DISENO_FACTURA_ONERRD,
+  disenoFacturaParaGuardar,
+  sanearDisenoFacturaOnerrd,
+  crearIdImagenFacturaOnerrd,
+} from 'src/utils/factura-onerrd.mjs';
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
@@ -34,6 +41,8 @@ import {
 //   certificadosOnerrd/fondo          { dataUrl, pagina, nombreArchivo, ... }
 //   certificadosOnerrd/imagen         { dataUrl, proporcion, ... }
 //   certificadosOnerrd/diseno         { campos, firmas, imagen, iconoRegion, qr }
+//   certificadosOnerrd/diseno-factura { campos, tabla, sello, linea, imagenes } (la factura)
+//   certificadosOnerrd/factura-imagen-<ms> { dataUrl, proporcion, ... } (sus imágenes)
 //   certificadosOnerrd/region-{id}    { dataUrl, proporcion, ... } (icono de cada región)
 //   certificadosOnerrd/contador-AAAA  { anio, ultimo }
 //   certificadosOnerrdEmitidos/AAAA-NNN
@@ -64,6 +73,8 @@ export const autorDeOnerrd = (user) => ({
     [user?.nombres, user?.apellidos].filter(Boolean).join(' ') ||
     user?.email ||
     'Usuario',
+  // Sale debajo del nombre en "Certificados creados".
+  codigo: String(user?.codigoMiembro || user?.codigoUsuario || ''),
 });
 
 const leerDocumento = async (id) => {
@@ -241,6 +252,69 @@ export const guardarDisenoOnerrd = conInvalidacion(
   [`${PREFIJO}diseno`]
 );
 
+// El diseño de la factura: sin guardar, el de fábrica (el del ejemplo).
+export const leerDisenoFacturaOnerrd = conCache(`${PREFIJO}diseno-factura`, async () =>
+  sanearDisenoFacturaOnerrd((await leerDocumento(ID_DISENO_FACTURA_ONERRD)) || undefined)
+);
+
+export const guardarDisenoFacturaOnerrd = conInvalidacion(
+  ({ diseno, user }) =>
+    registrarYAplicar({
+      usuario: user,
+      descripcion: 'Diseño de la factura ONERRD guardado (textos, tabla y sello).',
+      aplicar: () =>
+        escribirDocumentoOnerrd(
+          ID_DISENO_FACTURA_ONERRD,
+          disenoFacturaParaGuardar(diseno),
+          autorDeOnerrd(user)
+        ),
+    }),
+  [`${PREFIJO}diseno-factura`]
+);
+
+// Una imagen de la factura, por su id (las del diseño de hoy y las de la copia
+// que lleva cada emisión). Sin documento o sin imagen, null.
+const leerImagenFacturaOnerrd = conCache(`${PREFIJO}factura-imagen`, async (id) =>
+  esIdImagenFacturaOnerrd(id) ? leerDocumento(id) : null
+);
+
+// { id: { dataUrl, proporcion } } de las que existan.
+export const leerImagenesFacturaOnerrd = async (ids = []) => {
+  const unicos = [...new Set(ids.filter(esIdImagenFacturaOnerrd))];
+  const leidas = await Promise.all(
+    unicos.map((id) => leerImagenFacturaOnerrd(id).catch(() => null))
+  );
+  return Object.fromEntries(
+    unicos.map((id, i) => [id, leidas[i]]).filter(([, imagen]) => imagen?.dataUrl)
+  );
+};
+
+// Sube una imagen a la factura: su propio documento (nunca se borra). El
+// diseño la coloca después; se guarda con "Guardar diseño".
+export const guardarImagenFacturaOnerrd = async ({ dataUrl, proporcion, nombreArchivo, user }) => {
+  const id = crearIdImagenFacturaOnerrd();
+  const imagen = {
+    dataUrl,
+    proporcion: Number(proporcion) || 1,
+    nombreArchivo: nombreArchivo || '',
+  };
+  await registrarYAplicar({
+    usuario: user,
+    descripcion: `Imagen subida a la factura ONERRD: ${nombreArchivo || 'imagen'}.`,
+    entidad: { tipo: 'factura_onerrd_imagen', id, nombre: nombreArchivo || 'imagen' },
+    cambios: [
+      {
+        campo: 'imagenFactura',
+        etiqueta: 'Imagen de la factura',
+        antes: '',
+        despues: nombreArchivo || 'imagen',
+      },
+    ],
+    aplicar: () => escribirDocumentoOnerrd(id, imagen, autorDeOnerrd(user)),
+  });
+  return { id, ...imagen };
+};
+
 export const guardarFirmaOnerrd = conInvalidacion(
   ({ nombre, dataUrl, proporcion, user }) => {
     const id = `firma-${Date.now()}`;
@@ -305,7 +379,7 @@ export const retirarFirmaOnerrd = conInvalidacion(
 
 // EMITIR: reserva el número y deja el registro (ver `escribirEmisionOnerrd`).
 export const emitirCertificadoOnerrd = conInvalidacion(
-  async ({ anio, valores, firmas, diseno, claveAcceso, user }) => {
+  async ({ anio, valores, firmas, diseno, claveAcceso, factura, disenoFactura, user }) => {
     if (!esAnioDeRegistroValido(anio)) throw new Error('El año del registro no es válido.');
     const destino = [valores?.numeroDestacamento, valores?.nombreDestacamento]
       .filter(Boolean)
@@ -325,6 +399,9 @@ export const emitirCertificadoOnerrd = conInvalidacion(
           firmas,
           diseno,
           claveAcceso,
+          factura,
+          // La factura se vuelve a bajar con el diseño con que se emitió.
+          disenoFactura: factura ? disenoFacturaParaGuardar(disenoFactura) : null,
           autor: autorDeOnerrd(user),
         }),
     });

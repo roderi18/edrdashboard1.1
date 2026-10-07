@@ -318,3 +318,20 @@ export const rasterizarTextoOnerrd = ({ campo, texto, tamano, pagina, lineaBase 
     caja: { left: caja.left - margen, top: caja.top - margen, width: ancho, height: alto },
   };
 };
+
+// Los textos ya resueltos, listos para el PDF (certificado y factura): con su
+// fuente cargada, la línea base que tienen en pantalla y, si llevan degradado,
+// dibujados por el navegador. Los vacíos no van.
+export const prepararTextosParaPdfOnerrd = async (textos, pagina) => {
+  const conTexto = textos.filter((t) => t.texto);
+  await cargarLetrasOnerrd(conTexto.map((t) => t.campo));
+  return conTexto.map((t) => {
+    const lineaBase = lineaBaseOnerrd(t.campo);
+    return {
+      ...t,
+      lineaBase,
+      // El PDF no rellena letras con degradado: las dibuja el navegador.
+      ...(t.campo.degradado && { dibujo: rasterizarTextoOnerrd({ ...t, pagina, lineaBase }) }),
+    };
+  });
+};

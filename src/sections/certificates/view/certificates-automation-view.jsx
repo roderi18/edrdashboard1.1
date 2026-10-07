@@ -5,7 +5,16 @@ import 'dayjs/locale/es';
 import dayjs from 'dayjs';
 import QRCode from 'qrcode';
 import dynamic from 'next/dynamic';
-import { memo, useRef, useMemo, useState, useEffect, useCallback, useDeferredValue } from 'react';
+import {
+  memo,
+  useRef,
+  useMemo,
+  useState,
+  useEffect,
+  useCallback,
+  startTransition,
+  useDeferredValue,
+} from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -67,9 +76,13 @@ import { AwardsPathSelector } from 'src/sections/member/awards/components/awards
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { CertificadosCreados } from './certificados-creados';
 import { puedeUsarOnerrd } from '../onerrd/puede-usar-onerrd';
 
 // ----------------------------------------------------------------------
+
+// Filas de miembros que se pintan de cada vez en "Personas para certificar".
+const FILAS_POR_TANDA = 100;
 
 const IMPORTED_TEMPLATE_COURSE_PREFIX = 'template:';
 const DEFAULT_COURSE_PREFIX = 'course:';
@@ -774,7 +787,10 @@ export function CertificatesAutomationView() {
       try {
         setLoadingMembers(true);
         const data = await getMembers();
-        setMembers(Array.isArray(data) ? data : []);
+        // El padrón entero son miles de filas: se entrega como trabajo de baja
+        // prioridad, y un clic en las pestañas pasa por delante. Antes la
+        // pantalla se quedaba bloqueada hasta terminar de pintarlas.
+        startTransition(() => setMembers(Array.isArray(data) ? data : []));
       } catch (error) {
         toast.error(error?.message || 'No se pudo cargar la lista de miembros.');
         setMembers([]);
@@ -859,6 +875,12 @@ export function CertificatesAutomationView() {
 
   // El buscador pinta la letra al instante; el filtrado de la lista va detrás.
   const deferredSearch = useDeferredValue(search);
+
+  // Filas pintadas: de FILAS_POR_TANDA en FILAS_POR_TANDA ("Mostrar más").
+  // Montar el padrón entero de una vez bloqueaba la pantalla (ni las pestañas
+  // respondían). Marcar todos y buscar siguen yendo sobre la lista completa.
+  const [filasVisibles, setFilasVisibles] = useState(FILAS_POR_TANDA);
+  useEffect(() => setFilasVisibles(FILAS_POR_TANDA), [deferredSearch]);
 
   const filteredMembers = useMemo(() => {
     const searchValue = normalizeText(deferredSearch);
@@ -1601,120 +1623,6 @@ export function CertificatesAutomationView() {
       </>
     );
   };
-
-  const renderCreatedBatches = () => (
-    <Card>
-      <Stack spacing={2} sx={{ p: 3 }}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          alignItems={{ xs: 'stretch', sm: 'center' }}
-          justifyContent="space-between"
-        >
-          <Box>
-            <Typography variant="h6">Certificados creados</Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-              Historial de lotes guardados en Firebase.
-            </Typography>
-          </Box>
-
-          <Chip
-            color="primary"
-            variant="soft"
-            label={
-              loadingBatches
-                ? 'Cargando…'
-                : `${createdBatches.length} lote${createdBatches.length === 1 ? '' : 's'}`
-            }
-          />
-        </Stack>
-      </Stack>
-
-      <TableContainer>
-        <Scrollbar>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Lote</TableCell>
-                <TableCell>Certificado</TableCell>
-                <TableCell>Cantidad</TableCell>
-                <TableCell>Fecha</TableCell>
-                <TableCell>Hora</TableCell>
-                <TableCell>Creado por</TableCell>
-                <TableCell align="right">Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {createdBatches.map((batch) => (
-                <TableRow key={batch.id} hover>
-                  <TableCell>
-                    <Typography variant="subtitle2">{batch.id}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Stack spacing={0.5}>
-                      <Typography variant="body2">{batch.course?.certificateTitle}</Typography>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {batch.course?.name}
-                      </Typography>
-                      {!!batch.templateName && (
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          Plantilla: {batch.templateName}
-                        </Typography>
-                      )}
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                    {batch.totalCertificates || batch.certificates?.length || 0}
-                  </TableCell>
-                  <TableCell>{dayjs(batch.createdAt).format('DD/MM/YYYY')}</TableCell>
-                  <TableCell>{dayjs(batch.createdAt).format('hh:mm A')}</TableCell>
-                  <TableCell>
-                    {typeof batch.createdBy === 'string'
-                      ? batch.createdBy
-                      : batch.createdBy?.name || 'Usuario'}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Iconify icon="solar:list-bold" />}
-                      onClick={() => setSelectedBatch(batch)}
-                    >
-                      Ver lista
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-
-              {loadingBatches && (
-                <TableRow>
-                  <TableCell colSpan={7} sx={{ p: 0 }}>
-                    <FilasDeListaCargando filas={5} />
-                  </TableCell>
-                </TableRow>
-              )}
-
-              {!loadingBatches && !createdBatches.length && (
-                <TableRow>
-                  <TableCell colSpan={7}>
-                    <Box sx={{ py: 8, textAlign: 'center' }}>
-                      <Typography variant="subtitle1">
-                        Todavía no hay certificados creados
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                        Cuando descargues un lote, aparecerá aquí con su detalle.
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Scrollbar>
-      </TableContainer>
-    </Card>
-  );
 
   const renderBatchDialog = () => {
     if (!selectedBatch) return null;
@@ -2783,7 +2691,7 @@ export function CertificatesAutomationView() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredMembers.map((member) => {
+                    filteredMembers.slice(0, filasVisibles).map((member) => {
                       const memberId = String(member.id);
 
                       return (
@@ -2800,6 +2708,23 @@ export function CertificatesAutomationView() {
                         />
                       );
                     })
+                  )}
+
+                  {!loadingMembers && filteredMembers.length > filasVisibles && (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        <Button
+                          size="small"
+                          color="inherit"
+                          onClick={() =>
+                            startTransition(() => setFilasVisibles((n) => n + FILAS_POR_TANDA))
+                          }
+                          startIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
+                        >
+                          Mostrar más ({filasVisibles} de {filteredMembers.length})
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   )}
 
                   {!loadingMembers && !filteredMembers.length && (
@@ -2821,7 +2746,11 @@ export function CertificatesAutomationView() {
       </Box>
 
       <Box sx={{ display: currentTab === 'created' ? 'block' : 'none' }}>
-        {renderCreatedBatches()}
+        <CertificadosCreados
+          lotes={createdBatches}
+          cargandoLotes={loadingBatches}
+          onVerLote={setSelectedBatch}
+        />
       </Box>
 
       {renderBatchDialog()}
