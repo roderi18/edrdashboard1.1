@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
 import Menu from '@mui/material/Menu';
@@ -12,9 +12,11 @@ import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 
+import { direccionPublicaActual } from 'src/utils/direccion-publica.mjs';
 import {
   crearIdDeCampo,
   sanearCampoOnerrd,
+  urlDeFacturaOnerrd,
   textosParaPintarOnerrd,
 } from 'src/utils/certificado-onerrd.mjs';
 import {
@@ -35,9 +37,10 @@ import { Iconify } from 'src/components/iconify';
 
 import { VisorOnerrd } from './onerrd-visor';
 import { LienzoOnerrd } from './onerrd-lienzo';
-import { medirTextoOnerrd } from './imagenes-onerrd';
+import { usePapeleraOnerrd } from './papelera-onerrd';
 import { PropiedadesFactura } from './factura-propiedades';
 import { pintarExtrasFactura } from './factura-extras-lienzo';
+import { generarQrOnerrd, medirTextoOnerrd } from './imagenes-onerrd';
 import {
   copiarOnerrd,
   copiaDeFormaOnerrd,
@@ -58,7 +61,12 @@ import {
 // ----------------------------------------------------------------------
 
 // Lo que el sistema escribe: no se cambia escribiendo en su caja.
-const CALCULADOS = new Set(['facturaNumero', 'facturaFecha', 'facturaVence']);
+const CALCULADOS = new Set([
+  'facturaNumero',
+  'facturaFecha',
+  'facturaVence',
+  'facturaVenceEtiqueta',
+]);
 
 export function TituloDesplegable({ titulo, abierto, onAlternar }) {
   return (
@@ -91,10 +99,27 @@ export function EditorFacturaOnerrd({
   imagenes,
   numeroRegistro,
   onSubirImagen,
+  // (archivos, { x, y }): imágenes soltadas encima de la factura.
+  onSoltarArchivos,
   subiendoImagen,
   botonPanel,
 }) {
   const [seleccion, setSeleccion] = useState(null);
+
+  // El QR de la vista previa: el mismo tipo de enlace que llevará la factura
+  // (el de verdad se conoce al emitir, con la clave del certificado). Se
+  // mueve y se agranda como el del certificado.
+  const [qrVista, setQrVista] = useState(null);
+  const colorQr = diseno.qr?.color;
+  useEffect(() => {
+    let vivo = true;
+    generarQrOnerrd(urlDeFacturaOnerrd(direccionPublicaActual(), '', ''), colorQr)
+      .then((dataUrl) => vivo && setQrVista(dataUrl))
+      .catch((error) => console.error('[onerrd] no se pudo generar el QR de la factura', error));
+    return () => {
+      vivo = false;
+    };
+  }, [colorQr]);
   const [modoVista, setModoVista] = useState(false);
   const [cuadricula, setCuadricula] = useState(false);
 
@@ -172,10 +197,15 @@ export function EditorFacturaOnerrd({
     setSeleccion({ tipo: 'campo', id });
   };
 
-  const eliminarCampo = (id) => {
-    onCambiarDiseno((actual) => ({ ...actual, campos: actual.campos.filter((c) => c.id !== id) }));
-    setSeleccion(null);
-  };
+  // Eliminar textos: pregunta antes y los deja en "Eliminados" (papelera),
+  // con el mismo componente que el certificado.
+  const papelera = usePapeleraOnerrd({
+    diseno,
+    onCambiarDiseno,
+    onEliminados: () => setSeleccion(null),
+    onRestaurado: (id) => setSeleccion({ tipo: 'campo', id }),
+  });
+  const eliminarCampo = (id) => papelera.pedirEliminar([id]);
 
   // Ctrl + C / Ctrl + V / Ctrl + D / Supr en el lienzo. Se copian textos y
   // formas; una imagen subida es un documento propio y no se duplica.
@@ -241,7 +271,7 @@ export function EditorFacturaOnerrd({
     if (sel.tipo === 'campo') {
       const campo = diseno.campos.find((item) => item.id === sel.id);
       if (campo?.deFabrica) cambiarElemento('campo', sel.id, { visible: false });
-      else onCambiarDiseno((a) => ({ ...a, campos: a.campos.filter((c) => c.id !== sel.id) }));
+      else papelera.pedirEliminar([sel.id]);
     } else if (sel.tipo === 'formas' || sel.tipo === 'imagenes') {
       onCambiarDiseno((a) => ({ ...a, [sel.tipo]: a[sel.tipo].filter((i) => i.id !== sel.id) }));
     } else {
@@ -253,7 +283,16 @@ export function EditorFacturaOnerrd({
   // `lista`: lo elegido (uno, o varios con Ctrl + clic). Devuelve lo pegado.
   const alAtajo = (accion, sel, lista = sel ? [sel] : []) => {
     if (accion === 'eliminar') {
-      lista.forEach(eliminar);
+      // Los textos añadidos van juntos a la papelera (una sola pregunta).
+      const aPapelera = lista
+        .filter((item) => item.tipo === 'campo')
+        .map((item) => diseno.campos.find((campo) => campo.id === item.id))
+        .filter((campo) => campo && !campo.deFabrica)
+        .map((campo) => campo.id);
+      papelera.pedirEliminar(aPapelera);
+      lista
+        .filter((item) => !(item.tipo === 'campo' && aPapelera.includes(item.id)))
+        .forEach(eliminar);
       return undefined;
     }
     if (accion === 'pegar') return pegar(leerPortapapelesOnerrd());
@@ -313,13 +352,10 @@ export function EditorFacturaOnerrd({
 
   return (
     <Card sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}>
+      {papelera.dialogo}
       <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
         {botonPanel}
-        <TituloDesplegable
-          titulo="Diseño de la factura"
-          abierto={abierto}
-          onAlternar={onAlternar}
-        />
+        <TituloDesplegable titulo="Diseño de factura" abierto={abierto} onAlternar={onAlternar} />
         {abierto && (
           <>
             <Button
@@ -361,6 +397,7 @@ export function EditorFacturaOnerrd({
             >
               {modoVista ? 'Volver a editar' : 'Ver resultado'}
             </Button>
+            {papelera.boton}
             {ocultos.length > 0 && (
               <>
                 <Button
@@ -444,6 +481,7 @@ export function EditorFacturaOnerrd({
             mostrarCuadricula={!modoVista}
           >
             <LienzoOnerrd
+              qr={qrVista}
               paginaEnBlanco
               pagina={PAGINA_FACTURA_ONERRD}
               diseno={diseno}
@@ -457,6 +495,7 @@ export function EditorFacturaOnerrd({
               onSeleccionar={setSeleccion}
               onCambiarElemento={cambiarElemento}
               renderExtras={renderExtras}
+              onSoltarArchivos={onSoltarArchivos}
               onAtajo={alAtajo}
             />
           </VisorOnerrd>

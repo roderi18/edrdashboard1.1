@@ -159,6 +159,7 @@ const QUE_MUESTRA = {
   anio: 'Año del registro',
   fecha: 'Fecha',
   numero: 'Número de registro',
+  emision: 'Fecha y hora de emisión (UTC-4)',
 };
 
 const AYUDA_POR_TIPO = {
@@ -167,6 +168,8 @@ const AYUDA_POR_TIPO = {
   anio: 'El año se escribe en su caja (doble clic) o en "Datos del registro": es uno solo y numera los certificados.',
   numero: 'Lo pone el sistema al emitir.',
   fecha: 'Se elige en "Datos del registro".',
+  emision:
+    'La pone el sistema al emitir: 07/10/2026 UTC-4 10:05 A.M. (en la vista previa, la de ahora).',
 };
 
 // Relleno en degradado (como las letras de CERTIFICADO / REGISTRO): los dos
@@ -451,6 +454,9 @@ export function PropiedadesOnerrd({
   subiendoRegion,
   onSubirIconoRegion,
   onQuitarIconoRegion,
+  // Las imágenes subidas al certificado: { id: { nombreArchivo, … } }.
+  imagenesSubidas = {},
+  onQuitarImagenSubida,
 }) {
   if (!seleccion) {
     return (
@@ -458,8 +464,9 @@ export function PropiedadesOnerrd({
         Pulsa un texto, la imagen, el icono de la región, una firma o el código QR en el certificado
         para moverlo o cambiarlo. Arrastra para mover, las asas para cambiar el tamaño y las flechas
         del teclado para afinar (Mayús = más rápido). Con la cuadrícula a la vista se pega a sus
-        líneas (con Alt, no). Doble clic en un texto (o Intro) para escribirlo dentro de su caja.
-        Ctrl + C y Ctrl + V copian y pegan un texto (Ctrl + D lo duplica) y Supr lo elimina.
+        líneas, y un texto, a sus vecinos: mantén Ctrl (o Alt) mientras arrastras para soltarlo.
+        Doble clic en un texto (o Intro) para escribirlo dentro de su caja. Ctrl + C y Ctrl + V
+        copian y pegan un texto (Ctrl + D lo duplica) y Supr lo elimina.
       </Typography>
     );
   }
@@ -634,6 +641,45 @@ export function PropiedadesOnerrd({
             );
           })}
         </Box>
+      </Stack>
+    );
+  }
+
+  if (seleccion.tipo === 'imagenes') {
+    const item = (diseno.imagenes || []).find((imagen) => imagen.id === seleccion.id);
+    if (!item) return null;
+    const cambiar = (cambios) => onCambiarElemento('imagenes', item.id, cambios);
+    return (
+      <Stack spacing={2}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Typography variant="subtitle2" sx={{ flex: 1 }} noWrap>
+            {imagenesSubidas[item.id]?.nombreArchivo || 'Imagen'}
+          </Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={item.visible}
+                onChange={(event) => cambiar({ visible: event.target.checked })}
+              />
+            }
+            label="Mostrar"
+          />
+        </Stack>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Arrastra para moverla; el asa cuadrada cambia su tamaño y la redonda la gira. Para añadir
+          más, «Subir imagen» o arrastra archivos encima del certificado.
+        </Typography>
+        <Posicion elemento={item} onCambiar={cambiar} />
+        <ControlDeGiro valor={item.rotacion} onCambiar={(rotacion) => cambiar({ rotacion })} />
+        <Button
+          color="error"
+          startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+          onClick={() => onQuitarImagenSubida?.(item.id)}
+          sx={{ alignSelf: 'flex-start' }}
+        >
+          Quitar del certificado
+        </Button>
       </Stack>
     );
   }

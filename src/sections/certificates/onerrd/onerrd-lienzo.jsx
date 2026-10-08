@@ -30,8 +30,8 @@ import { cssDeFuenteOnerrd } from './imagenes-onerrd';
 // Atajos con un elemento elegido: flechas = mover 0,2 % (Mayús = 1 %);
 // Ctrl + C / Ctrl + V / Ctrl + D = copiar / pegar / duplicar y Supr = eliminar
 // (los resuelve quien usa el lienzo, con `onAtajo`).
-// Arrastrar no pega a nada, salvo a la cuadrícula si está a la vista (con Alt,
-// tampoco). Antes se pegaba al centro de la hoja: un texto alineado a la
+// Arrastrar no pega a nada, salvo a la cuadrícula si está a la vista (con Alt
+// o Ctrl pulsados mientras se arrastra, tampoco: ver `libre`). Antes se pegaba al centro de la hoja: un texto alineado a la
 // izquierda cerca del medio saltaba solo a la línea roja y no se podía dejar
 // donde se quería. Para centrar está el botón "Centrar en la hoja".
 //
@@ -109,9 +109,16 @@ function LienzoOnerrdBase({
   renderExtras,
   // (accion, seleccion): 'copiar' | 'pegar' | 'duplicar' | 'eliminar'.
   onAtajo,
+  // Las imágenes subidas que pinta el propio lienzo (el certificado):
+  // { id: { dataUrl, proporcion } }. La factura pinta las suyas en `renderExtras`.
+  imagenesSubidas,
+  // (archivos, { x, y } en %): archivos soltados encima del lienzo.
+  onSoltarArchivos,
 }) {
   const lienzoRef = useRef(null);
   const [editando, setEditando] = useState(null); // id del texto que se escribe
+  // Se está arrastrando un archivo encima: el lienzo se resalta.
+  const [soltando, setSoltando] = useState(false);
   const unidad = 100 / pagina.ancho; // cqw por punto
   const verCuadricula = cuadricula && !modoVista;
   const pasoX = (CELDA_PT / pagina.ancho) * 100;
@@ -167,8 +174,14 @@ function LienzoOnerrdBase({
   // IMÁN DE TEXTOS: un texto que se arrastra cerca de otro (a menos de
   // `CERCA_Y` % de alto) se alinea con él cuando uno de sus bordes o su centro
   // queda a menos de `IMAN_X` % del de la otra caja: textos uno debajo de
-  // otro, en columna, sin afinar a ojo. Con Alt, libre (como la cuadrícula).
+  // otro, en columna, sin afinar a ojo. Con Alt o Ctrl, libre (como la cuadrícula).
   const imantar = (campo, x, y) => imantarTextoOnerrd(campo, x, y, diseno.campos);
+
+  // Suelto: Alt, o Ctrl (Cmd en Mac) pulsado MIENTRAS se arrastra, deja el
+  // objeto donde va el ratón, sin pegarse a la cuadrícula, a otro texto ni a
+  // los ángulos rectos. Ctrl al EMPEZAR sigue siendo elegir varios (Ctrl +
+  // clic) o mover la vista (Ctrl + arrastrar la hoja).
+  const libre = (ev) => ev.altKey || ev.ctrlKey || ev.metaKey;
 
   // Arrastre genérico: `alMover(dxPct, dyPct, evento)` con el desplazamiento
   // en % del lienzo desde que se pulsó. Un movimiento de menos de 3 px es un
@@ -299,11 +312,11 @@ function LienzoOnerrdBase({
     arrastrar(
       evento,
       (dx, dy, ev, rect) => {
-        const pegado = verCuadricula && !ev.altKey;
+        const pegado = verCuadricula && !libre(ev);
         let x = pegado ? pegarACuadricula(x0 + dx, pasoX) : x0 + dx;
         const y = acotarPosicion(pegado ? pegarACuadricula(y0 + dy, pasoY) : y0 + dy);
         // El imán, solo con un texto suelto (un grupo ya va alineado entre sí).
-        const iman = tipo === 'campo' && !enGrupo && !ev.altKey ? imantar(elemento, x, y) : null;
+        const iman = tipo === 'campo' && !enGrupo && !libre(ev) ? imantar(elemento, x, y) : null;
         if (iman) x = iman.x;
         x = acotarPosicion(x);
         mostrarGuia(iman ? iman.guia : null);
@@ -463,16 +476,16 @@ function LienzoOnerrdBase({
         {elegido &&
           !modoVista &&
           !varios &&
-          tipo === 'firma' &&
+          (tipo === 'firma' || tipo === 'imagenes') &&
           // Asa de giro, redonda y por encima: se arrastra alrededor del centro.
-          asaDeGiro(empezarRotar('firma', id, elemento))}
+          asaDeGiro(empezarRotar(tipo, id, elemento))}
       </Box>
     );
   };
 
   // Girar (firmas, textos, el sello de la factura): el ángulo del puntero
   // alrededor del centro del elemento, que le dice quien llama en % del lienzo.
-  // Cerca de 0°, ±90° y 180° se pega (a menos de 4°); con Alt, libre.
+  // Cerca de 0°, ±90° y 180° se pega (a menos de 4°); con Alt o Ctrl, libre.
   const empezarRotar = (tipo, id, centro) => (evento) => {
     const rect = lienzoRef.current?.getBoundingClientRect();
     if (!rect || !centro) return;
@@ -481,7 +494,7 @@ function LienzoOnerrdBase({
     arrastrar(evento, (dx, dy, ev) => {
       // El asa está arriba: apuntar hacia arriba es 0°.
       let grados = (Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI + 90;
-      if (!ev.altKey) {
+      if (!libre(ev)) {
         const recto = Math.round(grados / 90) * 90;
         if (Math.abs(grados - recto) < 4) grados = recto;
       }
@@ -491,7 +504,10 @@ function LienzoOnerrdBase({
 
   // El asa redonda de girar, encima del elemento.
   const asaDeGiro = (onPointerDown) => (
-    <Tooltip title="Arrastra para girar (se pega a 0°, 90°…; con Alt, libre)" placement="top">
+    <Tooltip
+      title="Arrastra para girar (se pega a 0°, 90°…; con Ctrl o Alt, libre)"
+      placement="top"
+    >
       <Box
         onPointerDown={onPointerDown}
         sx={{
@@ -728,6 +744,35 @@ function LienzoOnerrdBase({
       tabIndex={0}
       onKeyDown={alTeclear}
       onPointerDown={() => onSeleccionar(null)}
+      // Soltar imágenes encima: se colocan donde se sueltan.
+      onDragOver={
+        onSoltarArchivos && !modoVista
+          ? (evento) => {
+              if (!evento.dataTransfer?.types?.includes('Files')) return;
+              evento.preventDefault();
+              evento.dataTransfer.dropEffect = 'copy';
+              if (!soltando) setSoltando(true);
+            }
+          : undefined
+      }
+      onDragLeave={(evento) => {
+        if (!evento.currentTarget.contains(evento.relatedTarget)) setSoltando(false);
+      }}
+      onDrop={
+        onSoltarArchivos && !modoVista
+          ? (evento) => {
+              const archivos = [...(evento.dataTransfer?.files || [])];
+              setSoltando(false);
+              if (!archivos.length) return;
+              evento.preventDefault();
+              const rect = lienzoRef.current?.getBoundingClientRect();
+              onSoltarArchivos(archivos, {
+                x: rect ? acotarPosicion(((evento.clientX - rect.left) / rect.width) * 100) : 50,
+                y: rect ? acotarPosicion(((evento.clientY - rect.top) / rect.height) * 100) : 50,
+              });
+            }
+          : undefined
+      }
       sx={{
         position: 'relative',
         containerType: 'inline-size',
@@ -736,7 +781,9 @@ function LienzoOnerrdBase({
         borderRadius: 1,
         boxShadow: (theme) => theme.vars.customShadows?.z8,
         bgcolor: 'common.white',
-        outline: 'none',
+        outline: soltando ? '3px dashed' : 'none',
+        outlineColor: 'primary.main',
+        outlineOffset: -3,
         userSelect: 'none',
       }}
     >
@@ -793,6 +840,20 @@ function LienzoOnerrdBase({
           // Sin icono: dice qué falta (elegir la región o subir su icono).
           nombreRegion ? `Icono ${nombreRegion}` : 'Icono de la región'
         )}
+
+      {imagenesSubidas &&
+        (diseno.imagenes || [])
+          .filter((item) => item.visible)
+          .map((item) =>
+            renderImagen(
+              'imagenes',
+              item.id,
+              item,
+              imagenesSubidas[item.id]?.dataUrl,
+              imagenesSubidas[item.id]?.proporcion,
+              imagenesSubidas[item.id]?.nombreArchivo || 'Imagen'
+            )
+          )}
 
       {diseno.firmas.map((ranura) => {
         const firma = firmasPorId[ranura.idFirma];

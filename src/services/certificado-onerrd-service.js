@@ -2,27 +2,31 @@ import { doc, limit, query, getDoc, getDocs, orderBy, collection } from 'firebas
 
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
 import {
+  disenoFacturaParaGuardar,
+  ID_DISENO_FACTURA_ONERRD,
+  sanearDisenoFacturaOnerrd,
+} from 'src/utils/factura-onerrd.mjs';
+import {
   regionOnerrd,
   REGIONES_ONERRD,
+  rutaFirmaOnerrd,
   idContadorOnerrd,
   sanearDisenoOnerrd,
+  rutaPlantillaOnerrd,
   esAnioDeRegistroValido,
+  esIdImagenSubidaOnerrd,
+  crearIdImagenSubidaOnerrd,
   idDocumentoIconoRegionOnerrd,
 } from 'src/utils/certificado-onerrd.mjs';
-import {
-  esIdImagenFacturaOnerrd,
-  ID_DISENO_FACTURA_ONERRD,
-  disenoFacturaParaGuardar,
-  sanearDisenoFacturaOnerrd,
-  crearIdImagenFacturaOnerrd,
-} from 'src/utils/factura-onerrd.mjs';
 
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
 import { AMBITOS_CAMBIO, proponerCambio } from 'src/services/solicitudes-cambio-service';
 import {
   subirPdfOnerrd,
   COLECCION_ONERRD,
+  subirOriginalOnerrd,
   escribirFirmaOnerrd,
+  subirFacturaPdfOnerrd,
   escribirEmisionOnerrd,
   COLECCION_ONERRD_FIRMAS,
   escribirDocumentoOnerrd,
@@ -159,20 +163,42 @@ const registrarYAplicar = async ({ usuario, descripcion, cambios = [], entidad =
   return resultado;
 };
 
+// Sube el original y devuelve su ruta; '' si no se pudo. No para lo demás:
+// la plantilla o la firma se guardan igual (la app pinta desde Firestore) y la
+// pantalla avisa de que su original no quedó guardado.
+const guardarOriginal = async (ruta, archivo) => {
+  if (!ruta || !archivo || !FIREBASE_STORAGE) return '';
+  try {
+    await subirOriginalOnerrd(ruta, archivo);
+    return ruta;
+  } catch (error) {
+    console.error('[onerrd] no se pudo guardar el original en Storage', error);
+    return '';
+  }
+};
+
+// `original`: el .svg tal cual (va a Storage, con su fecha y hora). Devuelve
+// `{ rutaSvg }` ('' si no se pudo guardar el original).
 export const guardarFondoOnerrd = conInvalidacion(
-  ({ dataUrl, pagina, nombreArchivo, user }) =>
+  ({ dataUrl, pagina, nombreArchivo, original, user }) =>
     registrarYAplicar({
       usuario: user,
       descripcion: `Plantilla del certificado ONERRD: ${nombreArchivo || 'SVG'}.`,
       cambios: [
         { campo: 'plantilla', etiqueta: 'Plantilla', antes: '', despues: nombreArchivo || 'SVG' },
       ],
-      aplicar: () =>
-        escribirDocumentoOnerrd(
+      aplicar: async () => {
+        const rutaSvg = await guardarOriginal(
+          original ? rutaPlantillaOnerrd(nombreArchivo || original.name) : '',
+          original
+        );
+        await escribirDocumentoOnerrd(
           'fondo',
-          { dataUrl, pagina, nombreArchivo: nombreArchivo || '' },
+          { dataUrl, pagina, nombreArchivo: nombreArchivo || '', rutaSvg },
           autorDeOnerrd(user)
-        ),
+        );
+        return { rutaSvg };
+      },
     }),
   [`${PREFIJO}fondo`]
 );
@@ -272,40 +298,51 @@ export const guardarDisenoFacturaOnerrd = conInvalidacion(
   [`${PREFIJO}diseno-factura`]
 );
 
-// Una imagen de la factura, por su id (las del diseño de hoy y las de la copia
-// que lleva cada emisión). Sin documento o sin imagen, null.
-const leerImagenFacturaOnerrd = conCache(`${PREFIJO}factura-imagen`, async (id) =>
-  esIdImagenFacturaOnerrd(id) ? leerDocumento(id) : null
+// Una imagen subida (al certificado o a la factura), por su id: las del
+// diseño de hoy y las de la copia que lleva cada emisión. Sin documento o sin
+// imagen, null.
+const leerImagenSubidaOnerrd = conCache(`${PREFIJO}imagen-subida`, async (id) =>
+  esIdImagenSubidaOnerrd(id) ? leerDocumento(id) : null
 );
 
-// { id: { dataUrl, proporcion } } de las que existan.
-export const leerImagenesFacturaOnerrd = async (ids = []) => {
-  const unicos = [...new Set(ids.filter(esIdImagenFacturaOnerrd))];
+// { id: { dataUrl, proporcion, nombreArchivo } } de las que existan.
+export const leerImagenesSubidasOnerrd = async (ids = []) => {
+  const unicos = [...new Set(ids.filter(esIdImagenSubidaOnerrd))];
   const leidas = await Promise.all(
-    unicos.map((id) => leerImagenFacturaOnerrd(id).catch(() => null))
+    unicos.map((id) => leerImagenSubidaOnerrd(id).catch(() => null))
   );
   return Object.fromEntries(
     unicos.map((id, i) => [id, leidas[i]]).filter(([, imagen]) => imagen?.dataUrl)
   );
 };
 
-// Sube una imagen a la factura: su propio documento (nunca se borra). El
-// diseño la coloca después; se guarda con "Guardar diseño".
-export const guardarImagenFacturaOnerrd = async ({ dataUrl, proporcion, nombreArchivo, user }) => {
-  const id = crearIdImagenFacturaOnerrd();
+// Las de la factura (mismo almacén).
+export const leerImagenesFacturaOnerrd = leerImagenesSubidasOnerrd;
+
+// Sube una imagen al certificado o a la factura (`destino`): su propio
+// documento (nunca se borra). El diseño la coloca; se guarda con "Guardar diseño".
+export const guardarImagenSubidaOnerrd = async ({
+  dataUrl,
+  proporcion,
+  nombreArchivo,
+  destino = 'certificado',
+  user,
+}) => {
+  const id = crearIdImagenSubidaOnerrd(destino);
   const imagen = {
     dataUrl,
     proporcion: Number(proporcion) || 1,
     nombreArchivo: nombreArchivo || '',
   };
+  const donde = destino === 'factura' ? 'la factura' : 'el certificado';
   await registrarYAplicar({
     usuario: user,
-    descripcion: `Imagen subida a la factura ONERRD: ${nombreArchivo || 'imagen'}.`,
-    entidad: { tipo: 'factura_onerrd_imagen', id, nombre: nombreArchivo || 'imagen' },
+    descripcion: `Imagen subida a ${donde} ONERRD: ${nombreArchivo || 'imagen'}.`,
+    entidad: { tipo: `${destino}_onerrd_imagen`, id, nombre: nombreArchivo || 'imagen' },
     cambios: [
       {
-        campo: 'imagenFactura',
-        etiqueta: 'Imagen de la factura',
+        campo: 'imagenSubida',
+        etiqueta: `Imagen de ${donde}`,
         antes: '',
         despues: nombreArchivo || 'imagen',
       },
@@ -315,8 +352,12 @@ export const guardarImagenFacturaOnerrd = async ({ dataUrl, proporcion, nombreAr
   return { id, ...imagen };
 };
 
+export const guardarImagenFacturaOnerrd = (datos) =>
+  guardarImagenSubidaOnerrd({ ...datos, destino: 'factura' });
+
 export const guardarFirmaOnerrd = conInvalidacion(
-  ({ nombre, dataUrl, proporcion, user }) => {
+  // `original`: la imagen tal cual se eligió (va a Storage, por su id).
+  ({ nombre, dataUrl, proporcion, original, user }) => {
     const id = `firma-${Date.now()}`;
     const firma = {
       nombre: String(nombre || '')
@@ -334,8 +375,9 @@ export const guardarFirmaOnerrd = conInvalidacion(
       entidad: { tipo: 'firma_onerrd', id, nombre: firma.nombre },
       cambios: [{ campo: 'firma', etiqueta: 'Firma', antes: '', despues: firma.nombre }],
       aplicar: async () => {
-        await escribirFirmaOnerrd(id, firma);
-        return { id, ...firma };
+        const rutaArchivo = await guardarOriginal(rutaFirmaOnerrd(id, original?.type), original);
+        await escribirFirmaOnerrd(id, { ...firma, rutaArchivo });
+        return { id, ...firma, rutaArchivo };
       },
     });
   },
@@ -413,4 +455,10 @@ export const emitirCertificadoOnerrd = conInvalidacion(
 export const publicarPdfOnerrd = async (numeroRegistro, blob) => {
   if (!FIREBASE_STORAGE) throw new Error('Firebase Storage no está configurado.');
   await subirPdfOnerrd(numeroRegistro, blob);
+};
+
+// Publica la factura de un certificado emitido para que la abra su QR.
+export const publicarFacturaOnerrd = async (numeroRegistro, blob) => {
+  if (!FIREBASE_STORAGE) throw new Error('Firebase Storage no está configurado.');
+  await subirFacturaPdfOnerrd(numeroRegistro, blob);
 };

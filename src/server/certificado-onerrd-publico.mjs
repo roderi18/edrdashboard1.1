@@ -19,7 +19,9 @@ import { getAdminDb, getAdminBucket, isAdminConfigured } from 'src/server/fireba
 // (emitido, pero su PDF aún no se guardó en Storage) y 'no-disponible'.
 // ----------------------------------------------------------------------
 
-export const buscarCertificadoOnerrd = async (numero, clave) => {
+// `ruta`: qué PDF entrega (el del certificado o, con `rutaFacturaPdfOnerrd`,
+// su factura). La clave es la misma.
+export const buscarCertificadoOnerrd = async (numero, clave, { ruta = rutaPdfOnerrd } = {}) => {
   if (!esNumeroOnerrdValido(numero) || !esClaveOnerrdValida(clave)) {
     return { estado: 'no-encontrado' };
   }
@@ -36,7 +38,7 @@ export const buscarCertificadoOnerrd = async (numero, clave) => {
       return { estado: 'no-encontrado' };
     }
 
-    const archivo = getAdminBucket().file(rutaPdfOnerrd(numero));
+    const archivo = getAdminBucket().file(ruta(numero));
     const [existe] = await archivo.exists();
     const emitido = doc.data();
 

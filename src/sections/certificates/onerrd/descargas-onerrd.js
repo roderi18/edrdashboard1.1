@@ -1,4 +1,9 @@
-import { urlDelPdfOnerrd, textosParaPintarOnerrd } from 'src/utils/certificado-onerrd.mjs';
+import { direccionPublicaActual } from 'src/utils/direccion-publica.mjs';
+import {
+  urlDelPdfOnerrd,
+  urlDeFacturaOnerrd,
+  textosParaPintarOnerrd,
+} from 'src/utils/certificado-onerrd.mjs';
 import {
   datosDeFacturaOnerrd,
   facturaDePruebaOnerrd,
@@ -14,6 +19,7 @@ import {
 } from 'src/services/certificado-onerrd-service';
 
 import {
+  generarQrOnerrd,
   medirTextoOnerrd,
   cargarLetrasOnerrd,
   prepararTextosParaPdfOnerrd,
@@ -44,8 +50,8 @@ export const tieneFacturaOnerrd = (emitido) => !!datosDeFacturaOnerrd(emitido);
 export const tienePdfGuardadoOnerrd = (emitido) =>
   !!urlDelPdfOnerrd(emitido?.numeroRegistro, emitido?.claveAcceso);
 
-// `diseno`: el que se está editando (la prueba); si no, el de la emisión.
-export const descargarFacturaOnerrd = async (emitido, { diseno: enPantalla } = {}) => {
+// El PDF de la factura (para bajarlo o guardarlo al emitir, para su QR).
+export const generarFacturaOnerrdBlob = async (emitido, { diseno: enPantalla } = {}) => {
   const datos = datosDeFacturaOnerrd(emitido);
   if (!datos) throw new Error('Este certificado se emitió antes de que existiera la factura.');
   const diseno = sanearDisenoFacturaOnerrd(
@@ -55,6 +61,8 @@ export const descargarFacturaOnerrd = async (emitido, { diseno: enPantalla } = {
     ...emitido.valores,
     anio: emitido.anio,
     numeroRegistro: emitido.numeroRegistro,
+    // La usan los textos "Fecha y hora de emisión".
+    emitidoEnIso: emitido.emitidoEnIso,
   });
   // Medir con la fuente ya cargada: los que se encogen para caber, igual que en pantalla.
   await cargarLetrasOnerrd(diseno.campos);
@@ -66,12 +74,23 @@ export const descargarFacturaOnerrd = async (emitido, { diseno: enPantalla } = {
   );
   const campos = await prepararTextosParaPdfOnerrd(textos, PAGINA_FACTURA_ONERRD);
   const imagenes = await leerImagenesFacturaOnerrd(diseno.imagenes.map((imagen) => imagen.id));
+  // Su QR abre la factura guardada (o el aviso de prueba, sin clave).
+  const qr = diseno.qr.visible
+    ? await generarQrOnerrd(
+        urlDeFacturaOnerrd(direccionPublicaActual(), emitido.numeroRegistro, emitido.claveAcceso),
+        diseno.qr.color
+      )
+    : null;
   const { generarFacturaOnerrdPdf } = await import('./factura-onerrd-pdf');
+  return generarFacturaOnerrdPdf({ diseno, datos, campos, imagenes, qr });
+};
+
+// `diseno`: el que se está editando (la prueba); si no, el de la emisión.
+export const descargarFacturaOnerrd = async (emitido, opciones) =>
   descargarBlobOnerrd(
-    await generarFacturaOnerrdPdf({ diseno, datos, campos, imagenes }),
+    await generarFacturaOnerrdBlob(emitido, opciones),
     nombreDeArchivoFacturaOnerrd(emitido)
   );
-};
 
 export const descargarCertificadoOnerrdGuardado = async (emitido) => {
   const url = urlDelPdfOnerrd(emitido?.numeroRegistro, emitido?.claveAcceso, { descargar: true });

@@ -23,7 +23,10 @@ import {
   formatearFechaLargaOnerrd,
   sanearDisenoFacturaOnerrd,
   facturaDesdeValoresOnerrd,
-  ID_CONTADOR_FACTURAS_ONERRD,
+  anioActualOnerrd,
+  venceDelRegistroOnerrd,
+  idContadorFacturasOnerrd,
+  formatearNumeroFacturaOnerrd,
   NUMERO_FACTURA_DE_PRUEBA_ONERRD,
   PRECIO_FACTURA_ONERRD_POR_DEFECTO,
   CAMPOS_DE_FABRICA_FACTURA_ONERRD,
@@ -36,6 +39,7 @@ import {
   cajaDeFormaFactura,
   COLORES_FACTURA_ONERRD,
   FORMAS_DE_FABRICA_FACTURA_ONERRD,
+  valoresDeFacturaOnerrd,
 } from '../../src/utils/factura-onerrd.mjs';
 
 test('"Facturar a" propone al coordinador y su destacamento, como el ejemplo', () => {
@@ -87,7 +91,8 @@ test('los datos de un recibo: estado, vencimiento, líneas, descuento e impuesto
   assert.equal(escrita.descuento, 100);
   assert.equal(escrita.impuestos, 100); // tope 100 %
   assert.equal(sanearFacturaOnerrd({ estado: 'otro' }).estado, 'pagada');
-  assert.match(ID_CONTADOR_FACTURAS_ONERRD, /^contador-/);
+  // Un contador por año, con el prefijo que las reglas suben de uno en uno.
+  assert.equal(idContadorFacturasOnerrd(2026), 'contador-facturas-2026');
 });
 
 test('la factura pinta lo del ejemplo: número, fecha larga, concepto, línea y total', () => {
@@ -112,7 +117,7 @@ test('la factura pinta lo del ejemplo: número, fecha larga, concepto, línea y 
     {
       descripcion: 'Cuota Renovación de Membresía Anual 2027 (2027-009)',
       detalle: '(código: fidelidad25)',
-      precio: '1500.00',
+      precio: '1,500.00',
       cantidad: 1,
       importe: '1,500.00',
     },
@@ -345,4 +350,81 @@ test('el diseño de fábrica nuevo, sin cambiar las facturas ya emitidas', () =>
     sanearDisenoFacturaOnerrd(disenoFacturaParaGuardar(fabrica)).formas,
     fabrica.formas
   );
+});
+
+// El número de factura: ONERRD-AAAA-NNN, como el del certificado (AAAA-NNN),
+// con el año en que se emite (hora de Santo Domingo) y su correlativo, que
+// vuelve a 001 cada año. El precio lleva la coma de los miles, como el importe.
+test('el número de factura es ONERRD-año-NNN y el precio lleva la coma de los miles', () => {
+  assert.equal(formatearNumeroFacturaOnerrd(2026, 2), 'ONERRD-2026-002');
+  assert.equal(formatearNumeroFacturaOnerrd(2026, 1234), 'ONERRD-2026-1234');
+  // El 31 de diciembre a las 9 p. m. en Santo Domingo ya es 1 de enero en UTC.
+  assert.equal(anioActualOnerrd(new Date('2027-01-01T01:00:00Z')), 2026);
+  assert.equal(anioActualOnerrd(new Date('2026-10-07T15:00:00Z')), 2026);
+
+  const datos = datosDeFacturaOnerrd({
+    anio: 2027,
+    emitidoEnIso: '2026-10-07T15:00:00Z',
+    factura: { numero: 'ONERRD-2026-002', lineas: [{ cantidad: 1, precio: 1500 }] },
+  });
+  assert.equal(datos.numero, 'ONERRD-2026-002');
+  assert.equal(datos.lineas[0].precio, '1,500.00');
+  assert.equal(datos.lineas[0].importe, '1,500.00');
+});
+
+// EL VENCIMIENTO: cada 1 de octubre abre un período que vence el 31 de
+// diciembre del año siguiente; cuenta la fecha del registro. De enero a
+// septiembre es el período que abrió el octubre anterior.
+test('el registro vence el 31 dic. del año siguiente a la apertura del 1 oct.', () => {
+  const vence = (fecha) => formatearFechaLargaOnerrd(venceDelRegistroOnerrd(fecha));
+  assert.equal(vence('2026-10-07T16:00:00Z'), '31 de diciembre de 2027');
+  assert.equal(vence('2026-10-01T16:00:00Z'), '31 de diciembre de 2027');
+  assert.equal(vence('2027-03-15T16:00:00Z'), '31 de diciembre de 2027');
+  assert.equal(vence('2027-09-30T16:00:00Z'), '31 de diciembre de 2027');
+  assert.equal(vence('2027-10-15T16:00:00Z'), '31 de diciembre de 2028');
+  // 04:30 UTC del 1 oct. son las 12:30 a. m. del 1 oct. en Santo Domingo.
+  assert.equal(vence('2026-10-01T04:30:00Z'), '31 de diciembre de 2027');
+  // 03:30 UTC del 1 oct. aún son las 11:30 p. m. del 30 sep. en Santo Domingo.
+  assert.equal(vence('2026-10-01T03:30:00Z'), '31 de diciembre de 2026');
+  assert.equal(venceDelRegistroOnerrd(''), '');
+
+  // Sin "Vence" escrito, la factura lleva el del registro; escrito a mano, manda.
+  const conRegistro = facturaDesdeValoresOnerrd({ anio: 2027, fecha: '2026-10-07T16:00:00Z' });
+  assert.equal(formatearFechaLargaOnerrd(conRegistro.vence), '31 de diciembre de 2027');
+  const aMano = facturaDesdeValoresOnerrd({
+    anio: 2027,
+    fecha: '2026-10-07T16:00:00Z',
+    facturaVence: '2027-06-30T16:00:00Z',
+  });
+  assert.equal(formatearFechaLargaOnerrd(aMano.vence), '30 de junio de 2027');
+});
+
+// "VENCE:" va aparte, como "FECHA:" (mismo estilo y alineación), y la fecha
+// sola a la derecha; los dos se mueven a gusto. Sin vencimiento, no sale el
+// rótulo suelto.
+test('el vencimiento: rótulo aparte como FECHA y la fecha sola', () => {
+  const { campos } = sanearDisenoFacturaOnerrd();
+  const campo = (id) => campos.find((c) => c.id === id);
+  const rotulo = campo('facturaVenceEtiqueta');
+  const fechaRotulo = campo('facturaFechaEtiqueta');
+  assert.deepEqual(
+    [rotulo.fuente, rotulo.peso, rotulo.color, rotulo.tamano, rotulo.alineacion, rotulo.x],
+    [
+      fechaRotulo.fuente,
+      fechaRotulo.peso,
+      fechaRotulo.color,
+      fechaRotulo.tamano,
+      fechaRotulo.alineacion,
+      fechaRotulo.x,
+    ]
+  );
+  assert.equal(campo('facturaVence').alineacion, campo('facturaFecha').alineacion);
+  assert.equal(campo('facturaVence').x, campo('facturaFecha').x);
+
+  const con = valoresDeFacturaOnerrd({ vence: '31 de diciembre de 2027' });
+  assert.equal(con.facturaVenceEtiqueta, 'VENCE:');
+  assert.equal(con.facturaVence, '31 de diciembre de 2027');
+  const sin = valoresDeFacturaOnerrd({ vence: '' });
+  assert.equal(sin.facturaVenceEtiqueta, '');
+  assert.equal(sin.facturaVence, '');
 });

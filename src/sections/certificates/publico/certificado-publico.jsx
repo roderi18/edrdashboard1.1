@@ -153,6 +153,7 @@ export function CertificadoPublico({
   urlPdf,
   urlDescarga,
   avisos = {},
+  etiqueta = 'Certificado emitido',
 }) {
   const aviso = AVISOS_COMUNES[estado] && {
     ...AVISOS_COMUNES[estado],
@@ -205,7 +206,7 @@ export function CertificadoPublico({
                 variant="soft"
                 startIcon={<Iconify icon="solar:verified-check-bold" />}
               >
-                Certificado emitido
+                {etiqueta}
               </Label>
               {generadoEn && (
                 <Stack direction="row" spacing={0.75} alignItems="center">

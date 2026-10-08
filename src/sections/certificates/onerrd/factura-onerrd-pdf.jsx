@@ -342,7 +342,7 @@ function SelloPdf({ sello, texto }) {
   );
 }
 
-function FacturaOnerrd({ diseno, datos, campos, imagenes }) {
+function FacturaOnerrd({ diseno, datos, campos, imagenes, qr }) {
   const pagina = PAGINA_FACTURA_ONERRD;
   return (
     <Document title={`Factura ${datos.numero}`} author="Oficina Nacional ERRD" creator="EXPEDITION">
@@ -390,6 +390,10 @@ function FacturaOnerrd({ diseno, datos, campos, imagenes }) {
         {diseno.sello.visible && !!datos.sello && (
           <SelloPdf sello={diseno.sello} texto={datos.sello} />
         )}
+        {/* El QR: abre la factura guardada (en el mismo contenedor que el certificado). */}
+        {qr && diseno.qr?.visible && (
+          <Image src={qr} style={posicion(cajaDeImagenOnerrd(diseno.qr, 1, pagina))} />
+        )}
       </Page>
     </Document>
   );
@@ -397,5 +401,8 @@ function FacturaOnerrd({ diseno, datos, campos, imagenes }) {
 
 // `campos`: los textos ya preparados (`prepararTextosParaPdfOnerrd`).
 // `imagenes`: { id: { dataUrl, proporcion } } de las subidas a la factura.
-export const generarFacturaOnerrdPdf = ({ diseno, datos, campos, imagenes = {} }) =>
-  pdf(<FacturaOnerrd diseno={diseno} datos={datos} campos={campos} imagenes={imagenes} />).toBlob();
+// `qr`: data URL del código (abre la factura guardada).
+export const generarFacturaOnerrdPdf = ({ diseno, datos, campos, imagenes = {}, qr = null }) =>
+  pdf(
+    <FacturaOnerrd diseno={diseno} datos={datos} campos={campos} imagenes={imagenes} qr={qr} />
+  ).toBlob();

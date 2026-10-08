@@ -2,6 +2,7 @@ import {
   FUENTES_ONERRD,
   acotarPosicion,
   sanearCampoOnerrd,
+  sanearPapeleraOnerrd,
   acotarRotacionOnerrd,
 } from './certificado-onerrd.mjs';
 
@@ -53,9 +54,25 @@ export const MONEDA_FACTURA_ONERRD = 'RD$';
 // El número que lleva la factura de prueba: nunca uno del contador.
 export const NUMERO_FACTURA_DE_PRUEBA_ONERRD = 'PRUEBA';
 
-// Mismo prefijo que los contadores por año: `firestore.rules` ya lo deja
-// subir solo de uno en uno.
-export const ID_CONTADOR_FACTURAS_ONERRD = 'contador-facturas';
+// EL NÚMERO DE FACTURA: ONERRD-AAAA-NNN, como el del certificado (AAAA-NNN)
+// pero con el año en que se emite la factura (hora de Santo Domingo) y su
+// propio correlativo, que vuelve a 001 cada año: ONERRD-2026-001,
+// ONERRD-2026-002… Un contador por año (`contador-facturas-AAAA`), con el
+// prefijo que `firestore.rules` solo deja subir de uno en uno. Las facturas
+// de antes (1, 2…, del contador único `contador-facturas`) conservan el suyo.
+export const PREFIJO_NUMERO_FACTURA_ONERRD = 'ONERRD';
+
+export const idContadorFacturasOnerrd = (anio) => `contador-facturas-${anio}`;
+
+export const formatearNumeroFacturaOnerrd = (anio, secuencia) =>
+  `${PREFIJO_NUMERO_FACTURA_ONERRD}-${anio}-${String(secuencia).padStart(3, '0')}`;
+
+export const anioActualOnerrd = (fecha = new Date()) =>
+  Number(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santo_Domingo', year: 'numeric' }).format(
+      fecha instanceof Date ? fecha : new Date(fecha)
+    )
+  );
 
 export const ID_DISENO_FACTURA_ONERRD = 'diseno-factura';
 
@@ -183,12 +200,41 @@ export const sanearFacturaOnerrd = (entrada = {}, valores = {}) => {
 };
 
 // Lo escrito en "Datos del registro" → lo que pide `sanearFacturaOnerrd`.
+// EL VENCIMIENTO DEL REGISTRO. Cada 1 de octubre abre un período, que vence el
+// 31 de diciembre del año siguiente. Cuenta la fecha del registro (la de
+// "Datos del registro"): de octubre a diciembre es el período de ese año; de
+// enero a septiembre, el que abrió el octubre anterior. Un registro del 7 oct.
+// 2026 o del 15 mar. 2027 vence el 31 dic. 2027; uno del 15 oct. 2027, el 31
+// dic. 2028 (coincide con el año del certificado). A mediodía de Santo
+// Domingo, como las demás fechas: a medianoche caía en el día anterior.
+export const MES_DE_APERTURA_ONERRD = 10;
+
+export const venceDelRegistroOnerrd = (fechaRegistro) => {
+  const fecha = fechaRegistro instanceof Date ? fechaRegistro : new Date(fechaRegistro || '');
+  if (Number.isNaN(fecha.getTime())) return '';
+  const partes = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: ZONA_HORARIA,
+      year: 'numeric',
+      month: 'numeric',
+    })
+      .formatToParts(fecha)
+      .map(({ type, value }) => [type, Number(value)])
+  );
+  const apertura = partes.month >= MES_DE_APERTURA_ONERRD ? partes.year : partes.year - 1;
+  return new Date(Date.UTC(apertura + 1, 11, 31, 16, 0, 0)).toISOString();
+};
+
+// El vencimiento escrito a mano manda; vacío, el del registro.
+export const venceDeValoresOnerrd = (valores = {}) =>
+  valores.facturaVence || venceDelRegistroOnerrd(valores.fecha);
+
 export const facturaDesdeValoresOnerrd = (valores = {}) =>
   sanearFacturaOnerrd(
     {
       facturarA: valores.facturaA,
       estado: valores.facturaEstado,
-      vence: valores.facturaVence,
+      vence: venceDeValoresOnerrd(valores),
       lineas: valores.facturaLineas,
       codigoDescuento: valores.facturaCodigo,
       concepto: valores.facturaConcepto,
@@ -243,7 +289,8 @@ export const datosDeFacturaOnerrd = (emitido = {}) => {
       // El código de descuento va bajo la primera línea, como en el ejemplo.
       detalle:
         indice === 0 && factura.codigoDescuento ? `(código: ${factura.codigoDescuento})` : '',
-      precio: linea.precio.toFixed(2),
+      // Con la coma de los miles, como el importe: 1,500.00.
+      precio: formatearMontoOnerrd(linea.precio),
       cantidad: linea.cantidad,
       importe: formatearMontoOnerrd(linea.precio * linea.cantidad),
     })),
@@ -267,7 +314,10 @@ export const valoresDeFacturaOnerrd = (datos, extra = {}) => ({
   facturaFecha: datos?.fecha || '',
   facturaA: datos?.facturarA || '',
   facturaConcepto: datos?.concepto || '',
-  facturaVence: datos?.vence ? `VENCE: ${datos.vence}` : '',
+  // El rótulo va aparte (como FECHA:) y solo si hay vencimiento: una factura
+  // sin él no enseña "VENCE:" suelto.
+  facturaVenceEtiqueta: datos?.vence ? 'VENCE:' : '',
+  facturaVence: datos?.vence || '',
 });
 
 export const nombreDeArchivoFacturaOnerrd = (emitido = {}) =>
@@ -385,9 +435,14 @@ export const CAMPOS_DE_FABRICA_FACTURA_ONERRD = Object.freeze(
       ...LETRA(10, 400, { alineacion: 'right' }),
       ...enCaja(DATOS + 90, 124, DERECHA - DATOS - 90),
     }),
+    // Como FECHA: rótulo navy en negrita a la izquierda y la fecha a la derecha.
+    textoDato('facturaVenceEtiqueta', 'Rótulo del vencimiento', {
+      ...LETRA(10, 700, { color: NAVY }),
+      ...enCaja(DATOS, 142, 90),
+    }),
     textoDato('facturaVence', 'Vencimiento', {
-      ...LETRA(9, 400, { alineacion: 'right' }),
-      ...enCaja(DATOS, 140, DERECHA - DATOS),
+      ...LETRA(10, 400, { alineacion: 'right' }),
+      ...enCaja(DATOS + 70, 142, DERECHA - DATOS - 70),
     }),
     // El rótulo va en blanco sobre la barra navy (una forma) y el nombre en el
     // recuadro de debajo: antes era un solo texto con "FACTURAR A: " delante.
@@ -709,6 +764,27 @@ const sanearSello = (guardado) => {
   };
 };
 
+// El QR de la factura: abre su página (la factura guardada, en el mismo
+// contenedor que el certificado). x, y = su centro; abajo a la derecha.
+export const QR_DE_FABRICA_FACTURA_ONERRD = Object.freeze({
+  visible: true,
+  x: 87,
+  y: 88,
+  ancho: 12,
+  color: '#000000',
+});
+
+const sanearQrFactura = (entrada = {}) => {
+  const f = QR_DE_FABRICA_FACTURA_ONERRD;
+  return {
+    visible: entrada.visible !== false,
+    x: acotarPosicion(numero(entrada.x, f.x)),
+    y: acotarPosicion(numero(entrada.y, f.y)),
+    ancho: redondear(acotar(numero(entrada.ancho, f.ancho), 2, 100)),
+    color: colorHex(entrada.color, f.color),
+  };
+};
+
 const sanearLogo = (entrada = {}) => {
   const f = LOGO_DE_FABRICA_FACTURA_ONERRD;
   return {
@@ -761,6 +837,7 @@ export const sanearDisenoFacturaOnerrd = (diseno = {}) => {
     linea: sanearLineaDeDiseno(diseno?.linea),
     logo: sanearLogo(diseno?.logo),
     imagenes: sanearImagenesFactura(diseno?.imagenes),
+    papelera: sanearPapeleraOnerrd(diseno?.papelera),
     // Un diseño guardado antes de las formas no las tenía: se queda sin ellas.
     formas: sanearFormasFactura(
       Array.isArray(diseno?.formas)
@@ -772,14 +849,15 @@ export const sanearDisenoFacturaOnerrd = (diseno = {}) => {
     firmas: [],
     imagen: oculto,
     iconoRegion: oculto,
-    qr: { ...oculto, color: '#000000' },
+    qr: sanearQrFactura(diseno?.qr),
   };
 };
 
 // Para guardar: solo lo de la factura.
 export const disenoFacturaParaGuardar = (diseno) => {
-  const { campos, tabla, sello, linea, logo, imagenes, formas } = sanearDisenoFacturaOnerrd(diseno);
-  return { campos, tabla, sello, linea, logo, imagenes, formas };
+  const { campos, tabla, sello, linea, logo, imagenes, formas, qr, papelera } =
+    sanearDisenoFacturaOnerrd(diseno);
+  return { campos, tabla, sello, linea, logo, imagenes, formas, qr, papelera };
 };
 
 export const esCampoDeFabricaFactura = (id) => IDS_DE_FABRICA.has(id);

@@ -123,6 +123,8 @@ export const TIPOS_DE_CAMPO_ONERRD = Object.freeze({
   // Un texto añadido guardaba lo escrito como dato de un certificado: no se
   // guardaba con el diseño y al recargar la página quedaba vacío.
   fijo: 'fijo',
+  // La fecha y hora en que se emitió (UTC-4): la pone el sistema al emitir.
+  emision: 'emision',
 });
 
 // Dónde se guarda lo que se escribe en un campo. El año es uno solo para todo
@@ -360,6 +362,9 @@ export const crearIdDeCampo = (existentes = []) => {
 // Lo que da el aspecto de letra (no el sitio ni el tamaño).
 const ESTILO_DE_LETRA = ['fuente', 'color', 'negrita', 'cursiva', 'contorno', 'grosorContorno'];
 
+const PARECE_FECHA_DE_EMISION =
+  /^\d{1,2}\/\d{1,2}\/\d{4}\s+UTC-?4\s+\d{1,2}:\d{2}\s*[AP]\.?\s?M\.?$/i;
+
 export const sanearCampoOnerrd = (entrada = {}) => {
   const fabrica = CAMPOS_DE_FABRICA_ONERRD.find((item) => item.id === entrada.id);
   // Un diseño guardado antes de que hubiera contorno no trae la clave: el
@@ -380,9 +385,15 @@ export const sanearCampoOnerrd = (entrada = {}) => {
     entrada.peso === undefined && (!conContorno.fuente || conContorno.fuente === 'Helvetica')
       ? { ...conContorno, fuente: FUENTE_ONERRD_POR_DEFECTO }
       : conContorno;
-  const tipo = Object.values(TIPOS_DE_CAMPO_ONERRD).includes(campo.tipo)
-    ? campo.tipo
-    : fabrica?.tipo || 'texto';
+  // Una fecha y hora escrita a mano como texto fijo ("07/10/2026 UTC-4 10:05
+  // A.M.") se quedaba siempre igual: pasa a ser la fecha y hora de emisión.
+  const fechaEscrita =
+    campo.tipo === 'fijo' && PARECE_FECHA_DE_EMISION.test(String(campo.contenido || '').trim());
+  const tipo = fechaEscrita
+    ? 'emision'
+    : Object.values(TIPOS_DE_CAMPO_ONERRD).includes(campo.tipo)
+      ? campo.tipo
+      : fabrica?.tipo || 'texto';
   const fuente = FUENTES_ONERRD.some((item) => item.value === campo.fuente)
     ? campo.fuente
     : fabrica?.fuente || FUENTE_ONERRD_POR_DEFECTO;
@@ -463,6 +474,115 @@ export const sanearCampoOnerrd = (entrada = {}) => {
   };
 };
 
+// IMÁGENES SUBIDAS (al certificado o a la factura): las que se añaden con
+// "Subir imagen" o arrastrándolas al lienzo. Cada una vive en su propio
+// documento (`certificadosOnerrd/certificado-imagen-<ms>` o `factura-imagen-<ms>`:
+// varias juntas no caben en el MB de un documento); el diseño guarda solo
+// dónde va, su tamaño y su giro. Quitarla del diseño no borra su documento.
+export const MAXIMO_IMAGENES_SUBIDAS_ONERRD = 10;
+
+export const esIdImagenSubidaOnerrd = (id) =>
+  /^(certificado|factura)-imagen-\d{10,16}$/.test(String(id ?? ''));
+
+export const crearIdImagenSubidaOnerrd = (destino = 'certificado', ahora = Date.now()) =>
+  `${destino === 'factura' ? 'factura' : 'certificado'}-imagen-${ahora}`;
+
+// x, y = su centro; ancho en % de la página (el alto sale de su proporción).
+export const IMAGEN_SUBIDA_NUEVA_ONERRD = Object.freeze({
+  x: 50,
+  y: 50,
+  ancho: 20,
+  rotacion: 0,
+  visible: true,
+});
+
+// `prefijo`: 'certificado' o 'factura' (cada diseño solo las suyas).
+export const sanearImagenesSubidasOnerrd = (lista, prefijo = 'certificado') => {
+  const vistas = new Set();
+  return (Array.isArray(lista) ? lista : [])
+    .filter((imagen) => {
+      const id = imagen?.id;
+      if (!esIdImagenSubidaOnerrd(id) || !id.startsWith(`${prefijo}-`) || vistas.has(id)) {
+        return false;
+      }
+      vistas.add(id);
+      return true;
+    })
+    .slice(0, MAXIMO_IMAGENES_SUBIDAS_ONERRD)
+    .map((imagen) => ({
+      id: imagen.id,
+      visible: imagen.visible !== false,
+      x: acotarPosicion(numero(imagen.x, IMAGEN_SUBIDA_NUEVA_ONERRD.x)),
+      y: acotarPosicion(numero(imagen.y, IMAGEN_SUBIDA_NUEVA_ONERRD.y)),
+      ancho: redondear(acotar(numero(imagen.ancho, IMAGEN_SUBIDA_NUEVA_ONERRD.ancho), 2, 100)),
+      rotacion: acotarRotacionOnerrd(numero(imagen.rotacion, 0)),
+    }));
+};
+
+// "07/10/2026 UTC-4 10:05 A.M.": la fecha y hora de emisión en Santo Domingo
+// (UTC-4 todo el año: no cambia de hora). Sin fecha, la de ahora.
+export const formatearEmisionOnerrd = (valor) => {
+  const fecha = valor ? new Date(valor) : new Date();
+  if (Number.isNaN(fecha.getTime())) return '';
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Santo_Domingo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+      .formatToParts(fecha)
+      .map(({ type, value }) => [type, value])
+  );
+  const meridiano = String(p.dayPeriod || '').toUpperCase() === 'PM' ? 'P.M.' : 'A.M.';
+  return `${p.day}/${p.month}/${p.year} UTC-4 ${p.hour}:${p.minute} ${meridiano}`;
+};
+
+// LA PAPELERA DE TEXTOS (certificado y factura): un texto añadido que se
+// elimina (tras confirmarlo) va aquí, con el diseño, y se restaura desde
+// "Eliminados". Como mucho los últimos 20; los de fábrica no entran (se
+// ocultan y vuelven desde su casilla).
+export const MAXIMO_PAPELERA_ONERRD = 20;
+
+export const sanearPapeleraOnerrd = (lista) =>
+  (Array.isArray(lista) ? lista : [])
+    .filter((item) => item?.campo?.id)
+    .slice(0, MAXIMO_PAPELERA_ONERRD)
+    .map((item) => ({
+      campo: sanearCampoOnerrd(item.campo),
+      eliminadoEn: String(item.eliminadoEn || ''),
+    }));
+
+// Mueve a la papelera los textos `ids` (los más nuevos, primero).
+export const quitarCamposAPapeleraOnerrd = (diseno, ids, ahora = new Date().toISOString()) => {
+  const quitar = new Set(ids);
+  const quitados = diseno.campos.filter((campo) => quitar.has(campo.id));
+  return {
+    ...diseno,
+    campos: diseno.campos.filter((campo) => !quitar.has(campo.id)),
+    papelera: [
+      ...quitados.map((campo) => ({ campo, eliminadoEn: ahora })),
+      ...(diseno.papelera || []),
+    ].slice(0, MAXIMO_PAPELERA_ONERRD),
+  };
+};
+
+// Lo vuelve a poner donde estaba (con otro id si ya hay uno igual).
+export const restaurarDePapeleraOnerrd = (diseno, indice) => {
+  const item = (diseno.papelera || [])[indice];
+  if (!item) return diseno;
+  const ocupado = diseno.campos.some((campo) => campo.id === item.campo.id);
+  const campo = ocupado ? { ...item.campo, id: crearIdDeCampo(diseno.campos) } : item.campo;
+  return {
+    ...diseno,
+    campos: [...diseno.campos, { ...campo, visible: true }],
+    papelera: diseno.papelera.filter((_, i) => i !== indice),
+  };
+};
+
 // Una posición rota vuelve a la de fábrica, no al centro de la hoja (donde
 // una firma o el QR caían encima del sello).
 const sanearElementoImagen = (elemento = {}, fabrica = {}) => ({
@@ -502,7 +622,11 @@ export const sanearDisenoOnerrd = (diseno = {}) => {
 
   return {
     campos: unicos,
+    // Los textos eliminados, para volver a ponerlos ("Eliminados").
+    papelera: sanearPapeleraOnerrd(diseno?.papelera),
     firmas,
+    // Las subidas ("Subir imagen" o arrastradas al lienzo).
+    imagenes: sanearImagenesSubidasOnerrd(diseno?.imagenes, 'certificado'),
     imagen: {
       ...sanearElementoImagen(diseno?.imagen, IMAGEN_DE_FABRICA_ONERRD),
       visible: diseno?.imagen?.visible !== false,
@@ -575,6 +699,59 @@ export const CARPETA_PDF_ONERRD = 'certificados-onerrd';
 
 export const rutaPdfOnerrd = (numeroRegistro) => `${CARPETA_PDF_ONERRD}/${numeroRegistro}.pdf`;
 
+// LOS ORIGINALES, en Storage junto a los PDF. La app pinta desde Firestore (la
+// plantilla ya convertida en imagen, la firma reducida): esto es el archivo tal
+// cual se subió, para no perderlo. Cada plantilla con su fecha y hora (no se
+// pisan: queda el historial); cada firma por su id. Nada se borra.
+export const CARPETA_PLANTILLAS_ONERRD = `${CARPETA_PDF_ONERRD}/plantillas`;
+export const CARPETA_FIRMAS_ONERRD = `${CARPETA_PDF_ONERRD}/firmas`;
+
+const EXTENSIONES_DE_IMAGEN = Object.freeze({
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+});
+
+export const extensionDeImagenOnerrd = (tipo) => EXTENSIONES_DE_IMAGEN[tipo] || '';
+
+const nombreDeArchivoSeguro = (nombre) =>
+  String(nombre || 'plantilla')
+    .replace(/\.svg$/i, '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '')
+    .slice(0, 80) || 'plantilla';
+
+// "2026-10-07_15-30-00_Plantilla-Certificado.svg", en hora de Santo Domingo.
+export const rutaPlantillaOnerrd = (nombreArchivo, fecha = new Date()) => {
+  const partes = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Santo_Domingo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(fecha instanceof Date ? fecha : new Date(fecha))
+      .map(({ type, value }) => [type, value])
+  );
+  const sello = `${partes.year}-${partes.month}-${partes.day}_${partes.hour}-${partes.minute}-${partes.second}`;
+  return `${CARPETA_PLANTILLAS_ONERRD}/${sello}_${nombreDeArchivoSeguro(nombreArchivo)}.svg`;
+};
+
+// Sin un tipo de imagen admitido, '' (no se sube).
+export const rutaFirmaOnerrd = (idFirma, tipo) => {
+  const extension = extensionDeImagenOnerrd(tipo);
+  const id = String(idFirma || '');
+  return extension && /^firma-\d{10,16}$/.test(id)
+    ? `${CARPETA_FIRMAS_ONERRD}/${id}.${extension}`
+    : '';
+};
+
 export const esNumeroOnerrdValido = (valor) => /^\d{4}-\d{3,6}$/.test(String(valor ?? ''));
 
 // La clave y su formato son los de todos los certificados con QR.
@@ -601,6 +778,25 @@ export const urlDelPdfOnerrd = (numeroRegistro, clave, { descargar = false } = {
     ? `/api/certificados-onerrd/${numeroRegistro}?c=${clave}${descargar ? '&descargar=1' : ''}`
     : '';
 
+// LA FACTURA DE CADA CERTIFICADO, con su propio QR: se guarda en Storage al
+// emitir (`certificados-onerrd/facturas/AAAA-NNN.pdf`) y su QR abre su página
+// (`/certificados-onerrd/AAAA-NNN/factura?c=CLAVE`), con el mismo contenedor
+// que el certificado. Misma clave que el certificado: es el mismo registro.
+export const rutaFacturaPdfOnerrd = (numeroRegistro) =>
+  `${CARPETA_PDF_ONERRD}/facturas/${numeroRegistro}.pdf`;
+
+export const urlDeFacturaOnerrd = (origen, numeroRegistro, clave) => {
+  const base = `${String(origen || '').replace(/\/+$/, '')}${RUTA_PUBLICA_ONERRD}`;
+  return esNumeroOnerrdValido(numeroRegistro) && esClaveOnerrdValida(clave)
+    ? `${base}/${numeroRegistro}/factura?c=${clave}`
+    : `${base}/prueba`;
+};
+
+export const urlDelPdfFacturaOnerrd = (numeroRegistro, clave, { descargar = false } = {}) =>
+  esNumeroOnerrdValido(numeroRegistro) && esClaveOnerrdValida(clave)
+    ? `/api/certificados-onerrd/${numeroRegistro}/factura?c=${clave}${descargar ? '&descargar=1' : ''}`
+    : '';
+
 export const formatearFechaOnerrd = (valor) => {
   if (!valor) return '';
   const fecha = valor instanceof Date ? valor : new Date(valor);
@@ -616,6 +812,8 @@ export const textoDeCampoOnerrd = (campo, valores = {}) => {
   let texto = '';
   if (campo.tipo === 'numero') texto = valores.numeroRegistro || '';
   else if (campo.tipo === 'fecha') texto = formatearFechaOnerrd(valores.fecha);
+  // Sin emitir (vista previa, prueba), la de ahora.
+  else if (campo.tipo === 'emision') texto = formatearEmisionOnerrd(valores.emitidoEnIso);
   else if (campo.tipo === 'fijo') texto = conTextoFijoOnerrd(campo, (campo.contenido || '').trim());
   else texto = conTextoFijoOnerrd(campo, String(valores[claveDeValorOnerrd(campo)] ?? '').trim());
 

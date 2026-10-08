@@ -21,6 +21,7 @@ import {
   sanearDisenoOnerrd,
   cajaDeImagenOnerrd,
   textoDeCampoOnerrd,
+  sanearCampoOnerrd,
   textosParaPintarOnerrd,
   rutaPdfOnerrd,
   crearClaveOnerrd,
@@ -51,6 +52,13 @@ import {
   nombreDeArchivoOnerrd,
   anioDeRegistroPropuesto,
   siguienteSecuenciaOnerrd,
+  rutaFirmaOnerrd,
+  rutaPlantillaOnerrd,
+  esIdImagenSubidaOnerrd,
+  crearIdImagenSubidaOnerrd,
+  formatearEmisionOnerrd,
+  restaurarDePapeleraOnerrd,
+  quitarCamposAPapeleraOnerrd,
 } from '../../src/utils/certificado-onerrd.mjs';
 import { direccionPublica, DIRECCIONES_PUBLICAS } from '../../src/utils/direccion-publica.mjs';
 
@@ -645,4 +653,106 @@ test('el QR lleva a la dirección publicada del ambiente, también si se emite e
     'https://x.app'
   );
   assert.equal(direccionPublica({ proyecto: 'otro', origenActual: local }), '');
+});
+
+// Los originales de la plantilla (.svg) y de las firmas van a Storage junto a
+// los PDF, con rutas fijas: cada plantilla con su fecha y hora (no se pisan) y
+// cada firma por su id. Un nombre raro no saca el archivo de su carpeta.
+test('las rutas de los originales: plantillas con fecha y hora, firmas por id', () => {
+  assert.equal(
+    rutaPlantillaOnerrd(
+      'Plantilla-Certificado de Renovación anual errd.svg',
+      '2026-10-07T19:30:05Z'
+    ),
+    'certificados-onerrd/plantillas/2026-10-07_15-30-05_Plantilla-Certificado-de-Renovacion-anual-errd.svg'
+  );
+  assert.equal(
+    rutaPlantillaOnerrd('../../x.svg', '2026-10-07T19:30:05Z'),
+    'certificados-onerrd/plantillas/2026-10-07_15-30-05_x.svg'
+  );
+  assert.equal(
+    rutaFirmaOnerrd('firma-1791380000000', 'image/png'),
+    'certificados-onerrd/firmas/firma-1791380000000.png'
+  );
+  assert.equal(rutaFirmaOnerrd('firma-1791380000000', 'image/jpeg').endsWith('.jpg'), true);
+  assert.equal(rutaFirmaOnerrd('firma-1791380000000', 'application/pdf'), '');
+  assert.equal(rutaFirmaOnerrd('../fondo', 'image/png'), '');
+});
+
+// Varias imágenes en el certificado ("Subir imagen" suma, no reemplaza; o se
+// sueltan encima del lienzo). El diseño guarda solo su sitio, tamaño y giro;
+// cada imagen vive en su documento. Un diseño solo acepta las suyas.
+test('el certificado admite varias imágenes subidas, cada una con su sitio y giro', () => {
+  const id = crearIdImagenSubidaOnerrd('certificado', 1791380000000);
+  assert.equal(id, 'certificado-imagen-1791380000000');
+  assert.equal(crearIdImagenSubidaOnerrd('factura', 1).startsWith('factura-imagen-'), true);
+  assert.equal(esIdImagenSubidaOnerrd(id), true);
+  assert.equal(esIdImagenSubidaOnerrd('fondo'), false);
+
+  const otra = crearIdImagenSubidaOnerrd('certificado', 1791380000001);
+  const { imagenes } = sanearDisenoOnerrd({
+    imagenes: [
+      { id, x: 30, y: 40, ancho: 15, rotacion: 450 },
+      { id: otra, visible: false },
+      { id },
+      { id: 'factura-imagen-1791380000002' },
+    ],
+  });
+  assert.deepEqual(
+    imagenes.map((i) => [i.id, i.x, i.y, i.ancho, i.rotacion, i.visible]),
+    [
+      [id, 30, 40, 15, 90, true],
+      [otra, 50, 50, 20, 0, false],
+    ]
+  );
+  assert.deepEqual(sanearDisenoOnerrd().imagenes, []);
+});
+
+// "Fecha y hora de emisión": siempre la de la emisión, en UTC-4 (Santo
+// Domingo), con el formato del bloque de firma digital.
+test('la fecha y hora de emisión sale en UTC-4', () => {
+  assert.equal(formatearEmisionOnerrd('2026-10-07T14:05:00Z'), '07/10/2026 UTC-4 10:05 A.M.');
+  assert.equal(formatearEmisionOnerrd('2026-10-07T23:30:00Z'), '07/10/2026 UTC-4 7:30 P.M.');
+  const campo = sanearCampoOnerrd({ id: 'texto9', tipo: 'emision', mayusculas: true });
+  assert.equal(campo.tipo, 'emision');
+  assert.equal(
+    textoDeCampoOnerrd(campo, { emitidoEnIso: '2026-10-07T14:05:00Z' }),
+    '07/10/2026 UTC-4 10:05 A.M.'
+  );
+});
+
+// Eliminar un texto lo deja en la papelera del diseño (se guarda con él) y
+// se restaura en su sitio; con otro id si entretanto se usó el suyo.
+test('los textos eliminados van a la papelera y se restauran', () => {
+  const diseno = sanearDisenoOnerrd({
+    campos: [{ id: 'texto9', tipo: 'fijo', etiqueta: 'Firma digital', contenido: 'X', x: 30 }],
+  });
+  const sin = quitarCamposAPapeleraOnerrd(diseno, ['texto9'], '2026-10-07T14:00:00Z');
+  assert.equal(
+    sin.campos.some((c) => c.id === 'texto9'),
+    false
+  );
+  assert.equal(sin.papelera[0].campo.etiqueta, 'Firma digital');
+  // Se guarda con el diseño.
+  assert.equal(sanearDisenoOnerrd(sin).papelera.length, 1);
+  const devuelto = restaurarDePapeleraOnerrd(sin, 0);
+  const campo = devuelto.campos.find((c) => c.etiqueta === 'Firma digital');
+  assert.equal(campo.x, 30);
+  assert.equal(devuelto.papelera.length, 0);
+});
+
+// Una fecha escrita a mano como texto fijo se quedaba igual en todos: se
+// convierte sola en la fecha y hora de emisión.
+test('una fecha y hora escrita a mano pasa a ser la de emisión', () => {
+  const campo = sanearCampoOnerrd({
+    id: 'texto5',
+    tipo: 'fijo',
+    contenido: '07/10/2026 UTC-4 10:05 A.M.',
+  });
+  assert.equal(campo.tipo, 'emision');
+  assert.equal(
+    textoDeCampoOnerrd(campo, { emitidoEnIso: '2026-12-01T18:00:00Z' }),
+    '01/12/2026 UTC-4 2:00 P.M.'
+  );
+  assert.equal(sanearCampoOnerrd({ id: 't', tipo: 'fijo', contenido: 'Firmado' }).tipo, 'fijo');
 });

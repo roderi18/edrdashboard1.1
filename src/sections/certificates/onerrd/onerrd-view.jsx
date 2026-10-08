@@ -24,32 +24,36 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { direccionPublica } from 'src/utils/direccion-publica.mjs';
 import {
+  venceDeValoresOnerrd,
   LINEA_FACTURA_INICIAL,
   ESTADOS_FACTURA_ONERRD,
   facturarAPropuestoOnerrd,
   disenoFacturaParaGuardar,
-  sanearDisenoFacturaOnerrd,
   VARIABLE_REGISTRO_FACTURA,
+  sanearDisenoFacturaOnerrd,
   facturaDesdeValoresOnerrd,
   descripcionPropuestaOnerrd,
-  IMAGEN_NUEVA_FACTURA_ONERRD,
+  nombreDeArchivoFacturaOnerrd,
 } from 'src/utils/factura-onerrd.mjs';
 import {
-  PESOS_ONERRD,
   regionOnerrd,
+  PESOS_ONERRD,
   crearIdDeCampo,
+  acotarPosicion,
   REGIONES_ONERRD,
   crearClaveOnerrd,
   sanearCampoOnerrd,
   pesoDeCampoOnerrd,
   sanearDisenoOnerrd,
-  formatearNumeroOnerrd,
   nombreDeArchivoOnerrd,
+  formatearNumeroOnerrd,
   textosParaPintarOnerrd,
   esAnioDeRegistroValido,
-  urlDelCertificadoOnerrd,
   anioDeRegistroPropuesto,
+  urlDelCertificadoOnerrd,
   PAGINA_ONERRD_POR_DEFECTO,
+  IMAGEN_SUBIDA_NUEVA_ONERRD,
+  MAXIMO_IMAGENES_SUBIDAS_ONERRD,
 } from 'src/utils/certificado-onerrd.mjs';
 
 import { getRegionals } from 'src/services/regional-service';
@@ -62,13 +66,14 @@ import {
   listarFirmasOnerrd,
   guardarImagenOnerrd,
   guardarDisenoOnerrd,
+  publicarFacturaOnerrd,
   leerIconosRegionOnerrd,
   leerUltimoNumeroOnerrd,
   leerDisenoFacturaOnerrd,
   emitirCertificadoOnerrd,
   guardarIconoRegionOnerrd,
-  leerImagenesFacturaOnerrd,
-  guardarImagenFacturaOnerrd,
+  leerImagenesSubidasOnerrd,
+  guardarImagenSubidaOnerrd,
   guardarDisenoFacturaOnerrd,
 } from 'src/services/certificado-onerrd-service';
 
@@ -82,10 +87,15 @@ import { VisorOnerrd } from './onerrd-visor';
 import { FirmasOnerrd } from './onerrd-firmas';
 import { LienzoOnerrd } from './onerrd-lienzo';
 import { puedeUsarOnerrd } from './puede-usar-onerrd';
+import { usePapeleraOnerrd } from './papelera-onerrd';
 import { PropiedadesOnerrd } from './onerrd-propiedades';
 import { useBorradorOnerrd } from './use-borrador-onerrd';
-import { descargarFacturaDePruebaOnerrd } from './descargas-onerrd';
 import { TituloDesplegable, EditorFacturaOnerrd } from './factura-editor';
+import {
+  descargarBlobOnerrd,
+  generarFacturaOnerrdBlob,
+  descargarFacturaDePruebaOnerrd,
+} from './descargas-onerrd';
 import {
   copiarOnerrd,
   copiaDeCampoOnerrd,
@@ -235,8 +245,11 @@ export function OnerrdView() {
   const [verFactura, setVerFactura] = useState(false);
   // Las imágenes subidas a la factura: { id: { dataUrl, proporcion, nombreArchivo } }.
   const [imagenesFactura, setImagenesFactura] = useState({});
-  const entradaImagenFacturaRef = useRef(null);
-  const alSubirImagenFactura = useRef(null);
+  // Las subidas al certificado (varias): { id: { dataUrl, proporcion, nombreArchivo } }.
+  const [imagenesCertificado, setImagenesCertificado] = useState({});
+  // Un solo selector de archivos para las dos; dice a cuál van y a quién avisar.
+  const entradaImagenesRef = useRef(null);
+  const subidaPendiente = useRef(null);
   // Trabajando solo en la factura: lo de la izquierda que es del certificado
   // (fecha, región, destacamento, firmas, plantilla) se oculta.
   const soloFactura = verFactura && !verCertificado;
@@ -292,6 +305,10 @@ export function OnerrdView() {
       if (rDiseno.status === 'fulfilled') {
         setDiseno(rDiseno.value);
         setDisenoGuardado(JSON.stringify(rDiseno.value));
+        // Sus imágenes subidas llegan aparte (un documento cada una).
+        leerImagenesSubidasOnerrd(rDiseno.value.imagenes.map((item) => item.id))
+          .then((leidas) => vivo && setImagenesCertificado((actual) => ({ ...actual, ...leidas })))
+          .catch((error) => console.error('[onerrd] no se pudieron leer las imágenes', error));
       }
       if (rFirmas.status === 'fulfilled') setFirmas(rFirmas.value);
       if (rIconos.status === 'fulfilled') setIconosRegion(rIconos.value);
@@ -300,7 +317,7 @@ export function OnerrdView() {
         setDisenoFactura(rFactura.value);
         setDisenoFacturaGuardado(JSON.stringify(disenoFacturaParaGuardar(rFactura.value)));
         // Sus imágenes llegan aparte (un documento cada una).
-        leerImagenesFacturaOnerrd(rFactura.value.imagenes.map((item) => item.id))
+        leerImagenesSubidasOnerrd(rFactura.value.imagenes.map((item) => item.id))
           .then((leidas) => vivo && setImagenesFactura((actual) => ({ ...actual, ...leidas })))
           .catch((error) => console.error('[onerrd] no se pudieron leer las imágenes', error));
       }
@@ -468,6 +485,12 @@ export function OnerrdView() {
           firmas: actual.firmas.map((r) => (r.id === id ? { ...r, ...cambios } : r)),
         };
       }
+      if (tipo === 'imagenes') {
+        return {
+          ...actual,
+          imagenes: actual.imagenes.map((i) => (i.id === id ? { ...i, ...cambios } : i)),
+        };
+      }
       return {
         ...actual,
         campos: actual.campos.map((c) => (c.id === id ? { ...c, ...cambios } : c)),
@@ -492,13 +515,14 @@ export function OnerrdView() {
     setSeleccion({ tipo: 'campo', id });
   };
 
-  const eliminarCampo = (id) => {
-    setDiseno((actual) => ({
-      ...actual,
-      campos: actual.campos.filter((campo) => campo.id !== id),
-    }));
-    setSeleccion(null);
-  };
+  // Eliminar textos: pregunta antes y los deja en "Eliminados" (papelera).
+  const papelera = usePapeleraOnerrd({
+    diseno,
+    onCambiarDiseno: setDiseno,
+    onEliminados: () => setSeleccion(null),
+    onRestaurado: (id) => setSeleccion({ tipo: 'campo', id }),
+  });
+  const eliminarCampo = (id) => papelera.pedirEliminar([id]);
 
   // Ctrl + C / Ctrl + V / Ctrl + D / Supr en el lienzo del certificado. Se
   // copian los textos (también a la factura y desde ella); las formas son
@@ -533,6 +557,8 @@ export function OnerrdView() {
       const campo = diseno.campos.find((item) => item.id === sel.id);
       if (campo?.deFabrica) cambiarElemento('campo', sel.id, { visible: false });
       else eliminarCampo(sel.id);
+    } else if (sel?.tipo === 'imagenes') {
+      quitarImagenSubida(sel.id);
     } else if (['imagen', 'iconoRegion', 'qr'].includes(sel?.tipo)) {
       cambiarElemento(sel.tipo, sel.id, { visible: false });
     } else if (sel?.tipo === 'firma') {
@@ -544,7 +570,16 @@ export function OnerrdView() {
   const alAtajo = (accion, sel, lista = sel ? [sel] : []) => {
     if (accion === 'pegar') return pegarTextos(leerPortapapelesOnerrd());
     if (accion === 'eliminar') {
-      lista.forEach(eliminarElegido);
+      // Los textos añadidos van juntos a la papelera (una sola pregunta).
+      const aPapelera = lista
+        .filter((item) => item.tipo === 'campo')
+        .map((item) => diseno.campos.find((campo) => campo.id === item.id))
+        .filter((campo) => campo && !campo.deFabrica)
+        .map((campo) => campo.id);
+      papelera.pedirEliminar(aPapelera);
+      lista
+        .filter((item) => !(item.tipo === 'campo' && aPapelera.includes(item.id)))
+        .forEach(eliminarElegido);
       if (lista.some((item) => item.tipo !== 'firma')) setSeleccion(null);
       return undefined;
     }
@@ -622,35 +657,97 @@ export function OnerrdView() {
     }
   };
 
-  // "Subir imagen" de la factura: abre el selector y devuelve el id de la
-  // imagen ya guardada (para elegirla en el lienzo).
-  const pedirImagenFactura = () =>
-    new Promise((resolver) => {
-      alSubirImagenFactura.current = resolver;
-      entradaImagenFacturaRef.current?.click();
-    });
-
-  const subirImagenFactura = async (archivo) => {
-    const resolver = alSubirImagenFactura.current;
-    alSubirImagenFactura.current = null;
-    if (!archivo) return;
-    setOcupado('imagen-factura');
+  // SUBIR IMÁGENES al certificado o a la factura (`destino`): con el botón
+  // (varias a la vez) o soltándolas encima del lienzo, donde caen. Cada una se
+  // guarda en su documento y entra en el diseño; su sitio se guarda con
+  // "Guardar diseño". Devuelve los ids subidos.
+  const subirImagenes = async (destino, archivos, posicion) => {
+    const validas = archivos.filter((archivo) => TIPOS_DE_IMAGEN_ONERRD.includes(archivo.type));
+    if (!validas.length) {
+      toast.error('Usa imágenes PNG, JPG o WebP.');
+      return [];
+    }
+    const deFactura = destino === 'factura';
+    const ocupadas = (deFactura ? disenoFactura : diseno).imagenes?.length || 0;
+    const libres = MAXIMO_IMAGENES_SUBIDAS_ONERRD - ocupadas;
+    if (libres <= 0) {
+      toast.error(`Caben ${MAXIMO_IMAGENES_SUBIDAS_ONERRD} imágenes: quita alguna antes.`);
+      return [];
+    }
+    setOcupado(`imagen-${destino}`);
+    const subidas = [];
     try {
-      const preparada = await prepararImagenOnerrd(archivo);
-      const guardada = await guardarImagenFacturaOnerrd({ ...preparada, user });
-      setImagenesFactura((actual) => ({ ...actual, [guardada.id]: guardada }));
-      setDisenoFactura((actual) => ({
-        ...actual,
-        imagenes: [...actual.imagenes, { ...IMAGEN_NUEVA_FACTURA_ONERRD, id: guardada.id }],
-      }));
-      toast.success('Imagen subida. Colócala y pulsa «Guardar diseño».');
-      resolver?.(guardada.id);
+      for (const [indice, archivo] of validas.slice(0, libres).entries()) {
+        const preparada = await prepararImagenOnerrd(archivo);
+
+        const guardada = await guardarImagenSubidaOnerrd({ ...preparada, destino, user });
+        // Varias soltadas a la vez caen en escalera, no una encima de otra.
+        const base = posicion || IMAGEN_SUBIDA_NUEVA_ONERRD;
+        subidas.push({
+          guardada,
+          elemento: {
+            ...IMAGEN_SUBIDA_NUEVA_ONERRD,
+            id: guardada.id,
+            x: acotarPosicion(base.x + indice * 3),
+            y: acotarPosicion(base.y + indice * 3),
+          },
+        });
+      }
     } catch (error) {
-      console.error('[onerrd] no se pudo subir la imagen de la factura', error);
+      console.error('[onerrd] no se pudo subir la imagen', error);
       toast.error(error?.code || !error?.message ? 'No se pudo subir la imagen.' : error.message);
     } finally {
       setOcupado('');
     }
+    if (!subidas.length) return [];
+
+    const nuevas = Object.fromEntries(subidas.map(({ guardada }) => [guardada.id, guardada]));
+    const agregar = (actual) => ({
+      ...actual,
+      imagenes: [...actual.imagenes, ...subidas.map(({ elemento }) => elemento)],
+    });
+    if (deFactura) {
+      setImagenesFactura((actual) => ({ ...actual, ...nuevas }));
+      setDisenoFactura(agregar);
+    } else {
+      setImagenesCertificado((actual) => ({ ...actual, ...nuevas }));
+      setDiseno(agregar);
+      setSeleccion({ tipo: 'imagenes', id: subidas[subidas.length - 1].guardada.id });
+    }
+    if (validas.length > libres) {
+      toast.warning(`Solo cabían ${libres}: caben ${MAXIMO_IMAGENES_SUBIDAS_ONERRD} imágenes.`);
+    }
+    toast.success(
+      subidas.length === 1
+        ? 'Imagen subida. Colócala y pulsa «Guardar diseño».'
+        : `${subidas.length} imágenes subidas. Colócalas y pulsa «Guardar diseño».`
+    );
+    return subidas.map(({ guardada }) => guardada.id);
+  };
+
+  // El botón "Subir imagen": abre el selector (varias a la vez) y devuelve el
+  // id de la última subida (la factura la elige en su lienzo).
+  const pedirImagenes = (destino) =>
+    new Promise((resolver) => {
+      subidaPendiente.current = { destino, resolver };
+      entradaImagenesRef.current?.click();
+    });
+
+  const alElegirImagenes = async (archivos) => {
+    const pendiente = subidaPendiente.current;
+    subidaPendiente.current = null;
+    if (!pendiente || !archivos.length) return;
+    const ids = await subirImagenes(pendiente.destino, archivos);
+    pendiente.resolver(ids[ids.length - 1]);
+  };
+
+  // Quitar una imagen subida del certificado (su documento no se borra).
+  const quitarImagenSubida = (id) => {
+    setDiseno((actual) => ({
+      ...actual,
+      imagenes: actual.imagenes.filter((imagenSubida) => imagenSubida.id !== id),
+    }));
+    setSeleccion(null);
   };
 
   const descartarFactura = () =>
@@ -675,9 +772,12 @@ export function OnerrdView() {
     setOcupado('fondo');
     try {
       const preparado = await rasterizarSvgOnerrd(archivo);
-      await guardarFondoOnerrd({ ...preparado, user });
+      const { rutaSvg } =
+        (await guardarFondoOnerrd({ ...preparado, original: archivo, user })) || {};
       setFondo(preparado);
-      toast.success('Plantilla guardada.');
+      if (rutaSvg) toast.success('Plantilla guardada (con su .svg original en Firebase).');
+      else
+        toast.warning('Plantilla guardada, pero su .svg original no se pudo guardar en Firebase.');
     } catch (error) {
       console.error('[onerrd] no se pudo subir la plantilla', error);
       // Los errores de Firebase traen `code`; los de preparar el archivo ya
@@ -806,11 +906,11 @@ export function OnerrdView() {
     const disenoSaneadoPdf = sanearDisenoOnerrd(d);
     const qrPdf = disenoSaneadoPdf.qr.visible
       ? {
-          dataUrl: await generarQrOnerrd(
-            urlDelCertificadoOnerrd(origenPublico(), v.numeroRegistro, claveAcceso),
-            disenoSaneadoPdf.qr.color
-          ),
-        }
+        dataUrl: await generarQrOnerrd(
+          urlDelCertificadoOnerrd(origenPublico(), v.numeroRegistro, claveAcceso),
+          disenoSaneadoPdf.qr.color
+        ),
+      }
       : null;
     // Con la línea base que tiene cada texto en pantalla, para que el PDF lo
     // ponga a la misma altura.
@@ -826,6 +926,7 @@ export function OnerrdView() {
       firmasPorId,
       // El de la región del certificado (el que está subido hoy).
       iconoRegion: iconoDeRegion(v.region),
+      imagenesSubidas: imagenesCertificado,
       qr: qrPdf,
       textos: { titulo: `Certificado ONERRD ${v.numeroRegistro || ''}`.trim(), campos },
     });
@@ -916,12 +1017,31 @@ export function OnerrdView() {
     try {
       const blob = await construirPdf(
         emitido.diseno,
-        { anio: emitido.anio, ...emitido.valores },
+        // Con la hora de emisión: la usan los textos "Fecha y hora de emisión".
+        { anio: emitido.anio, ...emitido.valores, emitidoEnIso: emitido.emitidoEnIso },
         nombreDeArchivoOnerrd(emitido.numeroRegistro, emitido.valores),
         { claveAcceso: emitido.claveAcceso }
       );
       if (await publicar(emitido, blob)) {
         toast.success(`Certificado ${emitido.numeroRegistro} emitido.`);
+      }
+      // Su factura, guardada para que la abra su QR. Si falla, el certificado
+      // sigue emitido y la factura se puede bajar en "Certificados creados".
+      // También se descarga, junto al certificado.
+      if (emitido.factura) {
+        let factura = null;
+        try {
+          factura = await generarFacturaOnerrdBlob(emitido);
+          descargarBlobOnerrd(factura, nombreDeArchivoFacturaOnerrd(emitido));
+          if (emitido.claveAcceso) await publicarFacturaOnerrd(emitido.numeroRegistro, factura);
+        } catch (error) {
+          console.error('[onerrd] no se pudo preparar o guardar la factura', error);
+          toast.warning(
+            factura
+              ? `La factura de ${emitido.numeroRegistro} se descargó, pero no se pudo guardar: su QR no la abrirá.`
+              : `No se pudo generar la factura de ${emitido.numeroRegistro}: bájala en «Certificados creados».`
+          );
+        }
       }
       // Limpio para el siguiente: emitir dos veces lo mismo gastaría otro número.
       setValores((actual) => ({
@@ -1021,12 +1141,13 @@ export function OnerrdView() {
         }}
       />
       <input
-        ref={entradaImagenFacturaRef}
+        ref={entradaImagenesRef}
         hidden
+        multiple
         type="file"
         accept={TIPOS_DE_IMAGEN_ONERRD.join(',')}
         onChange={(event) => {
-          subirImagenFactura(event.target.files?.[0]);
+          alElegirImagenes([...(event.target.files || [])]);
           event.target.value = '';
         }}
       />
@@ -1075,22 +1196,27 @@ export function OnerrdView() {
                   helperText={soloFactura ? 'Va en el concepto.' : undefined}
                   sx={{ width: 140 }}
                 />
-                {!soloFactura && (
-                  <DatePicker
-                    label="Fecha"
-                    format="DD/MM/YYYY"
-                    value={valores.fecha ? dayjs(valores.fecha) : null}
-                    onChange={(fecha) =>
-                      setValores((v) => ({
-                        ...v,
-                        fecha: fecha?.isValid()
-                          ? fecha.hour(12).minute(0).second(0).millisecond(0).toISOString()
-                          : '',
-                      }))
-                    }
-                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                  />
-                )}
+                {/* También trabajando solo en la factura: de ella sale el vencimiento. */}
+                <DatePicker
+                  label="Fecha"
+                  format="DD/MM/YYYY"
+                  value={valores.fecha ? dayjs(valores.fecha) : null}
+                  onChange={(fecha) =>
+                    setValores((v) => ({
+                      ...v,
+                      fecha: fecha?.isValid()
+                        ? fecha.hour(12).minute(0).second(0).millisecond(0).toISOString()
+                        : '',
+                    }))
+                  }
+                  slotProps={{
+                    textField: {
+                      size: 'small',
+                      fullWidth: true,
+                      helperText: soloFactura ? 'Del registro: da el vencimiento.' : undefined,
+                    },
+                  }}
+                />
               </Stack>
 
               {!soloFactura && (
@@ -1201,10 +1327,15 @@ export function OnerrdView() {
                     </MenuItem>
                   ))}
                 </TextField>
+                {/* Por defecto, 31 dic. del año siguiente a la apertura (1 oct.)
+                    que toca a la fecha del registro. Escrito a mano manda; al
+                    borrarlo vuelve el automático. */}
                 <DatePicker
                   label="Vence"
                   format="DD/MM/YYYY"
-                  value={valores.facturaVence ? dayjs(valores.facturaVence) : null}
+                  value={
+                    venceDeValoresOnerrd(valores) ? dayjs(venceDeValoresOnerrd(valores)) : null
+                  }
                   onChange={(fecha) =>
                     setValores((v) => ({
                       ...v,
@@ -1214,8 +1345,14 @@ export function OnerrdView() {
                     }))
                   }
                   slotProps={{
-                    textField: { size: 'small', fullWidth: true },
-                    field: { clearable: true },
+                    textField: {
+                      size: 'small',
+                      fullWidth: true,
+                      helperText: valores.facturaVence
+                        ? 'Escrito a mano (bórralo para el automático).'
+                        : 'Automático: 31 dic. del año siguiente al 1 oct.',
+                    },
+                    field: { clearable: !!valores.facturaVence },
                   }}
                 />
               </Stack>
@@ -1244,28 +1381,27 @@ export function OnerrdView() {
                           endAdornment: !String(linea.descripcion ?? '').includes(
                             VARIABLE_REGISTRO_FACTURA
                           ) && (
-                            <InputAdornment position="end">
-                              <Tooltip title="Añadir el número de registro al final, entre paréntesis">
-                                <Button
-                                  size="small"
-                                  onClick={() =>
-                                    cambiarLinea(indice, {
-                                      descripcion: `${
-                                        String(linea.descripcion ?? '').trim() ||
-                                        descripcionPropuestaOnerrd(valores.anio).replace(
-                                          ` (${VARIABLE_REGISTRO_FACTURA})`,
-                                          ''
-                                        )
-                                      } (${VARIABLE_REGISTRO_FACTURA})`,
-                                    })
-                                  }
-                                  sx={{ minWidth: 0, px: 0.75, whiteSpace: 'nowrap' }}
-                                >
-                                  + N.º
-                                </Button>
-                              </Tooltip>
-                            </InputAdornment>
-                          ),
+                              <InputAdornment position="end">
+                                <Tooltip title="Añadir el número de registro al final, entre paréntesis">
+                                  <Button
+                                    size="small"
+                                    onClick={() =>
+                                      cambiarLinea(indice, {
+                                        descripcion: `${String(linea.descripcion ?? '').trim() ||
+                                          descripcionPropuestaOnerrd(valores.anio).replace(
+                                            ` (${VARIABLE_REGISTRO_FACTURA})`,
+                                            ''
+                                          )
+                                          } (${VARIABLE_REGISTRO_FACTURA})`,
+                                      })
+                                    }
+                                    sx={{ minWidth: 0, px: 0.75, whiteSpace: 'nowrap' }}
+                                  >
+                                    + N.º
+                                  </Button>
+                                </Tooltip>
+                              </InputAdornment>
+                            ),
                         },
                       }}
                     />
@@ -1394,7 +1530,7 @@ export function OnerrdView() {
                   onClick={pedirEmitir}
                   startIcon={<Iconify icon="solar:download-bold" />}
                 >
-                  Emitir PDF
+                  PDF y Fact.
                 </LoadingButton>
               </Stack>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -1434,15 +1570,22 @@ export function OnerrdView() {
                       {Math.round(pagina.alto)} pt
                     </Typography>
                   )}
+                  {/* Suma imágenes (no reemplaza): también se sueltan encima del
+                      certificado, donde caen. */}
                   <LoadingButton
                     variant="outlined"
-                    loading={ocupado === 'imagen'}
+                    loading={ocupado === 'imagen-certificado'}
                     loadingPosition="start"
+                    disabled={(diseno.imagenes?.length || 0) >= MAXIMO_IMAGENES_SUBIDAS_ONERRD}
                     startIcon={<Iconify icon="solar:gallery-add-bold" />}
-                    onClick={() => entradaImagenRef.current?.click()}
+                    onClick={() => pedirImagenes('certificado')}
                   >
-                    {imagen ? 'Cambiar imagen' : 'Subir imagen (PNG, JPG, WebP)'}
+                    Subir imagen (PNG, JPG, WebP)
                   </LoadingButton>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    O arrástralas encima del certificado. {diseno.imagenes?.length || 0} de{' '}
+                    {MAXIMO_IMAGENES_SUBIDAS_ONERRD}.
+                  </Typography>
                   {imagen && !diseno.imagen.visible && (
                     <Button
                       variant="outlined"
@@ -1506,6 +1649,7 @@ export function OnerrdView() {
                   >
                     Agregar texto
                   </Button>
+                  {papelera.boton}
                   <Menu
                     anchorEl={menuAgregar}
                     open={!!menuAgregar}
@@ -1586,6 +1730,10 @@ export function OnerrdView() {
                     onCambiarElemento={cambiarElemento}
                     onSubirFondo={pedirFondo}
                     onAtajo={alAtajo}
+                    imagenesSubidas={imagenesCertificado}
+                    onSoltarArchivos={(archivos, donde) =>
+                      subirImagenes('certificado', archivos, donde)
+                    }
                   />
                 </VisorOnerrd>
 
@@ -1609,6 +1757,8 @@ export function OnerrdView() {
                       subiendoRegion={ocupado.startsWith('region-') ? ocupado.slice(7) : ''}
                       onSubirIconoRegion={pedirIconoRegion}
                       onQuitarIconoRegion={quitarIconoRegion}
+                      imagenesSubidas={imagenesCertificado}
+                      onQuitarImagenSubida={quitarImagenSubida}
                     />
                   </>
                 )}
@@ -1616,45 +1766,36 @@ export function OnerrdView() {
             </Collapse>
           </Card>
 
-          {verFactura ? (
-            <EditorFacturaOnerrd
-              abierto
-              onAlternar={() => setVerFactura(false)}
-              diseno={disenoFactura}
-              onCambiarDiseno={setDisenoFactura}
-              hayCambios={hayCambiosFactura}
-              guardando={ocupado === 'diseno-factura'}
-              onGuardar={guardarDisenoFactura}
-              onDescartar={descartarFactura}
-              valores={valores}
-              anio={anio}
-              onCambiarValor={cambiarValor}
-              fuentesListas={fuentesListas}
-              imagenes={imagenesFactura}
-              numeroRegistro={proximoNumero}
-              onSubirImagen={pedirImagenFactura}
-              subiendoImagen={ocupado === 'imagen-factura'}
-              botonPanel={botonPanel}
-            />
-          ) : (
-            // Abre la factura y recoge el certificado (se vuelve a abrir desde su
-            // título: los dos pueden estar abiertos).
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<Iconify icon="solar:file-text-bold" />}
-              onClick={() => {
-                setVerFactura(true);
-                setVerCertificado(false);
-              }}
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              Ver y editar factura
-            </Button>
-          )}
+          {/* Siempre a la vista, recogido como el del certificado: se abre y se
+              cierra desde su título. Al abrirlo se recoge el certificado (que
+              vuelve desde el suyo: los dos pueden estar abiertos). */}
+          <EditorFacturaOnerrd
+            abierto={verFactura}
+            onAlternar={() => {
+              if (!verFactura) setVerCertificado(false);
+              setVerFactura((v) => !v);
+            }}
+            diseno={disenoFactura}
+            onCambiarDiseno={setDisenoFactura}
+            hayCambios={hayCambiosFactura}
+            guardando={ocupado === 'diseno-factura'}
+            onGuardar={guardarDisenoFactura}
+            onDescartar={descartarFactura}
+            valores={valores}
+            anio={anio}
+            onCambiarValor={cambiarValor}
+            fuentesListas={fuentesListas}
+            imagenes={imagenesFactura}
+            numeroRegistro={proximoNumero}
+            onSubirImagen={() => pedirImagenes('factura')}
+            onSoltarArchivos={(archivos, donde) => subirImagenes('factura', archivos, donde)}
+            subiendoImagen={ocupado === 'imagen-factura'}
+            botonPanel={botonPanel}
+          />
         </Stack>
       </Box>
 
+      {papelera.dialogo}
       <ConfirmDialog
         open={!!confirmacion}
         onClose={() => setConfirmacion(null)}

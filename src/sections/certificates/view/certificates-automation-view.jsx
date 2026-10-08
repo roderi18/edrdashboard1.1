@@ -646,6 +646,21 @@ export function CertificatesAutomationView() {
   const templateFileInputRef = useRef(null);
   const [members, setMembers] = useState([]);
   const [currentTab, setCurrentTab] = useState('create');
+
+  // La pestaña va en la dirección (?tab=…): al recargar se queda en la que
+  // estaba, en vez de volver a "Crear certificados".
+  useEffect(() => {
+    const guardada = new URLSearchParams(window.location.search).get('tab');
+    if (!['created', 'onerrd', 'import'].includes(guardada)) return;
+    if (guardada === 'onerrd') setOnerrdVisitada(true);
+    setCurrentTab(guardada);
+  }, []);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (currentTab === 'create') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', currentTab);
+    window.history.replaceState(window.history.state, '', url);
+  }, [currentTab]);
   // Montada desde la primera visita y luego solo oculta, como las demás: así
   // volver no pierde un diseño a medio editar.
   const [onerrdVisitada, setOnerrdVisitada] = useState(false);

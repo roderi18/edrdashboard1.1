@@ -1,11 +1,16 @@
 import { ref, uploadBytes } from 'firebase/storage';
 import { doc, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 
-import { ID_CONTADOR_FACTURAS_ONERRD } from 'src/utils/factura-onerrd.mjs';
+import {
+  anioActualOnerrd,
+  idContadorFacturasOnerrd,
+  formatearNumeroFacturaOnerrd,
+} from 'src/utils/factura-onerrd.mjs';
 import {
   rutaPdfOnerrd,
   idContadorOnerrd,
   sanearDisenoOnerrd,
+  rutaFacturaPdfOnerrd,
   formatearNumeroOnerrd,
   siguienteSecuenciaOnerrd,
 } from 'src/utils/certificado-onerrd.mjs';
@@ -52,14 +57,19 @@ export const escribirEmisionOnerrd = ({
   disenoFactura,
 }) => {
   const refContador = doc(FIRESTORE, COLECCION_ONERRD, idContadorOnerrd(anio));
-  const refFacturas = doc(FIRESTORE, COLECCION_ONERRD, ID_CONTADOR_FACTURAS_ONERRD);
+  // El de las facturas, por el año en que se emite (ONERRD-2026-001…).
+  const anioFactura = anioActualOnerrd();
+  const refFacturas = doc(FIRESTORE, COLECCION_ONERRD, idContadorFacturasOnerrd(anioFactura));
 
   return runTransaction(FIRESTORE, async (transaccion) => {
     const contador = await transaccion.get(refContador);
     const facturas = factura ? await transaccion.get(refFacturas) : null;
-    const numeroFactura = factura
+    const secuenciaFactura = factura
       ? siguienteSecuenciaOnerrd(facturas.exists() ? facturas.data().ultimo : 0)
       : 0;
+    const numeroFactura = factura
+      ? formatearNumeroFacturaOnerrd(anioFactura, secuenciaFactura)
+      : '';
     const secuencia = siguienteSecuenciaOnerrd(contador.exists() ? contador.data().ultimo : 0);
     const numeroRegistro = formatearNumeroOnerrd(anio, secuencia);
     const refEmitido = doc(FIRESTORE, COLECCION_ONERRD_EMITIDOS, numeroRegistro);
@@ -82,7 +92,13 @@ export const escribirEmisionOnerrd = ({
     };
 
     transaccion.set(refContador, { anio: Number(anio), ultimo: secuencia, actualizadoEn: ahora });
-    if (factura) transaccion.set(refFacturas, { ultimo: numeroFactura, actualizadoEn: ahora });
+    if (factura) {
+      transaccion.set(refFacturas, {
+        anio: anioFactura,
+        ultimo: secuenciaFactura,
+        actualizadoEn: ahora,
+      });
+    }
     transaccion.set(refEmitido, emitido);
 
     return { id: numeroRegistro, ...emitido };
@@ -94,6 +110,22 @@ export const escribirEmisionOnerrd = ({
 // nunca se borra.
 export const subirPdfOnerrd = (numeroRegistro, blob) =>
   uploadBytes(ref(FIREBASE_STORAGE, rutaPdfOnerrd(numeroRegistro)), blob, {
+    contentType: 'application/pdf',
+    cacheControl: 'private, max-age=300',
+  });
+
+// El ORIGINAL de una plantilla (.svg) o de una firma, tal cual se subió
+// (`rutaPlantillaOnerrd` / `rutaFirmaOnerrd`). La app no lo lee: pinta desde
+// Firestore. Es para no perder el archivo.
+export const subirOriginalOnerrd = (ruta, archivo) =>
+  uploadBytes(ref(FIREBASE_STORAGE, ruta), archivo, {
+    contentType: archivo.type || 'application/octet-stream',
+    customMetadata: { modulo: 'certificado-onerrd', nombreOriginal: archivo.name || '' },
+  });
+
+// La factura emitida, en Storage: lo que abre su QR. Se sube al emitir.
+export const subirFacturaPdfOnerrd = (numeroRegistro, blob) =>
+  uploadBytes(ref(FIREBASE_STORAGE, rutaFacturaPdfOnerrd(numeroRegistro)), blob, {
     contentType: 'application/pdf',
     cacheControl: 'private, max-age=300',
   });

@@ -116,6 +116,8 @@ function CertificadoOnerrd({
   firmasPorId,
   textos,
   qr,
+  // { id: { dataUrl, proporcion } } de las subidas al certificado.
+  imagenesSubidas = {},
 }) {
   const posicion = (caja) => ({ position: 'absolute', ...caja });
 
@@ -134,6 +136,20 @@ function CertificadoOnerrd({
             }}
           />
         )}
+
+        {/* Las imágenes subidas, en su sitio y con su giro (como en el lienzo). */}
+        {(diseno.imagenes || [])
+          .filter((item) => item.visible && imagenesSubidas[item.id]?.dataUrl)
+          .map((item) => (
+            <Image
+              key={item.id}
+              src={imagenesSubidas[item.id].dataUrl}
+              style={{
+                ...posicion(cajaDeImagenOnerrd(item, imagenesSubidas[item.id].proporcion, pagina)),
+                ...(item.rotacion ? { transform: `rotate(${item.rotacion}deg)` } : {}),
+              }}
+            />
+          ))}
 
         {imagen?.dataUrl && diseno.imagen.visible && (
           <Image

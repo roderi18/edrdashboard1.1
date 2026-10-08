@@ -340,6 +340,27 @@ export function PropiedadesFactura({
     );
   }
 
+  if (seleccion.tipo === 'qr') {
+    const { qr } = diseno;
+    const cambiar = (cambios) => onCambiarElemento('qr', 'qr', cambios);
+    return (
+      <Stack spacing={2}>
+        <Mostrar elemento={qr} cambiar={cambiar} titulo="Código QR" />
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Al escanearlo abre esta factura (se guarda al emitir), en el mismo contenedor que el
+          certificado, con su clave. En la prueba lleva a un aviso de que no tiene validez. Arrastra
+          para moverlo y usa el asa para cambiar su tamaño.
+        </Typography>
+        <Posicion elemento={qr} onCambiar={cambiar} />
+        <Color
+          titulo="Color del código (oscuro sobre blanco para que se lea bien)"
+          valor={qr.color}
+          onCambiar={(color) => cambiar({ color })}
+        />
+      </Stack>
+    );
+  }
+
   if (seleccion.tipo === 'logo') {
     const { logo } = diseno;
     const cambiar = (cambios) => onCambiarElemento('logo', 'logo', cambios);

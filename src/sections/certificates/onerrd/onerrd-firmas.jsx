@@ -48,7 +48,11 @@ function DialogoSubirFirma({ open, onClose, onSubida, user }) {
   const elegirArchivo = async (archivo) => {
     if (!archivo) return;
     try {
-      setPreparada(await prepararImagenOnerrd(archivo, { ladoMaximo: 1000 }));
+      // El archivo tal cual va también, para guardar su original en Storage.
+      setPreparada({
+        ...(await prepararImagenOnerrd(archivo, { ladoMaximo: 1000 })),
+        original: archivo,
+      });
       if (!nombre) setNombre(archivo.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '));
     } catch (error) {
       toast.error(error.message);
@@ -59,7 +63,8 @@ function DialogoSubirFirma({ open, onClose, onSubida, user }) {
     setGuardando(true);
     try {
       const firma = await guardarFirmaOnerrd({ nombre, ...preparada, user });
-      toast.success('Firma guardada.');
+      if (firma?.rutaArchivo) toast.success('Firma guardada (con su imagen original en Firebase).');
+      else toast.warning('Firma guardada, pero su imagen original no se pudo guardar en Firebase.');
       onSubida(firma);
       cerrar();
     } catch (error) {
