@@ -1586,6 +1586,34 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // MEMBRESÍA ONERRD 2027 (la landing de pago, proyecto aparte, la lee con el
+    // Admin SDK). `general`: tarifas, planes, licencias, banco, PayPal y tasa;
+    // la cambian quienes gestionan el certificado ONERRD. `secretos` (clave de
+    // PayPal) nadie la lee ni la escribe desde el navegador: la guarda
+    // /api/certificados-onerrd/membresia/secretos.
+    match /configuracionMembresia2027/{idDocumento} {
+      allow read: if idDocumento == 'general' && gestionaOnerrd();
+      allow create, update: if idDocumento == 'general' && gestionaOnerrd();
+      allow delete: if false;
+    }
+
+    // Membresías 2027 que entran por la landing (las escribe solo la landing
+    // con el Admin SDK). El dashboard las lee por
+    // /api/certificados-onerrd/membresia/pagos: nadie las toca desde el navegador.
+    match /membresiasOnerrd2027/{idDestacamento}/{documento=**} {
+      allow read, write: if false;
+    }
+    match /membresiasOnerrd2027/{idDestacamento} {
+      allow read, write: if false;
+    }
+
+    // Avisos de destacamentos que no pueden pagar la membresía (botón "Avisar
+    // Oficina Nacional" de la landing). Solo los escribe la landing (Admin SDK).
+    match /avisosMembresia2027/{idDestacamento} {
+      allow read: if gestionaOnerrd();
+      allow write: if false;
+    }
+
     match /firmasCertificadosOnerrd/{idFirma} {
       allow read, create, update: if gestionaOnerrd();
       allow delete: if false;

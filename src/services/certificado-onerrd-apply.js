@@ -129,3 +129,12 @@ export const subirFacturaPdfOnerrd = (numeroRegistro, blob) =>
     contentType: 'application/pdf',
     cacheControl: 'private, max-age=300',
   });
+
+// La configuración de la membresía ONERRD 2027 (la lee la landing de pago).
+export const escribirConfiguracionMembresia = (datos, autor) =>
+  setDoc(doc(FIRESTORE, COLECCIONES.configuracionMembresia2027, 'general'), {
+    ...datos,
+    actualizadoEn: new Date().toISOString(),
+    actualizadoPor: autor,
+    actualizadoEnServidor: serverTimestamp(),
+  });

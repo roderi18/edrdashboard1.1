@@ -26,6 +26,14 @@ export const TAREAS_PROGRAMADAS = [
     descripcion: 'Avisos de cumpleaños: campana, chat de Sistema y push.',
   },
   {
+    id: 'tasa-dolar-membresia',
+    ruta: '/api/tareas/tasa-dolar-membresia',
+    // 10:00 UTC = 06:00 en Santo Domingo, antes de que nadie pague.
+    horario: '0 6 * * *',
+    zonaHoraria: 'America/Santo_Domingo',
+    descripcion: 'Tasa del dólar de la membresía ONERRD 2027 (si está en automática).',
+  },
+  {
     id: 'resumen-actualizaciones-diario',
     ruta: '/api/tareas/resumen-actualizaciones-diario',
     // 13:00 UTC = 09:00 en Santo Domingo.

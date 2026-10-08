@@ -460,6 +460,17 @@ export const CAMPOS_DE_FABRICA_FACTURA_ONERRD = Object.freeze(
       ...enCaja(34, 233, 64),
     }),
     textoDato('facturaConcepto', 'Concepto', { ...LETRA(10.5), ...enCaja(101, 233, 470) }),
+    // A quién y desde dónde se enviaron por correo (membresías de la landing).
+    // Vacío en las facturas hechas a mano: entonces no se ve nada.
+    // En dos renglones: "Factura y certificado enviados desde" y "X a Y".
+    textoDato('facturaEnvio', 'Envío por correo', {
+      ...LETRA(7.5, 400, { color: NAVY, alineacion: 'right' }),
+      ...enCaja(300, 744, DERECHA - 300),
+    }),
+    textoDato('facturaEnvioDetalle', 'Envío por correo (desde y a)', {
+      ...LETRA(7.5, 400, { color: NAVY, alineacion: 'right' }),
+      ...enCaja(300, 753, DERECHA - 300),
+    }),
     textoFijo('facturaPie', 'Pie', 'EXPLORADORES DEL REY REPÚBLICA DOMINICANA', {
       ...LETRA(9.5, 400, { color: NAVY, alineacion: 'center', espaciado: 2.5 }),
       ...enCaja(160, 760, 292),
@@ -468,6 +479,22 @@ export const CAMPOS_DE_FABRICA_FACTURA_ONERRD = Object.freeze(
 );
 
 const IDS_DE_FABRICA = new Set(CAMPOS_DE_FABRICA_FACTURA_ONERRD.map((campo) => campo.id));
+
+// Los que llegan VISIBLES a un diseño ya guardado: solo pintan algo si traen
+// dato, así que no cambian las facturas emitidas antes.
+const LLEGAN_VISIBLES = new Set(['facturaEnvio', 'facturaEnvioDetalle']);
+
+// Los dos renglones del pie: { facturaEnvio: 'Factura y certificado enviados
+// desde', facturaEnvioDetalle: 'X a Y' } (sin remitente: "enviados" / "a Y").
+export const textoEnvioFacturaOnerrd = ({ desde, para } = {}) => {
+  const de = texto(desde, 120);
+  const a = texto(para, 120);
+  if (!de && !a) return { facturaEnvio: '', facturaEnvioDetalle: '' };
+  return {
+    facturaEnvio: `Factura y certificado enviados${de ? ' desde' : ''}`,
+    facturaEnvioDetalle: [de, a && `a ${a}`].filter(Boolean).join(' '),
+  };
+};
 
 // La tabla: x = su centro, y = su BORDE DE ARRIBA (crece hacia abajo con las
 // líneas). Columnas como el ejemplo: descripción, precio, cantidad, importe.
@@ -826,7 +853,8 @@ export const sanearDisenoFacturaOnerrd = (diseno = {}) => {
   // facturas ya emitidas con ese diseño.
   CAMPOS_DE_FABRICA_FACTURA_ONERRD.forEach((fabrica) => {
     if (vistos.has(fabrica.id)) return;
-    campos.push(sanearCampoFactura(guardados ? { ...fabrica, visible: false } : fabrica));
+    const oculto = guardados && !LLEGAN_VISIBLES.has(fabrica.id);
+    campos.push(sanearCampoFactura(oculto ? { ...fabrica, visible: false } : fabrica));
   });
 
   const oculto = { visible: false, x: 50, y: 50, ancho: 10 };
