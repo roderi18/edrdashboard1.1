@@ -1,5 +1,5 @@
-import { MembresiaWizard } from '@/components/membresia-wizard';
+import { Portada } from 'src/sections/membresia/portada';
 
 export default function Page() {
-  return <MembresiaWizard />;
+  return <Portada />;
 }

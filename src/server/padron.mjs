@@ -61,6 +61,9 @@ async function leerCompleto() {
         idSeccion: seccion.idSeccion ? String(seccion.idSeccion) : '',
         coordinador: coordinador ? `${txt(coordinador.nombres)} ${txt(coordinador.apellidos)}`.trim() : '',
         estado: estados.get(id) || 'activo',
+        // "Registrado en la Oficina Nacional" del padrón: de aquí sale el
+        // descuento por fidelidad (registro 2026), salvo que Firestore lo corrija.
+        registradoOfnc: typeof x.registradoOfnc === 'boolean' ? x.registradoOfnc : null,
       };
     })
     .sort((a, b) => (Number(a.numero) || 99999) - (Number(b.numero) || 99999) || a.nombre.localeCompare(b.nombre, 'es'));
@@ -85,6 +88,7 @@ export async function leerPadron() {
         iglesia: txt(x.iglesia), pastor: txt(x.pastor), seccion: txt(x.seccion), region: txt(x.region),
         idSeccion: x.idSeccion ? String(x.idSeccion) : '',
         coordinador: txt(x.coordinador?.nombre), estado: txt(x.estado || 'activo'),
+        registradoOfnc: typeof x.registradoOfnc === 'boolean' ? x.registradoOfnc : null,
       }));
       cache.at = Date.now();
       // Como errd-registro, se sirve de inmediato la última copia pública y se

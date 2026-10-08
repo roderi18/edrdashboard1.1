@@ -1,5 +1,5 @@
-import { db } from '@/server/firebase.mjs';
-import { leerPadron } from '@/server/padron.mjs';
+import { db } from 'src/server/firebase.mjs';
+import { leerPadron } from 'src/server/padron.mjs';
 
 export const dynamic = 'force-dynamic';
 

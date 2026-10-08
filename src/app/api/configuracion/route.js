@@ -1,4 +1,4 @@
-import { bankConfig, lanzamientoHabilitado, paypalConfig } from '@/server/configuracion.mjs';
+import { bankConfig, paypalConfig, lanzamientoHabilitado } from 'src/server/configuracion.mjs';
 
 export const dynamic = 'force-dynamic';
 

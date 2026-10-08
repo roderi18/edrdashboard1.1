@@ -1,6 +1,6 @@
-import { confirmarMembresia } from '@/server/confirmacion.mjs';
-import { db } from '@/server/firebase.mjs';
-import { paypalRequest } from '@/server/paypal.mjs';
+import { db } from 'src/server/firebase.mjs';
+import { paypalRequest } from 'src/server/paypal.mjs';
+import { confirmarMembresia } from 'src/server/confirmacion.mjs';
 
 export const dynamic = 'force-dynamic';
 

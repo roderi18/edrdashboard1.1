@@ -31,7 +31,7 @@ export async function avisarConfirmacion(member) {
     bcc: process.env.CORREO_AVISOS,
     key: `membresia-${member.codigo}-confirmada`,
     subject: `Membresía ONERRD 2027 confirmada · ${member.codigo}`,
-    html: `<p>La membresía del destacamento #${escapeHtml(member.destacamento.numero)} está confirmada.</p><p>Código: <strong>${escapeHtml(member.codigo)}</strong></p><p>Adjuntamos el certificado y la factura. También puede consultarlos desde <a href="${url}/?solicitud=${encodeURIComponent(member.token)}">su solicitud</a>.</p>`,
+    html: `<p>La membresía del destacamento #${escapeHtml(member.destacamento.numero)} está confirmada.</p><p>Código: <strong>${escapeHtml(member.codigo)}</strong></p><p>Adjuntamos el certificado y la factura. También puede consultarlos desde <a href="${url}/registro/resultado/?solicitud=${encodeURIComponent(member.token)}">su solicitud</a>.</p>`,
     attachments: [
       { filename: `certificado-${member.codigo.replaceAll(' ', '-')}.pdf`, content: cert.toString('base64') },
       { filename: `factura-${member.codigo.replaceAll(' ', '-')}.pdf`, content: invoice.toString('base64') },

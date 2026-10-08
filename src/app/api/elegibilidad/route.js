@@ -1,4 +1,4 @@
-import { leerElegibilidad } from '@/server/elegibilidad.mjs';
+import { leerElegibilidad } from 'src/server/elegibilidad.mjs';
 
 export const dynamic = 'force-dynamic';
 

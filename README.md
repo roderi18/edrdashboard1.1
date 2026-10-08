@@ -2,6 +2,28 @@
 
 Aplicación Next.js independiente del dashboard `next-js`, ubicada en el Escritorio. Reutiliza el patrón visual MUI de `errd-registro`, el mismo padrón .NET de destacamentos y el mismo proyecto Firebase; **no copia credenciales** al repositorio.
 
+## Pantallas
+
+Hechas con el tema y los componentes del dashboard (los mismos que `errd-registro`: `Label`, `Iconify`, `Field`, `Upload`, calendario en español). Pública, sin cuenta.
+
+| Ruta | Qué es |
+| --- | --- |
+| `/` | Portada: cómo funciona, planes, documentos y avance nacional. |
+| `/registro/destacamento` | Paso 1: se elige del censo; región, sección, iglesia, pastor y coordinador salen de la base de datos. Las 4 compuertas se ven antes de seguir. |
+| `/registro/plan` | Paso 2: solo los planes que le tocan (`src/utils/planes-membresia.mjs`). |
+| `/registro/pago` | Paso 3: correo y teléfono del que paga; transferencia con comprobante o PayPal. |
+| `/registro/resultado?solicitud=…` | Paso 4: estado de la solicitud y descarga del certificado y la factura. |
+
+Piezas en `src/sections/membresia/`. El estado del registro lo comparte `registro/contexto-registro.jsx`; solo el destacamento y el plan se recuerdan en la pestaña.
+
+## Tarifas
+
+- No registrado en 2026: RD$2,500 (con RRI TRaC), única opción.
+- Registrado en 2026: RD$2,250 (con RRI TRaC), descuento por fidelidad.
+- Con licencia RRI TRaC que habilita 2027: además RD$1,500 (solo cuota de registro).
+
+El registro 2026 sale de «Registrado en la Oficina Nacional» del padrón; `elegibilidadMembresia2027/{id}` lo corrige. Las licencias se marcan con `node --env-file=.env.local scripts/licencias-rri-trac.mjs 97 179 --aplicar`.
+
 ## Estado
 
 - Flujo paginado: destacamento → plan → pago → resultado, adaptable a móvil.

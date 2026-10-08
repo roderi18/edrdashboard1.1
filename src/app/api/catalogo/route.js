@@ -1,4 +1,4 @@
-import { leerPadron } from '@/server/padron.mjs';
+import { leerPadron } from 'src/server/padron.mjs';
 
 export const dynamic = 'force-dynamic';
 

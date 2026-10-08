@@ -1,10 +1,10 @@
-import { FieldValue } from 'firebase-admin/firestore';
 import * as z from 'zod';
+import { FieldValue } from 'firebase-admin/firestore';
 
-import { authorized } from '@/server/admin.mjs';
-import { confirmarMembresia, membresias } from '@/server/confirmacion.mjs';
-import { avisarRechazo } from '@/server/correo.mjs';
-import { bucket } from '@/server/firebase.mjs';
+import { bucket } from 'src/server/firebase.mjs';
+import { authorized } from 'src/server/admin.mjs';
+import { avisarRechazo } from 'src/server/correo.mjs';
+import { membresias, confirmarMembresia } from 'src/server/confirmacion.mjs';
 
 export const dynamic = 'force-dynamic';
 

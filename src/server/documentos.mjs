@@ -1,9 +1,8 @@
+import QRCode from 'qrcode';
+import path from 'node:path';
+import { jsPDF } from 'jspdf';
 import { createHmac } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-
-import { jsPDF } from 'jspdf';
-import QRCode from 'qrcode';
 
 const azul = [31, 79, 166];
 const oscuro = [14, 37, 80];

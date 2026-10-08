@@ -1,6 +1,6 @@
 import { getStorage } from 'firebase-admin/storage';
 import { getFirestore } from 'firebase-admin/firestore';
-import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { cert, getApps, initializeApp, applicationDefault } from 'firebase-admin/app';
 
 // Adaptado del servidor de errd-registro: las credenciales solo viven en el servidor.
 function app() {

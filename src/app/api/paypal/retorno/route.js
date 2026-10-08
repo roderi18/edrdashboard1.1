@@ -1,10 +1,10 @@
-import { confirmarMembresia } from '@/server/confirmacion.mjs';
-import { db } from '@/server/firebase.mjs';
-import { paypalRequest } from '@/server/paypal.mjs';
+import { db } from 'src/server/firebase.mjs';
+import { paypalRequest } from 'src/server/paypal.mjs';
+import { confirmarMembresia } from 'src/server/confirmacion.mjs';
 
 export const dynamic = 'force-dynamic';
 
-const go = (request, status, token = '') => Response.redirect(new URL(`/?paypal=${status}${token ? `&solicitud=${token}` : ''}`, request.url));
+const go = (request, status, token = '') => Response.redirect(new URL(`/registro/resultado/?paypal=${status}${token ? `&solicitud=${token}` : ''}`, request.url));
 
 export async function GET(request) {
   const orderId = new URL(request.url).searchParams.get('token');

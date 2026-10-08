@@ -1,12 +1,11 @@
-import { randomUUID } from 'node:crypto';
-
-import { FieldValue } from 'firebase-admin/firestore';
 import * as z from 'zod';
+import { randomUUID } from 'node:crypto';
+import { FieldValue } from 'firebase-admin/firestore';
 
-import { lanzamientoHabilitado, paypalConfig } from '@/server/configuracion.mjs';
-import { db } from '@/server/firebase.mjs';
-import { leerElegibilidad } from '@/server/elegibilidad.mjs';
-import { paypalRequest } from '@/server/paypal.mjs';
+import { db } from 'src/server/firebase.mjs';
+import { paypalRequest } from 'src/server/paypal.mjs';
+import { leerElegibilidad } from 'src/server/elegibilidad.mjs';
+import { paypalConfig, lanzamientoHabilitado } from 'src/server/configuracion.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +31,7 @@ export async function POST(request) {
       purchase_units: [{ reference_id: reference, custom_id: input.data.destacamentoId, amount: { currency_code: 'USD', value: usd } }],
       payment_source: { paypal: { experience_context: {
         return_url: `${site.replace(/\/$/, '')}/api/paypal/retorno/`,
-        cancel_url: `${site.replace(/\/$/, '')}/?paypal=cancelado`,
+        cancel_url: `${site.replace(/\/$/, '')}/registro/pago/?paypal=cancelado`,
         user_action: 'PAY_NOW',
       } } },
     }, reference);

@@ -1,11 +1,10 @@
-import { randomUUID } from 'node:crypto';
-
-import { FieldValue } from 'firebase-admin/firestore';
 import * as z from 'zod';
+import { randomUUID } from 'node:crypto';
+import { FieldValue } from 'firebase-admin/firestore';
 
-import { bucket, db } from '@/server/firebase.mjs';
-import { bankConfig, lanzamientoHabilitado } from '@/server/configuracion.mjs';
-import { leerElegibilidad } from '@/server/elegibilidad.mjs';
+import { db, bucket } from 'src/server/firebase.mjs';
+import { leerElegibilidad } from 'src/server/elegibilidad.mjs';
+import { bankConfig, lanzamientoHabilitado } from 'src/server/configuracion.mjs';
 
 export const dynamic = 'force-dynamic';
 

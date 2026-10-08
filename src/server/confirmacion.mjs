@@ -8,7 +8,7 @@ export const membresias = () => db().collection('membresiasOnerrd2027');
 export async function confirmarMembresia(id, esperado, pago = {}) {
   const memberRef = membresias().doc(String(id));
   const counterRef = db().collection('configuracionMembresia2027').doc('contador');
-  const member = await db().runTransaction(async (tx) => {
+  const confirmada = await db().runTransaction(async (tx) => {
     const [memberSnap, counterSnap] = await Promise.all([tx.get(memberRef), tx.get(counterRef)]);
     const member = memberSnap.data();
     if (!member || member.estado !== esperado) throw new Error('La solicitud ya cambió de estado.');
@@ -27,6 +27,6 @@ export async function confirmarMembresia(id, esperado, pago = {}) {
     });
     return { ...member, estado: 'confirmada', codigo };
   });
-  await avisarConfirmacion(member).catch((error) => console.error('[correo confirmación]', error));
-  return member;
+  await avisarConfirmacion(confirmada).catch((error) => console.error('[correo confirmación]', error));
+  return confirmada;
 }

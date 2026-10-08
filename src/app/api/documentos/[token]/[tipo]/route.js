@@ -1,5 +1,5 @@
-import { generarDocumento } from '@/server/documentos.mjs';
-import { db } from '@/server/firebase.mjs';
+import { db } from 'src/server/firebase.mjs';
+import { generarDocumento } from 'src/server/documentos.mjs';
 
 export const dynamic = 'force-dynamic';
 

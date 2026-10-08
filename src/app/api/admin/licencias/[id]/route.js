@@ -1,14 +1,15 @@
-import { FieldValue } from 'firebase-admin/firestore';
 import * as z from 'zod';
+import { FieldValue } from 'firebase-admin/firestore';
 
-import { authorized } from '@/server/admin.mjs';
-import { db } from '@/server/firebase.mjs';
-import { leerDestacamento } from '@/server/padron.mjs';
+import { db } from 'src/server/firebase.mjs';
+import { authorized } from 'src/server/admin.mjs';
+import { leerDestacamento } from 'src/server/padron.mjs';
 
 export const dynamic = 'force-dynamic';
 
 const licencia = z.object({
-  titular: z.string().trim().min(2).max(160),
+  // El titular puede quedar vacío: lo que habilita la tarifa es `habilita2027`.
+  titular: z.string().trim().max(160).default(''),
   fechaActivacion: z.iso.date().nullable(),
   estado: z.enum(['activa', 'sin_activar', 'vencida']),
   habilita2027: z.boolean(),
