@@ -10,15 +10,17 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import Skeleton from '@mui/material/Skeleton';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 
-import { LISTA_DE_PLANES, VIGENCIA_MEMBRESIA } from 'src/utils/planes-membresia.mjs';
+import { formatearRd } from 'src/utils/planes-membresia.mjs';
 
 import { Iconify } from 'src/components/iconify';
 
 import { TarjetaPlan } from './tarjeta-plan';
 import { AvanceNacional } from './avance-nacional';
+import { useConfiguracion } from './use-configuracion';
 import { Pie, Encabezado, RUTA_REGISTRO } from './marca';
 
 // ----------------------------------------------------------------------
@@ -84,7 +86,7 @@ function Titulo({ id, children, derecha }) {
   );
 }
 
-function Hero() {
+function Hero({ vigencia }) {
   return (
     <Box
       sx={(t) => ({
@@ -123,7 +125,7 @@ function Hero() {
             >
               <Iconify icon="solar:calendar-date-bold" />
               <Typography variant="subtitle2">
-                Vigencia: {VIGENCIA_MEMBRESIA.desde} – {VIGENCIA_MEMBRESIA.hasta}
+                Vigencia: {vigencia ? `${vigencia.desde} – ${vigencia.hasta}` : '…'}
               </Typography>
             </Stack>
             <Box sx={{ mt: 4 }}>
@@ -234,7 +236,8 @@ function ComoFunciona() {
   );
 }
 
-function Planes() {
+function Planes({ planes }) {
+  const soloRegistro = planes?.find((p) => p.id === 'solo_registro');
   return (
     <Box component="section">
       <Titulo
@@ -244,16 +247,23 @@ function Planes() {
         Planes de membresía 2027
       </Titulo>
       <Grid container spacing={2}>
-        {LISTA_DE_PLANES.map((plan) => (
-          <Grid key={plan.id} size={{ xs: 12, md: 4 }}>
+        {!planes &&
+          [0, 1, 2].map((i) => (
+            <Grid key={i} size={{ xs: 12, md: 4 }}>
+              <Skeleton variant="rounded" height={170} />
+            </Grid>
+          ))}
+        {planes?.map((plan) => (
+          <Grid key={plan.id} size={{ xs: 12, md: 12 / Math.min(3, planes.length || 1) }}>
             <TarjetaPlan plan={plan} />
           </Grid>
         ))}
       </Grid>
       <Alert severity="info" sx={{ mt: 2 }}>
         <strong>RRI TRaC</strong> es la plataforma digital de registro, control y capacitación de
-        miembros. La cuota de RD$1,500 sin RRI TRaC es solo para los destacamentos que ya tienen una
-        licencia activa.
+        miembros.
+        {soloRegistro &&
+          ` La cuota de ${formatearRd(soloRegistro.precio)} sin RRI TRaC es solo para los destacamentos que ya tienen una licencia activa.`}
       </Alert>
     </Box>
   );
@@ -299,14 +309,23 @@ function Documentos() {
 }
 
 export function Portada() {
+  // Planes, montos y vigencia: los que la Oficina Nacional guardó en el dashboard.
+  const configuracion = useConfiguracion();
   return (
-    <Box sx={{ bgcolor: 'background.neutral', minHeight: '100vh' }}>
+    <Box
+      sx={{
+        bgcolor: 'background.neutral',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       <Encabezado />
-      <Hero />
-      <Container maxWidth="lg">
+      <Hero vigencia={configuracion?.vigencia} />
+      <Container maxWidth="lg" sx={{ mb: { xs: 5, md: 8 } }}>
         <Stack spacing={{ xs: 5, md: 7 }} sx={{ mt: { xs: 5, md: 7 } }} divider={<Divider />}>
           <ComoFunciona />
-          <Planes />
+          <Planes planes={configuracion?.planes} />
           <Documentos />
           <Box component="section">
             <Titulo id="avance" derecha="Membresías registradas por región · 2027">

@@ -13,13 +13,7 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
 
-import {
-  aDolares,
-  formatearRd,
-  formatearUsd,
-  CUOTA_REGISTRO,
-  PRECIO_RRI_TRAC,
-} from 'src/utils/planes-membresia.mjs';
+import { aDolares, formatearRd, formatearUsd } from 'src/utils/planes-membresia.mjs';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -147,11 +141,17 @@ function Fila({ titulo, valor, fuerte, editar }) {
 }
 
 function ResumenPedido({ actual }) {
-  const { elegibilidad, plan, configuracion, solicitud } = useRegistro();
+  const { elegibilidad, plan, configuracion, solicitud, correcciones } = useRegistro();
 
   // En "Resultado" manda lo que se envió; antes, lo que se va eligiendo.
   const enviado = actual === 3 && solicitud;
-  const destacamento = enviado ? solicitud.destacamento : elegibilidad?.destacamento;
+  // Con los datos corregidos a la vista: son los que revisará la Oficina Nacional.
+  const destacamento = enviado
+    ? solicitud.destacamento
+    : elegibilidad?.destacamento && { ...elegibilidad.destacamento, ...correcciones };
+  const corregido = enviado
+    ? Object.keys(solicitud.correcciones || {}).length > 0
+    : Object.keys(correcciones || {}).length > 0;
   const p = enviado ? solicitud.plan : plan;
   const editable = actual < 3;
   const tasa = configuracion?.rate;
@@ -172,6 +172,11 @@ function ResumenPedido({ actual }) {
           valor={p?.nombre || 'Pendiente de selección'}
           editar={editable && actual > 1 && p ? '/registro/plan/' : null}
         />
+        {corregido && (
+          <Box sx={{ textAlign: 'right' }}>
+            <Label color="info">Datos corregidos · en revisión</Label>
+          </Box>
+        )}
         {p?.descuento > 0 && (
           <Box sx={{ textAlign: 'right' }}>
             <Label color="info">Descuento por fidelidad</Label>
@@ -185,7 +190,7 @@ function ResumenPedido({ actual }) {
           titulo="Cuota de registro"
           valor={
             p
-              ? formatearRd(p.cuotaRegistro ?? CUOTA_REGISTRO, {
+              ? formatearRd(p.cuotaRegistro, {
                   decimales: true,
                 })
               : '—'
@@ -194,11 +199,7 @@ function ResumenPedido({ actual }) {
         <Fila
           titulo="RRI TRaC"
           valor={
-            p
-              ? p.rriTrac
-                ? formatearRd(p.rriTrac ?? PRECIO_RRI_TRAC, { decimales: true })
-                : 'No incluido'
-              : '—'
+            p ? (p.rriTrac ? formatearRd(p.rriTrac, { decimales: true }) : 'No incluido') : '—'
           }
         />
         <Fila
@@ -251,9 +252,16 @@ function ResumenPedido({ actual }) {
 function Marco({ children }) {
   const actual = indiceDePaso(usePathname());
   return (
-    <Box sx={{ bgcolor: 'background.neutral', minHeight: '100vh' }}>
+    <Box
+      sx={{
+        bgcolor: 'background.neutral',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       <Encabezado conBoton={false} />
-      <Container maxWidth="xl" sx={{ mt: { xs: 3, md: 4 } }}>
+      <Container maxWidth="xl" sx={{ mt: { xs: 3, md: 4 }, mb: { xs: 5, md: 8 } }}>
         <Box
           sx={{
             gap: 3,

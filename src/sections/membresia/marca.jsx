@@ -121,7 +121,8 @@ export function Pie() {
     <Box
       component="footer"
       sx={(t) => ({
-        mt: { xs: 5, md: 8 },
+        // Siempre abajo: el contenedor es una columna de toda la altura.
+        mt: 'auto',
         py: 3,
         color: 'common.white',
         bgcolor: t.vars.palette.primary.darker,
@@ -161,10 +162,20 @@ export function Pie() {
               <Iconify icon="solar:letter-bold" width={18} />
               tecnologia@errd.org.do
             </MuiLink>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', opacity: 0.85 }}>
-              <Iconify icon="mingcute:location-fill" width={18} />
-              <Typography variant="body2">República Dominicana</Typography>
-            </Stack>
+ <MuiLink
+              href="mailto:tecnologia@errd.org.do?subject=Membres%C3%ADa%20ONERRD%202027"
+              color="inherit"
+              underline="hover"
+              sx={{
+                gap: 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                fontWeight: 600,
+              }}
+            >
+              <Iconify icon="solar:letter-bold" width={18} />
+              ofinanacional@errd.org.do
+            </MuiLink>
           </Stack>
 
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', maxWidth: 320 }}>
@@ -174,7 +185,7 @@ export function Pie() {
                 Pago seguro · Certificado con verificación QR
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                Juntos por una generación que sirve.
+                Evangelizar, equipar y empoderar a la próxima generación.
               </Typography>
             </Box>
           </Stack>

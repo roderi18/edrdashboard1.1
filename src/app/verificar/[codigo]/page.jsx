@@ -52,7 +52,8 @@ export default async function Verificar({ params, searchParams }) {
             {member.destacamento.nombre}
           </p>
           <p>
-            <strong>Vigencia:</strong> 01/01/2027 - 31/12/2027
+            <strong>Vigencia:</strong> {member.vigencia?.desde || '01/01/2027'} -{' '}
+            {member.vigencia?.hasta || '31/12/2027'}
           </p>
         </section>
       ) : (

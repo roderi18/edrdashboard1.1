@@ -20,6 +20,8 @@ export async function GET(_request, { params }) {
     {
       estado: d.estado,
       codigo: d.codigo || null,
+      // Ya emitidos en el dashboard: entonces se pueden descargar.
+      documentosListos: Boolean(d.certificadoEmitido?.numeroRegistro),
       referencia: d.referencia,
       motivo: d.motivoRechazo || null,
       tipoPago: d.tipoPago,
@@ -27,6 +29,7 @@ export async function GET(_request, { params }) {
       plan: d.plan || null,
       montoRd: d.montoRd,
       montoUsd: d.paypal?.montoUsd || null,
+      correcciones: d.correcciones || {},
     },
     { headers: { 'Cache-Control': 'private, no-store' } }
   );

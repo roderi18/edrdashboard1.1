@@ -1,3 +1,7 @@
-// Las tarifas viven en `src/utils/planes-membresia.mjs`, que comparten la
-// pantalla y el servidor. Aquí solo se reexportan para las rutas /api.
-export { PLANES, planesDisponibles, ANIO_MEMBRESIA as YEAR } from '../utils/planes-membresia.mjs';
+// Las tarifas y los planes los decide la configuración del dashboard
+// (`src/utils/configuracion-membresia.mjs`, copia exacta del dashboard).
+export {
+  construirPlanes,
+  planesDisponibles,
+  ANIO_MEMBRESIA as YEAR,
+} from '../utils/configuracion-membresia.mjs';

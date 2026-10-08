@@ -12,8 +12,6 @@ import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 
-import { VIGENCIA_MEMBRESIA } from 'src/utils/planes-membresia.mjs';
-
 import { Iconify } from 'src/components/iconify';
 
 import { CabeceraPaso } from './marco-registro';
@@ -25,6 +23,16 @@ import { PASOS, useRegistro } from './contexto-registro';
 // navegador. Cuatro estados: confirmada (código y documentos), pendiente de
 // validación (transferencia), pendiente de PayPal y rechazada (con el motivo).
 // ----------------------------------------------------------------------
+
+const NOMBRES_CAMPOS = {
+  numero: 'Número oficial',
+  nombre: 'Nombre',
+  region: 'Región',
+  seccion: 'Sección',
+  iglesia: 'Iglesia',
+  coordinador: 'Coordinador(a)',
+  pastor: 'Pastor(a)',
+};
 
 const ESTADOS = {
   confirmada: {
@@ -47,6 +55,13 @@ const ESTADOS = {
     titulo: 'Esperando la confirmación de PayPal',
     texto:
       'En cuanto PayPal confirme el cobro, tu membresía quedará activa. Esta página se actualiza sola.',
+  },
+  pendiente_revision: {
+    color: 'warning',
+    icono: 'solar:clock-circle-bold',
+    titulo: 'Pago recibido · en revisión',
+    texto:
+      'Recibimos tu pago. Como corregiste datos del destacamento, la Oficina Nacional los revisará antes de activar la membresía. Te avisaremos por correo y recibirás el certificado y la factura con los datos correctos.',
   },
   rechazada: {
     color: 'error',
@@ -76,7 +91,8 @@ export function PasoResultado() {
   const parametros = useSearchParams();
   const token = parametros.get('solicitud');
   const errorPaypal = parametros.get('paypal') === 'error';
-  const { setSolicitud, reiniciar } = useRegistro();
+  const { setSolicitud, reiniciar, configuracion } = useRegistro();
+  const vigencia = configuracion?.vigencia || { desde: '01/01/2027', hasta: '31/12/2027' };
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState('');
 
@@ -170,6 +186,20 @@ export function PasoResultado() {
                 <Typography sx={{ color: `${estado.color}.darker`, mt: 0.5 }}>
                   {estado.texto}
                 </Typography>
+                {Object.keys(datos.correcciones || {}).length > 0 &&
+                  datos.estado !== 'confirmada' && (
+                    <Box sx={{ mt: 1.5 }}>
+                      <Typography variant="subtitle2" sx={{ color: 'warning.darker' }}>
+                        Datos que corregiste (en revisión):
+                      </Typography>
+                      {Object.entries(datos.correcciones).map(([campo, c]) => (
+                        <Typography key={campo} variant="body2" sx={{ color: 'warning.darker' }}>
+                          {NOMBRES_CAMPOS[campo] || campo}: «{c.antes || '—'}» → «{c.despues || '—'}
+                          »
+                        </Typography>
+                      ))}
+                    </Box>
+                  )}
                 {datos.estado === 'rechazada' && datos.motivo && (
                   <Typography variant="subtitle2" sx={{ color: 'error.darker', mt: 1 }}>
                     Motivo: {datos.motivo}
@@ -188,7 +218,14 @@ export function PasoResultado() {
             </Stack>
           </Card>
 
-          {datos.estado === 'confirmada' && (
+          {datos.estado === 'confirmada' && !datos.documentosListos && (
+            <Alert severity="info" icon={<Iconify icon="solar:clock-circle-bold" />}>
+              Tu pago está confirmado. La Oficina Nacional está preparando tu certificado y tu
+              factura: te llegarán por correo y podrás descargarlos aquí.
+            </Alert>
+          )}
+
+          {datos.estado === 'confirmada' && datos.documentosListos && (
             <>
               <Typography variant="h6">Documentos de tu membresía</Typography>
               <Grid container spacing={2}>
@@ -208,8 +245,8 @@ export function PasoResultado() {
                 </Grid>
               </Grid>
               <Alert severity="success" icon={<Iconify icon="solar:shield-check-bold" />}>
-                Vigencia de tu membresía: {VIGENCIA_MEMBRESIA.desde} – {VIGENCIA_MEMBRESIA.hasta}.
-                Guarda este enlace: puedes volver a descargar tus documentos cuando quieras.
+                Vigencia de tu membresía: {vigencia.desde} – {vigencia.hasta}. Guarda este enlace:
+                puedes volver a descargar tus documentos cuando quieras.
               </Alert>
             </>
           )}

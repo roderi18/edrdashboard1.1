@@ -6,8 +6,20 @@ process.env.ONERRD_QR_SECRET ||= 'clave-de-prueba-no-usar-en-produccion-12345678
 process.env.NEXT_PUBLIC_SITE_URL ||= 'http://localhost:3050';
 
 const member = {
-  codigo: 'ONERRD 2027-0001', estado: 'confirmada', tipoPago: 'transferencia', montoRd: 2250,
-  destacamento: { id: '25', numero: '025', nombre: 'Monte Horeb', region: 'Central', seccion: 'Distrito 1', iglesia: 'Primera Iglesia', coordinador: 'Coordinador de Ejemplo', pastor: 'Pastor de Ejemplo' },
+  codigo: 'ONERRD 2027-0001',
+  estado: 'confirmada',
+  tipoPago: 'transferencia',
+  montoRd: 2250,
+  destacamento: {
+    id: '25',
+    numero: '025',
+    nombre: 'Monte Horeb',
+    region: 'Central',
+    seccion: 'Distrito 1',
+    iglesia: 'Primera Iglesia',
+    coordinador: 'Coordinador de Ejemplo',
+    pastor: 'Pastor de Ejemplo',
+  },
   plan: { id: 'fidelidad', cuotaRegistro: 1500, rriTrac: 1000, descuento: 250 },
   deposito: { referencia: 'EJEMPLO-123' },
 };

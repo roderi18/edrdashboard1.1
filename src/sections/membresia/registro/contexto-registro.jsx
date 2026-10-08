@@ -2,13 +2,16 @@
 
 import { useMemo, useState, useEffect, useContext, useCallback, createContext } from 'react';
 
+import { pedirConfiguracion } from '../use-configuracion';
+
 // ----------------------------------------------------------------------
 // EL ESTADO DEL REGISTRO, compartido por las cuatro páginas (el layout de
 // /registro lo monta una vez y sobrevive a la navegación entre pasos).
 //
-// Solo el destacamento y el plan elegidos se guardan en esta pestaña
-// (sessionStorage) para que recargar no devuelva al principio; son números
-// públicos. El correo y el teléfono del pagador viven solo en memoria.
+// Recargar deja todo como estaba: destacamento, plan, correo y teléfono,
+// datos corregidos y quién los corrigió se guardan en ESTA pestaña
+// (sessionStorage, se borra al cerrarla), y la ruta conserva el paso. Antes
+// solo se guardaban destacamento y plan, y recargar vaciaba lo escrito.
 // La elegibilidad (qué planes, si ya pagó) se vuelve a pedir al servidor:
 // nunca se confía en una copia del navegador.
 // ----------------------------------------------------------------------
@@ -56,7 +59,7 @@ const leerGuardado = () => {
 
 const guardar = (valor) => {
   try {
-    sessionStorage.setItem(CLAVE, JSON.stringify(valor));
+    sessionStorage.setItem(CLAVE, JSON.stringify({ ...leerGuardado(), ...valor }));
   } catch {
     // Sin almacenamiento (ventana privada): el registro sigue, solo no se recuerda.
   }
@@ -77,6 +80,12 @@ export function ProveedorRegistro({ children }) {
   const [errorElegibilidad, setErrorElegibilidad] = useState('');
   const [planId, setPlanId] = useState(null);
   const [contacto, setContacto] = useState({ correo: '', telefono: '' });
+  // Datos del destacamento que la persona corrige ("Corregir datos"): solo lo
+  // que cambió. Con alguno, el pago queda en revisión hasta que la Oficina
+  // Nacional confirme el cambio. En memoria, como el contacto.
+  const [correcciones, setCorrecciones] = useState({});
+  // Quién las hizo: { nombre, idMiembro, telefono }.
+  const [corregidoPor, setCorregidoPor] = useState(null);
   const [restaurado, setRestaurado] = useState(false);
   // La solicitud ya enviada (paso Resultado): manda en el resumen del pedido.
   const [solicitud, setSolicitud] = useState(null);
@@ -90,15 +99,7 @@ export function ProveedorRegistro({ children }) {
           'No se pudo cargar el censo de destacamentos. Recarga la página en unos minutos.'
         );
       });
-    pedirJson('/api/configuracion/')
-      .then(setConfiguracion)
-      .catch(() =>
-        setConfiguracion({
-          lanzamientoHabilitado: false,
-          paypalEnabled: false,
-          bank: null,
-        })
-      );
+    pedirConfiguracion().then(setConfiguracion);
   }, []);
 
   const cargarElegibilidad = useCallback((id) => {
@@ -121,20 +122,47 @@ export function ProveedorRegistro({ children }) {
   // Al recargar en cualquier paso, se recupera lo elegido en esta pestaña.
   useEffect(() => {
     const guardado = leerGuardado();
+    if (guardado.contacto) setContacto(guardado.contacto);
     if (guardado.d) {
       setDestacamentoId(String(guardado.d));
       setPlanId(guardado.plan || null);
+      setCorrecciones(guardado.correcciones || {});
+      setCorregidoPor(guardado.corregidoPor || null);
       cargarElegibilidad(String(guardado.d)).finally(() => setRestaurado(true));
     } else {
       setRestaurado(true);
     }
   }, [cargarElegibilidad]);
 
+  // Lo que se va escribiendo se guarda al momento (una vez restaurado, para
+  // no pisar lo guardado con el estado vacío del arranque).
+  useEffect(() => {
+    if (restaurado) guardar({ contacto, correcciones, corregidoPor });
+  }, [restaurado, contacto, correcciones, corregidoPor]);
+
+  // La posición en la página: se anota al salir y se vuelve a ella cuando el
+  // paso ya pintó sus datos (sin esperar, el contenido aún no mide lo mismo).
+  useEffect(() => {
+    const anotar = () => guardar({ scroll: { ruta: window.location.pathname, y: window.scrollY } });
+    window.addEventListener('pagehide', anotar);
+    return () => window.removeEventListener('pagehide', anotar);
+  }, []);
+  useEffect(() => {
+    if (!restaurado || cargandoElegibilidad) return undefined;
+    const { scroll } = leerGuardado();
+    if (!scroll || scroll.ruta !== window.location.pathname) return undefined;
+    guardar({ scroll: null });
+    const espera = setTimeout(() => window.scrollTo({ top: scroll.y }), 150);
+    return () => clearTimeout(espera);
+  }, [restaurado, cargandoElegibilidad]);
+
   const elegirDestacamento = useCallback(
     (id) => {
       setDestacamentoId(id);
       setPlanId(null);
-      guardar({ d: id || null, plan: null });
+      setCorrecciones({});
+      setCorregidoPor(null);
+      guardar({ d: id || null, plan: null, correcciones: {}, corregidoPor: null });
       return cargarElegibilidad(id);
     },
     [cargarElegibilidad]
@@ -148,11 +176,26 @@ export function ProveedorRegistro({ children }) {
     [destacamentoId]
   );
 
+  // Un valor igual al del padrón no es una corrección.
+  const corregir = useCallback(
+    (campo, valor) =>
+      setCorrecciones((actual) => {
+        const original = String(elegibilidad?.destacamento?.[campo] ?? '').trim();
+        const siguiente = { ...actual };
+        if (String(valor ?? '').trim() === original) delete siguiente[campo];
+        else siguiente[campo] = valor;
+        return siguiente;
+      }),
+    [elegibilidad]
+  );
+
   const reiniciar = useCallback(() => {
+    setCorrecciones({});
     setDestacamentoId(null);
     setElegibilidad(null);
     setPlanId(null);
-    guardar({});
+    setCorregidoPor(null);
+    guardar({ d: null, plan: null, correcciones: {}, corregidoPor: null });
   }, []);
 
   // Si el plan guardado ya no le corresponde (cambió la elegibilidad), se suelta;
@@ -180,6 +223,14 @@ export function ProveedorRegistro({ children }) {
       contacto,
       restaurado,
       solicitud,
+      correcciones,
+      corregir,
+      corregidoPor,
+      setCorregidoPor,
+      descartarCorrecciones: () => {
+        setCorrecciones({});
+        setCorregidoPor(null);
+      },
       setSolicitud,
       setContacto,
       elegirDestacamento,
@@ -200,6 +251,9 @@ export function ProveedorRegistro({ children }) {
       contacto,
       restaurado,
       solicitud,
+      correcciones,
+      corregir,
+      corregidoPor,
       elegirDestacamento,
       elegirPlan,
       reiniciar,

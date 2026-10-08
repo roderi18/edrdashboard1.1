@@ -1,11 +1,10 @@
 'use client';
 
 import * as z from 'zod';
-import dayjs from 'dayjs';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useForm, useWatch, Controller } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -14,9 +13,9 @@ import Grid from '@mui/material/Grid';
 import Tabs from '@mui/material/Tabs';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { aDolares, formatearRd, formatearUsd } from 'src/utils/planes-membresia.mjs';
@@ -59,19 +58,13 @@ const Esquema = z.object({
     .min(1, 'Escribe el correo donde recibirás los documentos.')
     .pipe(z.email('Correo no válido.')),
   telefono: z.string().refine((v) => digitos(v).length === 10, 'Teléfono de 10 dígitos.'),
-  fecha: z.any().nullable(),
-  referencia: z.string().trim(),
   comprobante: z.any().nullable(),
 });
 
-// Solo la transferencia exige fecha, referencia y comprobante.
+// Solo la transferencia exige el comprobante (la fecha y la referencia ya no
+// se piden: salen del propio comprobante).
 const validarTransferencia = (v) => {
   const errores = {};
-  const fecha = v.fecha ? dayjs(v.fecha) : null;
-  if (!fecha?.isValid()) errores.fecha = 'Indica la fecha del depósito.';
-  else if (fecha.isAfter(dayjs(), 'day')) errores.fecha = 'La fecha no puede ser futura.';
-  if (v.referencia.length < 4)
-    errores.referencia = 'Escribe el número de confirmación o referencia.';
   if (!v.comprobante) errores.comprobante = 'Adjunta el comprobante (JPG, PNG o PDF).';
   return errores;
 };
@@ -100,12 +93,7 @@ function PanelPaypal({ total, configuracion, onPagar, enviando }) {
           </Grid>
         ))}
       </Grid>
-      {!habilitado && (
-        <Alert severity="info">
-          El pago con PayPal se habilitará cuando la Oficina Nacional fije la tasa del dólar.
-          Mientras tanto, puedes pagar por transferencia.
-        </Alert>
-      )}
+
       <Button
         size="large"
         variant="contained"
@@ -124,8 +112,22 @@ function PanelPaypal({ total, configuracion, onPagar, enviando }) {
   );
 }
 
-function DatosBancarios({ banco }) {
-  if (!banco?.name) {
+// Logo del banco (ícono de su web) o, si no carga, su inicial.
+function LogoBanco({ banco }) {
+  return (
+    <Avatar
+      src={banco.logo || undefined}
+      alt={banco.name}
+      variant="rounded"
+      sx={{ width: 40, height: 40, bgcolor: 'primary.lighter', color: 'primary.dark' }}
+    >
+      {banco.name.charAt(0)}
+    </Avatar>
+  );
+}
+
+function DatosBancarios({ bancos }) {
+  if (!bancos?.length) {
     return (
       <Alert severity="warning" icon={<Iconify icon="solar:clock-circle-bold" />}>
         Los datos bancarios de la Oficina Nacional se publicarán aquí próximamente.
@@ -133,23 +135,38 @@ function DatosBancarios({ banco }) {
     );
   }
   return (
-    <Card variant="outlined" sx={{ p: 2 }}>
-      <Grid container spacing={1.5}>
-        {[
-          ['Banco', banco.name],
-          ['Titular', banco.accountName],
-          ['Tipo de cuenta', banco.accountType],
-          ['Número de cuenta', banco.accountNumber],
-        ].map(([t, v]) => (
-          <Grid key={t} size={{ xs: 12, sm: 6 }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {t}
-            </Typography>
-            <Typography variant="subtitle2">{v}</Typography>
+    <Stack spacing={1.5}>
+      {bancos.length > 1 && (
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Transfiere a cualquiera de estas cuentas.
+        </Typography>
+      )}
+      {bancos.map((banco) => (
+        <Card key={`${banco.name}-${banco.accountNumber}`} variant="outlined" sx={{ p: 2 }}>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 1.5 }}>
+            <LogoBanco banco={banco} />
+            <Typography variant="subtitle1">{banco.name}</Typography>
+          </Stack>
+          <Grid container spacing={1.5}>
+            {[
+              ['Titular', banco.accountName],
+              ['Tipo de cuenta', banco.accountType],
+              ['Número de cuenta', banco.accountNumber],
+              ['Cédula/RNC', banco.document],
+            ]
+              .filter(([, v]) => v)
+              .map(([t, v]) => (
+                <Grid key={t} size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {t}
+                  </Typography>
+                  <Typography variant="subtitle2">{v}</Typography>
+                </Grid>
+              ))}
           </Grid>
-        ))}
-      </Grid>
-    </Card>
+        </Card>
+      ))}
+    </Stack>
   );
 }
 
@@ -157,8 +174,25 @@ export function PasoPago() {
   const router = useRouter();
   const cancelado = useSearchParams().get('paypal') === 'cancelado';
   const listo = useExigirDestacamento();
-  const { plan, destacamentoId, configuracion, contacto, setContacto } = useRegistro();
-  const [metodo, setMetodo] = useState('transferencia');
+  const { plan, destacamentoId, configuracion, contacto, setContacto, correcciones, corregidoPor } =
+    useRegistro();
+  const hayCorrecciones = Object.keys(correcciones).length > 0;
+  // La pestaña elegida (transferencia o PayPal) sobrevive a recargar.
+  const [metodo, setMetodoEnPantalla] = useState(() => {
+    try {
+      return sessionStorage.getItem('onerrd-membresia-2027-metodo') || 'transferencia';
+    } catch {
+      return 'transferencia';
+    }
+  });
+  const setMetodo = (valor) => {
+    setMetodoEnPantalla(valor);
+    try {
+      sessionStorage.setItem('onerrd-membresia-2027-metodo', valor);
+    } catch {
+      // Sin almacenamiento: solo no se recuerda.
+    }
+  };
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
 
@@ -167,12 +201,26 @@ export function PasoPago() {
     resolver: zodResolver(Esquema),
     defaultValues: {
       ...contacto,
-      fecha: null,
-      referencia: '',
       comprobante: null,
     },
   });
-  const { control, trigger, getValues, setError: marcarError, handleSubmit } = metodos;
+  const { control, trigger, getValues, setValue, setError: marcarError, handleSubmit } = metodos;
+
+  // Correo y teléfono se guardan mientras se escriben (sobreviven a recargar)
+  // y, si llegan restaurados después de pintar, se rellenan.
+  const correoEscrito = useWatch({ control, name: 'correo' });
+  const telefonoEscrito = useWatch({ control, name: 'telefono' });
+  useEffect(() => {
+    if (correoEscrito !== contacto.correo || telefonoEscrito !== contacto.telefono) {
+      setContacto({ correo: correoEscrito || '', telefono: telefonoEscrito || '' });
+    }
+    // Solo cuando cambia lo escrito.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [correoEscrito, telefonoEscrito]);
+  useEffect(() => {
+    if (!getValues('correo') && contacto.correo) setValue('correo', contacto.correo);
+    if (!getValues('telefono') && contacto.telefono) setValue('telefono', contacto.telefono);
+  }, [contacto, getValues, setValue]);
 
   const abierto = Boolean(configuracion?.lanzamientoHabilitado);
   const total = plan?.precio || 0;
@@ -197,6 +245,8 @@ export function PasoPago() {
           planId: plan.id,
           email: correo,
           phone: telefono,
+          correcciones,
+          corregidoPor,
         }),
       });
       const datos = await r.json().catch(() => ({}));
@@ -225,9 +275,9 @@ export function PasoPago() {
       datos.set('email', valores.correo);
       datos.set('phone', valores.telefono);
       datos.set('amount', String(total));
-      datos.set('date', dayjs(valores.fecha).format('YYYY-MM-DD'));
-      datos.set('reference', valores.referencia);
       datos.set('proof', valores.comprobante);
+      datos.set('correcciones', JSON.stringify(correcciones));
+      if (corregidoPor) datos.set('corregidoPor', JSON.stringify(corregidoPor));
       const r = await fetch('/api/membresias/', {
         method: 'POST',
         body: datos,
@@ -254,6 +304,13 @@ export function PasoPago() {
         <Alert severity="info" sx={{ mb: 3 }}>
           Los pagos de la membresía 2027 aún no están abiertos. Puedes revisar el proceso; el botón
           de pago se activará cuando la Oficina Nacional lo apruebe.
+        </Alert>
+      )}
+      {hayCorrecciones && (
+        <Alert severity="info" icon={<Iconify icon="solar:pen-bold" />} sx={{ mb: 3 }}>
+          Corregiste datos del destacamento: tu pago quedará <strong>en revisión</strong> hasta que
+          la Oficina Nacional confirme los cambios. Te avisaremos por correo; después recibirás el
+          certificado y la factura.
         </Alert>
       )}
       {cancelado && (
@@ -314,33 +371,7 @@ export function PasoPago() {
               <strong>{formatearRd(total, { decimales: true })}</strong> y completa los datos.
               Quedará pendiente de validación por la Oficina Nacional.
             </Alert>
-            <DatosBancarios banco={configuracion?.bank} />
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <TextField
-                  fullWidth
-                  label="Monto (RD$)"
-                  value={formatearRd(total, { decimales: true })}
-                  slotProps={{ input: { readOnly: true } }}
-                  helperText="El del plan elegido"
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Field.DatePicker
-                  name="fecha"
-                  label="Fecha del depósito *"
-                  format="DD/MM/YYYY"
-                  disableFuture
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <Field.Text
-                  name="referencia"
-                  label="Número de referencia *"
-                  placeholder="Ej. 123456789"
-                />
-              </Grid>
-            </Grid>
+            <DatosBancarios bancos={configuracion?.banks} />
             <Controller
               name="comprobante"
               control={control}
@@ -385,16 +416,24 @@ export function PasoPago() {
             Atrás
           </Button>
           {metodo === 'transferencia' && (
-            <Button
-              type="submit"
-              size="large"
-              variant="contained"
-              loading={enviando}
-              disabled={!abierto || !configuracion?.bank?.name || !listo}
-              endIcon={<Iconify icon="eva:arrow-forward-fill" />}
-            >
-              Enviar comprobante
-            </Button>
+            <Stack spacing={0.5} sx={{ alignItems: 'flex-end' }}>
+              <Button
+                type="submit"
+                size="large"
+                variant="contained"
+                loading={enviando}
+                disabled={!abierto || !configuracion?.banks?.length || !listo}
+                endIcon={<Iconify icon="eva:arrow-forward-fill" />}
+              >
+                Enviar comprobante
+              </Button>
+              {/* Que no parezca roto: dice por qué no se puede enviar. */}
+              {configuracion && !abierto && (
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Se activa cuando la Oficina Nacional abra los cobros.
+                </Typography>
+              )}
+            </Stack>
           )}
         </Stack>
       </Form>
