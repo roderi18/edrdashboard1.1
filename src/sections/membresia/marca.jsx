@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import MuiLink from '@mui/material/Link';
-import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 
@@ -98,17 +97,6 @@ export function Encabezado({ conBoton = true }) {
                 </MuiLink>
               ))}
             </Stack>
-            {conBoton && (
-              <Button
-                component={Link}
-                href={RUTA_REGISTRO}
-                variant="contained"
-                color="primary"
-                sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
-              >
-                Registrar mi destacamento
-              </Button>
-            )}
           </Stack>
         </Stack>
       </Container>
@@ -162,7 +150,7 @@ export function Pie() {
               <Iconify icon="solar:letter-bold" width={18} />
               tecnologia@errd.org.do
             </MuiLink>
- <MuiLink
+            <MuiLink
               href="mailto:tecnologia@errd.org.do?subject=Membres%C3%ADa%20ONERRD%202027"
               color="inherit"
               underline="hover"

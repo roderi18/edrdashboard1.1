@@ -152,7 +152,8 @@ function ResumenPedido({ actual }) {
   const corregido = enviado
     ? Object.keys(solicitud.correcciones || {}).length > 0
     : Object.keys(correcciones || {}).length > 0;
-  const p = enviado ? solicitud.plan : plan;
+  // El plan y su precio se enseñan desde el paso 2: en el 1 aún no se elige.
+  const p = enviado ? solicitud.plan : actual > 0 ? plan : null;
   const editable = actual < 3;
   const tasa = configuracion?.rate;
   const usd = enviado ? solicitud.montoUsd : p && aDolares(p.precio, tasa);
@@ -168,8 +169,8 @@ function ResumenPedido({ actual }) {
           editar={editable && actual > 0 && destacamento ? '/registro/destacamento/' : null}
         />
         <Fila
-          titulo="Plan elegido"
-          valor={p?.nombre || 'Pendiente de selección'}
+          titulo="Plan"
+          valor={p?.nombre || 'Se define en el paso 2'}
           editar={editable && actual > 1 && p ? '/registro/plan/' : null}
         />
         {corregido && (
@@ -296,7 +297,6 @@ export function MarcoRegistro({ children }) {
 
 // La cabecera de cada paso: "PASO 2 DE 4", título, explicación y avance.
 export function CabeceraPaso({ indice, titulo, texto }) {
-  const avance = ((indice + 1) / PASOS.length) * 100;
   return (
     <Stack
       direction={{ xs: 'column', md: 'row' }}
@@ -304,20 +304,18 @@ export function CabeceraPaso({ indice, titulo, texto }) {
       sx={{ justifyContent: 'space-between', mb: 3 }}
     >
       <Box>
-        <Typography variant="overline" sx={{ color: 'primary.main' }}>
-          Paso {indice + 1} de {PASOS.length}
-        </Typography>
         <Typography variant="h3" component="h1" sx={{ fontSize: { xs: 26, md: 32 } }}>
           {titulo}
         </Typography>
         {texto && <Typography sx={{ color: 'text.secondary', mt: 0.5 }}>{texto}</Typography>}
       </Box>
-      <Stack spacing={0.75} sx={{ minWidth: 200, display: { xs: 'none', lg: 'flex' } }}>
-        <Typography variant="caption" sx={{ textAlign: 'right' }}>
-          <strong>{Math.round(avance)}%</strong> completado
-        </Typography>
-        <LinearProgress variant="determinate" value={avance} sx={{ height: 8, borderRadius: 1 }} />
-      </Stack>
+      {/* A la derecha, donde iba la barra de porcentaje. */}
+      <Typography
+        variant="overline"
+        sx={{ color: 'primary.main', flexShrink: 0, whiteSpace: 'nowrap', order: { md: 2 } }}
+      >
+        Paso {indice + 1} de {PASOS.length}
+      </Typography>
     </Stack>
   );
 }

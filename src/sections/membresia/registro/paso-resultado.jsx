@@ -12,6 +12,7 @@ import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { CabeceraPaso } from './marco-registro';
@@ -91,8 +92,7 @@ export function PasoResultado() {
   const parametros = useSearchParams();
   const token = parametros.get('solicitud');
   const errorPaypal = parametros.get('paypal') === 'error';
-  const { setSolicitud, reiniciar, configuracion } = useRegistro();
-  const vigencia = configuracion?.vigencia || { desde: '01/01/2027', hasta: '31/12/2027' };
+  const { setSolicitud, reiniciar } = useRegistro();
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState('');
 
@@ -120,6 +120,13 @@ export function PasoResultado() {
     const id = setInterval(leer, 8000);
     return () => clearInterval(id);
   }, [datos?.estado, leer]);
+
+  const copiar = (texto) => {
+    navigator.clipboard
+      ?.writeText(texto)
+      .then(() => toast.success('Código copiado.'))
+      .catch(() => toast.error('No se pudo copiar. Selecciónalo y cópialo a mano.'));
+  };
 
   const volverAEmpezar = () => {
     reiniciar();
@@ -205,15 +212,27 @@ export function PasoResultado() {
                     Motivo: {datos.motivo}
                   </Typography>
                 )}
-                {datos.estado !== 'confirmada' && (
-                  <Typography
-                    variant="caption"
-                    component="p"
-                    sx={{ color: 'text.secondary', mt: 1 }}
-                  >
-                    Referencia de tu solicitud: {datos.referencia}
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ mt: 1.5, alignItems: 'center', flexWrap: 'wrap' }}
+                >
+                  <Typography variant="subtitle1" sx={{ color: `${estado.color}.darker` }}>
+                    Código de tu solicitud:
                   </Typography>
-                )}
+                  <Typography variant="h6" sx={{ letterSpacing: 0.5 }}>
+                    {datos.codigoSolicitud}
+                  </Typography>
+                  <Button
+                    size="small"
+                    color="inherit"
+                    variant="outlined"
+                    startIcon={<Iconify icon="solar:copy-bold" />}
+                    onClick={() => copiar(datos.codigoSolicitud)}
+                  >
+                    Copiar código
+                  </Button>
+                </Stack>
               </Box>
             </Stack>
           </Card>
@@ -244,12 +263,33 @@ export function PasoResultado() {
                   />
                 </Grid>
               </Grid>
-              <Alert severity="success" icon={<Iconify icon="solar:shield-check-bold" />}>
-                Vigencia de tu membresía: {vigencia.desde} – {vigencia.hasta}. Guarda este enlace:
-                puedes volver a descargar tus documentos cuando quieras.
-              </Alert>
             </>
           )}
+
+          {/* Al terminar: volver al inicio (principal) y bajar el comprobante. */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Button
+              size="large"
+              variant="contained"
+              startIcon={<Iconify icon="solar:home-angle-bold-duotone" />}
+              onClick={() => {
+                reiniciar();
+                router.push('/');
+              }}
+            >
+              Volver al inicio
+            </Button>
+            <Button
+              size="large"
+              variant="outlined"
+              color="inherit"
+              component="a"
+              href={`/api/solicitudes/${token}/comprobante/`}
+              startIcon={<Iconify icon="solar:download-bold" />}
+            >
+              Descargar comprobante de solicitud (PDF)
+            </Button>
+          </Stack>
 
           {datos.estado === 'rechazada' && (
             <Box>

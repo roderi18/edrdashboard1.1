@@ -2,6 +2,7 @@
 
 import * as z from 'zod';
 import { useState, useEffect } from 'react';
+import { varAlpha } from 'minimal-shared/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useWatch, Controller } from 'react-hook-form';
@@ -15,12 +16,15 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
 import { aDolares, formatearRd, formatearUsd } from 'src/utils/planes-membresia.mjs';
 
 import { Upload } from 'src/components/upload';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
@@ -69,9 +73,21 @@ const validarTransferencia = (v) => {
   return errores;
 };
 
-function PanelPaypal({ total, configuracion, onPagar, enviando }) {
+function PanelPaypal({ total, configuracion, onPagar, enviando, contactoListo }) {
   const usd = aDolares(total, configuracion?.rate);
   const habilitado = configuracion?.lanzamientoHabilitado && configuracion?.paypalEnabled;
+  // Por qué el botón no se puede pulsar, dicho con claridad.
+  const aviso = !configuracion
+    ? ''
+    : !configuracion.lanzamientoHabilitado
+      ? 'PayPal se activará cuando la Oficina Nacional abra los cobros.'
+      : !habilitado
+        ? // Cobros abiertos pero PayPal sin listo (sin clave o sin tasa del día):
+          // antes decía "cuando se abran los cobros", que no era la razón.
+          'PayPal no está disponible por el momento. Puedes pagar por transferencia bancaria.'
+        : !contactoListo
+          ? 'Completa tu correo y teléfono para habilitar el pago.'
+          : '';
   return (
     <Stack spacing={2.5}>
       <Grid container spacing={2}>
@@ -97,14 +113,20 @@ function PanelPaypal({ total, configuracion, onPagar, enviando }) {
       <Button
         size="large"
         variant="contained"
-        color="warning"
+        color="primary"
         loading={enviando}
         disabled={!habilitado}
         startIcon={<Iconify icon="payments:paypal" width={24} />}
         onClick={onPagar}
+        sx={{ py: 1.5, fontSize: 16 }}
       >
         Pagar con PayPal
       </Button>
+      {aviso && (
+        <Alert severity="info" icon={<Iconify icon="solar:info-circle-bold" />}>
+          {aviso}
+        </Alert>
+      )}
       <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
         PayPal cobra en dólares. El pago solo se confirma con la respuesta de PayPal al servidor.
       </Typography>
@@ -125,6 +147,12 @@ function LogoBanco({ banco }) {
     </Avatar>
   );
 }
+
+const copiar = (texto, que) =>
+  navigator.clipboard
+    ?.writeText(texto)
+    .then(() => toast.success(`${que} copiado.`))
+    .catch(() => toast.error('No se pudo copiar. Selecciónalo y cópialo a mano.'));
 
 function DatosBancarios({ bancos }) {
   if (!bancos?.length) {
@@ -160,7 +188,21 @@ function DatosBancarios({ bancos }) {
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     {t}
                   </Typography>
-                  <Typography variant="subtitle2">{v}</Typography>
+                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                    <Typography variant="subtitle2">{v}</Typography>
+                    {/* El número de cuenta y la cédula se copian de un toque. */}
+                    {(t === 'Número de cuenta' || t === 'Cédula/RNC') && (
+                      <Tooltip title={`Copiar ${t.toLowerCase()}`}>
+                        <IconButton
+                          size="small"
+                          onClick={() => copiar(v, t)}
+                          aria-label={`Copiar ${t}`}
+                        >
+                          <Iconify icon="solar:copy-bold" width={18} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Stack>
                 </Grid>
               ))}
           </Grid>
@@ -223,6 +265,8 @@ export function PasoPago() {
   }, [contacto, getValues, setValue]);
 
   const abierto = Boolean(configuracion?.lanzamientoHabilitado);
+  const contactoListo =
+    /^\S+@\S+\.\S+$/.test(correoEscrito || '') && digitos(telefonoEscrito || '').length === 10;
   const total = plan?.precio || 0;
 
   const guardarContacto = () => {
@@ -342,7 +386,34 @@ export function PasoPago() {
 
         <Divider sx={{ my: 3 }} />
 
-        <Tabs value={metodo} onChange={(_, v) => setMetodo(v)} variant="fullWidth" sx={{ mb: 3 }}>
+        <Typography variant="subtitle1" sx={{ mb: 1.5 }}>
+          Elige cómo pagar
+        </Typography>
+        <Tabs
+          value={metodo}
+          onChange={(_, v) => setMetodo(v)}
+          variant="fullWidth"
+          TabIndicatorProps={{ sx: { display: 'none' } }}
+          sx={(t) => ({
+            mb: 3,
+            minHeight: 56,
+            gap: 1.5,
+            '& .MuiTabs-flexContainer': { gap: 1.5 },
+            '& .MuiTab-root': {
+              minHeight: 56,
+              borderRadius: 1.5,
+              fontSize: 15,
+              fontWeight: 700,
+              border: `1.5px solid ${t.vars.palette.divider}`,
+              color: 'text.secondary',
+            },
+            '& .MuiTab-root.Mui-selected': {
+              color: 'primary.main',
+              borderColor: 'primary.main',
+              bgcolor: varAlpha(t.vars.palette.primary.mainChannel, 0.08),
+            },
+          })}
+        >
           <Tab
             value="transferencia"
             label="Transferencia bancaria"
@@ -362,6 +433,7 @@ export function PasoPago() {
             total={total}
             configuracion={configuracion}
             onPagar={pagarConPaypal}
+            contactoListo={contactoListo}
             enviando={enviando}
           />
         ) : (
@@ -385,6 +457,16 @@ export function PasoPago() {
                     accept={TIPOS_COMPROBANTE}
                     maxSize={MAXIMO_COMPROBANTE}
                     maxFiles={1}
+                    // En pantallas grandes, más delgado: ilustración chica y el
+                    // texto a su lado, en una sola franja.
+                    sx={(t) => ({
+                      [t.breakpoints.up('lg')]: {
+                        minHeight: 110,
+                        py: 1.5,
+                        '& > div': { flexDirection: 'row', gap: 3 },
+                        '& svg': { width: 96, height: 'auto' },
+                      },
+                    })}
                     value={field.value ? [field.value] : []}
                     onDrop={(archivos) => archivos[0] && field.onChange(archivos[0])}
                     onRemove={() => field.onChange(null)}

@@ -21,6 +21,12 @@ import { PASOS, useRegistro } from './contexto-registro';
 // destacamento elige entre ellos, nunca se pone un descuento a mano.
 // ----------------------------------------------------------------------
 
+const MOTIVOS_NO_APLICA = {
+  nuevo: 'Es para destacamentos que no se registraron en 2026.',
+  fidelidad: 'Es para destacamentos que se registraron en 2026 (descuento por fidelidad).',
+  solo_registro: 'Requiere una licencia RRI TRaC activa en tu destacamento.',
+};
+
 // Sin destacamento válido no hay plan que elegir: se vuelve al paso 1.
 export function useExigirDestacamento() {
   const router = useRouter();
@@ -34,15 +40,19 @@ export function useExigirDestacamento() {
 
 export function PasoPlan() {
   const router = useRouter();
-  const { planes, plan, elegirPlan, elegibilidad } = useRegistro();
+  const { planes, plan, elegirPlan, elegibilidad, configuracion } = useRegistro();
   const listo = useExigirDestacamento();
 
   return (
     <Card sx={{ p: { xs: 2.5, md: 4 } }}>
       <CabeceraPaso
         indice={1}
-        titulo="Elige el plan que te corresponde"
-        texto="El sistema determina automáticamente qué planes te corresponden."
+        titulo={planes.length > 1 ? 'Elige tu plan de membresía' : 'Confirma tu plan de membresía'}
+        texto={
+          planes.length > 1
+            ? 'Estos son los planes que le corresponden a tu destacamento.'
+            : 'El sistema ya determinó el plan que le corresponde a tu destacamento.'
+        }
       />
 
       {!listo ? (
@@ -73,6 +83,12 @@ export function PasoPlan() {
               }
             />
           ))}
+          {/* Los demás planes, apagados y con la razón de por qué no aplican. */}
+          {(configuracion?.planes || [])
+            .filter((p) => !planes.some((q) => q.id === p.id))
+            .map((p) => (
+              <TarjetaPlan key={p.id} plan={p} motivoNoAplica={MOTIVOS_NO_APLICA[p.id]} />
+            ))}
           <Alert severity="info">
             <strong>RRI TRaC</strong> es la plataforma digital de registro, control y capacitación
             de miembros.

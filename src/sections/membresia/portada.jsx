@@ -93,7 +93,7 @@ function Hero({ vigencia }) {
         color: 'common.white',
         overflow: 'hidden',
         position: 'relative',
-        py: { xs: 5, md: 7 },
+        py: { xs: 5, md: 7, lg: 5 },
         backgroundImage: `linear-gradient(120deg, ${t.vars.palette.primary.darker} 0%, ${t.vars.palette.primary.dark} 60%, ${t.vars.palette.primary.main} 100%)`,
       })}
     >
@@ -109,26 +109,35 @@ function Hero({ vigencia }) {
             <Typography variant="h5" component="p" sx={{ mt: 2, fontWeight: 400, opacity: 0.92 }}>
               Registra tu destacamento, paga en línea y recibe tu certificado oficial.
             </Typography>
+            {/* En pantallas grandes, la vigencia y el botón en la misma fila (se
+                aprovecha el ancho); en las demás, uno bajo el otro como antes. */}
             <Stack
-              direction="row"
-              spacing={1}
+              direction={{ xs: 'column', lg: 'row' }}
+              useFlexGap
               sx={{
-                mt: 3,
-                px: 2,
-                py: 1,
-                borderRadius: 1.5,
-                display: 'inline-flex',
-                alignItems: 'center',
-                color: 'primary.darker',
-                bgcolor: 'common.white',
+                mt: { xs: 3, lg: 3 },
+                gap: { xs: 4, lg: 2 },
+                flexWrap: 'wrap',
+                alignItems: { xs: 'flex-start', lg: 'center' },
               }}
             >
-              <Iconify icon="solar:calendar-date-bold" />
-              <Typography variant="subtitle2">
-                Vigencia: {vigencia ? `${vigencia.desde} – ${vigencia.hasta}` : '…'}
-              </Typography>
-            </Stack>
-            <Box sx={{ mt: 4 }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  px: 2,
+                  minHeight: { xs: 40, lg: 48 },
+                  borderRadius: 1.5,
+                  alignItems: 'center',
+                  color: 'primary.darker',
+                  bgcolor: 'common.white',
+                }}
+              >
+                <Iconify icon="solar:calendar-date-bold" />
+                <Typography variant="subtitle2">
+                  Vigencia: {vigencia ? `${vigencia.desde} – ${vigencia.hasta}` : '…'}
+                </Typography>
+              </Stack>
               <Button
                 component={Link}
                 href={RUTA_REGISTRO}
@@ -136,10 +145,11 @@ function Hero({ vigencia }) {
                 variant="contained"
                 color="info"
                 endIcon={<Iconify icon="eva:arrow-forward-fill" />}
+                sx={{ minHeight: 48 }}
               >
                 Registrar mi destacamento
               </Button>
-            </Box>
+            </Stack>
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <Stack

@@ -2,6 +2,8 @@ import * as z from 'zod';
 import { randomUUID } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { vigenciaDesdeHoy } from 'src/utils/solicitud.mjs';
+
 import { db } from 'src/server/firebase.mjs';
 import { paypalRequest } from 'src/server/paypal.mjs';
 import { leerElegibilidad } from 'src/server/elegibilidad.mjs';
@@ -99,7 +101,8 @@ export async function POST(request) {
         tipoPago: 'paypal',
         destacamento: eligibility.destacamento,
         plan,
-        vigencia: lectura.config.vigencia,
+        // Un año desde que se coloca el pago.
+        vigencia: vigenciaDesdeHoy(),
         montoRd: plan.precio,
         contacto: { email: input.data.email, telefono: input.data.phone },
         correoAvisos: lectura.config.correoAvisos,

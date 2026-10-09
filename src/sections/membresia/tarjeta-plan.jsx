@@ -20,7 +20,15 @@ import { Iconify } from 'src/components/iconify';
 // mismo en las dos pantallas.
 // ----------------------------------------------------------------------
 
-export function TarjetaPlan({ plan, seleccionable = false, elegido = false, onElegir, etiqueta }) {
+export function TarjetaPlan({
+  plan,
+  seleccionable = false,
+  elegido = false,
+  onElegir,
+  etiqueta,
+  // Un plan que no le toca al destacamento: se ve apagado, con el porqué.
+  motivoNoAplica,
+}) {
   const contenido = (
     <Stack
       direction={seleccionable ? { xs: 'column', sm: 'row' } : 'column'}
@@ -32,7 +40,9 @@ export function TarjetaPlan({ plan, seleccionable = false, elegido = false, onEl
       }}
     >
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexGrow: 1 }}>
-        {seleccionable && <Radio checked={elegido} tabIndex={-1} sx={{ ml: -1 }} />}
+        {seleccionable && !motivoNoAplica && (
+          <Radio checked={elegido} tabIndex={-1} sx={{ ml: -1 }} />
+        )}
         <Box
           sx={(t) => ({
             width: 56,
@@ -69,19 +79,36 @@ export function TarjetaPlan({ plan, seleccionable = false, elegido = false, onEl
           </Stack>
         </Box>
       </Stack>
-      <Label
-        color={plan.color === 'primary' ? 'info' : plan.color}
-        sx={{
-          height: 'auto',
-          py: 0.75,
-          whiteSpace: 'normal',
-          alignSelf: seleccionable ? 'center' : 'stretch',
-        }}
-      >
-        {etiqueta ?? plan.etiqueta}
-      </Label>
+      {/* Un plan que no aplica solo se ve apagado: sin rótulo. */}
+      {!motivoNoAplica && (
+        <Label
+          color={plan.color === 'primary' ? 'info' : plan.color}
+          sx={{
+            height: 'auto',
+            py: 0.75,
+            whiteSpace: 'normal',
+            alignSelf: seleccionable ? 'center' : 'stretch',
+          }}
+        >
+          {etiqueta ?? plan.etiqueta}
+        </Label>
+      )}
     </Stack>
   );
+
+  if (motivoNoAplica) {
+    return (
+      <Card variant="outlined" sx={{ height: 1, borderStyle: 'dashed', bgcolor: 'transparent' }}>
+        <Box sx={{ opacity: 0.55 }}>{contenido}</Box>
+        <Typography
+          variant="caption"
+          sx={{ display: 'block', px: 2.5, pb: 2, color: 'text.secondary' }}
+        >
+          {motivoNoAplica}
+        </Typography>
+      </Card>
+    );
+  }
 
   return (
     <Card

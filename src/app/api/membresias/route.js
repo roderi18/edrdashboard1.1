@@ -2,6 +2,7 @@ import * as z from 'zod';
 import { randomUUID } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { vigenciaDesdeHoy } from 'src/utils/solicitud.mjs';
 import { hoyEnSantoDomingo } from 'src/utils/configuracion-membresia.mjs';
 
 import { db, bucket } from 'src/server/firebase.mjs';
@@ -102,7 +103,8 @@ export async function POST(request) {
           tipoPago: 'transferencia',
           destacamento: eligibility.destacamento,
           plan,
-          vigencia: config.vigencia,
+          // Un año desde que se coloca el pago.
+          vigencia: vigenciaDesdeHoy(),
           montoRd: plan.precio,
           contacto: { email: parsed.data.email, telefono: parsed.data.phone },
           correoAvisos: config.correoAvisos,

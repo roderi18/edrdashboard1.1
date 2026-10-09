@@ -1,3 +1,5 @@
+import { codigoDeSolicitud } from 'src/utils/solicitud.mjs';
+
 import { db } from 'src/server/firebase.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +25,9 @@ export async function GET(_request, { params }) {
       // Ya emitidos en el dashboard: entonces se pueden descargar.
       documentosListos: Boolean(d.certificadoEmitido?.numeroRegistro),
       referencia: d.referencia,
+      codigoSolicitud: codigoDeSolicitud(d.destacamento?.numero, d.referencia),
+      creadoEn: d.creadoEn?.toDate?.().toISOString() || null,
+      vigencia: d.vigencia || null,
       motivo: d.motivoRechazo || null,
       tipoPago: d.tipoPago,
       destacamento: { numero, nombre },
