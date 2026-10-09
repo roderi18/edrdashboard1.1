@@ -86,6 +86,8 @@ export function ProveedorRegistro({ children }) {
   const [correcciones, setCorrecciones] = useState({});
   // Quién las hizo: { nombre, idMiembro, telefono }.
   const [corregidoPor, setCorregidoPor] = useState(null);
+  // Quién registra el destacamento (sale en el reporte de registro anual).
+  const [registradoPor, setRegistradoPor] = useState(null);
   const [restaurado, setRestaurado] = useState(false);
   // La solicitud ya enviada (paso Resultado): manda en el resumen del pedido.
   const [solicitud, setSolicitud] = useState(null);
@@ -123,6 +125,7 @@ export function ProveedorRegistro({ children }) {
   useEffect(() => {
     const guardado = leerGuardado();
     if (guardado.contacto) setContacto(guardado.contacto);
+    if (guardado.registradoPor) setRegistradoPor(guardado.registradoPor);
     if (guardado.d) {
       setDestacamentoId(String(guardado.d));
       setPlanId(guardado.plan || null);
@@ -137,8 +140,8 @@ export function ProveedorRegistro({ children }) {
   // Lo que se va escribiendo se guarda al momento (una vez restaurado, para
   // no pisar lo guardado con el estado vacío del arranque).
   useEffect(() => {
-    if (restaurado) guardar({ contacto, correcciones, corregidoPor });
-  }, [restaurado, contacto, correcciones, corregidoPor]);
+    if (restaurado) guardar({ contacto, correcciones, corregidoPor, registradoPor });
+  }, [restaurado, contacto, correcciones, corregidoPor, registradoPor]);
 
   // La posición en la página: se anota al salir y se vuelve a ella cuando el
   // paso ya pintó sus datos (sin esperar, el contenido aún no mide lo mismo).
@@ -195,7 +198,14 @@ export function ProveedorRegistro({ children }) {
     setElegibilidad(null);
     setPlanId(null);
     setCorregidoPor(null);
-    guardar({ d: null, plan: null, correcciones: {}, corregidoPor: null });
+    setRegistradoPor(null);
+    guardar({
+      d: null,
+      plan: null,
+      correcciones: {},
+      corregidoPor: null,
+      registradoPor: null,
+    });
   }, []);
 
   // Si el plan guardado ya no le corresponde (cambió la elegibilidad), se suelta;
@@ -227,6 +237,8 @@ export function ProveedorRegistro({ children }) {
       corregir,
       corregidoPor,
       setCorregidoPor,
+      registradoPor,
+      setRegistradoPor,
       descartarCorrecciones: () => {
         setCorrecciones({});
         setCorregidoPor(null);
@@ -254,6 +266,7 @@ export function ProveedorRegistro({ children }) {
       correcciones,
       corregir,
       corregidoPor,
+      registradoPor,
       elegirDestacamento,
       elegirPlan,
       reiniciar,

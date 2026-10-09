@@ -1,3 +1,5 @@
+import { tokenSolicitudValido } from 'src/utils/token-solicitud.mjs';
+
 import { db, bucket } from 'src/server/firebase.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +19,7 @@ const rutaEnStorage = (tipo, numeroRegistro) =>
 
 export async function GET(_request, { params }) {
   const { token, tipo } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(token) || !['certificado', 'factura'].includes(tipo))
+  if (!tokenSolicitudValido(token) || !['certificado', 'factura'].includes(tipo))
     return Response.json({ error: 'Documento inválido.' }, { status: 400 });
   try {
     const snap = await db()

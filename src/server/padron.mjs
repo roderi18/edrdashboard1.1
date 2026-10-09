@@ -7,6 +7,10 @@ const API = process.env.API_NET_URL || 'https://systexploradores.somee.com/api';
 let cache = { at: 0, promise: null, value: null };
 
 const txt = (value) => String(value ?? '').trim();
+const jurisdiccionVisible = (value) => {
+  const nombre = txt(value);
+  return nombre.toLocaleLowerCase('es') === 'provisional' ? '' : nombre;
+};
 
 async function pedir(path, body) {
   const response = await fetch(`${API}/${path}`, {
@@ -21,9 +25,110 @@ async function pedir(path, body) {
   return json?.data ?? json;
 }
 
-// Nombres de los miembros (sin teléfonos, códigos ni fechas): se llenan al
-// leer el padrón completo de la API.
-let personas = null;
+// Índice de búsqueda separado del padrón público: usa una copia pequeña en
+// Firestore y no espera los estados ni cargos de destacamentos. Las consultas
+// simultáneas comparten carga; la copia se actualiza en segundo plano.
+let personas = { at: 0, load: null, refresh: null, value: null };
+
+function indicePersonas(miembros, destacamentos, iglesias, secciones, regiones) {
+  const destacamentoById = new Map(
+    destacamentos.map((x) => [String(x.idDestacamento), x])
+  );
+  const iglesiaById = new Map(iglesias.map((x) => [String(x.idIglesia), x]));
+  const seccionById = new Map(secciones.map((x) => [String(x.idSeccion), x]));
+  const regionById = new Map(regiones.map((x) => [String(x.idRegion), x]));
+  return miembros
+    .map((m) => {
+      const destacamento = destacamentoById.get(String(m.idDestacamento)) || {};
+      const iglesia = iglesiaById.get(String(destacamento.idIglesia)) || {};
+      const seccion = seccionById.get(String(iglesia.idSeccion)) || {};
+      const region = regionById.get(String(seccion.idRegion)) || {};
+      return {
+        id: String(m.idMiembros),
+        nombre: `${txt(m.nombres)} ${txt(m.apellidos)}`.trim(),
+        nombres: txt(m.nombres),
+        apellidos: txt(m.apellidos),
+        region: jurisdiccionVisible(region.nombre),
+        seccion: jurisdiccionVisible(seccion.nombre),
+      };
+    })
+    .filter((p) => p.nombre);
+}
+
+function refrescarPersonas() {
+  if (!personas.refresh) {
+    personas.refresh = pedirIndicePersonas()
+      .then((value) => {
+        personas.value = value;
+        personas.at = Date.now();
+        const json = JSON.stringify(value);
+        if (json.length < 900_000)
+          db()
+            .collection('landing_registro_copias')
+            .doc('personas')
+            .set({ json, actualizadoEn: new Date(personas.at).toISOString() })
+            .catch((error) => console.warn('[personas] No se guardó la copia:', error.message));
+        return value;
+      })
+      .finally(() => {
+        personas.refresh = null;
+      });
+  }
+  return personas.refresh;
+}
+
+async function cargarPersonas() {
+  if (personas.value) {
+    if (Date.now() - personas.at >= 5 * 60 * 1000)
+      refrescarPersonas().catch((error) =>
+        console.warn('[personas] Se conserva el índice anterior:', error.message)
+      );
+    return personas.value;
+  }
+  if (!personas.load) {
+    personas.load = (async () => {
+      const copia = await db()
+        .collection('landing_registro_copias')
+        .doc('personas')
+        .get()
+        .catch(() => null);
+      const datos = copia?.data();
+      if (datos?.json) {
+        try {
+          const value = JSON.parse(datos.json);
+          if (Array.isArray(value)) {
+            if (!personas.value) {
+              personas.value = value;
+              personas.at = Date.parse(datos.actualizadoEn) || 0;
+            }
+            if (Date.now() - personas.at >= 5 * 60 * 1000)
+              refrescarPersonas().catch((error) =>
+                console.warn('[personas] Se conserva la copia:', error.message)
+              );
+            return personas.value;
+          }
+        } catch (error) {
+          console.warn('[personas] Copia no válida:', error.message);
+        }
+      }
+      return refrescarPersonas();
+    })().finally(() => {
+      personas.load = null;
+    });
+  }
+  return personas.load;
+}
+
+async function pedirIndicePersonas() {
+  const [miembrosRespuesta, destacamentos, iglesias, secciones, regiones] = await Promise.all([
+    pedir('Miembros/GetAllMiembrosPagination', { page: 1, pageSize: 10000 }),
+    pedir('Destacamentos/GetAllDestacamentos'),
+    pedir('Iglesias/GetAllIglesias'),
+    pedir('Secciones/GetAllSecciones'),
+    pedir('Regiones/GetAllRegiones'),
+  ]);
+  return indicePersonas(miembrosRespuesta?.items || [], destacamentos, iglesias, secciones, regiones);
+}
 
 async function leerCompleto() {
   const [destacamentos, iglesias, secciones, regiones, miembrosRespuesta, estadosSnap, cargosSnap] =
@@ -44,13 +149,8 @@ async function leerCompleto() {
   const seccionById = new Map(secciones.map((x) => [String(x.idSeccion), x]));
   const regionById = new Map(regiones.map((x) => [String(x.idRegion), x]));
   const miembros = miembrosRespuesta?.items || [];
-  // Solo el nombre de cada persona, para "¿Quién hace la corrección?".
-  personas = miembros
-    .map((m) => ({
-      id: String(m.idMiembros),
-      nombre: `${txt(m.nombres)} ${txt(m.apellidos)}`.trim(),
-    }))
-    .filter((p) => p.nombre);
+  personas.value = indicePersonas(miembros, destacamentos, iglesias, secciones, regiones);
+  personas.at = Date.now();
   const miembroById = new Map(miembros.map((x) => [String(x.idMiembros), x]));
   const estados = new Map(estadosSnap.docs.map((x) => [x.id, x.data()?.estado || 'activo']));
   const coordinadorByDest = new Map();
@@ -169,20 +269,17 @@ const sinTildes = (t) =>
     .toLowerCase();
 
 // Busca personas por nombre: todas las palabras escritas deben aparecer.
-// Como mucho 10, y solo { id, nombre }.
+// Como mucho 10, con nombre, región y sección; sin datos de contacto.
 export async function buscarPersonas(texto) {
   const palabras = sinTildes(texto).split(/\s+/).filter(Boolean);
-  if (palabras.join('').length < 3) return [];
-  if (!personas) {
-    // El padrón pudo salir de la copia guardada: se espera la lectura completa.
-    await leerPadron();
-    if (!personas)
-      await (cache.promise ||
-        leerCompleto().then((value) => {
-          cache = { value, at: Date.now(), promise: null };
-        }));
+  // La petición vacía del formulario precarga el índice antes de escribir.
+  if (!palabras.length) {
+    await cargarPersonas();
+    return [];
   }
-  return (personas || [])
+  if (palabras.join('').length < 3) return [];
+  const indice = await cargarPersonas();
+  return indice
     .filter((p) => {
       const nombre = sinTildes(p.nombre);
       return palabras.every((palabra) => nombre.includes(palabra));

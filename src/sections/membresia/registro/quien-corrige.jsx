@@ -108,7 +108,6 @@ export function QuienCorrige({ abierto, inicial, onCancelar, onGuardar }) {
                 {...params}
                 autoFocus
                 label="Tu nombre y apellido *"
-                helperText={elegida ? 'Encontrado entre los miembros' : ' '}
               />
             )}
           />

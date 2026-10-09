@@ -141,7 +141,8 @@ function Fila({ titulo, valor, fuerte, editar }) {
 }
 
 function ResumenPedido({ actual }) {
-  const { elegibilidad, plan, configuracion, solicitud, correcciones } = useRegistro();
+  const { elegibilidad, plan, configuracion, solicitud, correcciones, registradoPor } =
+    useRegistro();
 
   // En "Resultado" manda lo que se envió; antes, lo que se va eligiendo.
   const enviado = actual === 3 && solicitud;
@@ -168,6 +169,9 @@ function ResumenPedido({ actual }) {
           valor={destacamento ? nombreDeDestacamento(destacamento) : '—'}
           editar={editable && actual > 0 && destacamento ? '/registro/destacamento/' : null}
         />
+        {!enviado && registradoPor?.nombre?.trim() && (
+          <Fila titulo="Registrado por" valor={registradoPor.nombre.trim()} />
+        )}
         <Fila
           titulo="Plan"
           valor={p?.nombre || 'Se define en el paso 2'}

@@ -3,26 +3,29 @@ import { randomUUID } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { vigenciaDesdeHoy } from 'src/utils/solicitud.mjs';
+import { crearTokenSolicitud } from 'src/utils/token-solicitud.mjs';
 
 import { db } from 'src/server/firebase.mjs';
 import { paypalRequest } from 'src/server/paypal.mjs';
 import { leerElegibilidad } from 'src/server/elegibilidad.mjs';
 import {
-  hayCorrecciones,
-  sanearCorrecciones,
-  sanearCorregidoPor,
-} from 'src/server/correcciones.mjs';
-import {
   paypalConfig,
   leerConfiguracion,
   lanzamientoHabilitado,
 } from 'src/server/configuracion.mjs';
+import {
+  hayCorrecciones,
+  sanearCorrecciones,
+  sanearCorregidoPor,
+  sanearRegistradoPor,
+} from 'src/server/correcciones.mjs';
 
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({
   correcciones: z.record(z.string(), z.string()).optional(),
   corregidoPor: z.any().optional(),
+  registradoPor: z.any().optional(),
 
   destacamentoId: z.string().regex(/^\d{1,12}$/),
   planId: z.string().trim(),
@@ -57,9 +60,13 @@ export async function POST(request) {
         { error: 'El plan no corresponde a este destacamento.' },
         { status: 409 }
       );
+    const registradoPor = sanearRegistradoPor(input.data.registradoPor);
+    if (!registradoPor) {
+      return Response.json({ error: 'Indica quién registra el destacamento.' }, { status: 400 });
+    }
     const correcciones = sanearCorrecciones(input.data.correcciones, eligibility.destacamento);
     const reference = randomUUID();
-    const token = randomUUID();
+    const token = crearTokenSolicitud();
     const usd = config.usd(plan.precio);
     const order = await paypalRequest(
       config,
@@ -107,6 +114,7 @@ export async function POST(request) {
         contacto: { email: input.data.email, telefono: input.data.phone },
         correoAvisos: lectura.config.correoAvisos,
         correcciones,
+        registradoPor,
         requiereRevision: hayCorrecciones(correcciones),
         corregidoPor: hayCorrecciones(correcciones)
           ? sanearCorregidoPor(input.data.corregidoPor)

@@ -75,3 +75,30 @@ export function sanearCorregidoPor(entrada) {
   const idMiembro = /^\d{1,12}$/.test(String(datos.idMiembro || '')) ? String(datos.idMiembro) : '';
   return nombre.length >= 3 ? { nombre, telefono, idMiembro } : null;
 }
+
+// QUIÉN REGISTRA EL DESTACAMENTO ("Registrado por"): se busca entre las
+// personas del app o se escribe a mano. Es la persona que sale en el reporte
+// de registro anual y en la tabla de pagos del dashboard.
+export function sanearRegistradoPor(entrada) {
+  let datos = entrada;
+  if (typeof datos === 'string') {
+    try {
+      datos = JSON.parse(datos || 'null');
+    } catch {
+      datos = null;
+    }
+  }
+  if (!datos || typeof datos !== 'object') return null;
+  const nombre = limpiar(datos.nombre).slice(0, 120);
+  const idMiembro = /^\d{1,12}$/.test(String(datos.idMiembro || '')) ? String(datos.idMiembro) : '';
+  return nombre.length >= 3
+    ? {
+        nombre,
+        idMiembro,
+        // Solo con la persona elegida de la lista: así el primer nombre y el
+        // primer apellido salen exactos.
+        nombres: idMiembro ? limpiar(datos.nombres).slice(0, 80) : '',
+        apellidos: idMiembro ? limpiar(datos.apellidos).slice(0, 80) : '',
+      }
+    : null;
+}

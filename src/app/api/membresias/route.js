@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { vigenciaDesdeHoy } from 'src/utils/solicitud.mjs';
+import { crearTokenSolicitud } from 'src/utils/token-solicitud.mjs';
 import { hoyEnSantoDomingo } from 'src/utils/configuracion-membresia.mjs';
 
 import { db, bucket } from 'src/server/firebase.mjs';
@@ -14,6 +15,7 @@ import {
   hayCorrecciones,
   sanearCorrecciones,
   sanearCorregidoPor,
+  sanearRegistradoPor,
 } from 'src/server/correcciones.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -81,9 +83,13 @@ export async function POST(request) {
         { status: 409 }
       );
     const id = parsed.data.destacamentoId;
+    const registradoPor = sanearRegistradoPor(form.get('registradoPor'));
+    if (!registradoPor) {
+      return Response.json({ error: 'Indica quién registra el destacamento.' }, { status: 400 });
+    }
     const correcciones = sanearCorrecciones(form.get('correcciones'), eligibility.destacamento);
     const reference = randomUUID();
-    const token = randomUUID();
+    const token = crearTokenSolicitud();
     const storagePath = `membresias-onerrd/2027/${id}/${reference}.${format.ext}`;
     const file = bucket().file(storagePath);
     await file.save(bytes, {
@@ -109,6 +115,7 @@ export async function POST(request) {
           contacto: { email: parsed.data.email, telefono: parsed.data.phone },
           correoAvisos: config.correoAvisos,
           // Datos corregidos por quien paga: la Oficina Nacional los revisa.
+          registradoPor,
           correcciones,
           requiereRevision: hayCorrecciones(correcciones),
           corregidoPor: hayCorrecciones(correcciones)

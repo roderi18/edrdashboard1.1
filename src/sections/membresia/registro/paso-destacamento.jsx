@@ -22,6 +22,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { QuienCorrige } from './quien-corrige';
 import { CabeceraPaso } from './marco-registro';
+import { BuscadorPersona } from './buscador-persona';
 import { BotonAvisarOficina } from './avisar-oficina';
 import { PASOS, useRegistro, nombreDeDestacamento } from './contexto-registro';
 
@@ -37,7 +38,7 @@ import { PASOS, useRegistro, nombreDeDestacamento } from './contexto-registro';
 // con su motivo: sus dos marcas no decían nada.
 // [clave, texto si la cumple (verde), texto si no (rojo)]. El estatus va
 // aparte: un destacamento inactivo también paga.
-const VALIDACIONES = [['sinMembresia', 'Sin membresía 2027 previa', 'Ya tiene membresía 2027']];
+const VALIDACIONES = [['sinMembresia', 'Sin membresía 2027 previa']];
 
 // Busca por número exacto o por cualquier parte del nombre, sin tildes.
 const normalizar = (texto) =>
@@ -142,6 +143,8 @@ export function PasoDestacamento() {
     descartarCorrecciones,
     corregidoPor,
     setCorregidoPor,
+    registradoPor,
+    setRegistradoPor,
   } = useRegistro();
   const [editando, setEditando] = useState(false);
   // Regiones y secciones de la API, para sus desplegables (al empezar a corregir).
@@ -178,7 +181,7 @@ export function PasoDestacamento() {
     <Card sx={{ p: { xs: 2.5, md: 4 } }}>
       <CabeceraPaso
         indice={0}
-        titulo="Selecciona tu destacamento"
+        titulo="Selecciona tu nombre y Destacamento"
         texto="Búscalo por número oficial o por nombre."
       />
 
@@ -187,6 +190,18 @@ export function PasoDestacamento() {
           {errorCatalogo}
         </Alert>
       )}
+
+      {/* Quién registra: sale en el reporte de registro anual de destacamentos. */}
+      <Box sx={{ mb: 2.5 }}>
+        <BuscadorPersona
+          label="¿Cuál es tu nombre? *"
+          value={registradoPor}
+          onChange={setRegistradoPor}
+          helperText={
+            registradoPor?.idMiembro ? undefined : 'Busca tu nombre; si no apareces, escríbelo completo.'
+          }
+        />
+      </Box>
 
       <Autocomplete
         options={opciones}
@@ -328,20 +343,17 @@ export function PasoDestacamento() {
                   >
                     {elegibilidad.activo ? 'Estatus activo' : 'Estatus inactivo'}
                   </Label>
-                  {VALIDACIONES.map(([clave, textoSi, textoNo]) => {
+                  {VALIDACIONES.map(([clave, textoSi]) => {
                     const ok = elegibilidad.validaciones?.[clave];
+                    if (!ok) return null;
                     return (
                       <Label
                         key={clave}
-                        color={ok ? 'success' : 'error'}
-                        startIcon={
-                          <Iconify
-                            icon={ok ? 'solar:check-circle-bold' : 'solar:close-circle-bold'}
-                          />
-                        }
+                        color="success"
+                        startIcon={<Iconify icon="solar:check-circle-bold" />}
                         sx={{ height: 32, px: 1.5 }}
                       >
-                        {ok ? textoSi : textoNo}
+                        {textoSi}
                       </Label>
                     );
                   })}
@@ -396,7 +408,11 @@ export function PasoDestacamento() {
         <Button
           size="large"
           variant="contained"
-          disabled={!elegibilidad?.disponible || cargandoElegibilidad}
+          disabled={
+            !elegibilidad?.disponible ||
+            cargandoElegibilidad ||
+            (registradoPor?.nombre || '').trim().length < 3
+          }
           endIcon={<Iconify icon="eva:arrow-forward-fill" />}
           onClick={() => {
             // Con cambios y sin decir quién los hizo, primero eso.

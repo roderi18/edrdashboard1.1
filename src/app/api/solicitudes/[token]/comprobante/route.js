@@ -1,6 +1,9 @@
+import path from 'node:path';
 import { jsPDF } from 'jspdf';
+import { readFile } from 'node:fs/promises';
 
 import { codigoDeSolicitud } from 'src/utils/solicitud.mjs';
+import { tokenSolicitudValido } from 'src/utils/token-solicitud.mjs';
 
 import { db } from 'src/server/firebase.mjs';
 
@@ -25,7 +28,7 @@ const rd = (n) => `RD$ ${Number(n || 0).toLocaleString('en-US', { minimumFractio
 
 export async function GET(_request, { params }) {
   const { token } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(token)) {
+  if (!tokenSolicitudValido(token)) {
     return Response.json({ error: 'Referencia inválida.' }, { status: 400 });
   }
   const snap = await db()
@@ -39,15 +42,26 @@ export async function GET(_request, { params }) {
   const fecha = d.creadoEn?.toDate?.();
 
   const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+  const emblema = (await readFile(path.join(process.cwd(), 'public/marca/watermark.png'))).toString(
+    'base64'
+  );
+
+  // El mismo emblema de la factura oficial, atenuado detrás del contenido.
+  doc.saveGraphicsState();
+  doc.setGState(new doc.GState({ opacity: 0.08 }));
+  doc.addImage(emblema, 'PNG', 59, 83, 98, 98);
+  doc.restoreGraphicsState();
+
   doc.setFillColor(18, 42, 79);
   doc.rect(0, 0, 216, 34, 'F');
+  doc.addImage(emblema, 'PNG', 15, 6, 22, 22);
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('OFICINA NACIONAL · EXPLORADORES DEL REY', 15, 15);
+  doc.setFontSize(13);
+  doc.text('OFICINA NACIONAL · EXPLORADORES DEL REY', 43, 15);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text('Comprobante de solicitud · Membresía ONERRD 2027', 15, 24);
+  doc.text('Comprobante de solicitud · Membresía ONERRD 2027', 43, 24);
 
   doc.setTextColor(28, 37, 46);
   doc.setFont('helvetica', 'bold');
@@ -58,6 +72,7 @@ export async function GET(_request, { params }) {
 
   const filas = [
     ['Destacamento', `#${d.destacamento?.numero ?? ''} ${d.destacamento?.nombre ?? ''}`.trim()],
+    ['Registrado por', d.registradoPor?.nombre],
     ['Plan', d.plan?.nombre],
     ['Monto', rd(d.montoRd)],
     ['Medio de pago', d.tipoPago === 'paypal' ? 'PayPal' : 'Transferencia bancaria'],
@@ -67,7 +82,7 @@ export async function GET(_request, { params }) {
       'Fecha de la solicitud',
       fecha ? fecha.toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '',
     ],
-    ['Referencia completa', d.referencia],
+    ['Referencia para consultas', codigo],
   ].filter(([, v]) => v);
   let y = 78;
   filas.forEach(([titulo, valor]) => {

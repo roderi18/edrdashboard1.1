@@ -8,6 +8,20 @@ const escapeHtml = (value) =>
     (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]
   );
 
+const enlaceSolicitud = (member) => {
+  const sitio = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
+  return sitio && member.token
+    ? `${sitio}/registro/resultado/?solicitud=${encodeURIComponent(member.token)}`
+    : '';
+};
+
+const parrafoSolicitud = (member) => {
+  const enlace = enlaceSolicitud(member);
+  return enlace
+    ? `<p>Consulta tu solicitud y descarga tus documentos en <a href="${escapeHtml(enlace)}">${escapeHtml(enlace)}</a>.</p>`
+    : '';
+};
+
 // Desde dónde salen: el remitente de la configuración del dashboard (pestaña
 // ONERRD → "Membresía 2027 · landing") o, si no hay, el del entorno.
 async function remitente() {
@@ -45,7 +59,7 @@ async function enviar({ to, subject, html, attachments = [], key, bcc }) {
         'Idempotency-Key': key,
       },
       body: JSON.stringify({
-        from: desde,
+        from: `Oficina Nacional <${desde}>`,
         to: [to],
         ...(bcc ? { bcc: [bcc] } : {}),
         subject,
@@ -78,8 +92,7 @@ export async function registrarCorreo(idMembresia, tipo, registro) {
 }
 
 export async function avisarConfirmacion(member) {
-  const url = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
-  if (!url)
+  if (!enlaceSolicitud(member))
     return {
       estado: 'sin_configurar',
       error: 'Falta NEXT_PUBLIC_SITE_URL.',
@@ -93,7 +106,7 @@ export async function avisarConfirmacion(member) {
     bcc: member.correoAvisos || process.env.CORREO_AVISOS,
     key: `membresia-${member.codigo}-confirmada`,
     subject: `Membresía ONERRD 2027 confirmada · ${member.codigo}`,
-    html: `<p>La membresía del destacamento #${escapeHtml(member.destacamento.numero)} está confirmada.</p><p>Código: <strong>${escapeHtml(member.codigo)}</strong></p><p>La Oficina Nacional le enviará el certificado y la factura por correo. También podrá descargarlos desde <a href="${url}/registro/resultado/?solicitud=${encodeURIComponent(member.token)}">su solicitud</a>.</p>`,
+    html: `<p>La membresía del destacamento #${escapeHtml(member.destacamento.numero)} está confirmada.</p><p>Código: <strong>${escapeHtml(member.codigo)}</strong></p><p>La Oficina Nacional le enviará el certificado y la factura por correo.</p>${parrafoSolicitud(member)}`,
   });
 }
 
@@ -103,7 +116,7 @@ export async function avisarRechazo(member, motivo) {
     bcc: member.correoAvisos || process.env.CORREO_AVISOS,
     key: `membresia-${member.referencia}-rechazada`,
     subject: `Depósito ONERRD 2027 rechazado · Destacamento #${member.destacamento.numero}`,
-    html: `<p>La Oficina Nacional rechazó el comprobante de la solicitud ${escapeHtml(member.referencia)}.</p><p>Motivo: <strong>${escapeHtml(motivo)}</strong></p><p>Contacte a la Oficina Nacional para subsanar el depósito.</p>`,
+    html: `<p>La Oficina Nacional rechazó el comprobante de la solicitud ${escapeHtml(member.referencia)}.</p><p>Motivo: <strong>${escapeHtml(motivo)}</strong></p><p>Contacte a la Oficina Nacional para subsanar el depósito.</p>${parrafoSolicitud(member)}`,
   });
 }
 
@@ -126,7 +139,6 @@ ${aviso.comentario ? `<p>Comentario: ${escapeHtml(aviso.comentario)}</p>` : ''}
 // Pago recibido con datos del destacamento corregidos: queda en revisión hasta
 // que la Oficina Nacional confirme los cambios. Se le explica a quien pagó.
 export async function avisarRevision(member) {
-  const url = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || '';
   const d = member.destacamento || {};
   return enviar({
     to: member.contacto.email,
@@ -136,6 +148,6 @@ export async function avisarRevision(member) {
     html: `<p>Recibimos la solicitud de membresía 2027 del destacamento <strong>#${escapeHtml(d.numero)} ${escapeHtml(d.nombre)}</strong>.</p>
 <p>Como corregiste datos del destacamento, el pago queda <strong>en revisión</strong> hasta que la Oficina Nacional confirme los cambios. Después recibirás el certificado y la factura.</p>
 <p>Cambios indicados: ${escapeHtml(describirCorrecciones(member.correcciones))}</p>
-${url ? `<p>Puedes ver el estado en <a href="${url}/registro/resultado/?solicitud=${encodeURIComponent(member.token)}">tu solicitud</a>.</p>` : ''}`,
+${parrafoSolicitud(member)}`,
   });
 }

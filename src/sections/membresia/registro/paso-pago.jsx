@@ -216,8 +216,16 @@ export function PasoPago() {
   const router = useRouter();
   const cancelado = useSearchParams().get('paypal') === 'cancelado';
   const listo = useExigirDestacamento();
-  const { plan, destacamentoId, configuracion, contacto, setContacto, correcciones, corregidoPor } =
-    useRegistro();
+  const {
+    plan,
+    destacamentoId,
+    configuracion,
+    contacto,
+    setContacto,
+    correcciones,
+    corregidoPor,
+    registradoPor,
+  } = useRegistro();
   const hayCorrecciones = Object.keys(correcciones).length > 0;
   // La pestaña elegida (transferencia o PayPal) sobrevive a recargar.
   const [metodo, setMetodoEnPantalla] = useState(() => {
@@ -291,6 +299,7 @@ export function PasoPago() {
           phone: telefono,
           correcciones,
           corregidoPor,
+          registradoPor,
         }),
       });
       const datos = await r.json().catch(() => ({}));
@@ -322,6 +331,7 @@ export function PasoPago() {
       datos.set('proof', valores.comprobante);
       datos.set('correcciones', JSON.stringify(correcciones));
       if (corregidoPor) datos.set('corregidoPor', JSON.stringify(corregidoPor));
+      datos.set('registradoPor', JSON.stringify(registradoPor));
       const r = await fetch('/api/membresias/', {
         method: 'POST',
         body: datos,

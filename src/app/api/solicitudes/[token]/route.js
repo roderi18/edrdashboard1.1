@@ -1,4 +1,5 @@
 import { codigoDeSolicitud } from 'src/utils/solicitud.mjs';
+import { tokenSolicitudValido } from 'src/utils/token-solicitud.mjs';
 
 import { db } from 'src/server/firebase.mjs';
 
@@ -6,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(_request, { params }) {
   const { token } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(token))
+  if (!tokenSolicitudValido(token))
     return Response.json({ error: 'Referencia inválida.' }, { status: 400 });
   const snap = await db()
     .collection('membresiasOnerrd2027')

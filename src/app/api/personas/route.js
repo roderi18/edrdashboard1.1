@@ -3,7 +3,7 @@ import { buscarPersonas } from 'src/server/padron.mjs';
 export const dynamic = 'force-dynamic';
 
 // "¿Quién hace la corrección?": busca miembros por nombre. Mínimo 3 letras y
-// como mucho 10 resultados, solo id y nombre (nunca teléfono ni código).
+// como mucho 10 resultados, con nombre, región y sección (sin datos de contacto).
 export async function GET(request) {
   try {
     const q = (new URL(request.url).searchParams.get('q') || '').slice(0, 60);
