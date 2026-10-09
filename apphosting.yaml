@@ -24,7 +24,7 @@ env:
   # La dirección pública de la landing (enlaces de los correos y retorno de
   # PayPal). Se cambia por la definitiva cuando exista el backend.
   - variable: NEXT_PUBLIC_SITE_URL
-    value: https://membresia--systexploradores.us-central1.hosted.app
+    value: https://membresia-onerrd--systexploradores.us-central1.hosted.app
 
   # El mismo secreto que usa el dashboard en este proyecto (cuenta de servicio).
   - variable: FIREBASE_SERVICE_ACCOUNT
