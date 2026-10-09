@@ -1,16 +1,22 @@
 'use client';
 
 import Link from 'next/link';
+import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import MuiLink from '@mui/material/Link';
+import Tooltip from '@mui/material/Tooltip';
 import Container from '@mui/material/Container';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import { useColorScheme } from '@mui/material/styles';
 
 import logoOficina from 'src/assets/marca/logo-oficina-nacional.webp';
 
 import { Iconify } from 'src/components/iconify';
+
+import { BotonExplorarDeNoche } from './explorar-de-noche';
 
 // ----------------------------------------------------------------------
 // La marca de la Oficina Nacional, la cabecera y el pie: los mismos en la
@@ -99,10 +105,64 @@ export function Encabezado({ conBoton = true }) {
                 </MuiLink>
               ))}
             </Stack>
+            <BotonExplorarDeNoche />
+            <BotonModo />
           </Stack>
         </Stack>
       </Container>
     </Box>
+  );
+}
+
+// CLARO U OSCURO, a la derecha de los enlaces. De entrada sigue al del sistema;
+// pulsarlo lo fija (se guarda en el navegador) hasta volver al del sistema.
+function BotonModo() {
+  const { colorScheme, systemMode, setMode } = useColorScheme();
+  const oscuro = colorScheme === 'dark';
+  const texto = oscuro ? 'Modo claro' : 'Modo oscuro';
+  return (
+    <Tooltip title={texto}>
+      <IconButton
+        aria-label={texto}
+        onClick={() => {
+          // Si lo elegido coincide con el del sistema, vuelve a seguir al
+          // sistema (cambia solo cuando cambie el del teléfono o la PC).
+          const elegido = oscuro ? 'light' : 'dark';
+          setMode(elegido === systemMode ? 'system' : elegido);
+        }}
+        sx={(t) => ({
+          color: 'common.white',
+          border: `1px solid ${varAlpha(t.vars.palette.common.whiteChannel, 0.3)}`,
+          '&:hover': { bgcolor: varAlpha(t.vars.palette.common.whiteChannel, 0.12) },
+        })}
+      >
+        <Box component="svg" viewBox="0 0 24 24" aria-hidden sx={{ width: 20, height: 20 }}>
+          {oscuro ? (
+            // Sol: para volver a claro.
+            <g fill="currentColor">
+              <circle cx={12} cy={12} r={4.5} />
+              {[0, 45, 90, 135, 180, 225, 270, 315].map((g) => (
+                <rect
+                  key={g}
+                  x={11}
+                  y={1.5}
+                  width={2}
+                  height={3.5}
+                  rx={1}
+                  transform={`rotate(${g} 12 12)`}
+                />
+              ))}
+            </g>
+          ) : (
+            // Luna: para pasar a oscuro.
+            <path
+              fill="currentColor"
+              d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1Z"
+            />
+          )}
+        </Box>
+      </IconButton>
+    </Tooltip>
   );
 }
 

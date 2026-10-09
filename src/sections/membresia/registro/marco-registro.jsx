@@ -19,7 +19,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { Pie, Encabezado } from '../marca';
 import { planConTextoClaro } from '../tarjeta-plan';
-import { Banderita, PaisajeFondo } from '../ilustraciones-campamento';
+import { Banderita, PaisajeFondo, CieloNocturno } from '../ilustraciones-campamento';
 import { PASOS, useRegistro, ProveedorRegistro, nombreDeDestacamento } from './contexto-registro';
 
 // ----------------------------------------------------------------------
@@ -366,12 +366,19 @@ function Marco({ children }) {
         flexDirection: 'column',
         // Cielo claro arriba que baja a verde de pradera.
         backgroundImage: `linear-gradient(180deg, ${varAlpha(t.vars.palette.primary.lighterChannel, 0.7)} 0%, ${varAlpha(t.vars.palette.success.lighterChannel, 0.55)} 100%)`,
+        ...t.applyStyles('dark', {
+          bgcolor: 'background.default',
+          backgroundImage: `linear-gradient(180deg, ${varAlpha(t.vars.palette.primary.mainChannel, 0.16)} 0%, ${varAlpha(t.vars.palette.success.mainChannel, 0.08)} 100%)`,
+        }),
       })}
     >
       <Encabezado conBoton={false} />
       {/* El contenido crece y, detrás, al fondo de esa zona (justo encima del pie),
           montañas, colinas y pinos. */}
       <Box sx={{ flexGrow: 1, position: 'relative' }}>
+        <Box aria-hidden sx={{ inset: 0, zIndex: 0, position: 'absolute', pointerEvents: 'none' }}>
+          <CieloNocturno />
+        </Box>
         <Box
           aria-hidden
           sx={{
@@ -379,7 +386,8 @@ function Marco({ children }) {
             right: 0,
             bottom: 0,
             zIndex: 0,
-            height: { xs: 150, md: 260 },
+            aspectRatio: '1600 / 370',
+            minHeight: 140,
             position: 'absolute',
             pointerEvents: 'none',
           }}

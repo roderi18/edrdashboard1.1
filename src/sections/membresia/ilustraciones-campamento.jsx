@@ -681,7 +681,8 @@ export function CertificadoIlustrado({ tamano = 320, sx }) {
 
 // ----------------------------------------------------------------------
 // EL PAISAJE DE FONDO DE LOS PASOS DEL REGISTRO: montañas con nieve, colinas y
-// pinos que suben desde el pie de página. En tonos muy suaves para no competir
+// pinos que suben desde el pie de página. Con cielo libre encima de las cumbres
+// (viewBox desde -70): pegadas al borde se veían como cortadas. En tonos muy suaves para no competir
 // con el formulario; se estira a lo ancho y se recorta por arriba.
 // ----------------------------------------------------------------------
 
@@ -692,15 +693,31 @@ export function PaisajeFondo({ sx }) {
   return (
     <Box
       component="svg"
-      viewBox="0 0 1600 300"
+      viewBox="0 -70 1600 370"
       preserveAspectRatio="xMidYMax slice"
       aria-hidden
-      sx={{ width: 1, height: 1, display: 'block', ...animacionTienda, ...sx }}
+      sx={(t) => ({
+        width: 1,
+        height: 1,
+        display: 'block',
+        ...animacionTienda,
+        ...animacionFogata,
+        // Las fogatas del pasto solo se encienden de noche.
+        '& .fogata-noche': { display: 'none' },
+        // De noche (modo oscuro) las montañas son siluetas azul marino.
+        ...t.applyStyles('dark', {
+          '& .fogata-noche': { display: 'inline' },
+          '& .montana': { fill: t.vars.palette.brand.navyLight, opacity: 1 },
+          '& .colina': { opacity: 0.35 },
+        }),
+        ...sx,
+      })}
     >
       <defs>
         <DefsComunes c={c} ids={ids} />
       </defs>
       <polygon
+        className="montana"
         points="0,140 160,40 280,120 440,0 600,130 760,30 920,120 1080,10 1240,120 1400,40 1600,130 1600,300 0,300"
         fill={c.azulMas}
         opacity={0.75}
@@ -712,6 +729,7 @@ export function PaisajeFondo({ sx }) {
         opacity={0.9}
       />
       <polygon
+        className="colina"
         points="0,200 200,130 360,190 560,120 760,200 980,130 1180,200 1380,140 1600,200 1600,300 0,300"
         fill={c.verdeClaro}
         opacity={0.16}
@@ -729,6 +747,12 @@ export function PaisajeFondo({ sx }) {
         fill={c.verdeClaro}
         opacity={0.22}
       />
+      {/* Fogatas encendidas en el pasto (solo de noche), con su resplandor. */}
+      <g className="fogata-noche">
+        <FogataSvg cx={330} cy={282} escala={0.3} c={c} ids={ids} />
+        <FogataSvg cx={980} cy={278} escala={0.36} c={c} ids={ids} />
+        <FogataSvg cx={1330} cy={286} escala={0.26} c={c} ids={ids} />
+      </g>
       <Pino x={30} y={288} c={c} ids={ids} />
       <Pino x={1520} y={282} c={c} ids={ids} retraso={-0.8} />
       <Pino x={1566} y={292} escala={0.8} c={c} ids={ids} retraso={-1.6} />
@@ -802,6 +826,134 @@ export function Banderita({ tamano = 22, color, sx }) {
         strokeLinecap="round"
       />
       <path d="M8 3.5 L19 7 L8 11 Z" fill={color || c.llamaRoja} />
+    </Box>
+  );
+}
+
+// Un código QR (el paquete de iconos no trae uno): tres esquinas de lectura y
+// unos módulos sueltos, en el color del texto.
+export function IconoQr({ tamano = 24, sx }) {
+  const modulos = [
+    [10, 3],
+    [13, 5],
+    [10, 8],
+    [3, 10],
+    [6, 12],
+    [10, 11],
+    [12, 13],
+    [15, 10],
+    [18, 12],
+    [10, 15],
+    [13, 17],
+    [16, 15],
+    [19, 17],
+    [15, 19],
+    [18, 20],
+  ];
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 24 24"
+      aria-hidden
+      sx={{ width: tamano, height: tamano, ...sx }}
+    >
+      {[
+        [2, 2],
+        [15, 2],
+        [2, 15],
+      ].map(([x, y]) => (
+        <g key={`${x}${y}`}>
+          <rect
+            x={x}
+            y={y}
+            width={7}
+            height={7}
+            rx={1.5}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+          />
+          <rect x={x + 2.4} y={y + 2.4} width={2.2} height={2.2} rx={0.4} fill="currentColor" />
+        </g>
+      ))}
+      {modulos.map(([x, y]) => (
+        <rect key={`${x}-${y}`} x={x} y={y} width={2} height={2} rx={0.4} fill="currentColor" />
+      ))}
+    </Box>
+  );
+}
+
+// ----------------------------------------------------------------------
+// EL CIELO DE NOCHE: luna creciente y estrellas que titilan. Solo se ve en el
+// modo oscuro (de día no hay nada que pintar); va detrás del contenido.
+// ----------------------------------------------------------------------
+
+const ESTRELLAS = [
+  [4, 12, 1.4],
+  [11, 30, 1],
+  [18, 8, 1.8],
+  [26, 22, 1.1],
+  [33, 40, 1.3],
+  [41, 14, 1],
+  [49, 34, 1.6],
+  [57, 9, 1.1],
+  [63, 26, 1.4],
+  [70, 44, 1],
+  [77, 16, 1.7],
+  [84, 32, 1.1],
+  [91, 10, 1.3],
+  [96, 38, 1],
+  [8, 52, 1.1],
+  [22, 60, 1.4],
+  [38, 56, 1],
+  [54, 62, 1.2],
+  [68, 58, 1.5],
+  [86, 56, 1],
+];
+
+export function CieloNocturno({ sx }) {
+  const c = useColores();
+  return (
+    <Box
+      aria-hidden
+      sx={(t) => ({
+        width: 1,
+        height: 1,
+        display: 'none',
+        position: 'relative',
+        ...t.applyStyles('dark', { display: 'block' }),
+        '@keyframes estrellaTitila': {
+          '0%, 100%': { opacity: 0.25 },
+          '50%': { opacity: 1 },
+        },
+        '& .estrella': {
+          position: 'absolute',
+          borderRadius: '50%',
+          bgcolor: 'common.white',
+          animation: 'estrellaTitila 3s ease-in-out infinite',
+        },
+        '@media (prefers-reduced-motion: reduce)': { '& .estrella': { animation: 'none' } },
+        ...sx,
+      })}
+    >
+      {/* Estrellas de tamaño fijo en píxeles: repartidas por el ancho, nunca
+          se agrandan aunque la zona sea alta. */}
+      {ESTRELLAS.map(([x, y, r], i) => (
+        <Box
+          key={`${x}-${y}`}
+          className="estrella"
+          sx={{ left: `${x}%`, top: `${y * 0.6}%`, width: r * 2, height: r * 2 }}
+          style={{ animationDelay: `${-(i % 7) * 0.45}s` }}
+        />
+      ))}
+      {/* Una luna creciente sencilla, pequeña y fija arriba a la derecha. */}
+      <Box
+        component="svg"
+        viewBox="0 0 24 24"
+        sx={{ top: 24, right: '6%', width: 40, height: 40, position: 'absolute' }}
+      >
+        <path d="M15 3a9 9 0 1 0 6.5 15.2A7.5 7.5 0 0 1 15 3Z" fill={c.oroMas} />
+      </Box>
     </Box>
   );
 }

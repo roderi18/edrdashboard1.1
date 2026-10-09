@@ -35,13 +35,13 @@ export default function RootLayout({ children }) {
         <InitColorSchemeScript
           modeStorageKey={themeConfig.modeStorageKey}
           attribute={themeConfig.cssVariables.colorSchemeSelector}
-          defaultMode="light"
+          defaultMode="system"
         />
         <I18nProvider lang={fallbackLng}>
-          <SettingsProvider defaultSettings={{ ...defaultSettings, mode: 'light' }}>
+          <SettingsProvider defaultSettings={{ ...defaultSettings, mode: 'system' }}>
             <LocalizationProvider>
               <AppRouterCacheProvider options={{ key: 'css' }}>
-                <ThemeProvider modeStorageKey={themeConfig.modeStorageKey} defaultMode="light">
+                <ThemeProvider modeStorageKey={themeConfig.modeStorageKey} defaultMode="system">
                   <Snackbar />
                   {children}
                 </ThemeProvider>

@@ -22,7 +22,7 @@ import { TarjetaPlan } from './tarjeta-plan';
 import { AvanceNacional } from './avance-nacional';
 import { useConfiguracion } from './use-configuracion';
 import { Pie, Encabezado, RUTA_REGISTRO } from './marca';
-import { Tienda, Fogata, CertificadoIlustrado } from './ilustraciones-campamento';
+import { Tienda, Fogata, IconoQr, CertificadoIlustrado } from './ilustraciones-campamento';
 
 // ----------------------------------------------------------------------
 // LA PORTADA: qué es, cómo funciona, cuánto cuesta, qué se recibe y cómo va el
@@ -49,7 +49,8 @@ const PASOS = [
     texto: 'Con PayPal al instante, o subiendo el comprobante de tu depósito.',
   },
   {
-    icono: 'solar:medal-ribbon-star-bold',
+    // El certificado se verifica con su QR: ese es su icono.
+    icono: 'qr',
     titulo: 'Recibe tu certificado',
     texto: 'Certificado y factura oficiales, con QR verificable y por correo.',
   },
@@ -79,11 +80,13 @@ const GARANTIAS = [
   { icono: 'solar:letter-bold', texto: 'Envío por correo' },
 ];
 
-// El fondo suave de cada franja: el tono más claro de su familia, rebajado.
-const fondoSuave =
-  (color, opacidad = 0.5) =>
-  (t) =>
-    varAlpha(t.vars.palette[color].lighterChannel, opacidad);
+// El fondo suave de cada franja: el tono más claro de su familia, rebajado. En
+// oscuro, un velo del tono principal: el claro lavaba la franja y el texto
+// (claro) dejaba de leerse.
+const fondoSuave = (color) => (t) => ({
+  bgcolor: varAlpha(t.vars.palette[color].lighterChannel, 0.5),
+  ...t.applyStyles('dark', { bgcolor: varAlpha(t.vars.palette[color].mainChannel, 0.1) }),
+});
 
 function Seccion({ id, color, etiqueta, titulo, texto, children }) {
   return (
@@ -93,7 +96,8 @@ function Seccion({ id, color, etiqueta, titulo, texto, children }) {
       sx={(t) => ({
         py: { xs: 7, md: 10 },
         scrollMarginTop: 16,
-        bgcolor: color ? fondoSuave(color)(t) : 'background.default',
+        bgcolor: 'background.default',
+        ...(color && fondoSuave(color)(t)),
       })}
     >
       <Container maxWidth="lg">
@@ -109,6 +113,7 @@ function Seccion({ id, color, etiqueta, titulo, texto, children }) {
               typography: 'overline',
               color: `${color || 'primary'}.dark`,
               bgcolor: varAlpha(t.vars.palette[color || 'primary'].mainChannel, 0.12),
+              ...t.applyStyles('dark', { color: `${color || 'primary'}.light` }),
             })}
           >
             {etiqueta}
@@ -137,9 +142,12 @@ function Hero({ vigencia }) {
         pt: { xs: 5, md: 8 },
         pb: { xs: 7, md: 10 },
         backgroundImage: `linear-gradient(180deg, ${varAlpha(t.vars.palette.primary.lighterChannel, 0.9)} 0%, ${t.vars.palette.background.default} 100%)`,
+        ...t.applyStyles('dark', {
+          backgroundImage: `linear-gradient(180deg, ${varAlpha(t.vars.palette.primary.mainChannel, 0.22)} 0%, ${t.vars.palette.background.default} 100%)`,
+        }),
       })}
     >
-      <Container maxWidth="lg">
+      <Container maxWidth="lg" sx={{ position: 'relative' }}>
         <Grid container spacing={{ xs: 5, md: 6 }} sx={{ alignItems: 'center' }}>
           <Grid size={{ xs: 12, md: 6 }}>
             <Stack
@@ -154,6 +162,7 @@ function Hero({ vigencia }) {
                 color: 'primary.dark',
                 bgcolor: 'background.paper',
                 boxShadow: t.vars.customShadows?.z1,
+                ...t.applyStyles('dark', { color: 'primary.light' }),
               })}
             >
               <Iconify icon="solar:medal-star-bold" width={16} sx={{ color: 'warning.main' }} />
@@ -165,15 +174,22 @@ function Hero({ vigencia }) {
             <Typography
               variant="h1"
               component="h1"
-              sx={{
+              sx={(t) => ({
                 mt: 2.5,
                 fontSize: { xs: 38, md: 56 },
                 lineHeight: 1.1,
                 color: 'primary.darker',
-              }}
+                ...t.applyStyles('dark', { color: 'common.white' }),
+              })}
             >
               Membresía Anual{' '}
-              <Box component="span" sx={{ color: 'primary.main' }}>
+              <Box
+                component="span"
+                sx={(t) => ({
+                  color: 'primary.main',
+                  ...t.applyStyles('dark', { color: 'primary.light' }),
+                })}
+              >
                 2027
               </Box>
             </Typography>
@@ -300,7 +316,7 @@ function ComoFunciona() {
   return (
     <Seccion
       id="como-funciona"
-      color="info"
+      color="primary"
       etiqueta="Paso a paso"
       titulo="Cómo funciona"
       texto="Un proceso simple y seguro: en unos minutos tu destacamento queda registrado."
@@ -325,7 +341,7 @@ function ComoFunciona() {
                   fontWeight: 800,
                   lineHeight: 1,
                   position: 'absolute',
-                  color: varAlpha(t.vars.palette.info.mainChannel, 0.16),
+                  color: varAlpha(t.vars.palette.primary.mainChannel, 0.16),
                 })}
               >
                 {String(i + 1).padStart(2, '0')}
@@ -340,11 +356,15 @@ function ComoFunciona() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: 'common.white',
-                  backgroundImage: `linear-gradient(135deg, ${t.vars.palette.info.light}, ${t.vars.palette.info.dark})`,
-                  boxShadow: `0 10px 20px -8px ${varAlpha(t.vars.palette.info.mainChannel, 0.6)}`,
+                  backgroundImage: `linear-gradient(135deg, ${t.vars.palette.primary.light}, ${t.vars.palette.primary.dark})`,
+                  boxShadow: `0 10px 20px -8px ${varAlpha(t.vars.palette.primary.mainChannel, 0.6)}`,
                 })}
               >
-                <Iconify icon={paso.icono} width={28} />
+                {paso.icono === 'qr' ? (
+                  <IconoQr tamano={28} />
+                ) : (
+                  <Iconify icon={paso.icono} width={28} />
+                )}
               </Box>
               <Typography variant="subtitle1">{paso.titulo}</Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
