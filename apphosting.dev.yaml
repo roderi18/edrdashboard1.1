@@ -1,0 +1,12 @@
+# Entorno DESARROLLO de la landing (backend `membresia-dev`, proyecto
+# `systexploradores-dev`). App Hosting lo combina con `apphosting.yaml` cuando
+# el "nombre de entorno" del backend es `dev`: aquí va SOLO lo que cambia. Sin
+# él, desarrollo leería y escribiría los datos reales de producción.
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: systexploradores-dev
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: systexploradores-dev.firebasestorage.app
+  - variable: NEXT_PUBLIC_SITE_URL
+    value: https://membresia-dev--systexploradores-dev.us-central1.hosted.app

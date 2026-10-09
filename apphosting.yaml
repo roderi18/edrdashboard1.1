@@ -1,0 +1,33 @@
+# Firebase App Hosting de la landing de la Membresía ONERRD 2027 (PRODUCCIÓN,
+# proyecto `systexploradores`). Los .env no están en el repositorio: lo que el
+# servidor lee de process.env viene de aquí. Lo privado va como secreto de
+# Cloud Secret Manager, nunca en claro. Desarrollo cambia lo suyo en
+# `apphosting.dev.yaml` (backend con nombre de entorno `dev`).
+
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+  # Las rutas /api esperan a la API .NET, que tarda hasta 17 s.
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: systexploradores
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: systexploradores.firebasestorage.app
+  - variable: API_NET_URL
+    value: https://systexploradores.somee.com/api
+    availability:
+      - RUNTIME
+  # La dirección pública de la landing (enlaces de los correos y retorno de
+  # PayPal). Se cambia por la definitiva cuando exista el backend.
+  - variable: NEXT_PUBLIC_SITE_URL
+    value: https://membresia--systexploradores.us-central1.hosted.app
+
+  # El mismo secreto que usa el dashboard en este proyecto (cuenta de servicio).
+  - variable: FIREBASE_SERVICE_ACCOUNT
+    secret: FIREBASE_SERVICE_ACCOUNT
+    availability:
+      - RUNTIME
