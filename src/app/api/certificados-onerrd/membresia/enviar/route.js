@@ -11,6 +11,7 @@ import { requireRole } from 'src/server/require-role';
 import { getAdminDb, getAdminBucket } from 'src/server/firebase-admin';
 import { COLECCION_MEMBRESIAS, membresiaParaPantalla } from 'src/server/membresias-onerrd.mjs';
 import { cuerpoDelCorreo, enviarDocumentosMembresia } from 'src/server/correo-membresia-onerrd.mjs';
+import { notificarDocumentosMembresiaEnviados } from 'src/server/notificar-documentos-membresia-onerrd.mjs';
 
 import { ROLES } from 'src/auth/permissions/roles';
 
@@ -27,6 +28,9 @@ export const runtime = 'nodejs';
 
 const ROLES_PERMITIDOS = [ROLES.ADMINISTRADOR_GLOBAL, ROLES.OFICINA_NACIONAL];
 const MAXIMO_PDF = 10 * 1024 * 1024;
+const URL_LANDING =
+  process.env.NEXT_PUBLIC_URL_MEMBRESIA_ONERRD ||
+  (process.env.NODE_ENV === 'development' ? 'http://localhost:3050' : '');
 
 const pdfDe = async (archivo, nombre) => {
   if (!archivo || typeof archivo.arrayBuffer !== 'function' || archivo.size > MAXIMO_PDF) {
@@ -110,6 +114,10 @@ export async function POST(req) {
       codigo: m.codigo,
       numeroRegistro,
       facturaNumero,
+      enlaceSolicitud:
+        URL_LANDING && m.token
+          ? `${URL_LANDING.replace(/\/$/, '')}/registro/resultado/?solicitud=${encodeURIComponent(m.token)}`
+          : '',
     }),
     adjuntos,
   });
@@ -118,6 +126,14 @@ export async function POST(req) {
     'correos.confirmacion': registro,
     actualizadoEn: FieldValue.serverTimestamp(),
   });
+  if (registro.estado === 'enviado')
+    await notificarDocumentosMembresiaEnviados(db, {
+      id,
+      membresia: m,
+      registro,
+      numeroRegistro,
+      facturaNumero,
+    }).catch((error) => console.error('[onerrd] no se pudo avisar el envío:', error));
   const actual = await referencia.get();
   return Response.json({ registro, membresia: membresiaParaPantalla(id, actual.data()) });
 }

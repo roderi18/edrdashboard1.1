@@ -629,7 +629,7 @@ const generarPdfDeCertificados = async (props) => {
 
 // Ancho máximo de esta pantalla en monitores grandes (en píxeles). Es el único
 // número que hay que tocar; no depende del ajuste general del dashboard.
-const ANCHO_DE_PANTALLA_PX = 1400;
+const ANCHO_DE_PANTALLA_PX = 1500;
 // La pestaña "Importar certificado" lleva el editor y la vista previa lado a lado.
 const ANCHO_DE_IMPORTAR_PX = Math.max(ANCHO_DE_PANTALLA_PX, 1200);
 
@@ -849,7 +849,7 @@ export function CertificatesAutomationView() {
           )
         );
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       active = false;
@@ -1681,8 +1681,8 @@ export function CertificatesAutomationView() {
                   const isDownloading = downloadingCertificateId === String(certificate.id);
                   const statusOption = getCertificateStatusOption(
                     certificate.certificateStatus ||
-                      certificate.status ||
-                      DEFAULT_CERTIFICATE_STATUS
+                    certificate.status ||
+                    DEFAULT_CERTIFICATE_STATUS
                   );
 
                   return (
@@ -1864,10 +1864,9 @@ export function CertificatesAutomationView() {
                         borderRadius: 1,
                         cursor: 'pointer',
                         border: (theme) =>
-                          `solid 1px ${
-                            selectedTemplateFieldId === field.id
-                              ? theme.vars.palette.text.primary
-                              : theme.vars.palette.divider
+                          `solid 1px ${selectedTemplateFieldId === field.id
+                            ? theme.vars.palette.text.primary
+                            : theme.vars.palette.divider
                           }`,
                       }}
                     >
@@ -1893,12 +1892,12 @@ export function CertificatesAutomationView() {
                           onChange={(event) =>
                             isQrTemplateField(field)
                               ? handleUpdateTemplateField(field.id, {
-                                  size: Number(event.target.value) || 72,
-                                  width: Number(event.target.value) || 72,
-                                })
+                                size: Number(event.target.value) || 72,
+                                width: Number(event.target.value) || 72,
+                              })
                               : handleUpdateTemplateField(field.id, {
-                                  fontSize: Number(event.target.value) || 14,
-                                })
+                                fontSize: Number(event.target.value) || 14,
+                              })
                           }
                           sx={{
                             width: 66,
@@ -2654,9 +2653,8 @@ export function CertificatesAutomationView() {
               <Chip
                 color="primary"
                 variant="soft"
-                label={`${selectedMembers.length} seleccionado${
-                  selectedMembers.length === 1 ? '' : 's'
-                }`}
+                label={`${selectedMembers.length} seleccionado${selectedMembers.length === 1 ? '' : 's'
+                  }`}
               />
             </Stack>
 

@@ -94,7 +94,6 @@ import { FirmasOnerrd } from './onerrd-firmas';
 import { LienzoOnerrd } from './onerrd-lienzo';
 import { puedeUsarOnerrd } from './puede-usar-onerrd';
 import { usePapeleraOnerrd } from './papelera-onerrd';
-import { EntregaMembresia } from './entrega-membresia';
 import { PropiedadesOnerrd } from './onerrd-propiedades';
 import { MembresiaOnerrdPagos } from './membresia-pagos';
 import { useBorradorOnerrd } from './use-borrador-onerrd';
@@ -212,7 +211,7 @@ const valoresIniciales = () => ({
   // anterior al leerla en otra zona horaria.
   fecha: dayjs().hour(12).minute(0).second(0).millisecond(0).toISOString(),
   // La factura (como un recibo): una línea con el precio de siempre, pagada.
-  // "Facturar a" vacío propone al coordinador.
+  // El nombre de quien registró se toma de la solicitud o se escribe a mano.
   facturaEstado: 'pagada',
   facturaLineas: [{ ...LINEA_FACTURA_INICIAL }],
 });
@@ -260,6 +259,8 @@ function valoresDeMembresia(m, remitente = '') {
     iglesia: d.iglesia || '',
     pastor: d.pastor || '',
     coordinador: d.coordinador || '',
+    registradoPor: m.registradoPor?.nombre || '',
+    facturaA: m.registradoPor?.nombre || '',
     region: region?.id || '',
     facturaEstado: ['confirmada', 'pendiente_revision'].includes(m.estado) ? 'pagada' : 'pendiente',
     facturaLineas: [
@@ -318,10 +319,8 @@ export function OnerrdView() {
   // La membresía (de "Membresías 2027 · pagos") cuyo certificado se está
   // editando: al emitir no se descarga solo, se pregunta qué hacer.
   const [membresiaEnEdicion, setMembresiaEnEdicion] = useState(null);
-  const [entrega, setEntrega] = useState(null);
   // Sube para que la tabla de pagos se vuelva a leer (tras emitir solo).
   const [versionPagos, setVersionPagos] = useState(0);
-  const [remitenteMembresia, setRemitenteMembresia] = useState('');
   // Las imágenes subidas a la factura: { id: { dataUrl, proporcion, nombreArchivo } }.
   const [imagenesFactura, setImagenesFactura] = useState({});
   // Las subidas al certificado (varias): { id: { dataUrl, proporcion, nombreArchivo } }.
@@ -337,6 +336,7 @@ export function OnerrdView() {
   // contenedor, así que crece solo. Antes los 380 px del panel lo dejaban
   // pequeño y había que tirar del zoom y de las barras para ver un trozo.
   const [panelOculto, setPanelOculto] = useState(false);
+  const [datosAbiertos, setDatosAbiertos] = useState(true);
   const botonPanel = (
     <Tooltip
       title={
@@ -538,19 +538,17 @@ export function OnerrdView() {
     setVerFactura(true);
     leerConfiguracionMembresia()
       .then((c) => {
-        setRemitenteMembresia(c.correoRemitente);
         setValores((v) => ({ ...v, ...valoresDeMembresia(m, c.correoRemitente) }));
       })
       .catch(() => {});
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Envía el certificado y la factura de la entrega por correo y deja en ella
-  // cómo fue (enviando → enviado / fallido / sin configurar).
+  // Envía el certificado y la factura; el servidor registra el resultado y
+  // avisa a Administradores Globales y Oficina Nacional cuando sale el correo.
   const enviarEntrega = useCallback(async (actual) => {
     if (!actual) return;
     const { membresia, emitido, certificado, factura } = actual;
-    setEntrega((e) => (e ? { ...e, envio: { estado: 'enviando' } } : e));
     try {
       const { registro } = await enviarDocumentosMembresia({
         id: membresia.id,
@@ -559,11 +557,9 @@ export function OnerrdView() {
         certificado,
         factura,
       });
-      setEntrega((e) => (e ? { ...e, envio: registro } : e));
       if (registro.estado === 'enviado') toast.success(`Enviado a ${registro.para}.`);
       else toast.error(registro.error || 'No se pudo enviar el correo.');
     } catch (error) {
-      setEntrega((e) => (e ? { ...e, envio: { estado: 'fallido', error: error.message } } : e));
       toast.error(error.message);
     }
   }, []);
@@ -575,22 +571,10 @@ export function OnerrdView() {
     if (m.certificadoEmitido?.numeroRegistro) return;
     toast.info('Emitiendo el certificado y la factura…');
     const config = await leerConfiguracionMembresia().catch(() => null);
-    if (config) setRemitenteMembresia(config.correoRemitente);
-
     await emitir({
       membresia: m,
       valores: { ...valores, ...valoresDeMembresia(m, config?.correoRemitente || '') },
     });
-    setVersionPagos((v) => v + 1);
-  };
-
-  const descargarEntrega = () => {
-    if (!entrega) return;
-    const { emitido, certificado, factura } = entrega;
-    if (certificado)
-      descargarBlob(certificado, nombreDeArchivoOnerrd(emitido.numeroRegistro, emitido.valores));
-    if (factura) descargarBlobOnerrd(factura, nombreDeArchivoFacturaOnerrd(emitido));
-    setEntrega(null);
   };
 
   // El QR de la vista previa: el mismo tipo de enlace que llevará el PDF (el
@@ -1194,7 +1178,7 @@ export function OnerrdView() {
           );
         }
       }
-      // De una membresía: se anota en ella y se pregunta si descargar o enviar.
+      // De una membresía: se anota en ella y se envía al confirmar el pago.
       if (enMembresia) {
         const nuevaEntrega = {
           membresia: enMembresia,
@@ -1202,11 +1186,8 @@ export function OnerrdView() {
           certificado: blob,
           factura: facturaBlob,
         };
-        setEntrega(nuevaEntrega);
-        // Con el pago confirmado, el correo sale solo al emitir.
-        if (enMembresia.estado === 'confirmada') enviarEntrega(nuevaEntrega);
         setMembresiaEnEdicion(null);
-        anotarCertificadoEnMembresia({
+        const anotada = await anotarCertificadoEnMembresia({
           id: enMembresia.id,
           numeroRegistro: emitido.numeroRegistro,
           facturaNumero: emitido.factura?.numero || '',
@@ -1214,7 +1195,19 @@ export function OnerrdView() {
             .filter(Boolean)
             .join(' '),
           user,
-        }).catch((error) => console.error('[onerrd] no se pudo anotar en la membresía', error));
+        })
+          .then(() => true)
+          .catch((error) => {
+            console.error('[onerrd] no se pudo anotar en la membresía', error);
+            toast.error(
+              'No se pudo vincular el certificado a la membresía. El correo no se envió.'
+            );
+            return false;
+          });
+        // El enlace del correo solo se entrega cuando la solicitud ya puede
+        // encontrar los PDF recién emitidos en el landing.
+        if (anotada && enMembresia.estado === 'confirmada') await enviarEntrega(nuevaEntrega);
+        setVersionPagos((version) => version + 1);
       }
       // Limpio para el siguiente: emitir dos veces lo mismo gastaría otro número.
       setValores((actual) => ({
@@ -1350,14 +1343,44 @@ export function OnerrdView() {
             conserva al volver a mostrarlo. */}
         <Stack spacing={3} sx={{ display: { lg: panelOculto ? 'none' : 'flex' } }}>
           <Card sx={{ p: 2.5 }}>
-            <Typography variant="h6">Datos del registro</Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2.5 }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="h6">Datos del registro</Typography>
+              <Tooltip
+                title={
+                  datosAbiertos ? 'Contraer datos del registro' : 'Expandir datos del registro'
+                }
+              >
+                <IconButton
+                  size="small"
+                  aria-label={
+                    datosAbiertos ? 'Contraer datos del registro' : 'Expandir datos del registro'
+                  }
+                  aria-expanded={datosAbiertos}
+                  aria-controls="datos-registro-onerrd"
+                  onClick={() => setDatosAbiertos((abiertos) => !abiertos)}
+                >
+                  <Iconify
+                    icon={
+                      datosAbiertos ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'
+                    }
+                  />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+            <Typography
+              variant="body2"
+              sx={{ color: 'text.secondary', mb: 2.5, display: datosAbiertos ? 'block' : 'none' }}
+            >
               {soloFactura
                 ? 'Lo de la factura. Lo del certificado vuelve al abrir «Diseño del certificado».'
                 : 'Lo que cambia en cada certificado. Se ve en vivo en la vista previa.'}
             </Typography>
 
-            <Stack spacing={2}>
+            <Stack
+              id="datos-registro-onerrd"
+              spacing={2}
+              sx={{ display: datosAbiertos ? 'flex' : 'none' }}
+            >
               <Stack direction="row" spacing={1.5}>
                 <TextField
                   size="small"
@@ -1476,11 +1499,11 @@ export function OnerrdView() {
               </Divider>
               <TextField
                 size="small"
-                label="Facturar a"
-                placeholder={facturarAPropuestoOnerrd(valores) || 'Nombre -Dest. 11'}
+                label="Registrado por"
+                placeholder={facturarAPropuestoOnerrd(valores) || 'Nombre de quien registró'}
                 value={valores.facturaA ?? ''}
                 onChange={(event) => setValores((v) => ({ ...v, facturaA: event.target.value }))}
-                helperText="Vacío: el coordinador y su destacamento."
+                helperText="Nombre de la persona que completó la solicitud."
                 slotProps={{ htmlInput: { maxLength: 160 } }}
               />
               <Stack direction="row" spacing={1.5}>
@@ -1821,7 +1844,8 @@ export function OnerrdView() {
                   : ''}
                 {membresiaEnEdicion.destacamento?.nombre}
               </strong>{' '}
-              (membresía 2027). Al emitir te preguntaremos si descargarlos o enviarlos por correo.
+              (membresía 2027). Al emitir, los documentos se enviarán por correo si el pago está
+              confirmado.
             </Alert>
           )}
           <Card sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}>
@@ -2007,13 +2031,6 @@ export function OnerrdView() {
       </Box>
 
       {papelera.dialogo}
-      <EntregaMembresia
-        entrega={entrega}
-        remitente={remitenteMembresia}
-        onDescargar={descargarEntrega}
-        onEnviar={() => enviarEntrega(entrega)}
-        onCerrar={() => setEntrega(null)}
-      />
       <ConfirmDialog
         open={!!confirmacion}
         onClose={() => setConfirmacion(null)}

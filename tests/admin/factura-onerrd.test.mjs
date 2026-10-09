@@ -42,19 +42,43 @@ import {
   valoresDeFacturaOnerrd,
 } from '../../src/utils/factura-onerrd.mjs';
 
-test('"Facturar a" propone al coordinador y su destacamento, como el ejemplo', () => {
+test('"Registrado por" usa al solicitante y nunca propone al coordinador', () => {
   assert.equal(
-    facturarAPropuestoOnerrd({ coordinador: 'Leoncio Alberto Vásquez', numeroDestacamento: '11' }),
-    'Leoncio Alberto Vásquez -Dest. 11'
+    facturarAPropuestoOnerrd({
+      registradoPor: 'Roderi Daniel Peña Rosario',
+      coordinador: 'Leoncio Alberto Vásquez',
+      numeroDestacamento: '18',
+    }),
+    'Roderi Daniel Peña Rosario -Dest. 18'
   );
-  assert.equal(facturarAPropuestoOnerrd({ pastor: 'Ana Ruiz' }), 'Ana Ruiz');
+  assert.equal(facturarAPropuestoOnerrd({ coordinador: 'Leoncio Alberto Vásquez' }), '');
+  assert.equal(facturarAPropuestoOnerrd({ pastor: 'Ana Ruiz' }), '');
   assert.equal(facturarAPropuestoOnerrd({}), '');
 });
 
+test('un diseño guardado con el rótulo anterior muestra Registrado por', () => {
+  const diseno = sanearDisenoFacturaOnerrd({
+    campos: CAMPOS_DE_FABRICA_FACTURA_ONERRD.map((campo) =>
+      campo.id === 'facturaAEtiqueta'
+        ? { ...campo, etiqueta: 'Rótulo de «Facturar a»', contenido: 'FACTURAR A:' }
+        : campo
+    ),
+  });
+  assert.equal(
+    diseno.campos.find((campo) => campo.id === 'facturaAEtiqueta').contenido,
+    'REGISTRADO POR:'
+  );
+  assert.equal(diseno.campos.find((campo) => campo.id === 'facturaA').etiqueta, 'Registrado por');
+});
+
 test('los datos de un recibo: estado, vencimiento, líneas, descuento e impuestos', () => {
-  const valores = { coordinador: 'Leoncio Alberto Vásquez', numeroDestacamento: '11', anio: 2027 };
+  const valores = {
+    registradoPor: 'Roderi Daniel Peña Rosario',
+    numeroDestacamento: '18',
+    anio: 2027,
+  };
   const vacia = sanearFacturaOnerrd({}, valores);
-  assert.equal(vacia.facturarA, 'Leoncio Alberto Vásquez -Dest. 11');
+  assert.equal(vacia.facturarA, 'Roderi Daniel Peña Rosario -Dest. 18');
   assert.equal(vacia.estado, 'pagada');
   assert.deepEqual(vacia.lineas, [
     {
@@ -173,7 +197,12 @@ test('un certificado emitido antes de la factura no la inventa', () => {
 test('la factura de prueba lleva el número y el sello PRUEBA', () => {
   const datos = datosDeFacturaOnerrd(
     facturaDePruebaOnerrd(
-      { coordinador: 'Ana Ruiz', numeroDestacamento: '7', facturaCodigo: 'x1' },
+      {
+        registradoPor: 'Ana Ruiz',
+        coordinador: 'Otra persona',
+        numeroDestacamento: '7',
+        facturaCodigo: 'x1',
+      },
       { anio: 2027, fecha: '2026-10-07T15:00:00Z' }
     )
   );

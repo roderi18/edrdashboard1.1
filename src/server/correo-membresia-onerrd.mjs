@@ -26,7 +26,13 @@ export const configuracionSmtp = (remitente) => ({
   clave: process.env.SMTP_PASSWORD || '',
 });
 
-export function cuerpoDelCorreo({ destacamento, codigo, numeroRegistro, facturaNumero }) {
+export function cuerpoDelCorreo({
+  destacamento,
+  codigo,
+  numeroRegistro,
+  facturaNumero,
+  enlaceSolicitud,
+}) {
   const nombre = `#${destacamento?.numero ?? ''} ${destacamento?.nombre ?? ''}`.trim();
   return `<div style="font-family:Arial,sans-serif;color:#1C252E;line-height:1.5">
 <p>¡Saludos!</p>
@@ -38,6 +44,7 @@ ${numeroRegistro ? `<li>Certificado: <strong>${escapar(numeroRegistro)}</strong>
 ${facturaNumero ? `<li>Factura: <strong>${escapar(facturaNumero)}</strong></li>` : ''}
 </ul>
 <p>Adjuntamos el certificado y la factura en PDF.</p>
+${enlaceSolicitud ? `<p>También puedes consultar tu solicitud y descargar los documentos desde <a href="${escapar(enlaceSolicitud)}">esta página</a>.</p><p style="font-size:12px;word-break:break-all">${escapar(enlaceSolicitud)}</p>` : ''}
 <p style="color:#637381;font-size:12px">Oficina Nacional · Exploradores del Rey República Dominicana</p>
 </div>`;
 }
@@ -81,7 +88,7 @@ export async function enviarDocumentosMembresia({ desde, para, copia, asunto, ht
       connectionTimeout: 15_000,
     });
     await transporte.sendMail({
-      from: `"Oficina Nacional ERRD" <${mostrada}>`,
+      from: `"Oficina Nacional" <${mostrada}>`,
       ...(mostrada !== remitenteReal ? { sender: remitenteReal } : {}),
       to: para,
       ...(copia ? { bcc: copia } : {}),

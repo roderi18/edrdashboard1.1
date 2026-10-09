@@ -33,6 +33,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { formatearRd } from 'src/utils/membresia-onerrd.mjs';
+import { nombreCortoPersona } from 'src/utils/reporte-registro-membresia.mjs';
 
 import {
   leerPagosMembresia,
@@ -47,6 +48,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { TituloDesplegable } from './factura-editor';
 import { EstadoMembresia } from './estado-membresia';
+import { ReporteRegistroMembresia } from './membresia-reporte';
 
 // ----------------------------------------------------------------------
 // "MEMBRESÍAS 2027 · PAGOS": lo que entra por la landing. Avance por región o
@@ -439,6 +441,7 @@ export function MembresiaOnerrdPagos({
   const [comprobante, setComprobante] = useState(null);
   const [recargando, setRecargando] = useState(false);
   const [reenviando, setReenviando] = useState('');
+  const [reporteAbierto, setReporteAbierto] = useState(false);
 
   const cargar = useCallback(async ({ forzar = false } = {}) => {
     setRecargando(true);
@@ -558,7 +561,23 @@ export function MembresiaOnerrdPagos({
             </span>
           </Tooltip>
         )}
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => setReporteAbierto(true)}
+          disabled={!datos}
+          startIcon={<Iconify icon="solar:document-text-bold" />}
+          sx={{ ml: 'auto' }}
+        >
+          Ver reporte registro
+        </Button>
       </Stack>
+
+      <ReporteRegistroMembresia
+        abierto={reporteAbierto}
+        onCerrar={() => setReporteAbierto(false)}
+        membresias={datos?.membresias || []}
+      />
 
       <Collapse in={abierto}>
         <Stack spacing={3} sx={{ mt: 2.5 }}>
@@ -765,6 +784,14 @@ export function MembresiaOnerrdPagos({
                               )}
                             </TableCell>
                             <TableCell>
+                              {/* Quién registró el destacamento: primer nombre y primer apellido. */}
+                              {m.registradoPor?.nombre && (
+                                <Tooltip title={`Registrado por ${m.registradoPor.nombre}`}>
+                                  <Typography variant="subtitle2" noWrap sx={{ maxWidth: 200 }}>
+                                    {nombreCortoPersona(m.registradoPor)}
+                                  </Typography>
+                                </Tooltip>
+                              )}
                               <EstadoCorreo
                                 correo={m.correos?.confirmacion}
                                 // Con el certificado ya emitido, un envío que falló (o que nunca

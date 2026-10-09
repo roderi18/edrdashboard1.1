@@ -121,7 +121,8 @@ test('la landing lleva una copia exacta de estas reglas', () => {
     new URL('../../src/utils/membresia-onerrd.mjs', import.meta.url),
     'utf8'
   );
-  assert.equal(copia, original);
+  // Git en Windows puede dejar una de las dos con CRLF: cuenta el contenido.
+  assert.equal(copia.replace(/\r\n/g, '\n'), original.replace(/\r\n/g, '\n'));
 });
 
 test('tasa automática: la lectura se guarda con el margen restado', () => {

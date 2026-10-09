@@ -133,6 +133,8 @@ export const guardarConfiguracionMembresia = conInvalidacion(
       // A mano, la tasa lleva la fecha del día en que se escribe: de ahí
       // cuenta su vigencia.
       limpia.tasa.fecha = limpia.tasa.rdPorUsd ? hoyEnSantoDomingo() : '';
+      // Y la hora exacta en que se escribió (el panel la enseña).
+      limpia.tasa.leidaEn = limpia.tasa.rdPorUsd ? new Date().toISOString() : '';
     }
     const cambios = cambiosEntre(sanearConfiguracionMembresia(anterior), limpia);
     await proponerCambio({

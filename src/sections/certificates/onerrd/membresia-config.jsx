@@ -33,6 +33,7 @@ import {
   formatearRd,
   IDS_DE_PLANES,
   construirPlanes,
+  hoyEnSantoDomingo,
   MAXIMO_DE_CUENTAS,
   FUENTE_TASA_AUTOMATICA,
   problemasDeConfiguracion,
@@ -263,6 +264,32 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
     }
   };
 
+  // RED DE SEGURIDAD de la tasa automática: la tarea de las 6:00 a. m. vive en
+  // Cloud Scheduler y no corre en local ni mientras no esté creada. Si al abrir
+  // el panel la automática está encendida y la última lectura no es de hoy
+  // (pasadas las 6:00, hora de Santo Domingo), se lee en ese momento. Una vez
+  // por apertura; si falla, no insiste.
+  const [intentoAuto, setIntentoAuto] = useState(false);
+  useEffect(() => {
+    if (!cargada || intentoAuto || !guardada.tasa.automatica) return;
+    const hora = Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'America/Santo_Domingo',
+        hour: '2-digit',
+        hour12: false,
+      }).format(new Date())
+    );
+    if (hora < 6 || guardada.tasa.fecha === hoyEnSantoDomingo()) return;
+    setIntentoAuto(true);
+    actualizarTasaAhora()
+      .then(({ ok, tasa }) => {
+        setGuardada((g) => ({ ...g, tasa }));
+        setConfig((c) => ({ ...c, tasa }));
+        if (ok) toast.success(`Tasa del dólar actualizada: RD$${tasa.base} por US$1.`);
+      })
+      .catch(() => {});
+  }, [cargada, intentoAuto, guardada.tasa.automatica, guardada.tasa.fecha]);
+
   const guardarPaypalSecreto = async ({ borrar = false } = {}) => {
     setGuardandoSecretos(true);
     try {
@@ -274,6 +301,9 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
       });
       setClaveSecreta('');
       setSecretos(await leerEstadoSecretosMembresia());
+      // El Client ID va con la clave: antes solo se guardaba con el «Guardar» de
+      // abajo y quedaba el anterior (la clave y el ID de apps distintas).
+      if (!borrar && limpia.paypal.clientId !== guardada.paypal.clientId) await guardar();
       toast.success(borrar ? 'Clave de PayPal quitada.' : 'Credenciales de PayPal guardadas.');
     } catch (e) {
       toast.error(e.message || 'No se pudo guardar la clave de PayPal.');
@@ -669,9 +699,12 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
                       </TextField>
                     </Grid>
                     <Grid size={12}>
+                      {/* Siempre oculto (••••): se reemplaza pegando el nuevo, no se revela. */}
                       <TextField
                         fullWidth
                         label="Client ID"
+                        type="password"
+                        autoComplete="off"
                         value={config.paypal.clientId}
                         onChange={(e) => cambiar('paypal.clientId', e.target.value)}
                       />
@@ -710,7 +743,13 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
                             type="password"
                             autoComplete="new-password"
                             label="Clave secreta (Secret)"
+                            // Guardada, se ve como ••••: escribir una nueva la reemplaza.
+                            placeholder={
+                              secretos?.claveSecretaConfigurada ? '••••••••••••••••••••' : ''
+                            }
                             value={claveSecreta}
+                            // Con el rótulo arriba, los puntos de la clave guardada se ven.
+                            slotProps={{ inputLabel: { shrink: true } }}
                             onChange={(e) => setClaveSecreta(e.target.value)}
                           />
                         </Grid>
@@ -741,7 +780,8 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
                               loading={guardandoSecretos}
                               disabled={
                                 !claveSecreta.trim() &&
-                                webhookId.trim() === (secretos?.webhookId || '')
+                                webhookId.trim() === (secretos?.webhookId || '') &&
+                                limpia.paypal.clientId === guardada.paypal.clientId
                               }
                               onClick={() => guardarPaypalSecreto()}
                             >
@@ -874,7 +914,10 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
                             {tasaHoy ? 'Vigente' : 'Vencida'}
                           </Label>
                           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                            Actualizada el {formatearFechaIso(guardada.tasa.fecha)}
+                            Actualizada el{' '}
+                            {guardada.tasa.leidaEn
+                              ? dayjs(guardada.tasa.leidaEn).format('DD/MM/YYYY hh:mm A')
+                              : formatearFechaIso(guardada.tasa.fecha)}
                           </Typography>
                         </Stack>
                       ) : (

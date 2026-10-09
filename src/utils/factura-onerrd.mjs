@@ -132,10 +132,11 @@ const fuenteValida = (valor, porDefecto = 'Helvetica') =>
 
 // ---------------------------------------------------------------- datos de cada factura
 
-// "Leoncio Alberto Vásquez -Dest. 11", como en la factura de ejemplo: el
-// coordinador (o, sin él, el pastor) y el número del destacamento.
+// La persona que completó el registro, nunca el coordinador o el pastor.
 export const facturarAPropuestoOnerrd = (valores = {}) => {
-  const nombre = texto(valores.coordinador, 120) || texto(valores.pastor, 120);
+  const persona = valores.registradoPor;
+  const nombre = texto(typeof persona === 'object' ? persona?.nombre : persona, 120);
+  if (!nombre) return '';
   const destacamento = texto(valores.numeroDestacamento, 20);
   return [nombre, destacamento && `-Dest. ${destacamento}`].filter(Boolean).join(' ');
 };
@@ -446,11 +447,11 @@ export const CAMPOS_DE_FABRICA_FACTURA_ONERRD = Object.freeze(
     }),
     // El rótulo va en blanco sobre la barra navy (una forma) y el nombre en el
     // recuadro de debajo: antes era un solo texto con "FACTURAR A: " delante.
-    textoFijo('facturaAEtiqueta', 'Rótulo de «Facturar a»', 'FACTURAR A:', {
+    textoFijo('facturaAEtiqueta', 'Rótulo de «Registrado por»', 'REGISTRADO POR:', {
       ...LETRA(11, 700, { color: BLANCO }),
       ...enCaja(43, 166, 200),
     }),
-    textoDato('facturaA', 'Facturar a', {
+    textoDato('facturaA', 'Registrado por', {
       ...LETRA(10.5),
       prefijo: '',
       ...enCaja(43, 193, DERECHA - 43 - 11),
@@ -730,6 +731,15 @@ const sanearImagenesFactura = (lista) => {
 const sanearCampoFactura = (entrada) => {
   const fabrica = CAMPOS_DE_FABRICA_FACTURA_ONERRD.find((item) => item.id === entrada?.id);
   const campo = sanearCampoOnerrd({ ...fabrica, ...entrada });
+  if (campo.id === 'facturaAEtiqueta' && /^FACTURAR A:\s*$/i.test(campo.contenido || ''))
+    return {
+      ...campo,
+      etiqueta: 'Rótulo de «Registrado por»',
+      contenido: 'REGISTRADO POR:',
+      deFabrica: true,
+    };
+  if (campo.id === 'facturaA' && campo.etiqueta === 'Facturar a')
+    return { ...campo, etiqueta: 'Registrado por', deFabrica: true };
   // De fábrica de la FACTURA (no se borra, solo se oculta).
   return { ...campo, deFabrica: Boolean(fabrica) };
 };

@@ -110,6 +110,15 @@ export const membresiaParaPantalla = (id, m) => ({
   // Quién las hizo: { nombre, telefono, idMiembro }.
   corregidoPor: m.corregidoPor || null,
   certificadoEmitido: m.certificadoEmitido || null,
+  // Quién registró el destacamento al pagar (lo eligió en la landing).
+  registradoPor: m.registradoPor
+    ? {
+        nombre: m.registradoPor.nombre || '',
+        nombres: m.registradoPor.nombres || '',
+        apellidos: m.registradoPor.apellidos || '',
+        idMiembro: m.registradoPor.idMiembro || '',
+      }
+    : null,
   creadoEn: iso(m.creadoEn),
   confirmadoEn: iso(m.confirmadoEn),
   actualizadoEn: iso(m.actualizadoEn),
