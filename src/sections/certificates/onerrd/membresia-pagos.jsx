@@ -5,6 +5,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
+import Menu from '@mui/material/Menu';
 import Table from '@mui/material/Table';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
@@ -19,9 +20,11 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TextField from '@mui/material/TextField';
+import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import ToggleButton from '@mui/material/ToggleButton';
 import DialogContent from '@mui/material/DialogContent';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -34,10 +37,12 @@ import { formatearRd } from 'src/utils/membresia-onerrd.mjs';
 import {
   leerPagosMembresia,
   leerComprobanteMembresia,
+  enviarDocumentosMembresia,
   leerConfiguracionMembresia,
 } from 'src/services/membresia-onerrd-service';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { TituloDesplegable } from './factura-editor';
@@ -338,37 +343,79 @@ function VentanaComprobante({ membresia, onCerrar }) {
 
 // ---------------------------------------------------------------------- correo
 
-function EstadoCorreo({ correo }) {
-  if (!correo) {
+function EstadoCorreo({ correo, onReintentar, reintentando }) {
+  const [ancla, setAncla] = useState(null);
+  if (!correo && !onReintentar) {
     return (
       <Typography variant="caption" sx={{ color: 'text.disabled' }}>
         Aún no enviado
       </Typography>
     );
   }
-  const e = ESTADOS_CORREO[correo.estado] || ESTADOS_CORREO.sin_configurar;
+  // Emitido pero sin envío registrado: se enseña como «Sin enviar» y se puede enviar.
+  const e = correo
+    ? ESTADOS_CORREO[correo.estado] || ESTADOS_CORREO.sin_configurar
+    : { color: 'default', icono: 'solar:clock-circle-bold', etiqueta: 'Sin enviar' };
+  const reintentable = Boolean(onReintentar) && correo?.estado !== 'enviado';
+  const chip = (
+    <Label
+      color={e.color}
+      startIcon={<Iconify icon={reintentando ? 'solar:restart-bold' : e.icono} />}
+      endIcon={reintentable ? <Iconify icon="eva:arrow-ios-downward-fill" width={14} /> : null}
+      sx={{ alignSelf: 'flex-start' }}
+    >
+      {reintentando ? 'Enviando…' : e.etiqueta}
+    </Label>
+  );
   return (
     <Tooltip
-      title={[
-        correo.desde && `Desde: ${correo.desde}`,
-        correo.copia && `Copia: ${correo.copia}`,
-        correo.enviadoEn && fechaHora(correo.enviadoEn),
-        correo.error,
-      ]
-        .filter(Boolean)
-        .join(' · ')}
+      placement="top-start"
+      // Con el menú abierto, el tip se quita (título vacío): se pintaba encima
+      // del menú y no dejaba verlo ni pulsarlo.
+      title={
+        ancla
+          ? ''
+          : [
+              correo?.desde && `Desde: ${correo.desde}`,
+              correo?.copia && `Copia: ${correo.copia}`,
+              correo?.enviadoEn && fechaHora(correo.enviadoEn),
+              correo?.error,
+            ]
+              .filter(Boolean)
+              .join(' · ')
+      }
     >
       <Stack spacing={0.25}>
         <Typography variant="caption" noWrap sx={{ maxWidth: 200 }}>
-          {correo.para || '—'}
+          {correo?.para || '—'}
         </Typography>
-        <Label
-          color={e.color}
-          startIcon={<Iconify icon={e.icono} />}
-          sx={{ alignSelf: 'flex-start' }}
-        >
-          {e.etiqueta}
-        </Label>
+        {reintentable ? (
+          <>
+            <ButtonBase
+              disabled={reintentando}
+              onClick={(ev) => setAncla(ev.currentTarget)}
+              sx={{ alignSelf: 'flex-start', borderRadius: 0.75 }}
+              aria-label="Opciones del envío"
+            >
+              {chip}
+            </ButtonBase>
+            <Menu anchorEl={ancla} open={!!ancla} onClose={() => setAncla(null)}>
+              <MenuItem
+                onClick={() => {
+                  setAncla(null);
+                  onReintentar();
+                }}
+              >
+                <ListItemIcon>
+                  <Iconify icon="solar:restart-bold" />
+                </ListItemIcon>
+                Reintentar envío
+              </MenuItem>
+            </Menu>
+          </>
+        ) : (
+          chip
+        )}
       </Stack>
     </Tooltip>
   );
@@ -391,6 +438,7 @@ export function MembresiaOnerrdPagos({
   const [busqueda, setBusqueda] = useState('');
   const [comprobante, setComprobante] = useState(null);
   const [recargando, setRecargando] = useState(false);
+  const [reenviando, setReenviando] = useState('');
 
   const cargar = useCallback(async ({ forzar = false } = {}) => {
     setRecargando(true);
@@ -416,6 +464,29 @@ export function MembresiaOnerrdPagos({
   useEffect(() => {
     if (version) cargar({ forzar: true });
   }, [version, cargar]);
+
+  // "Reintentar envío": el servidor toma el certificado y la factura ya
+  // guardados y los manda otra vez; la fila se actualiza con el resultado.
+  const reenviar = async (m) => {
+    setReenviando(m.id);
+    try {
+      const { registro, membresia } = await enviarDocumentosMembresia({
+        id: m.id,
+        numeroRegistro: m.certificadoEmitido?.numeroRegistro,
+        facturaNumero: m.certificadoEmitido?.facturaNumero,
+      });
+      setDatos((actual) => ({
+        ...actual,
+        membresias: actual.membresias.map((x) => (x.id === m.id ? membresia : x)),
+      }));
+      if (registro.estado === 'enviado') toast.success(`Enviado a ${registro.para}.`);
+      else toast.error(registro.error || 'No se pudo enviar el correo.');
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setReenviando('');
+    }
+  };
 
   const membresias = useMemo(() => datos?.membresias || [], [datos]);
   const cuenta = useMemo(() => {
@@ -457,7 +528,6 @@ export function MembresiaOnerrdPagos({
         p: { xs: 2, md: 2.5 },
         minWidth: 0,
         border: `1px solid ${varAlpha(t.vars.palette.success.mainChannel, 0.32)}`,
-        bgcolor: varAlpha(t.vars.palette.success.mainChannel, 0.04),
       })}
     >
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }} useFlexGap>
@@ -695,7 +765,17 @@ export function MembresiaOnerrdPagos({
                               )}
                             </TableCell>
                             <TableCell>
-                              <EstadoCorreo correo={m.correos?.confirmacion} />
+                              <EstadoCorreo
+                                correo={m.correos?.confirmacion}
+                                // Con el certificado ya emitido, un envío que falló (o que nunca
+                                // salió) se reintenta desde el mismo chip.
+                                onReintentar={
+                                  m.estado === 'confirmada' && m.certificadoEmitido?.numeroRegistro
+                                    ? () => reenviar(m)
+                                    : null
+                                }
+                                reintentando={reenviando === m.id}
+                              />
                             </TableCell>
                             <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                               {m.deposito?.tieneComprobante && (

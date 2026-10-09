@@ -51,12 +51,22 @@ export async function enviarDocumentosMembresia({ desde, para, copia, asunto, ht
     adjuntos: adjuntos.map((a) => a.filename),
     enviadoEn: new Date().toISOString(),
   };
-  const smtp = configuracionSmtp(desde);
-  if (!desde || !smtp.clave) {
+  // Con SMTP_USER en el entorno, el que envía es ese buzón (el de la contraseña):
+  // en desarrollo sale siempre de expedition.webapp@errd.org.do aunque el panel
+  // diga otro, que Hostinger rechazaría con esa contraseña. Sin SMTP_USER, el
+  // remitente es el del panel.
+  const remitenteReal = process.env.SMTP_USER || desde;
+  // SMTP_FROM: la dirección que ve quien recibe (From) cuando es otra que la
+  // del buzón que entra (p. ej. oficinanacional@ saliendo por expedition.webapp@).
+  // Hostinger solo la acepta si esa dirección es un alias de ese buzón.
+  const mostrada = process.env.SMTP_FROM || remitenteReal;
+  registro.desde = mostrada || '';
+  const smtp = configuracionSmtp(remitenteReal);
+  if (!remitenteReal || !smtp.clave) {
     return {
       ...registro,
       estado: 'sin_configurar',
-      error: !desde
+      error: !remitenteReal
         ? 'Falta el correo remitente.'
         : 'Falta la contraseña del buzón remitente (SMTP_PASSWORD) en el servidor.',
     };
@@ -71,7 +81,8 @@ export async function enviarDocumentosMembresia({ desde, para, copia, asunto, ht
       connectionTimeout: 15_000,
     });
     await transporte.sendMail({
-      from: `"Oficina Nacional ERRD" <${desde}>`,
+      from: `"Oficina Nacional ERRD" <${mostrada}>`,
+      ...(mostrada !== remitenteReal ? { sender: remitenteReal } : {}),
       to: para,
       ...(copia ? { bcc: copia } : {}),
       subject: asunto,

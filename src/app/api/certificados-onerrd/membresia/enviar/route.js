@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { rutaPdfOnerrd, rutaFacturaPdfOnerrd } from 'src/utils/certificado-onerrd.mjs';
 import {
   COLECCION_MEMBRESIA,
   DOC_CONFIGURACION_MEMBRESIA,
@@ -7,7 +8,7 @@ import {
 } from 'src/utils/membresia-onerrd.mjs';
 
 import { requireRole } from 'src/server/require-role';
-import { getAdminDb } from 'src/server/firebase-admin';
+import { getAdminDb, getAdminBucket } from 'src/server/firebase-admin';
 import { COLECCION_MEMBRESIAS, membresiaParaPantalla } from 'src/server/membresias-onerrd.mjs';
 import { cuerpoDelCorreo, enviarDocumentosMembresia } from 'src/server/correo-membresia-onerrd.mjs';
 
@@ -47,8 +48,16 @@ export async function POST(req) {
   const form = await req.formData().catch(() => null);
   const id = String(form?.get('id') || '');
   if (!/^\d{1,12}$/.test(id)) return Response.json({ error: 'Datos inválidos.' }, { status: 400 });
-  const numeroRegistro = String(form.get('numeroRegistro') || '').slice(0, 40);
-  const facturaNumero = String(form.get('facturaNumero') || '').slice(0, 40);
+  // Sin PDF en la petición (un reintento desde la tabla), se toman los ya
+  // emitidos y guardados en Storage.
+  const emitidoAntes = (await getAdminDb().collection(COLECCION_MEMBRESIAS).doc(id).get()).data()
+    ?.certificadoEmitido;
+  const numeroRegistro = String(
+    form.get('numeroRegistro') || emitidoAntes?.numeroRegistro || ''
+  ).slice(0, 40);
+  const facturaNumero = String(
+    form.get('facturaNumero') || emitidoAntes?.facturaNumero || ''
+  ).slice(0, 40);
 
   const db = getAdminDb();
   const referencia = db.collection(COLECCION_MEMBRESIAS).doc(id);
@@ -66,10 +75,22 @@ export async function POST(req) {
   }
   const config = sanearConfiguracionMembresia(configDoc.data() || {});
 
+  const deStorage = async (ruta, nombre) => {
+    try {
+      const [contenido] = await getAdminBucket().file(ruta).download();
+      return { filename: nombre, content: contenido, contentType: 'application/pdf' };
+    } catch {
+      return null;
+    }
+  };
+  const nombreCertificado = `certificado-${nombreSeguro(numeroRegistro || id)}.pdf`;
+  const nombreFactura = `factura-${nombreSeguro(facturaNumero || id)}.pdf`;
   const adjuntos = (
     await Promise.all([
-      pdfDe(form.get('certificado'), `certificado-${nombreSeguro(numeroRegistro || id)}.pdf`),
-      pdfDe(form.get('factura'), `factura-${nombreSeguro(facturaNumero || id)}.pdf`),
+      (await pdfDe(form.get('certificado'), nombreCertificado)) ||
+        (numeroRegistro && deStorage(rutaPdfOnerrd(numeroRegistro), nombreCertificado)),
+      (await pdfDe(form.get('factura'), nombreFactura)) ||
+        (numeroRegistro && deStorage(rutaFacturaPdfOnerrd(numeroRegistro), nombreFactura)),
     ])
   ).filter(Boolean);
   if (!adjuntos.length) {

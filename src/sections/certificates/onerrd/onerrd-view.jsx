@@ -238,7 +238,23 @@ function valoresDeMembresia(m, remitente = '') {
     sinTildeOnerrd(d.region).includes(sinTildeOnerrd(r.nombre).replace('region ', ''))
   );
   const plan = m.plan || {};
+  // La membresía corre desde el momento en que se colocó el pago, un año: la
+  // fecha del registro es esa, y la factura vence el mismo día del año siguiente.
+  const colocada = m.creadoEn ? dayjs(m.creadoEn) : null;
+  const fechas = colocada?.isValid()
+    ? {
+        fecha: colocada.hour(12).minute(0).second(0).millisecond(0).toISOString(),
+        facturaVence: colocada
+          .add(1, 'year')
+          .hour(12)
+          .minute(0)
+          .second(0)
+          .millisecond(0)
+          .toISOString(),
+      }
+    : {};
   return {
+    ...fechas,
     numeroDestacamento: d.numero || '',
     nombreDestacamento: d.nombre || '',
     iglesia: d.iglesia || '',
@@ -560,7 +576,7 @@ export function OnerrdView() {
     toast.info('Emitiendo el certificado y la factura…');
     const config = await leerConfiguracionMembresia().catch(() => null);
     if (config) setRemitenteMembresia(config.correoRemitente);
-     
+
     await emitir({
       membresia: m,
       valores: { ...valores, ...valoresDeMembresia(m, config?.correoRemitente || '') },
