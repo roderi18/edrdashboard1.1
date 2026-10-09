@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { db } from 'src/server/firebase.mjs';
+import logoOficinaPng from 'src/assets/marca/logo-oficina-nacional.png';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,7 @@ export default async function Verificar({ params, searchParams }) {
         padding: 24,
       }}
     >
-      <img src="/marca/logo-oficina-nacional.png" alt="ONERRD" width="96" height="96" />
+      <img src={logoOficinaPng.src} alt="ONERRD" width="96" height="96" />
       <h1>Verificación de certificado ONERRD 2027</h1>
       {member ? (
         <section

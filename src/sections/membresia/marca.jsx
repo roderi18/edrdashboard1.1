@@ -8,6 +8,8 @@ import MuiLink from '@mui/material/Link';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 
+import logoOficina from 'src/assets/marca/logo-oficina-nacional.webp';
+
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
@@ -28,7 +30,7 @@ export function Marca({ tamano = 52 }) {
     >
       <Box
         component="img"
-        src="/marca/logo-oficina-nacional.webp"
+        src={logoOficina.src}
         alt="Oficina Nacional de Exploradores del Rey"
         sx={{ width: tamano, height: tamano, flexShrink: 0 }}
       />

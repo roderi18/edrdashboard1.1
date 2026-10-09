@@ -8,6 +8,8 @@ import Skeleton from '@mui/material/Skeleton';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 
+import logoOficina from 'src/assets/marca/logo-oficina-nacional.webp';
+
 import { Iconify } from 'src/components/iconify';
 
 const REGIONES = [
@@ -290,7 +292,7 @@ function Nacional({ filas }) {
         );
       })}
       <image
-        href="/marca/logo-oficina-nacional.webp"
+        href={logoOficina.src}
         x="1073"
         y="293"
         width="256"
@@ -484,7 +486,7 @@ function NacionalMovil({ filas }) {
           </g>
         );
       })}
-      <image href="/marca/logo-oficina-nacional.webp" x="143" y="1523" width="114" height="114" />
+      <image href={logoOficina.src} x="143" y="1523" width="114" height="114" />
       <text fill="#515a70" fontFamily="Barlow, sans-serif" fontSize="13" fontWeight="700">
         <textPath href="#leyenda-movil" startOffset="50%" textAnchor="middle">
           *Inscritos por regiones, avance en % · 2027

@@ -16,6 +16,9 @@ import Typography from '@mui/material/Typography';
 
 import { formatearRd } from 'src/utils/planes-membresia.mjs';
 
+import parcheOnerrd from 'src/assets/marca/parche-onerrd-2027.webp';
+import logoOficina from 'src/assets/marca/logo-oficina-nacional.webp';
+
 import { Iconify } from 'src/components/iconify';
 
 import { TarjetaPlan } from './tarjeta-plan';
@@ -159,7 +162,7 @@ function Hero({ vigencia }) {
             >
               <Box
                 component="img"
-                src="/marca/parche-onerrd-2027.webp"
+                src={parcheOnerrd.src}
                 alt="Parche ONERRD 2027"
                 sx={{
                   width: { xs: 200, md: 280 },
@@ -169,7 +172,7 @@ function Hero({ vigencia }) {
               />
               <Box
                 component="img"
-                src="/marca/logo-oficina-nacional.webp"
+                src={logoOficina.src}
                 alt="Oficina Nacional de Exploradores del Rey"
                 sx={{
                   width: 200,

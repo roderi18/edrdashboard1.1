@@ -1,6 +1,18 @@
 import { uuidv4 } from 'minimal-shared/utils';
 
-import { CONFIG } from 'src/global-config';
+import icAi from 'src/assets/iconos-archivo/ic-ai.svg';
+import icImg from 'src/assets/iconos-archivo/ic-img.svg';
+import icPdf from 'src/assets/iconos-archivo/ic-pdf.svg';
+import icPts from 'src/assets/iconos-archivo/ic-pts.svg';
+import icTxt from 'src/assets/iconos-archivo/ic-txt.svg';
+import icZip from 'src/assets/iconos-archivo/ic-zip.svg';
+import icFile from 'src/assets/iconos-archivo/ic-file.svg';
+import icWord from 'src/assets/iconos-archivo/ic-word.svg';
+import icAudio from 'src/assets/iconos-archivo/ic-audio.svg';
+import icExcel from 'src/assets/iconos-archivo/ic-excel.svg';
+import icVideo from 'src/assets/iconos-archivo/ic-video.svg';
+import icFolder from 'src/assets/iconos-archivo/ic-folder.svg';
+import icPowerPoint from 'src/assets/iconos-archivo/ic-power-point.svg';
 
 // ----------------------------------------------------------------------
 
@@ -39,6 +51,24 @@ export const CUSTOM_FOLDER_ICONS = {
 };
 
 export const EXTRA_EXTENSIONS = ['folder'];
+
+// Los íconos van EMPAQUETADOS con la app (importados), no en `public/`: en
+// producción los de `public/` no se estaban sirviendo.
+const ICONOS = {
+  'ic-ai': icAi.src,
+  'ic-audio': icAudio.src,
+  'ic-excel': icExcel.src,
+  'ic-file': icFile.src,
+  'ic-folder': icFolder.src,
+  'ic-img': icImg.src,
+  'ic-pdf': icPdf.src,
+  'ic-power-point': icPowerPoint.src,
+  'ic-pts': icPts.src,
+  'ic-txt': icTxt.src,
+  'ic-video': icVideo.src,
+  'ic-word': icWord.src,
+  'ic-zip': icZip.src,
+};
 
 export const FILE_ICONS = {
   txt: 'ic-txt',
@@ -148,14 +178,13 @@ export function getFileIcon(input) {
       return CUSTOM_FOLDER_ICONS[key];
     }
 
-    return `${CONFIG.assetsDir}/plantilla/icons/files/ic-folder.svg`;
+    return ICONOS['ic-folder'];
   }
 
   const iconName = FILE_ICONS[format] || FILE_ICONS.unknown;
 
-  return `${CONFIG.assetsDir}/plantilla/icons/files/${iconName}.svg`;
+  return ICONOS[iconName] || ICONOS['ic-file'];
 }
-
 
 /**
  * Builds complete file metadata from a File object or file path.
