@@ -449,9 +449,8 @@ export function PasoPago() {
         ) : (
           <Stack spacing={2.5}>
             <Alert severity="info">
-              Realiza tu transferencia por{' '}
-              <strong>{formatearRd(total, { decimales: true })}</strong> y completa los datos.
-              Quedará pendiente de validación por la Oficina Nacional.
+              Transfiere <strong>{formatearRd(total, { decimales: true })}</strong> a una de estas
+              cuentas y sube el comprobante. La Oficina Nacional confirmará el pago.
             </Alert>
             <DatosBancarios bancos={configuracion?.banks} />
             <Controller
@@ -460,7 +459,7 @@ export function PasoPago() {
               render={({ field, fieldState }) => (
                 <Box>
                   <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Comprobante del depósito *
+                    Comprobante de la transferencia *
                   </Typography>
                   <Upload
                     multiple

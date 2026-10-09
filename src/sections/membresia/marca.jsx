@@ -164,7 +164,7 @@ export function Pie() {
               }}
             >
               <Iconify icon="solar:letter-bold" width={18} />
-              ofinanacional@errd.org.do
+              oficinanacional@errd.org.do
             </MuiLink>
           </Stack>
 

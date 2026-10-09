@@ -31,3 +31,16 @@ env:
     secret: FIREBASE_SERVICE_ACCOUNT
     availability:
       - RUNTIME
+
+  # El dashboard de este proyecto: genera el certificado y la factura de un pago con
+  # PayPal (sin navegador) cuando la landing se lo pide. Se identifica con el
+  # secreto de las tareas del servidor, que el dashboard ya tiene. Antes: darle
+  # acceso a este backend (`firebase apphosting:secrets:grantaccess`).
+  - variable: URL_DASHBOARD
+    value: https://explora--systexploradores.us-central1.hosted.app
+    availability:
+      - RUNTIME
+  - variable: EMISION_MEMBRESIA_SECRETO
+    secret: TAREAS_PROGRAMADAS_SECRETO
+    availability:
+      - RUNTIME

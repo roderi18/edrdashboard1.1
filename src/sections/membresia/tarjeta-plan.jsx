@@ -20,6 +20,27 @@ import { Iconify } from 'src/components/iconify';
 // mismo en las dos pantallas.
 // ----------------------------------------------------------------------
 
+export const planConTextoClaro = (plan) => {
+  const textos = {
+    nuevo: {
+      nombre: 'No pagó membresía en 2026',
+      detalle: 'Incluye membresía 2027 y RRI TRaC',
+      etiqueta: 'Precio regular',
+    },
+    fidelidad: {
+      nombre: 'Pagó membresía en 2026',
+      detalle: 'Incluye membresía 2027 y RRI TRaC',
+      etiqueta: `Ahorras ${formatearRd(plan?.descuento || 0)}`,
+    },
+    solo_registro: {
+      nombre: 'Ya tiene RRI TRaC activo',
+      detalle: 'Paga solamente la membresía 2027',
+      etiqueta: 'No vuelve a pagar RRI TRaC',
+    },
+  };
+  return { ...plan, ...(textos[plan?.id] || {}) };
+};
+
 export function TarjetaPlan({
   plan,
   seleccionable = false,
@@ -34,7 +55,7 @@ export function TarjetaPlan({
       direction={seleccionable ? { xs: 'column', sm: 'row' } : 'column'}
       spacing={2}
       sx={{
-        p: 2.5,
+        p: seleccionable ? 2.5 : 2,
         alignItems: seleccionable ? { sm: 'center' } : 'flex-start',
         height: 1,
       }}
@@ -45,8 +66,8 @@ export function TarjetaPlan({
         )}
         <Box
           sx={(t) => ({
-            width: 56,
-            height: 56,
+            width: seleccionable ? 56 : 48,
+            height: seleccionable ? 56 : 48,
             flexShrink: 0,
             display: 'flex',
             borderRadius: '50%',
@@ -56,7 +77,7 @@ export function TarjetaPlan({
             bgcolor: t.vars.palette[plan.color].main,
           })}
         >
-          <Iconify icon={plan.icono} width={28} />
+          <Iconify icon={plan.icono} width={seleccionable ? 28 : 24} />
         </Box>
         <Box>
           <Typography variant="subtitle1" sx={{ color: `${plan.color}.dark` }}>
@@ -85,7 +106,7 @@ export function TarjetaPlan({
           color={plan.color === 'primary' ? 'info' : plan.color}
           sx={{
             height: 'auto',
-            py: 0.75,
+            py: seleccionable ? 0.75 : 0.5,
             whiteSpace: 'normal',
             alignSelf: seleccionable ? 'center' : 'stretch',
           }}

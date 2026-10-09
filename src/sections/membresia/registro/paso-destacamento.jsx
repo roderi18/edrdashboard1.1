@@ -198,7 +198,9 @@ export function PasoDestacamento() {
           value={registradoPor}
           onChange={setRegistradoPor}
           helperText={
-            registradoPor?.idMiembro ? undefined : 'Busca tu nombre; si no apareces, escríbelo completo.'
+            registradoPor?.idMiembro
+              ? undefined
+              : 'Busca tu nombre; si no apareces, escríbelo completo.'
           }
         />
       </Box>
@@ -425,7 +427,7 @@ export function PasoDestacamento() {
             router.push(PASOS[1].ruta);
           }}
         >
-          Continuar al plan
+          Ver precio
         </Button>
       </Stack>
       <QuienCorrige

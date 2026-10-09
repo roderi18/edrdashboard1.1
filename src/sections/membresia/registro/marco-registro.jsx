@@ -19,6 +19,7 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 
 import { Pie, Encabezado } from '../marca';
+import { planConTextoClaro } from '../tarjeta-plan';
 import { PASOS, useRegistro, ProveedorRegistro, nombreDeDestacamento } from './contexto-registro';
 
 // ----------------------------------------------------------------------
@@ -173,8 +174,8 @@ function ResumenPedido({ actual }) {
           <Fila titulo="Registrado por" valor={registradoPor.nombre.trim()} />
         )}
         <Fila
-          titulo="Plan"
-          valor={p?.nombre || 'Se define en el paso 2'}
+          titulo="Opción"
+          valor={p ? planConTextoClaro(p).nombre : 'Se muestra en el paso 2'}
           editar={editable && actual > 1 && p ? '/registro/plan/' : null}
         />
         {corregido && (

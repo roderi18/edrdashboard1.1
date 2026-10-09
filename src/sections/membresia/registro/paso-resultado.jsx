@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -11,6 +11,7 @@ import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
+import LinearProgress from '@mui/material/LinearProgress';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -41,7 +42,7 @@ const ESTADOS = {
     icono: 'solar:check-circle-bold',
     titulo: 'Pago confirmado',
     texto:
-      'Tu membresía 2027 está activa. Descarga tu certificado y tu factura; también te llegaron por correo.',
+      'Tu membresía 2027 está activa. Descarga tu certificado y tu factura; también te los enviamos por correo.',
   },
   pendiente_transferencia: {
     color: 'warning',
@@ -120,6 +121,50 @@ export function PasoResultado() {
     const id = setInterval(leer, 8000);
     return () => clearInterval(id);
   }, [datos?.estado, leer]);
+
+  // UN PAGO CON PAYPAL no espera a la Oficina Nacional: al confirmarse, el
+  // servidor genera el certificado y la factura. Aquí se piden y se espera a que
+  // estén (el recuadro se queda «generando»); al terminar aparecen y también
+  // salen por correo. Si falla, se vuelve a intentar sola y se puede forzar.
+  const generandoRef = useRef(false);
+  const [fallos, setFallos] = useState(0);
+  const esperaDocumentos =
+    datos?.estado === 'confirmada' && datos?.tipoPago === 'paypal' && !datos?.documentosListos;
+
+  const pedirDocumentos = useCallback(async () => {
+    if (!token || generandoRef.current) return;
+    generandoRef.current = true;
+    try {
+      const respuesta = await fetch(`/api/solicitudes/${encodeURIComponent(token)}/documentos/`, {
+        method: 'POST',
+      });
+      const resultado = await respuesta.json().catch(() => ({}));
+      if (resultado.estado === 'listo') {
+        setFallos(0);
+        await leer();
+      } else if (resultado.estado === 'error' || !respuesta.ok) {
+        setFallos((n) => n + 1);
+      }
+    } catch {
+      setFallos((n) => n + 1);
+    } finally {
+      generandoRef.current = false;
+    }
+  }, [token, leer]);
+
+  useEffect(() => {
+    if (!esperaDocumentos) return undefined;
+    pedirDocumentos();
+    // Mientras tanto se mira cada pocos segundos (otro intento puede haberlos
+    // terminado) y, si no hay resultado, se vuelve a pedir.
+    let vueltas = 0;
+    const id = setInterval(() => {
+      vueltas += 1;
+      leer();
+      if (vueltas % 6 === 0) pedirDocumentos();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [esperaDocumentos, pedirDocumentos, leer]);
 
   const copiar = (texto) => {
     navigator.clipboard
@@ -237,7 +282,40 @@ export function PasoResultado() {
             </Stack>
           </Card>
 
-          {datos.estado === 'confirmada' && !datos.documentosListos && (
+          {esperaDocumentos && (
+            <Alert
+              severity={fallos >= 3 ? 'warning' : 'info'}
+              icon={<Iconify icon="solar:clock-circle-bold" />}
+              action={
+                fallos >= 3 && (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={() => {
+                      setFallos(0);
+                      pedirDocumentos();
+                    }}
+                  >
+                    Reintentar
+                  </Button>
+                )
+              }
+            >
+              <Typography variant="subtitle2">
+                {fallos >= 3
+                  ? 'Tarda más de lo normal.'
+                  : 'Espera: tu certificado y tu factura se están generando.'}
+              </Typography>
+              <Typography variant="body2">
+                {fallos >= 3
+                  ? 'Tu pago ya está confirmado. Pulsa Reintentar o vuelve en unos minutos con el enlace que recibirás por correo.'
+                  : 'Toma unos segundos; no cierres esta página. Cuando estén listos aparecerán aquí y también te los enviaremos por correo.'}
+              </Typography>
+              {fallos < 3 && <LinearProgress sx={{ mt: 1.5, borderRadius: 1 }} />}
+            </Alert>
+          )}
+
+          {datos.estado === 'confirmada' && !datos.documentosListos && !esperaDocumentos && (
             <Alert severity="info" icon={<Iconify icon="solar:clock-circle-bold" />}>
               Tu pago está confirmado. La Oficina Nacional está preparando tu certificado y tu
               factura: te llegarán por correo y podrás descargarlos aquí.

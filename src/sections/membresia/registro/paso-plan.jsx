@@ -11,9 +11,9 @@ import Skeleton from '@mui/material/Skeleton';
 
 import { Iconify } from 'src/components/iconify';
 
-import { TarjetaPlan } from '../tarjeta-plan';
 import { CabeceraPaso } from './marco-registro';
 import { PASOS, useRegistro } from './contexto-registro';
+import { TarjetaPlan, planConTextoClaro } from '../tarjeta-plan';
 
 // ----------------------------------------------------------------------
 // PASO 2 · EL PLAN. Solo aparecen los planes que le tocan al destacamento (lo
@@ -47,11 +47,11 @@ export function PasoPlan() {
     <Card sx={{ p: { xs: 2.5, md: 4 } }}>
       <CabeceraPaso
         indice={1}
-        titulo={planes.length > 1 ? 'Elige tu plan de membresía' : 'Confirma tu plan de membresía'}
+        titulo={planes.length > 1 ? 'Elige una opción' : 'Confirma el precio de tu membresía'}
         texto={
           planes.length > 1
-            ? 'Estos son los planes que le corresponden a tu destacamento.'
-            : 'El sistema ya determinó el plan que le corresponde a tu destacamento.'
+            ? 'Estas son las opciones disponibles para tu destacamento.'
+            : 'El sistema ya calculó el precio que le corresponde a tu destacamento.'
         }
       />
 
@@ -72,7 +72,7 @@ export function PasoPlan() {
           {planes.map((p) => (
             <TarjetaPlan
               key={p.id}
-              plan={p}
+              plan={planConTextoClaro(p)}
               seleccionable
               elegido={plan?.id === p.id}
               onElegir={() => elegirPlan(p.id)}
@@ -87,7 +87,11 @@ export function PasoPlan() {
           {(configuracion?.planes || [])
             .filter((p) => !planes.some((q) => q.id === p.id))
             .map((p) => (
-              <TarjetaPlan key={p.id} plan={p} motivoNoAplica={MOTIVOS_NO_APLICA[p.id]} />
+              <TarjetaPlan
+                key={p.id}
+                plan={planConTextoClaro(p)}
+                motivoNoAplica={MOTIVOS_NO_APLICA[p.id]}
+              />
             ))}
           <Alert severity="info">
             <strong>RRI TRaC</strong> es la plataforma digital de registro, control y capacitación

@@ -80,6 +80,10 @@ export async function leerElegibilidad(id) {
       iglesia,
       pastor,
       coordinador,
+      // Se conserva el estado leído al iniciar la solicitud. El reporte anual
+      // usa esta instantánea para identificar una reactivación aunque después
+      // la Oficina Nacional cambie el destacamento a Registrado.
+      estado: destacamento.estado,
     },
     validaciones,
     // Solo para enseñarlo: activo o inactivo (no bloquea).

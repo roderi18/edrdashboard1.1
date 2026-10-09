@@ -69,6 +69,10 @@ export async function confirmarMembresia(id, esperado, pago = {}) {
     await registrarCorreo(id, 'revision', await avisarRevision(confirmada));
     return confirmada;
   }
+  // UN PAGO CON PAYPAL no espera a la Oficina Nacional: el servidor del dashboard
+  // genera el certificado y la factura y los envía él (con los PDF adjuntos), así
+  // que aquí no sale el aviso de «le enviará» (`solicitarEmision`, al abrir el paso 4).
+  if (confirmada.tipoPago === 'paypal') return confirmada;
   const correo = await avisarConfirmacion(confirmada).catch((error) => ({
     estado: 'fallido',
     error: error.message,

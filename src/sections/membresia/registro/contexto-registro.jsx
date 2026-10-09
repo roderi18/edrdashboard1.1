@@ -27,8 +27,8 @@ export const PASOS = [
   {
     id: 'plan',
     ruta: '/registro/plan/',
-    titulo: 'Plan',
-    texto: 'Elige tu plan de membresía',
+    titulo: 'Precio',
+    texto: 'Confirma el precio',
     icono: 'solar:bill-list-bold',
   },
   {
