@@ -28,9 +28,9 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
-import { CabeceraPaso } from './marco-registro';
 import { useExigirDestacamento } from './paso-plan';
 import { PASOS, useRegistro } from './contexto-registro';
+import { TarjetaPaso, CabeceraPaso } from './marco-registro';
 
 // ----------------------------------------------------------------------
 // PASO 3 · EL PAGO. Primero, a dónde se mandan el certificado y la factura
@@ -347,7 +347,7 @@ export function PasoPago() {
   });
 
   return (
-    <Card sx={{ p: { xs: 2.5, md: 4 } }}>
+    <TarjetaPaso>
       <CabeceraPaso
         indice={2}
         titulo="Selecciona tu método de pago"
@@ -528,6 +528,6 @@ export function PasoPago() {
           )}
         </Stack>
       </Form>
-    </Card>
+    </TarjetaPaso>
   );
 }

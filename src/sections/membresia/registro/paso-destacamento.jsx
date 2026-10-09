@@ -21,9 +21,9 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { QuienCorrige } from './quien-corrige';
-import { CabeceraPaso } from './marco-registro';
 import { BuscadorPersona } from './buscador-persona';
 import { BotonAvisarOficina } from './avisar-oficina';
+import { TarjetaPaso, CabeceraPaso } from './marco-registro';
 import { PASOS, useRegistro, nombreDeDestacamento } from './contexto-registro';
 
 // ----------------------------------------------------------------------
@@ -178,7 +178,7 @@ export function PasoDestacamento() {
   const d = elegibilidad?.destacamento;
 
   return (
-    <Card sx={{ p: { xs: 2.5, md: 4 } }}>
+    <TarjetaPaso>
       <CabeceraPaso
         indice={0}
         titulo="Selecciona tu nombre y Destacamento"
@@ -443,6 +443,6 @@ export function PasoDestacamento() {
           if (despues === 'continuar') router.push(PASOS[1].ruta);
         }}
       />
-    </Card>
+    </TarjetaPaso>
   );
 }

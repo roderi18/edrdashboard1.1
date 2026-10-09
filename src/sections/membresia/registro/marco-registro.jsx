@@ -11,7 +11,6 @@ import MuiLink from '@mui/material/Link';
 import Divider from '@mui/material/Divider';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
-import LinearProgress from '@mui/material/LinearProgress';
 
 import { aDolares, formatearRd, formatearUsd } from 'src/utils/planes-membresia.mjs';
 
@@ -20,6 +19,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { Pie, Encabezado } from '../marca';
 import { planConTextoClaro } from '../tarjeta-plan';
+import { Banderita, PaisajeFondo } from '../ilustraciones-campamento';
 import { PASOS, useRegistro, ProveedorRegistro, nombreDeDestacamento } from './contexto-registro';
 
 // ----------------------------------------------------------------------
@@ -33,6 +33,35 @@ const indiceDePaso = (ruta) => {
   return i < 0 ? 0 : i;
 };
 
+// El tramo de sendero de tierra (punteado, en oro) que une un paso con el
+// siguiente, con una curva suave como un camino de campamento.
+function Sendero() {
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 36 28"
+      aria-hidden
+      sx={(t) => ({
+        width: 36,
+        height: 28,
+        display: 'block',
+        ml: 1.5,
+        my: -0.5,
+        color: t.vars.palette.brand.oroLight,
+      })}
+    >
+      <path
+        d="M18,0 C8,9 28,18 18,28"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeDasharray="1.5 6"
+      />
+    </Box>
+  );
+}
+
 function PasosLaterales({ actual }) {
   return (
     <Card
@@ -42,58 +71,70 @@ function PasosLaterales({ actual }) {
         position: 'sticky',
         color: 'common.white',
         display: { xs: 'none', lg: 'block' },
-        backgroundImage: `linear-gradient(180deg, ${t.vars.palette.primary.darker}, ${t.vars.palette.primary.dark})`,
+        backgroundImage: `linear-gradient(180deg, ${t.vars.palette.primary.dark}, ${t.vars.palette.primary.darker})`,
       })}
     >
       <Typography variant="h5">Pasos de registro</Typography>
       <Typography variant="body2" sx={{ opacity: 0.8, mt: 0.5, mb: 3 }}>
         Completa los 4 pasos para activar tu membresía 2027.
       </Typography>
-      <Stack spacing={1}>
+      <Box>
         {PASOS.map((paso, i) => {
           const activo = i === actual;
           const hecho = i < actual;
           return (
-            <Stack
-              key={paso.id}
-              direction="row"
-              spacing={1.5}
-              sx={(t) => ({
-                p: 1.5,
-                borderRadius: 1.5,
-                alignItems: 'center',
-                opacity: activo || hecho ? 1 : 0.7,
-                bgcolor: activo
-                  ? varAlpha(t.vars.palette.common.whiteChannel, 0.14)
-                  : 'transparent',
-              })}
-            >
-              <Box
-                sx={{
-                  width: 36,
-                  height: 36,
-                  flexShrink: 0,
-                  display: 'flex',
-                  borderRadius: '50%',
+            <Box key={paso.id}>
+              <Stack
+                direction="row"
+                spacing={1.5}
+                sx={(t) => ({
+                  p: 1.5,
+                  borderRadius: 1.5,
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  color: hecho ? 'common.white' : 'primary.darker',
-                  bgcolor: hecho ? 'success.main' : 'common.white',
-                }}
+                  opacity: activo || hecho ? 1 : 0.7,
+                  bgcolor: activo
+                    ? varAlpha(t.vars.palette.common.whiteChannel, 0.14)
+                    : 'transparent',
+                })}
               >
-                {hecho ? <Iconify icon="eva:checkmark-fill" width={20} /> : i + 1}
-              </Box>
-              <Box>
-                <Typography variant="subtitle2">{paso.titulo}</Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                  {paso.texto}
-                </Typography>
-              </Box>
-            </Stack>
+                <Box
+                  sx={(t) => ({
+                    width: 36,
+                    height: 36,
+                    flexShrink: 0,
+                    display: 'flex',
+                    borderRadius: '50%',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                    color: hecho ? 'common.white' : 'primary.darker',
+                    bgcolor: hecho
+                      ? 'success.main'
+                      : activo
+                        ? t.vars.palette.brand.oroLighter
+                        : 'common.white',
+                  })}
+                >
+                  {hecho ? (
+                    <Iconify icon="eva:checkmark-fill" width={20} />
+                  ) : activo ? (
+                    <Banderita tamano={22} />
+                  ) : (
+                    i + 1
+                  )}
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2">{paso.titulo}</Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                    {paso.texto}
+                  </Typography>
+                </Box>
+              </Stack>
+              {i < PASOS.length - 1 && <Sendero />}
+            </Box>
           );
         })}
-      </Stack>
+      </Box>
     </Card>
   );
 }
@@ -102,19 +143,56 @@ function PasosMovil({ actual }) {
   const paso = PASOS[actual];
   return (
     <Card variant="outlined" sx={{ p: 2, display: { lg: 'none' } }}>
-      <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 1 }}>
-        <Typography variant="subtitle2">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
+        <Banderita tamano={20} />
+        <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
           Paso {actual + 1} de {PASOS.length} · {paso.titulo}
         </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          {Math.round(((actual + 1) / PASOS.length) * 100)}%
-        </Typography>
       </Stack>
-      <LinearProgress
-        variant="determinate"
-        value={((actual + 1) / PASOS.length) * 100}
-        sx={{ height: 6, borderRadius: 1 }}
-      />
+      {/* El avance como un sendero: un tramo por paso, lleno hasta el actual. */}
+      <Stack direction="row" spacing={0.75}>
+        {PASOS.map((p, i) => (
+          <Box
+            key={p.id}
+            sx={(t) => ({
+              flex: 1,
+              height: 6,
+              borderRadius: 3,
+              bgcolor:
+                i <= actual
+                  ? i === actual
+                    ? t.vars.palette.primary.main
+                    : t.vars.palette.primary.light
+                  : varAlpha(t.vars.palette.grey['500Channel'], 0.2),
+            })}
+          />
+        ))}
+      </Stack>
+    </Card>
+  );
+}
+
+// La tarjeta de cada paso: como un parche bordado, con una cinta tejida arriba
+// (en azules de la casa) y el contenido del paso dentro.
+export function TarjetaPaso({ children }) {
+  return (
+    <Card
+      sx={(t) => ({
+        p: { xs: 2.5, md: 4 },
+        pt: { xs: 3.5, md: 5 },
+        position: 'relative',
+        '&::before': {
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 8,
+          content: '""',
+          position: 'absolute',
+          backgroundImage: `repeating-linear-gradient(-45deg, ${t.vars.palette.primary.main} 0 10px, ${t.vars.palette.primary.dark} 10px 20px, ${t.vars.palette.primary.light} 20px 30px)`,
+        },
+      })}
+    >
+      {children}
     </Card>
   );
 }
@@ -162,8 +240,26 @@ function ResumenPedido({ actual }) {
 
   return (
     <Card sx={{ p: 3, top: 24, position: { lg: 'sticky' } }}>
-      <Typography variant="h6">Resumen del pedido</Typography>
-      <Divider sx={{ my: 2 }} />
+      {/* El título como la etiqueta de una mochila: cinta verde con su ojal. */}
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{
+          ml: -3,
+          pl: 3,
+          pr: 4,
+          py: 1,
+          width: 'fit-content',
+          alignItems: 'center',
+          color: 'common.white',
+          bgcolor: 'primary.dark',
+          clipPath: 'polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%)',
+        }}
+      >
+        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'common.white' }} />
+        <Typography variant="h6">Resumen del pedido</Typography>
+      </Stack>
+      <Divider sx={{ my: 2, borderStyle: 'dashed', borderColor: 'transparent' }} />
       <Stack spacing={1.5}>
         <Fila
           titulo="Destacamento"
@@ -190,7 +286,9 @@ function ResumenPedido({ actual }) {
         )}
         {enviado && solicitud.codigo && <Fila titulo="Código" valor={solicitud.codigo} fuerte />}
       </Stack>
-      <Divider sx={{ my: 2 }} />
+      <Divider
+        sx={(t) => ({ my: 2, borderStyle: 'dashed', borderColor: t.vars.palette.primary.light })}
+      />
       <Stack spacing={1.5}>
         <Fila
           titulo="Cuota de registro"
@@ -224,21 +322,23 @@ function ResumenPedido({ actual }) {
           mt: 2,
           p: 2,
           borderRadius: 1.5,
-          bgcolor: varAlpha(t.vars.palette.primary.mainChannel, 0.08),
+          color: t.vars.palette.primary.darker,
+          bgcolor: t.vars.palette.primary.lighter,
+          border: `1.5px solid ${t.vars.palette.primary.light}`,
         })}
       >
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6">
             {enviado && solicitud.estado === 'confirmada' ? 'Total pagado' : 'Total'}
           </Typography>
-          <Typography variant="h5" sx={{ color: 'primary.main' }}>
+          <Typography variant="h5">
             {p ? formatearRd(p.precio, { decimales: true }) : '—'}
           </Typography>
         </Stack>
         <Typography
           variant="caption"
           component="p"
-          sx={{ color: 'text.secondary', textAlign: 'right' }}
+          sx={(t) => ({ color: t.vars.palette.primary.dark, textAlign: 'right' })}
         >
           Equivalente en USD: {usd ? formatearUsd(usd) : '—'}
         </Typography>
@@ -259,34 +359,62 @@ function Marco({ children }) {
   const actual = indiceDePaso(usePathname());
   return (
     <Box
-      sx={{
-        bgcolor: 'background.neutral',
+      sx={(t) => ({
         minHeight: '100vh',
         display: 'flex',
+        position: 'relative',
         flexDirection: 'column',
-      }}
+        // Cielo claro arriba que baja a verde de pradera.
+        backgroundImage: `linear-gradient(180deg, ${varAlpha(t.vars.palette.primary.lighterChannel, 0.7)} 0%, ${varAlpha(t.vars.palette.success.lighterChannel, 0.55)} 100%)`,
+      })}
     >
       <Encabezado conBoton={false} />
-      <Container maxWidth="xl" sx={{ mt: { xs: 3, md: 4 }, mb: { xs: 5, md: 8 } }}>
+      {/* El contenido crece y, detrás, al fondo de esa zona (justo encima del pie),
+          montañas, colinas y pinos. */}
+      <Box sx={{ flexGrow: 1, position: 'relative' }}>
         <Box
+          aria-hidden
           sx={{
-            gap: 3,
-            display: 'grid',
-            alignItems: 'start',
-            gridTemplateColumns: {
-              xs: '1fr',
-              lg: '280px minmax(0, 1fr) 340px',
-            },
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 0,
+            height: { xs: 150, md: 260 },
+            position: 'absolute',
+            pointerEvents: 'none',
           }}
         >
-          <PasosLaterales actual={actual} />
-          <Stack spacing={3} sx={{ minWidth: 0 }}>
-            <PasosMovil actual={actual} />
-            {children}
-          </Stack>
-          <ResumenPedido actual={actual} />
+          <PaisajeFondo />
         </Box>
-      </Container>
+        <Container
+          maxWidth="xl"
+          sx={{
+            zIndex: 1,
+            position: 'relative',
+            pt: { xs: 3, md: 4 },
+            pb: { xs: 16, md: 26 },
+          }}
+        >
+          <Box
+            sx={{
+              gap: 3,
+              display: 'grid',
+              alignItems: 'start',
+              gridTemplateColumns: {
+                xs: '1fr',
+                lg: '280px minmax(0, 1fr) 340px',
+              },
+            }}
+          >
+            <PasosLaterales actual={actual} />
+            <Stack spacing={3} sx={{ minWidth: 0 }}>
+              <PasosMovil actual={actual} />
+              {children}
+            </Stack>
+            <ResumenPedido actual={actual} />
+          </Box>
+        </Container>
+      </Box>
       <Pie />
     </Box>
   );
@@ -315,12 +443,27 @@ export function CabeceraPaso({ indice, titulo, texto }) {
         {texto && <Typography sx={{ color: 'text.secondary', mt: 0.5 }}>{texto}</Typography>}
       </Box>
       {/* A la derecha, donde iba la barra de porcentaje. */}
-      <Typography
-        variant="overline"
-        sx={{ color: 'primary.main', flexShrink: 0, whiteSpace: 'nowrap', order: { md: 2 } }}
+      <Stack
+        direction="row"
+        spacing={0.75}
+        sx={{
+          px: 1.25,
+          py: 0.5,
+          height: 'fit-content',
+          borderRadius: 5,
+          flexShrink: 0,
+          width: 'fit-content',
+          alignItems: 'center',
+          order: { md: 2 },
+          color: 'primary.dark',
+          bgcolor: 'primary.lighter',
+        }}
       >
-        Paso {indice + 1} de {PASOS.length}
-      </Typography>
+        <Banderita tamano={16} color="currentColor" />
+        <Typography variant="overline" sx={{ whiteSpace: 'nowrap', lineHeight: 1.6 }}>
+          Paso {indice + 1} de {PASOS.length}
+        </Typography>
+      </Stack>
     </Stack>
   );
 }

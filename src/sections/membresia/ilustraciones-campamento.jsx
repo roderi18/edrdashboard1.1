@@ -678,3 +678,130 @@ export function CertificadoIlustrado({ tamano = 320, sx }) {
     </Box>
   );
 }
+
+// ----------------------------------------------------------------------
+// EL PAISAJE DE FONDO DE LOS PASOS DEL REGISTRO: montañas con nieve, colinas y
+// pinos que suben desde el pie de página. En tonos muy suaves para no competir
+// con el formulario; se estira a lo ancho y se recorta por arriba.
+// ----------------------------------------------------------------------
+
+export function PaisajeFondo({ sx }) {
+  const c = useColores();
+  const ids = useIds(NOMBRES);
+  const tenues = [40, 90, 640, 690, 1240, 1300, 1540];
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 1600 300"
+      preserveAspectRatio="xMidYMax slice"
+      aria-hidden
+      sx={{ width: 1, height: 1, display: 'block', ...animacionTienda, ...sx }}
+    >
+      <defs>
+        <DefsComunes c={c} ids={ids} />
+      </defs>
+      <polygon
+        points="0,140 160,40 280,120 440,0 600,130 760,30 920,120 1080,10 1240,120 1400,40 1600,130 1600,300 0,300"
+        fill={c.azulMas}
+        opacity={0.75}
+      />
+      <polygon points="440,0 470,28 455,30 440,18 425,32 410,25" fill={c.blanco} opacity={0.9} />
+      <polygon
+        points="1080,10 1110,38 1095,40 1080,28 1065,42 1050,35"
+        fill={c.blanco}
+        opacity={0.9}
+      />
+      <polygon
+        points="0,200 200,130 360,190 560,120 760,200 980,130 1180,200 1380,140 1600,200 1600,300 0,300"
+        fill={c.verdeClaro}
+        opacity={0.16}
+      />
+      {tenues.map((x, i) => (
+        <polygon
+          key={x}
+          points={`${x},${150 + (i % 2) * 12} ${x - 30},${240} ${x + 30},${240}`}
+          fill={c.verdeClaro}
+          opacity={0.18}
+        />
+      ))}
+      <path
+        d="M0,260 C400,230 1200,230 1600,260 L1600,300 L0,300 Z"
+        fill={c.verdeClaro}
+        opacity={0.22}
+      />
+      <Pino x={30} y={288} c={c} ids={ids} />
+      <Pino x={1520} y={282} c={c} ids={ids} retraso={-0.8} />
+      <Pino x={1566} y={292} escala={0.8} c={c} ids={ids} retraso={-1.6} />
+    </Box>
+  );
+}
+
+// ----------------------------------------------------------------------
+// Iconos de campo (no están en el paquete de iconos): brújula, mochila y la
+// banderita del paso actual. Toman el color del texto (`currentColor`).
+// ----------------------------------------------------------------------
+
+export function Brujula({ tamano = 22, sx }) {
+  const c = useColores();
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 24 24"
+      aria-hidden
+      sx={{ width: tamano, height: tamano, ...sx }}
+    >
+      <circle cx={12} cy={12} r={10} fill="none" stroke="currentColor" strokeWidth={2} />
+      <polygon points="12,4.5 15,12 12,19.5 9,12" fill={c.llamaRoja} />
+      <polygon points="12,12 15,12 12,19.5 9,12" fill="currentColor" />
+      <circle cx={12} cy={12} r={1.4} fill={c.oroClaro} />
+    </Box>
+  );
+}
+
+export function Mochila({ tamano = 22, sx }) {
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 24 24"
+      aria-hidden
+      sx={{ width: tamano, height: tamano, ...sx }}
+    >
+      <path d="M9 5a3 3 0 0 1 6 0" fill="none" stroke="currentColor" strokeWidth={2} />
+      <rect x={5} y={5} width={14} height={17} rx={5} fill="currentColor" />
+      <rect x={8} y={14} width={8} height={5} rx={1.5} fill="#FFFFFF" opacity={0.45} />
+      <line
+        x1={12}
+        y1={9}
+        x2={12}
+        y2={12}
+        stroke="#FFFFFF"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+      />
+    </Box>
+  );
+}
+
+// `color`: el de la tela (por defecto, rojo de campamento).
+export function Banderita({ tamano = 22, color, sx }) {
+  const c = useColores();
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 24 24"
+      aria-hidden
+      sx={{ width: tamano, height: tamano, ...sx }}
+    >
+      <line
+        x1={7}
+        y1={21}
+        x2={7}
+        y2={3}
+        stroke={c.madera}
+        strokeWidth={2.4}
+        strokeLinecap="round"
+      />
+      <path d="M8 3.5 L19 7 L8 11 Z" fill={color || c.llamaRoja} />
+    </Box>
+  );
+}

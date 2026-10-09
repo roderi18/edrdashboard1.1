@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-import Card from '@mui/material/Card';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -11,8 +10,8 @@ import Skeleton from '@mui/material/Skeleton';
 
 import { Iconify } from 'src/components/iconify';
 
-import { CabeceraPaso } from './marco-registro';
 import { PASOS, useRegistro } from './contexto-registro';
+import { TarjetaPaso, CabeceraPaso } from './marco-registro';
 import { TarjetaPlan, planConTextoClaro } from '../tarjeta-plan';
 
 // ----------------------------------------------------------------------
@@ -44,7 +43,7 @@ export function PasoPlan() {
   const listo = useExigirDestacamento();
 
   return (
-    <Card sx={{ p: { xs: 2.5, md: 4 } }}>
+    <TarjetaPaso>
       <CabeceraPaso
         indice={1}
         titulo={planes.length > 1 ? 'Elige una opción' : 'Confirma el precio de tu membresía'}
@@ -121,6 +120,6 @@ export function PasoPlan() {
           Continuar al pago
         </Button>
       </Stack>
-    </Card>
+    </TarjetaPaso>
   );
 }

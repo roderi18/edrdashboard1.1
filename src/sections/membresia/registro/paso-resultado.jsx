@@ -16,8 +16,15 @@ import LinearProgress from '@mui/material/LinearProgress';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
-import { CabeceraPaso } from './marco-registro';
 import { PASOS, useRegistro } from './contexto-registro';
+import { TarjetaPaso, CabeceraPaso } from './marco-registro';
+import {
+  Tienda,
+  Fogata,
+  Brujula,
+  Mochila,
+  CertificadoIlustrado,
+} from '../ilustraciones-campamento';
 
 // ----------------------------------------------------------------------
 // PASO 4 · EL RESULTADO. Se lee del servidor con el enlace de la solicitud
@@ -86,6 +93,17 @@ function Documento({ icono, titulo, href }) {
       </Button>
     </Card>
   );
+}
+
+// La escena de cada estado: la tienda con luciérnagas mientras se espera, la
+// fogata mientras se generan los documentos, el certificado cuando están listos
+// y la tienda apagada (en gris) si se rechazó.
+function Escena({ estado, generando, listos }) {
+  if (estado === 'confirmada' && listos) return <CertificadoIlustrado tamano={170} />;
+  if (estado === 'confirmada' || generando) return <Fogata tamano={130} />;
+  if (estado === 'rechazada')
+    return <Tienda tamano={170} sx={{ filter: 'grayscale(1)', opacity: 0.6 }} />;
+  return <Tienda tamano={170} />;
 }
 
 export function PasoResultado() {
@@ -181,7 +199,7 @@ export function PasoResultado() {
   const estado = datos && (ESTADOS[datos.estado] || ESTADOS.pendiente_transferencia);
 
   return (
-    <Card sx={{ p: { xs: 2.5, md: 4 } }}>
+    <TarjetaPaso>
       <CabeceraPaso
         indice={3}
         titulo="Estado de tu membresía"
@@ -216,8 +234,19 @@ export function PasoResultado() {
             variant="outlined"
             sx={(t) => ({
               p: 3,
-              borderColor: t.vars.palette[estado.color].main,
+              position: 'relative',
+              borderColor: t.vars.palette[estado.color].light,
               bgcolor: t.vars.palette[estado.color].lighter,
+              // La costura del parche: un borde punteado por dentro.
+              '&::after': {
+                inset: 8,
+                content: '""',
+                borderRadius: 1.5,
+                position: 'absolute',
+                pointerEvents: 'none',
+                border: `2px dashed ${t.vars.palette[estado.color].main}`,
+                opacity: 0.55,
+              },
             })}
           >
             <Stack
@@ -225,11 +254,13 @@ export function PasoResultado() {
               spacing={2.5}
               sx={{ alignItems: { sm: 'center' } }}
             >
-              <Iconify
-                icon={estado.icono}
-                width={64}
-                sx={{ color: `${estado.color}.main`, flexShrink: 0 }}
-              />
+              <Box sx={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                <Escena
+                  estado={datos.estado}
+                  generando={esperaDocumentos}
+                  listos={datos.documentosListos}
+                />
+              </Box>
               <Box sx={{ flexGrow: 1 }}>
                 <Typography variant="h4" sx={{ color: `${estado.color}.darker` }}>
                   {estado.titulo}
@@ -349,7 +380,7 @@ export function PasoResultado() {
             <Button
               size="large"
               variant="contained"
-              startIcon={<Iconify icon="solar:home-angle-bold-duotone" />}
+              startIcon={<Brujula tamano={20} />}
               onClick={() => {
                 reiniciar();
                 router.push('/');
@@ -363,7 +394,7 @@ export function PasoResultado() {
               color="inherit"
               component="a"
               href={`/api/solicitudes/${token}/comprobante/`}
-              startIcon={<Iconify icon="solar:download-bold" />}
+              startIcon={<Mochila tamano={20} sx={{ color: 'success.dark' }} />}
             >
               Descargar comprobante de solicitud (PDF)
             </Button>
@@ -382,6 +413,6 @@ export function PasoResultado() {
           )}
         </Stack>
       )}
-    </Card>
+    </TarjetaPaso>
   );
 }
