@@ -101,7 +101,7 @@ export async function POST(request) {
       await db().runTransaction(async (tx) => {
         const doc = db().collection('membresiasOnerrd2027').doc(id);
         const prior = await tx.get(doc);
-        if (prior.exists && prior.data()?.estado !== 'rechazada')
+        if (prior.exists && !['rechazada', 'pendiente_paypal'].includes(prior.data()?.estado))
           throw new Error('Ya existe una membresía 2027 en trámite o confirmada.');
         tx.set(doc, {
           anio: 2027,

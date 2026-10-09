@@ -100,7 +100,9 @@ export async function POST(request) {
     await db().runTransaction(async (tx) => {
       const doc = db().collection('membresiasOnerrd2027').doc(input.data.destacamentoId);
       const previous = await tx.get(doc);
-      if (previous.exists && previous.data()?.estado !== 'rechazada')
+      // Rechazada, o un PayPal empezado y nunca completado (se cerró la ventana):
+      // se puede volver a intentar.
+      if (previous.exists && !['rechazada', 'pendiente_paypal'].includes(previous.data()?.estado))
         throw new Error('Ya existe una membresía en trámite o confirmada.');
       tx.set(doc, {
         anio: 2027,

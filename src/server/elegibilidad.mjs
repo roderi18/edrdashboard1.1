@@ -52,7 +52,10 @@ export async function leerElegibilidad(id) {
     // estatus se enseña, pero solo bloquea que la Oficina Nacional lo excluya
     // del ciclo (`elegibilidadMembresia2027/{id}.habilitado2027 = false`).
     habilitado: reglas.habilitado2027 !== false,
-    sinMembresia: !membresia || membresia.estado === 'rechazada',
+    // Un pago rechazado o un PayPal que se empezó y no se completó no bloquean:
+    // el destacamento puede volver a intentarlo.
+    sinMembresia:
+      !membresia || membresia.estado === 'rechazada' || membresia.estado === 'pendiente_paypal',
   };
   const disponible = Object.values(validaciones).every(Boolean) && planes.length > 0;
   // Al navegador solo va lo que se pinta: nada de teléfonos ni correos.
