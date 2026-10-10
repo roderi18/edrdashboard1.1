@@ -92,6 +92,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { VisorOnerrd } from './onerrd-visor';
 import { FirmasOnerrd } from './onerrd-firmas';
 import { LienzoOnerrd } from './onerrd-lienzo';
+import { Inscritos2026 } from './inscritos-2026';
 import { puedeUsarOnerrd } from './puede-usar-onerrd';
 import { usePapeleraOnerrd } from './papelera-onerrd';
 import { PropiedadesOnerrd } from './onerrd-propiedades';
@@ -253,6 +254,7 @@ export function OnerrdView() {
   const [verFactura, setVerFactura] = useState(false);
   const [verMembresia, setVerMembresia] = useState(false);
   const [verPagos, setVerPagos] = useState(false);
+  const [verInscritos, setVerInscritos] = useState(false);
   // La membresía (de "Membresías 2027 · pagos") cuyo certificado se está
   // editando: al emitir no se descarga solo, se pregunta qué hacer.
   const [membresiaEnEdicion, setMembresiaEnEdicion] = useState(null);
@@ -1962,6 +1964,14 @@ export function OnerrdView() {
             onEditar={editarMembresia}
             onConfirmada={emitirAlConfirmar}
             version={versionPagos}
+            user={user}
+          />
+
+          {/* Debajo de los pagos: los destacamentos inscritos en 2026 (descuento
+              por fidelidad), como el reporte de registro anual. */}
+          <Inscritos2026
+            abierto={verInscritos}
+            onAlternar={() => setVerInscritos((v) => !v)}
             user={user}
           />
         </Stack>
