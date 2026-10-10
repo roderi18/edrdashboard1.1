@@ -31,7 +31,7 @@ const nextConfig = {
   // modulo, antes de ejecutar una sola linea del handler. Por fuera se veia como
   // un 500 seco en `/api/members`, `/api/cargos` y todo `/api/auth/*`, mientras
   // las rutas que no lo importan respondian normal.
-  serverExternalPackages: ['firebase-admin'],
+  serverExternalPackages: ['firebase-admin', 'nodemailer', '@napi-rs/canvas'],
 
   // Las imágenes que cambiaron de carpeta: la ruta vieja lleva a la nueva.
   async redirects() {

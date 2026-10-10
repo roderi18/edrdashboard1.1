@@ -46,6 +46,17 @@ export const DEFINICIONES_COLECCIONES = Object.freeze({
     'categorias_producto_personalizadas'
   ),
   certificados: definir('certificados', 'certificados', 'certificates'),
+  // Certificado ONERRD (pestaña de Certificados): fondo, imagen, diseño y
+  // contadores por año; las emisiones, una por número (AÑO-001); y las firmas.
+  certificadosOnerrd: definir('certificadosOnerrd'),
+  certificadosOnerrdEmitidos: definir('certificadosOnerrdEmitidos'),
+  // Membresía ONERRD 2027: lo que la landing de pago lee (tarifas, planes,
+  // banco, PayPal, tasa) y, aparte, la clave de PayPal (solo el servidor).
+  configuracionMembresia2027: definir('configuracionMembresia2027'),
+  // Avisos de destacamentos que no pueden pagar (los escribe la landing).
+  avisosMembresia2027: definir('avisosMembresia2027'),
+  // Las membresías 2027 que entran por la landing (las escribe la landing).
+  membresiasOnerrd2027: definir('membresiasOnerrd2027'),
   registroChatSistema: definir('registroChatSistema', 'chat_sistema_registro'),
   cintasMiembros: definir('cintasMiembros', 'cintas_miembros'),
   combinacionesRoles: definir('combinacionesRoles', 'combinaciones_roles'),
@@ -102,6 +113,7 @@ export const DEFINICIONES_COLECCIONES = Object.freeze({
   designerVersiones: definir('designerVersiones', 'everest_versiones'),
   favoritosProductos: definir('favoritosProductos', 'favoritos_productos'),
   favoritosAscensoMiembros: definir('favoritosAscensoMiembros'),
+  firmasCertificadosOnerrd: definir('firmasCertificadosOnerrd'),
   fotos: definir('fotos'),
   fotosPortada: definir('fotosPortada', 'cover_photos'),
   galeriaDirectoresNacionales: definir(

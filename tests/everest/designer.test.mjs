@@ -200,10 +200,20 @@ test('va en el menu lateral, justo debajo de Administradores, y fuera de /dashbo
   const menu = leer('src/layouts/nav-config-dashboard.jsx');
 
   assert.match(menu, /title: 'EXPEDITION Designer',\s*path: paths\.dashboard\.everest,/);
-  // Se inserta DETRAS de la entrada de Administradores, dentro de su seccion.
+  // Se inserta DETRAS de la entrada de Administradores, dentro de su seccion; y
+  // como "Certificados" va pegado a Administradores, detras de Certificados.
   assert.match(menu, /seccion\.subheader === 'Administración'/);
-  assert.match(menu, /if \(item\.path !== paths\.dashboard\.admin\.root\) return \[item\];/);
+  assert.match(
+    menu,
+    /const ancla = tieneCertificados\s*\?\s*paths\.dashboard\.certificates\s*:\s*paths\.dashboard\.admin\.root;/
+  );
+  assert.match(menu, /if \(item\.path !== ancla\) return \[item\];/);
   assert.match(menu, /return \[item, entrada\];/);
+  // Certificados, justo debajo de Administradores.
+  assert.match(
+    menu,
+    /title: 'Administradores',[\s\S]*?deepMatch: true,\s*\},[\s\S]*?\{ title: 'Certificados', path: paths\.dashboard\.certificates/
+  );
 
   const paths = leer('src/routes/paths.js');
 

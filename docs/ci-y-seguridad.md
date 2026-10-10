@@ -11,10 +11,11 @@ nada se instala en la aplicación ni afecta su velocidad.
 | Gitleaks (todo el historial) | `seguridad.yml` + `.gitleaks.toml` | Detección de secretos |
 | `npm audit --audit-level=high` | `seguridad.yml` | SCA |
 | SBOM CycloneDX (`sbom.cdx.json`) | `seguridad.yml`, artefacto `sbom` | SBOM |
-| Dependabot | `.github/dependabot.yml` (PRs contra `development`) | SCA continuo |
+| Dependabot | `.github/dependabot.yml` (mensual, un PR agrupado contra `development`, sin versiones mayores) | SCA continuo |
 
-`seguridad.yml` corre en cada PR/push a `development`, `qa` y `main`, cada lunes
-y a mano (`workflow_dispatch`). Los informes quedan en los artefactos del run.
+`ci.yml` corre solo en PRs (no en el push de la fusión, que repetía lo mismo).
+`seguridad.yml` corre solo en PRs a `qa` y `main`, cada lunes y a mano
+(`workflow_dispatch`): en cada PR a `development` tardaba demasiado. Los informes quedan en los artefactos del run.
 
 ## Fases
 

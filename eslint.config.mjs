@@ -228,6 +228,9 @@ export default [
       // Mismo caso: la escritura de los sonidos de aviso que la puerta de cambios
       // ejecuta despues de registrarla en Historial.
       'src/services/sonidos-apply.js',
+      // Mismo caso: las escrituras del certificado ONERRD, que la puerta de
+      // cambios ejecuta despues de registrarlas en Historial.
+      'src/services/certificado-onerrd-apply.js',
       // Mismo caso: la escritura de un bloque publicado desde EXPLORA Designer,
       // que la puerta ejecuta despues de registrarla en Historial.
       'src/services/everest-apply.js',

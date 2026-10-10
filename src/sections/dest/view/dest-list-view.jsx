@@ -477,10 +477,13 @@ export function DestListView({ sectionalId = null }) {
     return tableData.filter((dest) => dest.regionalName === regionName).length;
   };
 
-  const distinctSectionalFullName = (sectionals || []).map((s) => ({
-    value: s.idSeccion || s.id,
-    label: s.nombre || s.sectionalName || s.name || 'Sin nombre',
-  }));
+  // En orden alfabético (con tildes y números en su sitio), no en el del padrón.
+  const distinctSectionalFullName = (sectionals || [])
+    .map((s) => ({
+      value: s.idSeccion || s.id,
+      label: s.nombre || s.sectionalName || s.name || 'Sin nombre',
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base', numeric: true }));
 
   useEffect(() => {
     if (appliedFromUrl.current) return;

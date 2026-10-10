@@ -1553,6 +1553,72 @@ service cloud.firestore {
       allow read, write: if esUsuarioDelSistema();
     }
 
+    // CERTIFICADO ONERRD (pestaña de Certificados; src/utils/certificado-onerrd.mjs).
+    // Solo Administrador Global y Oficina Nacional, por cualquiera de sus cargos.
+    // Nada se borra: las firmas se retiran con `activo: false`.
+    function gestionaOnerrd() {
+      return esAdministradorGlobal()
+        || ejerceRol('administrador_global')
+        || esOficinaNacional()
+        || ejerceRol('oficina_nacional');
+    }
+
+    // fondo, imagen, diseno y contador-AAAA. El contador solo sube de uno en
+    // uno: un número emitido va impreso y no se puede volver a dar.
+    match /certificadosOnerrd/{idDocumento} {
+      allow read: if gestionaOnerrd();
+      allow create: if gestionaOnerrd()
+        && (!idDocumento.matches('contador-.*') || request.resource.data.ultimo == 1);
+      allow update: if gestionaOnerrd()
+        && (!idDocumento.matches('contador-.*')
+          || request.resource.data.ultimo == resource.data.ultimo + 1);
+      allow delete: if false;
+    }
+
+    // Cada emisión, con id = su número (AAAA-NNN). Solo se crea, en el mismo
+    // lote que sube el contador a esa secuencia; nunca se cambia ni se borra.
+    match /certificadosOnerrdEmitidos/{numero} {
+      allow read: if gestionaOnerrd();
+      allow create: if gestionaOnerrd()
+        && request.resource.data.numeroRegistro == numero
+        && getAfter(/databases/$(database)/documents/certificadosOnerrd/$('contador-' + string(request.resource.data.anio))).data.ultimo
+          == request.resource.data.secuencia;
+      allow update, delete: if false;
+    }
+
+    // MEMBRESÍA ONERRD 2027 (la landing de pago, proyecto aparte, la lee con el
+    // Admin SDK). `general`: tarifas, planes, licencias, banco, PayPal y tasa;
+    // la cambian quienes gestionan el certificado ONERRD. `secretos` (clave de
+    // PayPal) nadie la lee ni la escribe desde el navegador: la guarda
+    // /api/certificados-onerrd/membresia/secretos.
+    match /configuracionMembresia2027/{idDocumento} {
+      allow read: if idDocumento == 'general' && gestionaOnerrd();
+      allow create, update: if idDocumento == 'general' && gestionaOnerrd();
+      allow delete: if false;
+    }
+
+    // Membresías 2027 que entran por la landing (las escribe solo la landing
+    // con el Admin SDK). El dashboard las lee por
+    // /api/certificados-onerrd/membresia/pagos: nadie las toca desde el navegador.
+    match /membresiasOnerrd2027/{idDestacamento}/{documento=**} {
+      allow read, write: if false;
+    }
+    match /membresiasOnerrd2027/{idDestacamento} {
+      allow read, write: if false;
+    }
+
+    // Avisos de destacamentos que no pueden pagar la membresía (botón "Avisar
+    // Oficina Nacional" de la landing). Solo los escribe la landing (Admin SDK).
+    match /avisosMembresia2027/{idDestacamento} {
+      allow read: if gestionaOnerrd();
+      allow write: if false;
+    }
+
+    match /firmasCertificadosOnerrd/{idFirma} {
+      allow read, create, update: if gestionaOnerrd();
+      allow delete: if false;
+    }
+
     // La evaluación del destacamento: solo la ven y la cambian el Administrador
     // Global y la Oficina Nacional (src/utils/evaluacion-destacamento.mjs).
     match /evaluaciones_destacamentos/{idDestacamento} {

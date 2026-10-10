@@ -193,3 +193,65 @@ export const quitarEliminados = (nodos = [], eliminados = {}) => {
   };
   return nodos.filter((n) => !dentroDeEliminado(n));
 };
+
+/**
+ * Por qué no se puede eliminar (o '' si se puede). Los dos programas de la raíz
+ * (Sistema de Ascenso y Academia Ministerial) no se eliminan: con ellos se iría
+ * el árbol entero de todos los miembros.
+ */
+export const motivoParaNoEliminar = (nodo) => {
+  if (!nodo) return 'No se encontró.';
+  if (!nodo.parentId) return 'Los programas de la raíz no se eliminan.';
+  return '';
+};
+
+/**
+ * Lo que se oculta junto con una carpeta: sus subcarpetas y premios, a
+ * cualquier profundidad. Para decirlo ANTES de confirmar: eliminar una carpeta
+ * se lleva todo lo de dentro, y "¿Eliminar este elemento?" no lo avisaba.
+ */
+export const contenidoDeCarpeta = (nodos = [], idCarpeta) => {
+  const hijos = new Map();
+
+  nodos.forEach((nodo) => {
+    if (!hijos.has(nodo.parentId)) hijos.set(nodo.parentId, []);
+    hijos.get(nodo.parentId).push(nodo);
+  });
+
+  let carpetas = 0;
+  let premios = 0;
+  const pendientes = [...(hijos.get(idCarpeta) ?? [])];
+  const vistos = new Set([idCarpeta]);
+
+  while (pendientes.length) {
+    const nodo = pendientes.pop();
+
+    if (!vistos.has(nodo.id)) {
+      vistos.add(nodo.id);
+
+      if (nodo.type === 'folder') {
+        carpetas += 1;
+        pendientes.push(...(hijos.get(nodo.id) ?? []));
+      } else {
+        premios += 1;
+      }
+    }
+  }
+
+  return { carpetas, premios };
+};
+
+/** El aviso de la confirmación: qué se va y qué se queda. */
+export const avisoDeEliminarCarpeta = (nodos = [], carpeta = {}) => {
+  const { carpetas, premios } = contenidoDeCarpeta(nodos, carpeta.id);
+  const partes = [
+    carpetas && `${carpetas} ${carpetas === 1 ? 'subcarpeta' : 'subcarpetas'}`,
+    premios && `${premios} ${premios === 1 ? 'premio' : 'premios'}`,
+  ].filter(Boolean);
+  const dentro = partes.length ? ` y todo lo que contiene (${partes.join(' y ')})` : '';
+
+  return (
+    `Se ocultará para todos la carpeta "${carpeta.name}"${dentro}. ` +
+    'El progreso y los certificados de los miembros no se borran.'
+  );
+};

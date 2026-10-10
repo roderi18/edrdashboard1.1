@@ -31,6 +31,17 @@
         "dev"
       ],
       "port": 3040
+    },
+    {
+      "name": "onerrd-membresia",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "C:/Users/rdpr1/OneDrive/Escritorio/onerrd-membresia",
+        "run",
+        "dev"
+      ],
+      "port": 3050
     }
   ]
 }

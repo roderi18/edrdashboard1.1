@@ -823,6 +823,56 @@ service firebase.storage {
       allow delete: if resource != null && esAdministradorGlobal();
     }
 
+    // LOS PDF DEL CERTIFICADO ONERRD: lo que abre su código QR. Los sube quien
+    // emite (Administrador Global u Oficina Nacional), solo PDF y con el nombre
+    // del número (AAAA-NNN.pdf). Nadie los lee desde el navegador: los entrega
+    // la ruta pública /api/certificados-onerrd con el Admin SDK, y solo con la
+    // clave de cada certificado. Nada se borra.
+    match /certificados-onerrd/{archivo} {
+      allow read: if false;
+      allow create, update: if (esAdministradorGlobal() || esOficinaNacional())
+        && archivo.matches('[0-9]{4}-[0-9]{3,6}[.]pdf')
+        && request.resource.contentType == 'application/pdf'
+        && request.resource.size < 15 * 1024 * 1024;
+      allow delete: if false;
+    }
+
+    // LOS ORIGINALES DEL CERTIFICADO ONERRD: cada plantilla .svg tal cual se
+    // subió (con su fecha y hora: no se pisan) y la imagen de cada firma. La
+    // app pinta desde Firestore; esto es para no perder el archivo. Solo los
+    // gestiona quien gestiona el ONERRD, y nada se borra.
+    match /certificados-onerrd/plantillas/{archivo} {
+      allow read: if esAdministradorGlobal() || esOficinaNacional();
+      allow create: if (esAdministradorGlobal() || esOficinaNacional())
+        && archivo.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}_[A-Za-z0-9._-]+[.]svg')
+        && request.resource.contentType == 'image/svg+xml'
+        // La plantilla de 2027 pesa 8,3 MB (lleva sus imágenes dentro).
+        && request.resource.size < 20 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+
+    // LAS FACTURAS DEL CERTIFICADO ONERRD (AAAA-NNN.pdf): lo que abre el QR de
+    // cada factura. Como los PDF del certificado: nadie las lee desde el
+    // navegador (las entrega /api/certificados-onerrd/AAAA-NNN/factura con su
+    // clave) y nada se borra.
+    match /certificados-onerrd/facturas/{archivo} {
+      allow read: if false;
+      allow create, update: if (esAdministradorGlobal() || esOficinaNacional())
+        && archivo.matches('[0-9]{4}-[0-9]{3,6}[.]pdf')
+        && request.resource.contentType == 'application/pdf'
+        && request.resource.size < 15 * 1024 * 1024;
+      allow delete: if false;
+    }
+
+    match /certificados-onerrd/firmas/{archivo} {
+      allow read: if esAdministradorGlobal() || esOficinaNacional();
+      allow create, update: if (esAdministradorGlobal() || esOficinaNacional())
+        && archivo.matches('firma-[0-9]{10,16}[.](png|jpg|webp)')
+        && request.resource.contentType.matches('image/(png|jpeg|webp)')
+        && request.resource.size < 5 * 1024 * 1024;
+      allow delete: if false;
+    }
+
     // EL RESPALDO DIARIO (`src/utils/respaldo-diario.mjs`): la base de datos, el
     // padrón y las cuentas de toda la organización, y el espejo de los archivos.
     // Solo lo escribe y lo lee el servidor (Admin SDK, que no pasa por aquí).

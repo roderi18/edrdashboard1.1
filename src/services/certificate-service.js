@@ -10,7 +10,9 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { direccionPublicaActual } from 'src/utils/direccion-publica.mjs';
 import { conCache, conInvalidacion } from 'src/utils/cache-de-lecturas.mjs';
+import { crearClaveCertificado, urlDelCertificadoPublico } from 'src/utils/certificado-publico.mjs';
 
 import { getMemberById } from 'src/services/member-service';
 import { FIRESTORE, FIREBASE_STORAGE, isFirebaseConfigured } from 'src/lib/firebase';
@@ -61,12 +63,15 @@ const getCreator = (user, fallbackName = 'Usuario') => ({
     user?.codigoMiembro ||
     fallbackName,
   correo: user?.email || '',
+  // Sale debajo del nombre en "Certificados creados".
+  codigo: String(user?.codigoMiembro || user?.codigoUsuario || ''),
 });
 
 const toLegacyCreator = (creator = {}) => ({
   uid: creator.uid || '',
   name: creator.nombre || '',
   email: creator.correo || '',
+  code: creator.codigo || '',
 });
 
 const getMemberName = (member = {}) =>
@@ -158,6 +163,7 @@ const normalizeCertificateForUi = (certificate = {}) => ({
   templateName: certificate.templateName || certificate.nombrePlantilla || '',
   issuedAt: certificate.issuedAt || certificate.fechaEmision || '',
   pdfUrl: certificate.pdfUrl || certificate.urlPdf || '',
+  claveAcceso: certificate.claveAcceso || '',
   pdfPath: certificate.pdfPath || certificate.rutaPdf || '',
   pdfSize: certificate.pdfSize || certificate.pesoPdf || 0,
   createdAt: certificate.createdAt || certificate.creadoEn || '',
@@ -207,6 +213,7 @@ const toSpanishCertificate = ({
   now,
   origen = 'certificados',
   vinculo = null,
+  claveAcceso = '',
 }) => ({
   id: certificateId,
   idLote: batchId,
@@ -230,6 +237,9 @@ const toSpanishCertificate = ({
   urlPdf: pdfUrl,
   rutaPdf: pdfPath,
   pesoPdf: Number(pdfSize || 0),
+  // La clave del enlace del QR (la página que enseña el certificado): solo la
+  // llevan los de "Crear certificados" creados desde que existe esa página.
+  ...(claveAcceso && { claveAcceso }),
   origen,
   ...(vinculo?.idItemAscenso && {
     idProgresoAscenso: getProgressId(getMemberDocId(member), vinculo.idItemAscenso),
@@ -406,6 +416,10 @@ const guardarLoteCertificadosDirecto = async ({
       const certificateId = `${batchId}-${normalizeIdSegment(memberCode)}`;
       const pdfPath = `certificados/${batchId}/${normalizeIdSegment(fileName || `${memberCode}.pdf`)}`;
       const storageRef = ref(FIREBASE_STORAGE, pdfPath);
+      // El QR abre la página del certificado (con su fecha y hora de
+      // generación), no el PDF suelto: se conoce antes de subir nada.
+      const claveAcceso = crearClaveCertificado();
+      const urlQr = urlDelCertificadoPublico(direccionPublicaActual(), certificateId, claveAcceso);
 
       await uploadBytes(storageRef, blob, {
         contentType: 'application/pdf',
@@ -418,7 +432,7 @@ const guardarLoteCertificadosDirecto = async ({
       });
 
       let pdfUrl = await getDownloadURL(storageRef);
-      const finalBlob = buildFinalBlob ? await buildFinalBlob({ member, pdfUrl }) : null;
+      const finalBlob = buildFinalBlob ? await buildFinalBlob({ member, pdfUrl, urlQr }) : null;
 
       if (finalBlob) {
         await uploadBytes(storageRef, finalBlob, {
@@ -445,6 +459,7 @@ const guardarLoteCertificadosDirecto = async ({
         creator,
         now,
         vinculo,
+        claveAcceso,
       });
 
       await setDoc(
@@ -494,6 +509,8 @@ const guardarLoteCertificadosDirecto = async ({
       urlPdf: certificate.pdfUrl,
       rutaPdf: certificate.pdfPath,
       pesoPdf: certificate.pdfSize,
+      // Para volver a descargarlo con el mismo QR.
+      claveAcceso: certificate.claveAcceso || '',
       estadoCertificado: certificate.certificateStatus,
       idItemAscenso: certificate.idItemAscenso || '',
     })),
