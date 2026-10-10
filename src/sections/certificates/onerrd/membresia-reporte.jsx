@@ -52,7 +52,9 @@ export function ReporteRegistroMembresia({ abierto, onCerrar, membresias, padron
     <Dialog open={abierto} onClose={onCerrar} maxWidth="md" fullWidth>
       <DialogTitle>Reporte de registro anual de destacamentos 2027</DialogTitle>
       <DialogContent dividers>
+        {/* Papel blanco también en modo oscuro: si no, las letras salían blancas. */}
         <Box
+          data-color-scheme="light"
           sx={{
             bgcolor: '#fff',
             color: '#171b27',

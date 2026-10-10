@@ -174,7 +174,6 @@ export const navData = [
   {
     subheader: 'Formación',
     items: [
-      { title: 'Certificados', path: paths.dashboard.certificates, icon: ICONS.certificate },
       { title: 'Documentos Ministeriales', path: paths.dashboard.fileManager, icon: ICONS.folder },
       // SIN DESTINO TODAVIA. Se deja a la vista porque el area existe y esta
       // decidida, pero deshabilitada: lo unico que hay hoy es el modulo `course`
@@ -215,6 +214,10 @@ export const navData = [
         icon: ICONS.lock,
         deepMatch: true,
       },
+      // Debajo de "Administradores" (antes en "Formación"). Quien no entra a
+      // Administradores lo sigue viendo: el filtro decide entrada por entrada y
+      // el grupo se queda con lo que le quede.
+      { title: 'Certificados', path: paths.dashboard.certificates, icon: ICONS.certificate },
     ],
   },
 ];
@@ -304,11 +307,20 @@ export const conEverestDesigner = (secciones = [], entrada = entradaEverestDesig
     seccion.subheader === 'Administración'
       ? {
         ...seccion,
-        items: (seccion.items ?? []).flatMap((item) => {
-          if (item.path !== paths.dashboard.admin.root) return [item];
-          puesta = true;
-          return [item, entrada];
-        }),
+        items: (() => {
+          const items = seccion.items ?? [];
+          // Debajo de "Administradores" y de "Certificados", que va pegado a él.
+          const tieneCertificados = items.some((i) => i.path === paths.dashboard.certificates);
+          const ancla = tieneCertificados
+            ? paths.dashboard.certificates
+            : paths.dashboard.admin.root;
+          if (!items.some((i) => i.path === paths.dashboard.admin.root)) return items;
+          return items.flatMap((item) => {
+            if (item.path !== ancla) return [item];
+            puesta = true;
+            return [item, entrada];
+          });
+        })(),
       }
       : seccion
   );

@@ -18,6 +18,7 @@ import TableHead from '@mui/material/TableHead';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
+import TableSortLabel from '@mui/material/TableSortLabel';
 import TableContainer from '@mui/material/TableContainer';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
@@ -57,6 +58,27 @@ const REGIONES = ['Central', 'Norte', 'Sur', 'Este'];
 // "2025-11-07" a mediodía de Santo Domingo: a medianoche UTC salía el día antes.
 const fechaDeFila = (fecha) => (fecha ? `${fecha}T12:00:00-04:00` : '');
 
+// Siempre ordenada, por defecto, por número de destacamento de menor a mayor; las
+// flechas de cada columna cambian el criterio y el sentido.
+const COLUMNAS = [
+  { id: 'registro', texto: 'Registro No.' },
+  { id: 'numero', texto: 'Dest. No.' },
+  { id: 'fecha', texto: 'Fecha reg.' },
+  { id: 'region', texto: 'Región' },
+  { id: 'registradoPor', texto: 'Registrado por' },
+  { id: 'enApi', texto: 'En la API' },
+];
+
+const comparar = (a, b, campo, nombreApi) => {
+  if (campo === 'numero') return Number(a.numero || 0) - Number(b.numero || 0);
+  const va = campo === 'enApi' ? nombreApi(a) : a[campo] || '';
+  const vb = campo === 'enApi' ? nombreApi(b) : b[campo] || '';
+  return String(va).localeCompare(String(vb), 'es', { numeric: true, sensitivity: 'base' });
+};
+
+const porNumeroAsc = (lista) =>
+  [...(lista || [])].sort((a, b) => Number(a.numero || 0) - Number(b.numero || 0));
+
 const filaVacia = () => ({
   registro: '',
   numero: '',
@@ -75,13 +97,14 @@ export function Inscritos2026({ abierto, onAlternar, user }) {
   const [guardando, setGuardando] = useState(false);
   const [descargando, setDescargando] = useState(false);
   const [error, setError] = useState('');
+  const [orden, setOrden] = useState({ campo: 'numero', sentido: 'asc' });
 
   useEffect(() => {
     if (!abierto) return;
     setEditando(false);
     setError('');
     leerConfiguracionMembresia()
-      .then((c) => setFilas(c.inscritos2026))
+      .then((c) => setFilas(porNumeroAsc(c.inscritos2026)))
       .catch(() => setError('No se pudo leer la lista.'));
     leerPagosMembresia()
       .then((d) => setPadron(d.padron || []))
@@ -94,6 +117,27 @@ export function Inscritos2026({ abierto, onAlternar, user }) {
     [padron]
   );
 
+  // Las filas con su posición original (la edición la necesita), ordenadas. Al
+  // editar se deja el orden guardado: una fila no salta mientras se teclea.
+  const filasOrdenadas = useMemo(() => {
+    const conIndice = (filas || []).map((f, i) => ({ f, i }));
+    if (editando) return conIndice;
+    const nombreApi = (f) => porNumero.get(normalizarNumeroDestacamento(f.numero))?.nombre || '';
+    const signo = orden.sentido === 'asc' ? 1 : -1;
+    return conIndice.sort(
+      (x, y) =>
+        signo * comparar(x.f, y.f, orden.campo, nombreApi) ||
+        Number(x.f.numero || 0) - Number(y.f.numero || 0)
+    );
+  }, [filas, editando, orden, porNumero]);
+
+  const ordenarPor = (campo) =>
+    setOrden((o) =>
+      o.campo === campo
+        ? { campo, sentido: o.sentido === 'asc' ? 'desc' : 'asc' }
+        : { campo, sentido: 'asc' }
+    );
+
   const cambiarFila = (indice, campo, valor) =>
     setFilas((actual) => actual.map((f, i) => (i === indice ? { ...f, [campo]: valor } : f)));
 
@@ -104,7 +148,7 @@ export function Inscritos2026({ abierto, onAlternar, user }) {
         filas: filas.map(sanearInscrito),
         user,
       });
-      setFilas(guardadas);
+      setFilas(porNumeroAsc(guardadas));
       setEditando(false);
       toast.success(`Lista guardada: ${guardadas.length} destacamentos.`);
     } catch (e) {
@@ -120,7 +164,7 @@ export function Inscritos2026({ abierto, onAlternar, user }) {
     try {
       const { crearReporteRegistroPdf } = await import('./membresia-reporte-pdf');
       const documento = await crearReporteRegistroPdf(
-        (filas || []).map((f, i) => ({
+        filasOrdenadas.map(({ f, i }) => ({
           id: `${f.numero}-${i}`,
           registro: f.registro,
           destacamento: `${f.numero}${f.marca}`,
@@ -178,8 +222,10 @@ export function Inscritos2026({ abierto, onAlternar, user }) {
               descuento hasta corregirlo.
             </Alert>
           )}
-          {/* La hoja, como el reporte de registro anual. */}
+          {/* La hoja, como el reporte de registro anual. Siempre en claro (papel
+              blanco): en modo oscuro las letras salían blancas sobre blanco. */}
           <Box
+            data-color-scheme="light"
             sx={{
               bgcolor: '#fff',
               color: '#171b27',
@@ -201,17 +247,26 @@ export function Inscritos2026({ abierto, onAlternar, user }) {
               <Table size="small" sx={{ minWidth: 820 }}>
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#eef2f8' }}>
-                    <TableCell>Registro No.</TableCell>
-                    <TableCell>Dest. No.</TableCell>
-                    <TableCell>Fecha reg.</TableCell>
-                    <TableCell>Región</TableCell>
-                    <TableCell>Registrado por</TableCell>
-                    <TableCell>En la API</TableCell>
+                    {COLUMNAS.map(({ id, texto }) => (
+                      <TableCell
+                        key={id}
+                        sortDirection={orden.campo === id ? orden.sentido : false}
+                      >
+                        <TableSortLabel
+                          active={orden.campo === id}
+                          direction={orden.campo === id ? orden.sentido : 'asc'}
+                          disabled={editando}
+                          onClick={() => ordenarPor(id)}
+                        >
+                          {texto}
+                        </TableSortLabel>
+                      </TableCell>
+                    ))}
                     {editando && <TableCell />}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {(filas || []).map((f, i) => {
+                  {filasOrdenadas.map(({ f, i }) => {
                     const enApi = porNumero.get(normalizarNumeroDestacamento(f.numero));
                     return (
                       <TableRow key={i}>
@@ -292,7 +347,7 @@ export function Inscritos2026({ abierto, onAlternar, user }) {
                         ) : (
                           <>
                             <TableCell>{f.registro}</TableCell>
-                            <TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>
                               {f.numero}
                               {f.marca}
                             </TableCell>
