@@ -1,5 +1,6 @@
 'use client';
 
+import { varAlpha } from 'minimal-shared/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useRef, useState, useEffect, useCallback } from 'react';
 
@@ -296,14 +297,26 @@ export function PasoResultado() {
                   <Typography variant="subtitle1" sx={{ color: `${estado.color}.darker` }}>
                     Código de tu solicitud:
                   </Typography>
-                  <Typography variant="h6" sx={{ letterSpacing: 0.5 }}>
+                  {/* Azul marino en claro y en oscuro: la tarjeta es clara en los dos, y
+                      con el texto del modo oscuro (blanco) el código no se leía. */}
+                  <Typography
+                    variant="h6"
+                    sx={(t) => ({ letterSpacing: 0.5, color: t.vars.palette.brand.navy })}
+                  >
                     {datos.codigoSolicitud}
                   </Typography>
                   <Button
                     size="small"
-                    color="inherit"
                     variant="outlined"
                     startIcon={<Iconify icon="solar:copy-bold" />}
+                    sx={(t) => ({
+                      color: t.vars.palette.brand.navy,
+                      borderColor: varAlpha(t.vars.palette.brand.navyChannel, 0.32),
+                      '&:hover': {
+                        borderColor: t.vars.palette.brand.navy,
+                        bgcolor: varAlpha(t.vars.palette.brand.navyChannel, 0.08),
+                      },
+                    })}
                     onClick={() => copiar(datos.codigoSolicitud)}
                   >
                     Copiar código

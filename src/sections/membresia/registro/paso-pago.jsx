@@ -79,15 +79,17 @@ function PanelPaypal({ total, configuracion, onPagar, enviando, contactoListo })
   // Por qué el botón no se puede pulsar, dicho con claridad.
   const aviso = !configuracion
     ? ''
-    : !configuracion.lanzamientoHabilitado
-      ? 'PayPal se activará cuando la Oficina Nacional abra los cobros.'
-      : !habilitado
-        ? // Cobros abiertos pero PayPal sin listo (sin clave o sin tasa del día):
-          // antes decía "cuando se abran los cobros", que no era la razón.
-          'PayPal no está disponible por el momento. Puedes pagar por transferencia bancaria.'
-        : !contactoListo
-          ? 'Completa tu correo y teléfono para habilitar el pago.'
-          : '';
+    : configuracion.inscripcionesCerradas
+      ? 'Las inscripciones de la membresía 2027 ya cerraron.'
+      : !configuracion.lanzamientoHabilitado
+        ? 'PayPal se activará cuando la Oficina Nacional abra los cobros.'
+        : !habilitado
+          ? // Cobros abiertos pero PayPal sin listo (sin clave o sin tasa del día):
+            // antes decía "cuando se abran los cobros", que no era la razón.
+            'PayPal no está disponible por el momento. Puedes pagar por transferencia bancaria.'
+          : !contactoListo
+            ? 'Completa tu correo y teléfono para habilitar el pago.'
+            : '';
   return (
     <Stack spacing={2.5}>
       <Grid container spacing={2}>
@@ -355,9 +357,10 @@ export function PasoPago() {
       />
 
       {!abierto && configuracion && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          Los pagos de la membresía 2027 aún no están abiertos. Puedes revisar el proceso; el botón
-          de pago se activará cuando la Oficina Nacional lo apruebe.
+        <Alert severity={configuracion.inscripcionesCerradas ? 'warning' : 'info'} sx={{ mb: 3 }}>
+          {configuracion.inscripcionesCerradas
+            ? 'Las inscripciones de la membresía 2027 ya cerraron: no se reciben más pagos.'
+            : 'Los pagos de la membresía 2027 aún no están abiertos. Puedes revisar el proceso; el botón de pago se activará cuando la Oficina Nacional lo apruebe.'}
         </Alert>
       )}
       {hayCorrecciones && (
@@ -521,7 +524,9 @@ export function PasoPago() {
               {/* Que no parezca roto: dice por qué no se puede enviar. */}
               {configuracion && !abierto && (
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Se activa cuando la Oficina Nacional abra los cobros.
+                  {configuracion.inscripcionesCerradas
+                    ? 'Las inscripciones ya cerraron.'
+                    : 'Se activa cuando la Oficina Nacional abra los cobros.'}
                 </Typography>
               )}
             </Stack>

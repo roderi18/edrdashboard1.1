@@ -44,7 +44,10 @@ const FORMA_DE_PLANES = Object.freeze({
 export const CONFIGURACION_MEMBRESIA_DE_FABRICA = Object.freeze({
   // Mientras sea false, la landing se ve entera pero no cobra.
   cobrosAbiertos: false,
-  vigencia: Object.freeze({ desde: '01/01/2027', hasta: '31/12/2027' }),
+  // `automatica` («Fecha actual + 1 año»): cada membresía vale desde el día en
+  // que se paga hasta la misma fecha del año siguiente, y la landing lo enseña
+  // así. Apagada, manda el rango fijo `desde`–`hasta` (DD/MM/AAAA).
+  vigencia: Object.freeze({ desde: '01/01/2027', hasta: '31/12/2027', automatica: true }),
   cuotaRegistro: 1500,
   precioRriTrac: 1000,
   descuentoFidelidad: 250,
@@ -98,6 +101,23 @@ export const CONFIGURACION_MEMBRESIA_DE_FABRICA = Object.freeze({
   // Desde dónde salen los correos (debe ser de un dominio verificado en el
   // servicio de correo de la landing).
   correoRemitente: '',
+  // LOS DESTACAMENTOS INSCRITOS EN 2026 (el reporte de registro anual de 2026):
+  // a ellos les toca el plan «Registrado en 2026», con el descuento por
+  // fidelidad. Cada fila como en el reporte: `registro` (001, 002N, 010RA…),
+  // `numero` del destacamento (el de la API .NET), `marca` (* reconocido en el
+  // último semestre de 2025, ** reconocido en 2026), `fecha` (AAAA-MM-DD),
+  // `region` y `registradoPor`. Vacía, manda lo que diga el padrón.
+  inscritos2026: Object.freeze([]),
+  // EL CIERRE DE LAS INSCRIPCIONES, con su cuenta atrás en la landing (la misma
+  // forma que la de errd-registro). `fecha`: ISO en hora de Santo Domingo
+  // ("2026-12-31T23:59:59-04:00"); vacía, sin cierre. `cerrarAlTerminar`: llegada
+  // la fecha, la landing deja de cobrar (y su servidor rechaza los pagos).
+  cierre: Object.freeze({
+    fecha: '',
+    mostrar: true,
+    texto: 'Las inscripciones cierran en:',
+    cerrarAlTerminar: true,
+  }),
 });
 
 // ---------------------------------------------------------------------- saneado
@@ -116,6 +136,17 @@ const correo = (valor) => {
 };
 
 const fechaIso = (valor) => (/^\d{4}-\d{2}-\d{2}$/.test(String(valor || '')) ? valor : '');
+
+// República Dominicana no cambia de hora: siempre UTC-4.
+const DESFASE_SANTO_DOMINGO_MS = -4 * 60 * 60 * 1000;
+
+/** Un instante como "AAAA-MM-DDTHH:mm:ss-04:00" (hora de Santo Domingo); '' si no lo es. */
+export const aIsoSantoDomingo = (valor) => {
+  const t =
+    valor instanceof Date ? valor.getTime() : typeof valor === 'number' ? valor : Date.parse(valor);
+  if (!valor || !Number.isFinite(t)) return '';
+  return `${new Date(t + DESFASE_SANTO_DOMINGO_MS).toISOString().slice(0, 19)}-04:00`;
+};
 
 const fechaDdMmAaaa = (valor, fabrica) =>
   /^\d{2}\/\d{2}\/\d{4}$/.test(String(valor || '')) ? valor : fabrica;
@@ -155,6 +186,34 @@ export const cuentasListas = (config) => config.cuentas.filter(cuentaCompleta);
 
 export const cuentaVacia = () => sanearCuenta();
 
+export const MAXIMO_INSCRITOS = 600;
+
+export const sanearInscrito = (f = {}) => ({
+  registro: texto(f.registro, '', 10).toUpperCase(),
+  numero: normalizarNumeroDestacamento(f.numero),
+  marca: ['*', '**'].includes(f.marca) ? f.marca : '',
+  fecha: fechaIso(f.fecha),
+  region: texto(f.region, '', 40),
+  registradoPor: texto(f.registradoPor, '', 120),
+});
+
+function sanearInscritos(lista) {
+  return (Array.isArray(lista) ? lista : [])
+    .filter((f) => f && typeof f === 'object')
+    .map(sanearInscrito)
+    .filter((f) => f.numero)
+    .slice(0, MAXIMO_INSCRITOS);
+}
+
+// ¿Este destacamento está en la lista de inscritos 2026? null si la lista está
+// vacía (entonces decide el padrón).
+export const inscritoEn2026 = (config, numeroDestacamento) => {
+  const lista = config?.inscritos2026 || [];
+  if (!lista.length) return null;
+  const numero = normalizarNumeroDestacamento(numeroDestacamento);
+  return Boolean(numero) && lista.some((f) => f.numero === numero);
+};
+
 export function sanearConfiguracionMembresia(entrada = {}) {
   const f = CONFIGURACION_MEMBRESIA_DE_FABRICA;
   const e = entrada && typeof entrada === 'object' ? entrada : {};
@@ -183,7 +242,9 @@ export function sanearConfiguracionMembresia(entrada = {}) {
     vigencia: {
       desde: fechaDdMmAaaa(e.vigencia?.desde, f.vigencia.desde),
       hasta: fechaDdMmAaaa(e.vigencia?.hasta, f.vigencia.hasta),
+      automatica: e.vigencia?.automatica !== false,
     },
+    inscritos2026: sanearInscritos(e.inscritos2026),
     cuotaRegistro: monto(e.cuotaRegistro, f.cuotaRegistro),
     precioRriTrac: monto(e.precioRriTrac, f.precioRriTrac),
     descuentoFidelidad: monto(e.descuentoFidelidad, f.descuentoFidelidad),
@@ -223,8 +284,23 @@ export function sanearConfiguracionMembresia(entrada = {}) {
     },
     correoAvisos: correo(e.correoAvisos),
     correoRemitente: correo(e.correoRemitente),
+    cierre: {
+      fecha: aIsoSantoDomingo(e.cierre?.fecha),
+      mostrar: e.cierre?.mostrar !== false,
+      texto: texto(e.cierre?.texto, f.cierre.texto, 120) || f.cierre.texto,
+      cerrarAlTerminar: e.cierre?.cerrarAlTerminar !== false,
+    },
   };
 }
+
+// ¿Pasó la fecha de cierre y las inscripciones se cierran al llegar? Sin
+// fecha, nunca se cierran solas.
+export const inscripcionesCerradas = (config, ahora = Date.now()) =>
+  Boolean(
+    config?.cierre?.fecha &&
+    config.cierre.cerrarAlTerminar &&
+    Date.parse(config.cierre.fecha) <= ahora
+  );
 
 // Un descuento mayor que lo que descuenta dejaría un plan negativo.
 export function problemasDeConfiguracion(config) {
@@ -337,6 +413,24 @@ export const hoyEnSantoDomingo = (ahora = new Date()) =>
     month: '2-digit',
     day: '2-digit',
   }).format(ahora);
+
+// Un año desde hoy (Santo Domingo): de hoy a la misma fecha del año siguiente
+// (29 de febrero → 28), en DD/MM/AAAA.
+export const vigenciaUnAnio = (ahora = new Date()) => {
+  const [anio, mes, dia] = hoyEnSantoDomingo(ahora).split('-').map(Number);
+  const existe = new Date(Date.UTC(anio + 1, mes - 1, dia)).getUTCMonth() === mes - 1;
+  const p = (n) => String(n).padStart(2, '0');
+  return {
+    desde: `${p(dia)}/${p(mes)}/${anio}`,
+    hasta: `${p(existe ? dia : 28)}/${p(mes)}/${anio + 1}`,
+  };
+};
+
+// La vigencia que lleva una membresía pagada hoy (y la que enseña la landing).
+export const vigenciaAplicada = (config, ahora = new Date()) =>
+  config?.vigencia?.automatica === false
+    ? { desde: config.vigencia.desde, hasta: config.vigencia.hasta }
+    : vigenciaUnAnio(ahora);
 
 // La tasa, si sigue vigente (actualizada hace menos de `diasVigencia` días).
 export function tasaVigente(config, ahora = new Date()) {

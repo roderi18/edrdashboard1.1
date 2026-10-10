@@ -2,15 +2,19 @@ import * as z from 'zod';
 import { randomUUID } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
-import { vigenciaDesdeHoy } from 'src/utils/solicitud.mjs';
 import { crearTokenSolicitud } from 'src/utils/token-solicitud.mjs';
-import { hoyEnSantoDomingo } from 'src/utils/configuracion-membresia.mjs';
+import { vigenciaAplicada, hoyEnSantoDomingo } from 'src/utils/configuracion-membresia.mjs';
 
 import { db, bucket } from 'src/server/firebase.mjs';
 import { leerElegibilidad } from 'src/server/elegibilidad.mjs';
 import { avisarRevision, registrarCorreo } from 'src/server/correo.mjs';
 import { notificarPagoAlDashboard } from 'src/server/notificar-dashboard.mjs';
-import { bancoListo, leerConfiguracion, lanzamientoHabilitado } from 'src/server/configuracion.mjs';
+import {
+  bancoListo,
+  motivoSinCobros,
+  leerConfiguracion,
+  lanzamientoHabilitado,
+} from 'src/server/configuracion.mjs';
 import {
   hayCorrecciones,
   sanearCorrecciones,
@@ -40,10 +44,7 @@ const types = {
 export async function POST(request) {
   const { config } = await leerConfiguracion();
   if (!lanzamientoHabilitado(config))
-    return Response.json(
-      { error: 'La membresía todavía no está abierta para cobros.' },
-      { status: 503 }
-    );
+    return Response.json({ error: motivoSinCobros(config) }, { status: 503 });
   if (!bancoListo(config)) {
     return Response.json(
       { error: 'La transferencia todavía no está habilitada.' },
@@ -109,8 +110,8 @@ export async function POST(request) {
           tipoPago: 'transferencia',
           destacamento: eligibility.destacamento,
           plan,
-          // Un año desde que se coloca el pago.
-          vigencia: vigenciaDesdeHoy(),
+          // La del panel: un año desde que se coloca el pago, o el rango fijo.
+          vigencia: vigenciaAplicada(config),
           montoRd: plan.precio,
           contacto: { email: parsed.data.email, telefono: parsed.data.phone },
           correoAvisos: config.correoAvisos,

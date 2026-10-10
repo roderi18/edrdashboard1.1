@@ -1,7 +1,11 @@
 import { db } from './firebase.mjs';
 import { leerDestacamento } from './padron.mjs';
 import { leerConfiguracion } from './configuracion.mjs';
-import { tieneLicencia, planesDisponibles } from '../utils/configuracion-membresia.mjs';
+import {
+  tieneLicencia,
+  inscritoEn2026,
+  planesDisponibles,
+} from '../utils/configuracion-membresia.mjs';
 
 // ----------------------------------------------------------------------
 // LAS CINCO COMPUERTAS antes de cobrar (requerimientos §3): existe en el
@@ -40,10 +44,16 @@ export async function leerElegibilidad(id) {
     tieneLicencia(config, destacamento.numero) ||
     (Array.isArray(licencia.licencias) &&
       licencia.licencias.some((item) => item.habilita2027 === true));
+  // Registrado en 2026: lo corregido a mano manda; si no, la lista de inscritos
+  // 2026 del dashboard (el reporte de registro anual, por número de
+  // destacamento); sin lista, el padrón.
+  const enLista = inscritoEn2026(config, destacamento.numero);
   const registrado2026 =
     typeof reglas.registrado2026 === 'boolean'
       ? reglas.registrado2026
-      : destacamento.registradoOfnc;
+      : enLista !== null
+        ? enLista
+        : destacamento.registradoOfnc;
   const planes = planesDisponibles({ registrado2026, licenciaVigente }, config);
   const validaciones = {
     existe: true,

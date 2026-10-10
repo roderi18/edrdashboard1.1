@@ -20,8 +20,10 @@ import { Iconify } from 'src/components/iconify';
 
 import { TarjetaPlan } from './tarjeta-plan';
 import { AvanceNacional } from './avance-nacional';
+import { CuentaRegresiva } from './cuenta-regresiva';
 import { useConfiguracion } from './use-configuracion';
 import { Pie, Encabezado, RUTA_REGISTRO } from './marca';
+import { yaCerro, useCuentaRegresiva } from './use-cuenta-regresiva';
 import { Tienda, Fogata, IconoQr, CertificadoIlustrado } from './ilustraciones-campamento';
 
 // ----------------------------------------------------------------------
@@ -133,7 +135,11 @@ function Seccion({ id, color, etiqueta, titulo, texto, children }) {
 
 // ---------------------------------------------------------------------- portada
 
+// La vigencia la decide el dashboard: «hoy + 1 año» (la que llevará quien se
+// registra hoy) o un rango fijo. La calcula el servidor.
 function Hero({ vigencia }) {
+  // Pasado el cierre de inscripciones, el botón deja de llevar al registro.
+  const cerrado = yaCerro(useCuentaRegresiva());
   return (
     <Box
       sx={(t) => ({
@@ -204,27 +210,19 @@ function Hero({ vigencia }) {
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 4 }}>
               <Button
-                component={Link}
-                href={RUTA_REGISTRO}
+                {...(cerrado ? { disabled: true } : { component: Link, href: RUTA_REGISTRO })}
                 size="large"
                 variant="contained"
                 color="primary"
-                endIcon={<Iconify icon="eva:arrow-forward-fill" />}
+                endIcon={!cerrado && <Iconify icon="eva:arrow-forward-fill" />}
                 sx={{ minHeight: 52, px: 3 }}
               >
-                Registrar mi destacamento
-              </Button>
-              <Button
-                component={Link}
-                href="/#planes"
-                size="large"
-                variant="outlined"
-                color="primary"
-                sx={{ minHeight: 52, px: 3, bgcolor: 'background.paper' }}
-              >
-                Ver planes
+                {cerrado ? 'Inscripciones cerradas' : 'Registrar mi destacamento'}
               </Button>
             </Stack>
+
+            {/* La cuenta atrás del cierre, justo debajo del botón que cierra. */}
+            <CuentaRegresiva sx={{ mt: 3 }} />
 
             <Stack
               direction="row"

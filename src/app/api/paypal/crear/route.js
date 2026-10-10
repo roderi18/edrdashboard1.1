@@ -2,14 +2,15 @@ import * as z from 'zod';
 import { randomUUID } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
-import { vigenciaDesdeHoy } from 'src/utils/solicitud.mjs';
 import { crearTokenSolicitud } from 'src/utils/token-solicitud.mjs';
+import { vigenciaAplicada } from 'src/utils/configuracion-membresia.mjs';
 
 import { db } from 'src/server/firebase.mjs';
 import { paypalRequest } from 'src/server/paypal.mjs';
 import { leerElegibilidad } from 'src/server/elegibilidad.mjs';
 import {
   paypalConfig,
+  motivoSinCobros,
   leerConfiguracion,
   lanzamientoHabilitado,
 } from 'src/server/configuracion.mjs';
@@ -36,10 +37,7 @@ const schema = z.object({
 export async function POST(request) {
   const lectura = await leerConfiguracion();
   if (!lanzamientoHabilitado(lectura.config))
-    return Response.json(
-      { error: 'La membresía todavía no está abierta para cobros.' },
-      { status: 503 }
-    );
+    return Response.json({ error: motivoSinCobros(lectura.config) }, { status: 503 });
   try {
     const input = schema.safeParse(await request.json());
     if (!input.success)
@@ -111,7 +109,7 @@ export async function POST(request) {
         destacamento: eligibility.destacamento,
         plan,
         // Un año desde que se coloca el pago.
-        vigencia: vigenciaDesdeHoy(),
+        vigencia: vigenciaAplicada(lectura.config),
         montoRd: plan.precio,
         contacto: { email: input.data.email, telefono: input.data.phone },
         correoAvisos: lectura.config.correoAvisos,

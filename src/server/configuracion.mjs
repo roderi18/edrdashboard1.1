@@ -6,7 +6,9 @@ import {
   IDS_DE_PLANES,
   cuentasListas,
   construirPlanes,
+  vigenciaAplicada,
   COLECCION_MEMBRESIA,
+  inscripcionesCerradas,
   DOC_SECRETOS_MEMBRESIA,
   DOC_CONFIGURACION_MEMBRESIA,
   sanearConfiguracionMembresia,
@@ -59,7 +61,15 @@ export async function leerConfiguracion() {
   return cache.promesa;
 }
 
-export const lanzamientoHabilitado = (config) => config.cobrosAbiertos === true;
+// Se cobra con los cobros abiertos y antes del cierre de inscripciones.
+export const lanzamientoHabilitado = (config) =>
+  config.cobrosAbiertos === true && !inscripcionesCerradas(config);
+
+// Por qué no se cobra, para la respuesta de las rutas de pago.
+export const motivoSinCobros = (config) =>
+  inscripcionesCerradas(config)
+    ? 'Las inscripciones de la membresía 2027 ya cerraron.'
+    : 'La membresía todavía no está abierta para cobros.';
 
 export const bancoListo = (config) => cuentasListas(config).length > 0;
 
@@ -100,7 +110,9 @@ export function configuracionPublica({ config, secretos }) {
   const planes = construirPlanes(config);
   return {
     lanzamientoHabilitado: abiertos,
-    vigencia: config.vigencia,
+    inscripcionesCerradas: inscripcionesCerradas(config),
+    // La que llevará quien pague hoy: «hoy + 1 año» o el rango fijo del panel.
+    vigencia: vigenciaAplicada(config),
     planes: IDS_DE_PLANES.map((id) => planes[id]).filter((p) => p.activo),
     banks: cuentasListas(config).map((c) => ({
       name: c.banco,
