@@ -269,7 +269,23 @@ export const generarQrOnerrd = async (texto, color = '#000000') => {
   });
 };
 
-export const rasterizarTextoOnerrd = ({ campo, texto, tamano, pagina, lineaBase }) => {
+// `crearLienzo(ancho, alto)`: por defecto el del navegador; el servidor pasa el
+// suyo (`@napi-rs/canvas`) para dibujar igual el texto con degradado.
+const lienzoDeNavegador = (ancho, alto) => {
+  const hoja = document.createElement('canvas');
+  hoja.width = ancho;
+  hoja.height = alto;
+  return hoja;
+};
+
+export const rasterizarTextoOnerrd = ({
+  campo,
+  texto,
+  tamano,
+  pagina,
+  lineaBase,
+  crearLienzo = lienzoDeNavegador,
+}) => {
   const anchoCaja = (campo.ancho / 100) * pagina.ancho;
   const altoLinea = tamano * INTERLINEADO_ONERRD;
   // Margen para lo que sobresale de la línea: el contorno y las letras altas.
@@ -277,9 +293,10 @@ export const rasterizarTextoOnerrd = ({ campo, texto, tamano, pagina, lineaBase 
   const ancho = anchoCaja + margen * 2;
   const alto = altoLinea + margen * 2;
 
-  const hoja = document.createElement('canvas');
-  hoja.width = Math.ceil(ancho * PIXELES_POR_PUNTO);
-  hoja.height = Math.ceil(alto * PIXELES_POR_PUNTO);
+  const hoja = crearLienzo(
+    Math.ceil(ancho * PIXELES_POR_PUNTO),
+    Math.ceil(alto * PIXELES_POR_PUNTO)
+  );
   const ctx = hoja.getContext('2d');
   ctx.scale(PIXELES_POR_PUNTO, PIXELES_POR_PUNTO);
   ctx.translate(margen, margen);

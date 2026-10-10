@@ -14,16 +14,31 @@ export const LEYENDA_REPORTE_REGISTRO = [
   },
 ];
 
-export function filasReporteRegistro(membresias) {
+const numeroDeRegistro = (membresia, estadoPadron = '') => {
+  const origen =
+    texto(membresia.codigo) || texto(membresia.certificadoEmitido?.numeroRegistro) || '';
+  const coincidencia = origen.match(/(\d+)(?:[A-Z]+)?\s*$/i);
+  if (!coincidencia) return '—';
+  const numero = String(Number(coincidencia[1])).padStart(3, '0').slice(-3);
+  const estadoAlRegistrarse =
+    texto(membresia.estadoDestacamentoAlRegistrarse) ||
+    texto(membresia.destacamento?.estado) ||
+    texto(estadoPadron);
+  return `${numero}${estadoAlRegistrarse.toLowerCase() === 'inactivo' ? 'RA' : ''}`;
+};
+
+export function filasReporteRegistro(membresias, padron = []) {
+  const estadoPorDestacamento = new Map(
+    (padron || []).map((destacamento) => [texto(destacamento.id), texto(destacamento.estado)])
+  );
   return (membresias || [])
     .filter((membresia) => membresia.estado === 'confirmada')
     .map((membresia) => {
       const destacamento = membresia.destacamento || {};
       const fecha = membresia.confirmadoEn || membresia.creadoEn || '';
-      const codigo = texto(membresia.codigo);
       return {
         id: texto(membresia.id),
-        registro: codigo || texto(membresia.certificadoEmitido?.numeroRegistro) || '—',
+        registro: numeroDeRegistro(membresia, estadoPorDestacamento.get(texto(membresia.id))),
         destacamento: texto(destacamento.numero) || '—',
         nombre: texto(destacamento.nombre),
         fecha,

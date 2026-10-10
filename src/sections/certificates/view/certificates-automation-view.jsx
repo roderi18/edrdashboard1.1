@@ -2364,7 +2364,11 @@ export function CertificatesAutomationView() {
       }}
     >
       <Tabs
-        value={currentTab}
+        // La pestaña ONERRD solo existe cuando la sesión ya dijo que se puede
+        // usar: al recargar con ?tab=onerrd, la sesión aún no ha llegado y MUI
+        // avisaba de un valor que no corresponde a ninguna pestaña. Mientras
+        // tanto, ninguna marcada.
+        value={currentTab === 'onerrd' && !puedeUsarOnerrd(user) ? false : currentTab}
         onChange={(event, newValue) => {
           if (newValue === 'import') {
             handleOpenImportDialog();

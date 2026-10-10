@@ -52,6 +52,10 @@ const autorDe = (user) => ({
 // Qué cambió, campo por campo, para Historial (sin datos de la cuenta enteros).
 const ETIQUETAS = {
   cobrosAbiertos: 'Cobros abiertos',
+  'cierre.fecha': 'Cierre de inscripciones',
+  'cierre.mostrar': 'Mostrar la cuenta atrás',
+  'cierre.texto': 'Texto de la cuenta atrás',
+  'cierre.cerrarAlTerminar': 'Cerrar inscripciones al terminar',
   cuotaRegistro: 'Cuota de registro',
   precioRriTrac: 'RRI TRaC',
   descuentoFidelidad: 'Descuento por fidelidad',
@@ -68,6 +72,7 @@ const ETIQUETAS = {
   'paypal.modo': 'Modo de PayPal',
   'vigencia.desde': 'Vigencia desde',
   'vigencia.hasta': 'Vigencia hasta',
+  'vigencia.automatica': 'Vigencia: fecha actual + 1 año',
 };
 
 const valorEn = (objeto, ruta) => ruta.split('.').reduce((v, k) => v?.[k], objeto);
@@ -117,9 +122,13 @@ export const guardarConfiguracionMembresia = conInvalidacion(
     // La de Firestore de ahora, no la que cargó el panel: la tarea pudo
     // escribir una tasa nueva mientras el panel estaba abierto.
     const enFirestore = await getDoc(referencia()).catch(() => null);
-    const previa = sanearConfiguracionMembresia(
+    const guardada = sanearConfiguracionMembresia(
       enFirestore?.exists() ? enFirestore.data() : anterior
-    ).tasa;
+    );
+    const previa = guardada.tasa;
+    // La lista de inscritos 2026 tiene su propio botón y su propio guardado:
+    // el panel no la pisa con la que tenía cargada.
+    limpia.inscritos2026 = guardada.inscritos2026;
     if (limpia.tasa.automatica) {
       // En automática la tasa la escribe la tarea de las 6:00 a. m.: guardar
       // el panel no la pisa con la que tenía el formulario. Si cambia el
@@ -357,4 +366,37 @@ export const enviarDocumentosMembresia = conInvalidacion(
     return respuesta;
   },
   [`${PREFIJO}pagos`]
+);
+
+// ---------------------------------------------------------------------- inscritos 2026
+
+// La lista de destacamentos inscritos en 2026 (el reporte de registro anual de
+// 2026): a ellos les toca el plan «Registrado en 2026». Solo cambia esa parte
+// de la configuración; queda en Historial cuántas filas tenía y cuántas tiene.
+export const guardarInscritos2026 = conInvalidacion(
+  async ({ filas, user }) => {
+    asegurarFirebase();
+    const instantanea = await getDoc(referencia());
+    const actual = sanearConfiguracionMembresia(instantanea.exists() ? instantanea.data() : {});
+    const nueva = sanearConfiguracionMembresia({ ...actual, inscritos2026: filas });
+    await proponerCambio({
+      ambito: AMBITOS_CAMBIO.certificadoOnerrd,
+      entidad: ENTIDAD,
+      cambios: [
+        {
+          campo: 'inscritos2026',
+          etiqueta: 'Destacamentos inscritos en 2026',
+          antes: `${actual.inscritos2026.length} destacamentos`,
+          despues: `${nueva.inscritos2026.length} destacamentos`,
+        },
+      ],
+      usuario: user,
+      descripcion: 'Lista de destacamentos inscritos en 2026 (descuento por fidelidad).',
+      aplicarDirecto: true,
+      lecturasAfectadas: [PREFIJO],
+      aplicar: () => escribirConfiguracionMembresia(nueva, autorDe(user)),
+    });
+    return nueva.inscritos2026;
+  },
+  [PREFIJO]
 );

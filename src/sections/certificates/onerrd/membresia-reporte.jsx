@@ -23,8 +23,8 @@ import {
 
 import { Iconify } from 'src/components/iconify';
 
-export function ReporteRegistroMembresia({ abierto, onCerrar, membresias }) {
-  const filas = useMemo(() => filasReporteRegistro(membresias), [membresias]);
+export function ReporteRegistroMembresia({ abierto, onCerrar, membresias, padron }) {
+  const filas = useMemo(() => filasReporteRegistro(membresias, padron), [membresias, padron]);
   const [descargando, setDescargando] = useState(false);
   const [error, setError] = useState('');
 

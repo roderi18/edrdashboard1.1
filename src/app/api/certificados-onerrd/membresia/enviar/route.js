@@ -1,6 +1,3 @@
-import { FieldValue } from 'firebase-admin/firestore';
-
-import { rutaPdfOnerrd, rutaFacturaPdfOnerrd } from 'src/utils/certificado-onerrd.mjs';
 import {
   COLECCION_MEMBRESIA,
   DOC_CONFIGURACION_MEMBRESIA,
@@ -10,8 +7,7 @@ import {
 import { requireRole } from 'src/server/require-role';
 import { getAdminDb, getAdminBucket } from 'src/server/firebase-admin';
 import { COLECCION_MEMBRESIAS, membresiaParaPantalla } from 'src/server/membresias-onerrd.mjs';
-import { cuerpoDelCorreo, enviarDocumentosMembresia } from 'src/server/correo-membresia-onerrd.mjs';
-import { notificarDocumentosMembresiaEnviados } from 'src/server/notificar-documentos-membresia-onerrd.mjs';
+import { enviarDocumentosDeLaMembresia } from 'src/server/enviar-documentos-membresia-onerrd.mjs';
 
 import { ROLES } from 'src/auth/permissions/roles';
 
@@ -28,23 +24,13 @@ export const runtime = 'nodejs';
 
 const ROLES_PERMITIDOS = [ROLES.ADMINISTRADOR_GLOBAL, ROLES.OFICINA_NACIONAL];
 const MAXIMO_PDF = 10 * 1024 * 1024;
-const URL_LANDING =
-  process.env.NEXT_PUBLIC_URL_MEMBRESIA_ONERRD ||
-  (process.env.NODE_ENV === 'development' ? 'http://localhost:3050' : '');
-
-const pdfDe = async (archivo, nombre) => {
+const bufferDePdf = async (archivo) => {
   if (!archivo || typeof archivo.arrayBuffer !== 'function' || archivo.size > MAXIMO_PDF) {
     return null;
   }
   const contenido = Buffer.from(await archivo.arrayBuffer());
-  if (contenido.subarray(0, 4).toString() !== '%PDF') return null;
-  return { filename: nombre, content: contenido, contentType: 'application/pdf' };
+  return contenido.subarray(0, 4).toString() === '%PDF' ? contenido : null;
 };
-
-const nombreSeguro = (texto) =>
-  String(texto || '')
-    .replace(/[^\w.-]+/g, '-')
-    .slice(0, 80);
 
 export async function POST(req) {
   const noAutorizado = await requireRole(req, ROLES_PERMITIDOS);
@@ -79,61 +65,24 @@ export async function POST(req) {
   }
   const config = sanearConfiguracionMembresia(configDoc.data() || {});
 
-  const deStorage = async (ruta, nombre) => {
-    try {
-      const [contenido] = await getAdminBucket().file(ruta).download();
-      return { filename: nombre, content: contenido, contentType: 'application/pdf' };
-    } catch {
-      return null;
-    }
-  };
-  const nombreCertificado = `certificado-${nombreSeguro(numeroRegistro || id)}.pdf`;
-  const nombreFactura = `factura-${nombreSeguro(facturaNumero || id)}.pdf`;
-  const adjuntos = (
-    await Promise.all([
-      (await pdfDe(form.get('certificado'), nombreCertificado)) ||
-        (numeroRegistro && deStorage(rutaPdfOnerrd(numeroRegistro), nombreCertificado)),
-      (await pdfDe(form.get('factura'), nombreFactura)) ||
-        (numeroRegistro && deStorage(rutaFacturaPdfOnerrd(numeroRegistro), nombreFactura)),
-    ])
-  ).filter(Boolean);
-  if (!adjuntos.length) {
-    return Response.json(
-      { error: 'Faltan los PDF del certificado y la factura.' },
-      { status: 400 }
-    );
-  }
-
-  const registro = await enviarDocumentosMembresia({
-    desde: config.correoRemitente,
-    para: m.contacto?.email,
-    copia: config.correoAvisos,
-    asunto: `Membresía 2027 confirmada · ${m.codigo || `Destacamento ${m.destacamento?.numero ?? id}`}`,
-    html: cuerpoDelCorreo({
-      destacamento: m.destacamento,
-      codigo: m.codigo,
-      numeroRegistro,
-      facturaNumero,
-      enlaceSolicitud:
-        URL_LANDING && m.token
-          ? `${URL_LANDING.replace(/\/$/, '')}/registro/resultado/?solicitud=${encodeURIComponent(m.token)}`
-          : '',
-    }),
-    adjuntos,
-  });
-
-  await referencia.update({
-    'correos.confirmacion': registro,
-    actualizadoEn: FieldValue.serverTimestamp(),
-  });
-  if (registro.estado === 'enviado')
-    await notificarDocumentosMembresiaEnviados(db, {
+  let registro;
+  try {
+    registro = await enviarDocumentosDeLaMembresia({
+      db,
+      bucket: getAdminBucket(),
       id,
       membresia: m,
-      registro,
+      config,
       numeroRegistro,
       facturaNumero,
-    }).catch((error) => console.error('[onerrd] no se pudo avisar el envío:', error));
+      pdfs: {
+        certificado: await bufferDePdf(form.get('certificado')),
+        factura: await bufferDePdf(form.get('factura')),
+      },
+    });
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 400 });
+  }
   const actual = await referencia.get();
   return Response.json({ registro, membresia: membresiaParaPantalla(id, actual.data()) });
 }

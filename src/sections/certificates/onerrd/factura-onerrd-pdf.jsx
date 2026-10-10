@@ -406,3 +406,8 @@ export const generarFacturaOnerrdPdf = ({ diseno, datos, campos, imagenes = {}, 
   pdf(
     <FacturaOnerrd diseno={diseno} datos={datos} campos={campos} imagenes={imagenes} qr={qr} />
   ).toBlob();
+
+// El mismo documento como elemento, para que el servidor lo convierta en PDF.
+export const elementoFacturaOnerrd = ({ diseno, datos, campos, imagenes = {}, qr = null }) => (
+  <FacturaOnerrd diseno={diseno} datos={datos} campos={campos} imagenes={imagenes} qr={qr} />
+);

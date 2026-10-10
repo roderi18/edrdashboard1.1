@@ -71,6 +71,7 @@
     "@mui/x-data-grid": "^8.22.0",
     "@mui/x-date-pickers": "^8.27.2",
     "@mui/x-tree-view": "^8.22.0",
+    "@napi-rs/canvas": "^1.0.10",
     "@react-pdf/renderer": "^4.3.1",
     "@supabase/supabase-js": "^2.87.1",
     "@tiptap/extension-bubble-menu": "^3.13.0",

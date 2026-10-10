@@ -23,6 +23,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 
 import {
   aDolares,
@@ -32,7 +33,9 @@ import {
   tasaVigente,
   formatearRd,
   IDS_DE_PLANES,
+  vigenciaUnAnio,
   construirPlanes,
+  aIsoSantoDomingo,
   hoyEnSantoDomingo,
   MAXIMO_DE_CUENTAS,
   FUENTE_TASA_AUTOMATICA,
@@ -153,6 +156,142 @@ function LogoDeBanco({ nombre }) {
   );
 }
 
+// ----------------------------------------------------------------------
+// EL CIERRE DE LAS INSCRIPCIONES (la misma forma que la cuenta atrás de la
+// landing de registro de destacamentos). El calendario trabaja en la hora del
+// navegador; el cierre se guarda en la de Santo Domingo: se "traslada" el
+// instante al mostrarlo y al guardarlo, para que lo que se ve sea la hora
+// dominicana aunque quien lo cambie esté en otro huso.
+// ----------------------------------------------------------------------
+
+const desfaseLocalMin = () => -new Date().getTimezoneOffset();
+const cierreAVista = (iso) => (iso ? dayjs(iso).add(-4 * 60 - desfaseLocalMin(), 'minute') : null);
+const cierreDeVista = (valor) =>
+  aIsoSantoDomingo(
+    dayjs(valor)
+      .add(4 * 60 + desfaseLocalMin(), 'minute')
+      .toDate()
+  );
+
+function ContadorDeCierre({ fecha }) {
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const restante = Date.parse(fecha) - ahora;
+  if (restante <= 0) return <Label color="error">Plazo terminado</Label>;
+  const s = Math.floor(restante / 1000);
+  return (
+    <Stack direction="row" spacing={1}>
+      {[
+        [Math.floor(s / 86400), 'Días'],
+        [Math.floor((s % 86400) / 3600), 'Horas'],
+        [Math.floor((s % 3600) / 60), 'Minutos'],
+        [s % 60, 'Segundos'],
+      ].map(([valor, texto]) => (
+        <Box
+          key={texto}
+          sx={{
+            minWidth: 64,
+            py: 0.5,
+            textAlign: 'center',
+            borderRadius: 1,
+            bgcolor: 'background.neutral',
+          }}
+        >
+          <Typography variant="h6" sx={{ fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
+            {String(valor).padStart(2, '0')}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {texto}
+          </Typography>
+        </Box>
+      ))}
+    </Stack>
+  );
+}
+
+const ATAJOS_CIERRE = [
+  { etiqueta: '+1 día', dias: 1 },
+  { etiqueta: '+7 días', dias: 7 },
+];
+
+// Los atajos suman a la fecha elegida (o a ahora, si no hay).
+const cierreMasDias = (fecha, dias) =>
+  aIsoSantoDomingo((fecha ? Date.parse(fecha) : Date.now()) + dias * 86_400_000);
+
+function CierreDeInscripciones({ cierre, cambiar }) {
+  const sumarDias = (dias) => cambiar('cierre.fecha', cierreMasDias(cierre.fecha, dias));
+  return (
+    <Stack spacing={2}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ alignItems: { sm: 'center' } }}
+      >
+        <DateTimePicker
+          label="Cierre (hora de Santo Domingo)"
+          format="DD/MM/YYYY hh:mm A"
+          ampm
+          value={cierreAVista(cierre.fecha)}
+          onChange={(v) => v?.isValid() && cambiar('cierre.fecha', cierreDeVista(v))}
+          slotProps={{ textField: { sx: { minWidth: 260 } } }}
+        />
+        {ATAJOS_CIERRE.map((a) => (
+          <Button
+            key={a.etiqueta}
+            size="small"
+            variant="outlined"
+            onClick={() => sumarDias(a.dias)}
+          >
+            {a.etiqueta}
+          </Button>
+        ))}
+        {cierre.fecha && (
+          <Button size="small" color="inherit" onClick={() => cambiar('cierre.fecha', '')}>
+            Sin cierre
+          </Button>
+        )}
+      </Stack>
+      {cierre.fecha ? (
+        <ContadorDeCierre fecha={cierre.fecha} />
+      ) : (
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Sin fecha de cierre: las inscripciones siguen abiertas y no se enseña cuenta atrás.
+        </Typography>
+      )}
+      <TextField
+        label="Texto encima de la cuenta atrás"
+        value={cierre.texto}
+        onChange={(e) => cambiar('cierre.texto', e.target.value)}
+        inputProps={{ maxLength: 120 }}
+        fullWidth
+      />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={cierre.mostrar}
+              onChange={(e) => cambiar('cierre.mostrar', e.target.checked)}
+            />
+          }
+          label="Mostrar la cuenta atrás en la landing"
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={cierre.cerrarAlTerminar}
+              onChange={(e) => cambiar('cierre.cerrarAlTerminar', e.target.checked)}
+            />
+          }
+          label="Cerrar las inscripciones al llegar a cero"
+        />
+      </Stack>
+    </Stack>
+  );
+}
+
 export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
   // Se pinta al instante con lo de fábrica (todas las opciones a la vista) y
   // se reemplaza por lo guardado en cuanto llega; mientras, no se guarda.
@@ -183,6 +322,8 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
       })
       .catch(() => setSecretos({ claveSecretaConfigurada: false, webhookId: '', error: true }));
   }, []);
+
+  const vigenciaHoy = useMemo(() => vigenciaUnAnio(), []);
 
   const cambiar = useCallback((ruta, valor) => {
     setConfig((actual) => {
@@ -392,6 +533,15 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
                 ))}
               </Bloque>
 
+              {/* -------- Cierre -------- */}
+              <Bloque
+                icono="solar:clock-circle-bold"
+                titulo="Cierre de inscripciones"
+                texto="Fecha y hora (de Santo Domingo) en que cierran las inscripciones. La landing enseña la cuenta atrás debajo del botón de registro y, al llegar, deja de cobrar."
+              >
+                <CierreDeInscripciones cierre={config.cierre} cambiar={cambiar} />
+              </Bloque>
+
               {/* -------- Montos -------- */}
               <Bloque
                 icono="solar:wad-of-money-bold"
@@ -421,11 +571,30 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
                       helperText="Para los registrados en 2026"
                     />
                   </Grid>
+                  <Grid size={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={config.vigencia.automatica}
+                          onChange={(e) => cambiar('vigencia.automatica', e.target.checked)}
+                        />
+                      }
+                      label="Fecha actual + 1 año"
+                    />
+                    <Typography variant="caption" component="p" sx={{ color: 'text.secondary' }}>
+                      {config.vigencia.automatica
+                        ? `Cada membresía vale desde el día en que se paga hasta la misma fecha del año siguiente (hoy: ${vigenciaHoy.desde} – ${vigenciaHoy.hasta}). Así lo enseña la landing.`
+                        : 'Todas las membresías valen el mismo rango fijo; la landing enseña estas fechas.'}
+                    </Typography>
+                  </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <DatePicker
                       label="Vigencia desde"
                       format="DD/MM/YYYY"
-                      value={aDayjs(config.vigencia.desde)}
+                      disabled={config.vigencia.automatica}
+                      value={aDayjs(
+                        config.vigencia.automatica ? vigenciaHoy.desde : config.vigencia.desde
+                      )}
                       onChange={(v) =>
                         v?.isValid() && cambiar('vigencia.desde', v.format('DD/MM/YYYY'))
                       }
@@ -436,7 +605,10 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
                     <DatePicker
                       label="Vigencia hasta"
                       format="DD/MM/YYYY"
-                      value={aDayjs(config.vigencia.hasta)}
+                      disabled={config.vigencia.automatica}
+                      value={aDayjs(
+                        config.vigencia.automatica ? vigenciaHoy.hasta : config.vigencia.hasta
+                      )}
                       onChange={(v) =>
                         v?.isValid() && cambiar('vigencia.hasta', v.format('DD/MM/YYYY'))
                       }
@@ -444,14 +616,15 @@ export function MembresiaOnerrdConfig({ abierto, onAlternar, user }) {
                     />
                   </Grid>
                 </Grid>
-              </Bloque>
 
-              {/* -------- Planes -------- */}
-              <Bloque
-                icono="solar:bill-list-bold"
-                titulo="Los tres planes"
-                texto="Lo que ve cada destacamento en la landing. Apagado, un plan no se ofrece."
-              >
+                {/* Los tres planes, dentro de Montos: cada uno suma las piezas de arriba. */}
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 3, mb: 0.5 }}>
+                  <Iconify icon="solar:bill-list-bold" width={20} sx={{ color: 'primary.main' }} />
+                  <Typography variant="subtitle2">Los tres planes</Typography>
+                </Stack>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                  Lo que ve cada destacamento en la landing. Apagado, un plan no se ofrece.
+                </Typography>
                 <Grid container spacing={2}>
                   {IDS_DE_PLANES.map((id) => {
                     const plan = planes[id];

@@ -46,6 +46,7 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
+import { Inscritos2026 } from './inscritos-2026';
 import { TituloDesplegable } from './factura-editor';
 import { EstadoMembresia } from './estado-membresia';
 import { ReporteRegistroMembresia } from './membresia-reporte';
@@ -442,6 +443,7 @@ export function MembresiaOnerrdPagos({
   const [recargando, setRecargando] = useState(false);
   const [reenviando, setReenviando] = useState('');
   const [reporteAbierto, setReporteAbierto] = useState(false);
+  const [inscritosAbierto, setInscritosAbierto] = useState(false);
 
   const cargar = useCallback(async ({ forzar = false } = {}) => {
     setRecargando(true);
@@ -571,12 +573,29 @@ export function MembresiaOnerrdPagos({
         >
           Ver reporte registro
         </Button>
+        {/* Los inscritos de 2026: a ellos les toca el descuento por fidelidad. */}
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => setInscritosAbierto(true)}
+          startIcon={<Iconify icon="solar:users-group-rounded-bold" />}
+        >
+          Inscripción destacamentos anteriores
+        </Button>
       </Stack>
+
+      <Inscritos2026
+        abierto={inscritosAbierto}
+        onCerrar={() => setInscritosAbierto(false)}
+        padron={datos?.padron || []}
+        user={user}
+      />
 
       <ReporteRegistroMembresia
         abierto={reporteAbierto}
         onCerrar={() => setReporteAbierto(false)}
         membresias={datos?.membresias || []}
+        padron={datos?.padron || []}
       />
 
       <Collapse in={abierto}>

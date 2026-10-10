@@ -115,7 +115,17 @@ function BloqueFinalPdf({ firma, sello }) {
   );
 }
 
-export function ReporteRegistroPdf({ filas, generadoEn, firma, sello }) {
+// `anio`, `subtitulo` y `nota`: el mismo reporte sirve para el de 2027 (las
+// membresías confirmadas) y para la lista de inscritos de 2026.
+export function ReporteRegistroPdf({
+  filas,
+  generadoEn,
+  firma,
+  sello,
+  anio = 2027,
+  subtitulo = `Reporte de registro anual de destacamentos · ${filas.length} confirmados`,
+  nota = 'Se incluyen las membresías 2027 con pago confirmado. La fecha corresponde a la confirmación del pago. El nombre mostrado es la persona que registró el destacamento al pagar.',
+}) {
   const paginas = [];
   let indiceFila = 0;
   while (filas.length - indiceFila > TAMANO_ULTIMA_PAGINA) {
@@ -129,18 +139,16 @@ export function ReporteRegistroPdf({ filas, generadoEn, firma, sello }) {
 
   return (
     <Document
-      title="Reporte de registro anual de destacamentos 2027"
+      title={`Reporte de registro anual de destacamentos ${anio}`}
       author="Oficina Nacional de Exploradores del Rey"
     >
       {paginas.map((grupo, indice) => (
         <Page key={indice} size="LETTER" style={estilos.pagina}>
           <Text style={estilos.titulo}>
-            Oficina Nacional de Exploradores del Rey, Rep. Dominicana 2027
+            Oficina Nacional de Exploradores del Rey, Rep. Dominicana {anio}
           </Text>
           <Text style={estilos.correo}>oficinanacional@errd.org.do</Text>
-          <Text style={estilos.subtitulo}>
-            Reporte de registro anual de destacamentos · {filas.length} confirmados
-          </Text>
+          <Text style={estilos.subtitulo}>{subtitulo}</Text>
           <View style={estilos.tabla}>
             <FilaPdf cabecera fila={{}} />
             {grupo.map((fila) => (
@@ -148,13 +156,7 @@ export function ReporteRegistroPdf({ filas, generadoEn, firma, sello }) {
             ))}
           </View>
           {indice === paginas.length - 1 && <BloqueFinalPdf firma={firma} sello={sello} />}
-          {indice === paginas.length - 1 && (
-            <Text style={estilos.nota}>
-              Se incluyen las membresías 2027 con pago confirmado. La fecha corresponde a la
-              confirmación del pago. El nombre mostrado es la persona que registró el destacamento
-              al pagar.
-            </Text>
-          )}
+          {indice === paginas.length - 1 && !!nota && <Text style={estilos.nota}>{nota}</Text>}
           <View style={estilos.pie} fixed>
             <Text>Generado el {fechaReporteRegistro(generadoEn)}</Text>
             <Text>
@@ -179,14 +181,20 @@ async function imagenDeReporte(ruta) {
   });
 }
 
-export async function crearReporteRegistroPdf(filas, generadoEn, imagenes) {
+export async function crearReporteRegistroPdf(filas, generadoEn, imagenes, opciones = {}) {
   const [firma, sello] =
     imagenes ||
     (await Promise.all([
-    imagenDeReporte('/marca/reportes/firma-eliezer-garcia.png'),
-    imagenDeReporte('/marca/reportes/sello-oficina-nacional.png'),
+      imagenDeReporte('/marca/reportes/firma-eliezer-garcia.png'),
+      imagenDeReporte('/marca/reportes/sello-oficina-nacional.png'),
     ]));
   return pdf(
-    <ReporteRegistroPdf filas={filas} generadoEn={generadoEn} firma={firma} sello={sello} />
+    <ReporteRegistroPdf
+      filas={filas}
+      generadoEn={generadoEn}
+      firma={firma}
+      sello={sello}
+      {...opciones}
+    />
   ).toBlob();
 }

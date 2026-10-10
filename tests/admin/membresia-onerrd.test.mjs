@@ -201,3 +201,58 @@ test('cuentas: la cuenta única de antes (banco + rnc) se lee como la primera', 
   assert.equal(varias.cuentas.length, 2, 'la vacía se quita; manda la lista nueva');
   assert.equal(cuentasListas(varias).length, 1, 'sin titular ni número no se enseña');
 });
+
+test('cierre de inscripciones: sin fecha no cierra; pasada la fecha, cierra si así se eligió', async () => {
+  const { inscripcionesCerradas, aIsoSantoDomingo } =
+    await import('../../src/utils/membresia-onerrd.mjs');
+  const sinFecha = sanearConfiguracionMembresia({});
+  assert.equal(sinFecha.cierre.fecha, '');
+  assert.equal(inscripcionesCerradas(sinFecha), false);
+  const fecha = '2026-12-31T23:59:59-04:00';
+  const config = sanearConfiguracionMembresia({ cierre: { fecha } });
+  assert.equal(config.cierre.fecha, fecha);
+  assert.equal(inscripcionesCerradas(config, Date.parse(fecha) - 1000), false);
+  assert.equal(inscripcionesCerradas(config, Date.parse(fecha) + 1000), true);
+  const soloCuenta = sanearConfiguracionMembresia({ cierre: { fecha, cerrarAlTerminar: false } });
+  assert.equal(inscripcionesCerradas(soloCuenta, Date.parse(fecha) + 1000), false);
+  // Se guarda siempre en hora de Santo Domingo.
+  assert.equal(aIsoSantoDomingo('2027-01-01T03:59:59Z'), fecha);
+  assert.equal(sanearConfiguracionMembresia({ cierre: { fecha: 'mañana' } }).cierre.fecha, '');
+});
+
+test('vigencia: «fecha actual + 1 año» por defecto; apagada, el rango fijo', async () => {
+  const { vigenciaAplicada } = await import('../../src/utils/membresia-onerrd.mjs');
+  const hoy = new Date('2026-10-09T15:00:00Z');
+  assert.deepEqual(vigenciaAplicada(sanearConfiguracionMembresia({}), hoy), {
+    desde: '09/10/2026',
+    hasta: '09/10/2027',
+  });
+  const fija = sanearConfiguracionMembresia({
+    vigencia: { automatica: false, desde: '01/01/2027', hasta: '31/12/2027' },
+  });
+  assert.deepEqual(vigenciaAplicada(fija, hoy), { desde: '01/01/2027', hasta: '31/12/2027' });
+  // 29 de febrero → 28 del año siguiente.
+  assert.equal(
+    vigenciaAplicada(
+      fija.vigencia.automatica ? fija : sanearConfiguracionMembresia({}),
+      new Date('2028-02-29T15:00:00Z')
+    ).hasta,
+    '28/02/2029'
+  );
+});
+
+test('inscritos 2026: por número del destacamento; lista vacía, decide el padrón', async () => {
+  const { inscritoEn2026 } = await import('../../src/utils/membresia-onerrd.mjs');
+  assert.equal(inscritoEn2026(sanearConfiguracionMembresia({}), '18'), null);
+  const config = sanearConfiguracionMembresia({
+    inscritos2026: [
+      { registro: '025', numero: '18', fecha: '2026-01-27', region: 'Central' },
+      { registro: '002N', numero: '#284', marca: '*', fecha: '2025-10-01' },
+      { registro: 'x', numero: '' },
+    ],
+  });
+  assert.equal(config.inscritos2026.length, 2);
+  assert.equal(inscritoEn2026(config, '018'), true);
+  assert.equal(inscritoEn2026(config, '284'), true);
+  assert.equal(inscritoEn2026(config, '19'), false);
+});

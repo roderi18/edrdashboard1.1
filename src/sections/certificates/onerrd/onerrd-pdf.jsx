@@ -20,23 +20,34 @@ import {
 // ancho desde el navegador: lo que se ve en pantalla es lo que sale.
 // ----------------------------------------------------------------------
 
-Font.register({
-  family: 'OnerrdRoboto',
-  fonts: [
-    { src: '/fuentes/Roboto-Regular.ttf', fontWeight: 400 },
-    { src: '/fuentes/Roboto-Bold.ttf', fontWeight: 700 },
-  ],
-});
+// `base`: dónde están los archivos.
+const registrarFuentesOnerrd = (base) => {
+  Font.register({
+    family: 'OnerrdRoboto',
+    fonts: [
+      { src: `${base}/Roboto-Regular.ttf`, fontWeight: 400 },
+      { src: `${base}/Roboto-Bold.ttf`, fontWeight: 700 },
+    ],
+  });
 
-Font.register({
-  family: 'OnerrdOswald',
-  fonts: Object.entries(PESOS_ONERRD).map(([peso, { archivo }]) => ({
-    src: `/fuentes/Oswald-${archivo}.ttf`,
-    fontWeight: Number(peso),
-  })),
-});
+  Font.register({
+    family: 'OnerrdOswald',
+    fonts: Object.entries(PESOS_ONERRD).map(([peso, { archivo }]) => ({
+      src: `${base}/Oswald-${archivo}.ttf`,
+      fontWeight: Number(peso),
+    })),
+  });
 
-Font.register({ family: 'OnerrdAnton', src: '/fuentes/Anton-Regular.ttf' });
+  Font.register({ family: 'OnerrdAnton', src: `${base}/Anton-Regular.ttf` });
+};
+
+// Una sola vez, al cargar el módulo: en el navegador por la ruta pública; en el
+// servidor (emisión automática de un pago con PayPal) desde la carpeta en disco,
+// porque allí no hay «/fuentes» que pedir. Registrar dos veces la misma familia
+// suma archivos en vez de reemplazarlos, por eso no se vuelve a llamar desde fuera.
+registrarFuentesOnerrd(
+  typeof window === 'undefined' ? `${process.cwd()}/public/fuentes` : '/fuentes'
+);
 
 // Sin partir palabras con guiones: un nombre propio cortado "Gui-llén" en un
 // certificado no se acepta.
@@ -198,3 +209,7 @@ function CertificadoOnerrd({
 export async function generarPdfOnerrd(props) {
   return pdf(<CertificadoOnerrd {...props} />).toBlob();
 }
+
+// El mismo documento como elemento, para que el servidor lo convierta en PDF
+// (`renderToBuffer`) sin pasar por un Blob de navegador.
+export const elementoCertificadoOnerrd = (props) => <CertificadoOnerrd {...props} />;

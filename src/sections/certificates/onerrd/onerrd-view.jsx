@@ -23,11 +23,11 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { direccionPublica } from 'src/utils/direccion-publica.mjs';
+import { valoresDeMembresia } from 'src/utils/valores-membresia-onerrd.mjs';
 import {
   venceDeValoresOnerrd,
   LINEA_FACTURA_INICIAL,
   ESTADOS_FACTURA_ONERRD,
-  textoEnvioFacturaOnerrd,
   facturarAPropuestoOnerrd,
   disenoFacturaParaGuardar,
   VARIABLE_REGISTRO_FACTURA,
@@ -215,69 +215,6 @@ const valoresIniciales = () => ({
   facturaEstado: 'pagada',
   facturaLineas: [{ ...LINEA_FACTURA_INICIAL }],
 });
-
-// Los datos de "Datos del registro" de una membresía de la landing: el
-// destacamento (con lo que corrigió quien pagó), las líneas de la factura y el
-// pie con desde dónde y a quién se envía. Lo usan "Ver y editar" y la emisión
-// automática al confirmar el pago.
-const sinTildeOnerrd = (t) =>
-  String(t || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-function valoresDeMembresia(m, remitente = '') {
-  const d = {
-    ...(m.destacamento || {}),
-    ...Object.fromEntries(
-      Object.entries(m.correcciones || {}).map(([campo, c]) => [campo, c.despues])
-    ),
-  };
-  const region = REGIONES_ONERRD.find((r) =>
-    sinTildeOnerrd(d.region).includes(sinTildeOnerrd(r.nombre).replace('region ', ''))
-  );
-  const plan = m.plan || {};
-  // La membresía corre desde el momento en que se colocó el pago, un año: la
-  // fecha del registro es esa, y la factura vence el mismo día del año siguiente.
-  const colocada = m.creadoEn ? dayjs(m.creadoEn) : null;
-  const fechas = colocada?.isValid()
-    ? {
-        fecha: colocada.hour(12).minute(0).second(0).millisecond(0).toISOString(),
-        facturaVence: colocada
-          .add(1, 'year')
-          .hour(12)
-          .minute(0)
-          .second(0)
-          .millisecond(0)
-          .toISOString(),
-      }
-    : {};
-  return {
-    ...fechas,
-    numeroDestacamento: d.numero || '',
-    nombreDestacamento: d.nombre || '',
-    iglesia: d.iglesia || '',
-    pastor: d.pastor || '',
-    coordinador: d.coordinador || '',
-    registradoPor: m.registradoPor?.nombre || '',
-    facturaA: m.registradoPor?.nombre || '',
-    region: region?.id || '',
-    facturaEstado: ['confirmada', 'pendiente_revision'].includes(m.estado) ? 'pagada' : 'pendiente',
-    facturaLineas: [
-      {
-        descripcion: 'Cuota de registro',
-        cantidad: '1',
-        precio: String(plan.cuotaRegistro ?? m.montoRd ?? ''),
-      },
-      ...(plan.rriTrac
-        ? [{ descripcion: 'RRI TRaC', cantidad: '1', precio: String(plan.rriTrac) }]
-        : []),
-    ],
-    facturaDescuento: plan.descuento ? String(plan.descuento) : '',
-    facturaCodigo: plan.descuento ? 'Fidelidad' : '',
-    ...textoEnvioFacturaOnerrd({ desde: remitente, para: m.contacto?.email || '' }),
-  };
-}
 
 export function OnerrdView() {
   const { user } = useAuthContext();
